@@ -171,16 +171,16 @@ const label = heroPhoneLabel();
       --anchor: calc(50svh - var(--chrome-h) / 2);
       translate: 0 calc(-50% + var(--hero-lift, 0px));
     }
-    /* The spoken line floats beside the stage phone, its right edge 28px left of the phone,
+    /* The spoken line floats beside the stage phone, its right edge 24px left of the phone,
        18% down. Its size follows the room between the headline and the phone (the H1's
        longest line is about 4.65em of Display XL), so it never crowds the copy. */
     html.stage-on #hero .hero-said--stage {
       --copy-r: calc(max(0px, (100vw - var(--maxw)) / 2 - var(--gutter)) + var(--gutter) + 4.65 * var(--text-xl));
-      --room: calc(var(--stage-x) - 28px - 48px - var(--copy-r));
+      --room: calc(var(--stage-x) - 24px - 48px - var(--copy-r));
       display: grid;
       position: absolute;
       top: 18%;
-      right: calc(100% - var(--stage-x) + 28px);
+      right: calc(100% - var(--stage-x) + 24px);
       justify-items: end;
       text-align: right;
       width: max-content;

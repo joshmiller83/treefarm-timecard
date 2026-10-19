@@ -238,7 +238,7 @@ test.describe('the hero on the stage (desktop)', () => {
       await expect(said).toBeVisible();
       const s = (await said.boundingBox())!;
       const phone = (await page.locator('[data-stage] [data-phone]').boundingBox())!;
-      // Right edge 28px left of the phone, 18% down the frame.
+      // Right edge 24px left of the phone (the brief), 18% down the frame.
       expect(phone.x - (s.x + s.width)).toBeGreaterThanOrEqual(20);
       expect(phone.x - (s.x + s.width)).toBeLessThanOrEqual(40);
       // No overlap with the eyebrow, the H1's lines or the body.
