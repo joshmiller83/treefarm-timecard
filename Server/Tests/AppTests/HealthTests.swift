@@ -16,6 +16,14 @@ struct HealthTests {
         }
     }
 
+    @Test func theRootRedirectsToTheWebsite() async throws {
+        try await withTestApp { app, _ in
+            let res = try await app.client2.send(.GET, "/")
+            #expect(res.status == .found)
+            #expect(res.headers.first(name: .location) == "https://treefarm.joshnliz.com")
+        }
+    }
+
     @Test func unknownRoutesAnswerWithAJSONError() async throws {
         try await withTestApp { app, _ in
             let res = try await app.client2.send(.GET, "/v1/nope")
