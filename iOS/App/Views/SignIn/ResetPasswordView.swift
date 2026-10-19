@@ -52,7 +52,7 @@ struct ResetPasswordView: View {
         }
         .scrollDismissesKeyboard(.interactively)
         .screenBackground()
-        .navigationTitle("Reset code")
+        .navigationTitle("Reset Code")
         .navigationBarTitleDisplayMode(.inline)
     }
 

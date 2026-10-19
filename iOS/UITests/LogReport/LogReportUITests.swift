@@ -181,7 +181,7 @@ final class LogReportUITests: XCTestCase {
         // Pick dates opens on the period showing; applying it keeps those days.
         let label = app.staticTexts["report-range-label"].label
         app.buttons["report-pick-dates"].tap()
-        XCTAssertTrue(app.navigationBars["Pick dates"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Pick Dates"].waitForExistence(timeout: 5))
         XCTAssertEqual(app.staticTexts["pick-summary"].label, label)
         app.buttons["pick-apply"].tap()
         XCTAssertTrue(app.staticTexts["Your dates"].waitForExistence(timeout: 5))

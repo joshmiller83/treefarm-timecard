@@ -153,14 +153,9 @@ struct ReportView: View {
                     pickingDates = true
                 } label: {
                     Label("Pick dates", systemImage: "calendar")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(range == .custom ? Palette.firInk : Palette.firText)
-                        .padding(.horizontal, 14)
-                        .frame(maxWidth: typeSize.isAccessibilitySize ? .infinity : nil, minHeight: GloveButtonStyle.minHeight)
-                        .background(range == .custom ? Palette.fir : Palette.firSoft, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                        .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(range == .custom ? GloveButtonStyle(kind: .primary) : GloveButtonStyle(kind: .secondary))
+                .fixedSize(horizontal: !typeSize.isAccessibilitySize, vertical: false)
                 .accessibilityAddTraits(range == .custom ? [.isSelected] : [])
                 .accessibilityIdentifier("report-pick-dates")
             }
@@ -252,7 +247,7 @@ struct PickDatesSheet: View {
             .environment(\.timeZone, calendar.timeZone)
             // The farm's weeks: Monday first on a Monday farm, as on the Log.
             .environment(\.calendar, calendar.calendar)
-            .navigationTitle("Pick dates")
+            .navigationTitle("Pick Dates")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }

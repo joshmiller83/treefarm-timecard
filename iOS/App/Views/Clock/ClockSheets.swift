@@ -62,7 +62,7 @@ struct BreakReasonSheet: View {
                 .padding(20)
             }
             .screenBackground()
-            .navigationTitle("Other break")
+            .navigationTitle("Other Break")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -135,7 +135,7 @@ struct StartTimeSheet: View {
                 .padding(20)
             }
             .screenBackground()
-            .navigationTitle("Change start time")
+            .navigationTitle("Change Start Time")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

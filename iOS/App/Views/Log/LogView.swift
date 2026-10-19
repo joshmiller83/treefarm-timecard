@@ -61,19 +61,17 @@ struct LogView: View {
                     .accessibilityIdentifier("add-shift")
                     // Glove-size, beside the other button, rather than a small toolbar icon.
                     // Its own row with words at the largest sizes, so "Add a shift" isn't squeezed.
-                    Button {
-                        withAnimation(.easeInOut(duration: 0.2)) { showPay.toggle() }
-                    } label: {
-                        if typeSize.isAccessibilitySize {
+                    // In words, like the Clock tab's; nothing to hide in an empty log.
+                    if !weeks.isEmpty {
+                        Button {
+                            withAnimation(.easeInOut(duration: 0.2)) { showPay.toggle() }
+                        } label: {
                             Label(showPay ? "Hide pay" : "Show pay", systemImage: showPay ? "eye.slash" : "eye")
-                        } else {
-                            Image(systemName: showPay ? "eye.slash" : "eye")
                         }
+                        .buttonStyle(.gloveSecondary)
+                        .fixedSize(horizontal: !typeSize.isAccessibilitySize, vertical: false)
+                        .accessibilityIdentifier("log-pay-toggle")
                     }
-                    .buttonStyle(.gloveSecondary)
-                    .fixedSize(horizontal: !typeSize.isAccessibilitySize, vertical: false)
-                    .accessibilityLabel(showPay ? "Hide pay" : "Show pay")
-                    .accessibilityIdentifier("log-pay-toggle")
                 }
 
                 if weeks.isEmpty {

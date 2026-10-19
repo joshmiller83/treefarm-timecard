@@ -280,16 +280,24 @@ struct MarkingForBar: View {
             .font(.footnote)
             .frame(maxWidth: .infinity, alignment: .leading)
             if let button {
-                Button(button, action: action)
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(Palette.sapInk)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 14)
-                    .frame(minWidth: GloveButtonStyle.minHeight, minHeight: GloveButtonStyle.minHeight)
-                    .background(Palette.sapSoft, in: Capsule())
-                    .overlay(Capsule().strokeBorder(Palette.sap, lineWidth: 1))
-                    .contentShape(Capsule())
-                    .accessibilityIdentifier(id ?? "")
+                if id == "trees-fix-times" {
+                    // The same button the Clock tab shows for a shift left open.
+                    Button(button, action: action)
+                        .buttonStyle(.glovePrimary)
+                        .fixedSize(horizontal: !typeSize.isAccessibilitySize, vertical: false)
+                        .accessibilityIdentifier(id ?? "")
+                } else {
+                    Button(button, action: action)
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(Palette.sapInk)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 14)
+                        .frame(minWidth: GloveButtonStyle.minHeight, minHeight: GloveButtonStyle.minHeight)
+                        .background(Palette.sapSoft, in: Capsule())
+                        .overlay(Capsule().strokeBorder(Palette.sap, lineWidth: 1))
+                        .contentShape(Capsule())
+                        .accessibilityIdentifier(id ?? "")
+                }
             }
         }
         .padding(.horizontal, 4)
