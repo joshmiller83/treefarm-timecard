@@ -243,7 +243,7 @@ describe('tree states from the ledger', () => {
     const text = zoomSummary();
     expect(text).toContain('Rows 28 to 36 shaped today in gold');
     expect(text).toContain('rows 37 to 40 not yet shaped');
-    expect(text).toContain('row 31, tree 4: Replant');
+    expect(text).toContain('row 31, tree 4: Needs attention');
     expect(zoomSummary({ block: 3, from: 6, to: 16 }, MOMENTS.synced)).toContain('Rows 6 to 10 shaped earlier in green, row 11 shaped today in gold, row 12 shaped earlier in green');
   });
 

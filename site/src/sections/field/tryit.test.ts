@@ -49,7 +49,7 @@ describe('Try it: names for screen readers', () => {
     expect(cellLabel(37, 4, EMPTY)).toBe('Row 37, tree 4: not yet');
     expect(cellLabel(30, 1, TODAY)).toBe('Row 30, tree 1: shaped today');
     expect(cellLabel(12, 9, EARLIER_S)).toBe('Row 12, tree 9: shaped earlier');
-    expect(cellLabel(OLD_NOTE.row, OLD_NOTE.tree, TODAY, OLD_NOTE.flag)).toBe('Row 31, tree 4: shaped today. Note: Replant');
+    expect(cellLabel(OLD_NOTE.row, OLD_NOTE.tree, TODAY, OLD_NOTE.flag)).toBe('Row 31, tree 4: shaped today. Note: Needs attention');
     expect(cellLabel(37, 2, EMPTY, null, true)).toBe('Row 37, tree 2: not yet. Fill starts here');
   });
   it('says what a row holds', () => {

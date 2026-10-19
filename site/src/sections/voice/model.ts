@@ -84,7 +84,7 @@ export const EXCHANGES: readonly Exchange[] = [
   ]),
   exchange('next', [
     part('next', SIRI.nextRow.at, [said(SIRI.nextRow.said), reply(SIRI.nextRow.reply)], {
-      caption: 'It marks the next row you haven’t done and moves you on. When the block changes, it says the block out loud.',
+      caption: 'It marks the next open row and moves you on. When the block changes, it says the block out loud.',
     }),
   ]),
   exchange('lunch', [

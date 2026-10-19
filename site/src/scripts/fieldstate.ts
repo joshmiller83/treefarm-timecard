@@ -224,7 +224,7 @@ export function countStatus(s: Uint8Array): { empty: number; earlier: number; to
   return c;
 }
 
-/** Tree notes that exist at a minute (the old Replant note always; Alex's from 2:33 PM). */
+/** Tree notes that exist at a minute (Sam's older note always; Alex's from 2:33 PM). */
 export function notesAt(at: Minute): TreeNote[] {
   return at >= MOMENTS.treeNote ? [OLD_NOTE, TREE_NOTE] : [OLD_NOTE];
 }

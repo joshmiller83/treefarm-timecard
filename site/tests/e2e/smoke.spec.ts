@@ -52,7 +52,7 @@ test('has the meta, social and structured data', async ({ page }) => {
   await expect(page.locator('meta[name="viewport"]')).toHaveAttribute('content', 'width=device-width, initial-scale=1');
   const ld = JSON.parse((await page.locator('script[type="application/ld+json"]').textContent()) ?? '{}');
   const types = ld['@graph'].map((n: { '@type': string }) => n['@type']);
-  expect(types).toEqual(['SoftwareSourceCode', 'SoftwareApplication']);
+  expect(types).toEqual(['SoftwareSourceCode']);
   const json = JSON.stringify(ld);
   expect(json).not.toMatch(/aggregateRating|offers|review|price/i);
   for (const path of ['/og.png', '/favicon.svg', '/favicon.ico', '/apple-touch-icon.png', '/robots.txt', '/sitemap-index.xml', '/CNAME']) {

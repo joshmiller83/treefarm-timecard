@@ -101,7 +101,7 @@ export const bylineSpoken = (note: TreeNote = TREE_NOTE, at = MOMENTS.treeNote) 
 /** The section phone's label (its final state: the tree note sheet over the map). */
 export const PHONE_LABEL = `Time Card tree note for block ${TREE_NOTE.block}, row ${TREE_NOTE.row}, tree ${TREE_NOTE.tree}: ${TREE_NOTE.flag}. ${TREE_NOTE.text} ${bylineSpoken()}. The map shows a flag on that tree.`;
 
-export const CAPTION = 'A tree note with a flag, shared with the crew and kept across seasons.';
+export const CAPTION = 'A tree note with a flag, shared with the crew.';
 
 /** Alt text for each screen state (used when a real capture replaces the recreation). */
 export const ALTS = {

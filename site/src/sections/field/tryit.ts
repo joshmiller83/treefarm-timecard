@@ -66,7 +66,7 @@ const STATE_WORDS: Record<TreeState, string> = { 0: 'not yet', 1: 'shaped earlie
 /** The data-s attribute the CSS paints: ring, earlier or today. */
 export const STATE_ATTR: Record<TreeState, 'ring' | 'earlier' | 'today'> = { 0: 'ring', 1: 'earlier', 2: 'today' };
 
-/** 'Row 31, tree 4: shaped today. Note: Replant' */
+/** 'Row 31, tree 4: shaped today. Note: Needs attention' */
 export function cellLabel(row: number, tree: number, s: TreeState, note?: Flag | null, anchor = false): string {
   return `Row ${row}, tree ${tree}: ${STATE_WORDS[s]}${note ? `. Note: ${note}` : ''}${anchor ? '. Fill starts here' : ''}`;
 }
@@ -81,7 +81,7 @@ export function rowLabel(t: TryIt, row: number): string {
   return `Row ${row}: ${done} of ${ACROSS} shaped`;
 }
 
-/** Tree notes inside the grid's rows at 2:16 PM (the older Replant note on row 31, tree 4). */
+/** Tree notes inside the grid's rows at 2:16 PM (Sam's older note on row 31, tree 4). */
 export const notesHere = () =>
   notesAt(MOMENTS.field).filter((n) => n.block === ZOOM_TARGET.block && n.row >= GRID.from && n.row <= GRID.to);
 

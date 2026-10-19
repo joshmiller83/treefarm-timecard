@@ -139,7 +139,7 @@ test.describe('reduced motion: the static final state', () => {
     await expect(sec.locator('[data-controls]')).toBeVisible();
     const foot = sec.locator('[data-ls-footnote]');
     await expect(foot).toContainText('A Live Activity can stay up for 8 hours. Time Card reminds you before it runs out.');
-    await expect(foot).toContainText('The Action button is on iPhones that have one.');
+    await expect(foot).toContainText('Not every iPhone has an Action button.');
     await expect(foot).toContainText('Control Center controls need iOS 18 or later.');
 
     // Desktop-only callouts and the mobile tap card stay out of the static page.

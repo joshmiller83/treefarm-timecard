@@ -86,8 +86,8 @@ export const CHAPTERS: readonly Chapter[] = [
   {
     id: 'notes',
     navLabel: 'Notes',
-    ribbonTag: '2:30 PM · Break',
-    tagLabel: 'Break',
+    ribbonTag: '2:30 PM · Notes',
+    tagLabel: 'Notes',
     minute: MOMENTS.break,
     eyebrow: '2:30 PM · On a break',
     headline: 'Say what you see.',
