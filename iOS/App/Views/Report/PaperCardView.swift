@@ -66,6 +66,7 @@ struct PaperCardView: View {
                     title
                     farm
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
             ViewThatFits(in: .horizontal) {
                 HStack(alignment: .firstTextBaseline) {
@@ -77,6 +78,7 @@ struct PaperCardView: View {
                     who
                     range
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
         .padding(.horizontal, 16)
@@ -234,6 +236,7 @@ struct PaperCardView: View {
                     totalLabel
                     totalSum
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
             .padding(.top, 12)
             .padding(.bottom, 9)
@@ -275,6 +278,7 @@ struct PaperCardView: View {
                 footnote
                 prepared
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .font(.caption2)
         .foregroundStyle(Ink.muted)

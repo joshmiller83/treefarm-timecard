@@ -123,7 +123,7 @@ private struct WeekHeader: View {
                         .foregroundStyle(Palette.muted)
                 }
             }
-            HStack(alignment: .top, spacing: 12) {
+            AdaptiveStack(spacing: 12, alignment: .top) {
                 StatColumn(label: "Hours", value: week.hours)
                 if showPay {
                     StatColumn(label: "Pay", value: week.pay)
@@ -145,27 +145,30 @@ private struct ShiftCard: View {
     var showPay: Bool
     var edit: () -> Void
     var trees: () -> Void
+    @Environment(\.dynamicTypeSize) private var typeSize
+    @ScaledMetric(relativeTo: .subheadline) private var iconWidth: CGFloat = 18
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .firstTextBaseline) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(row.day)
-                        .font(.tcHeadline)
-                        .foregroundStyle(Palette.ink)
+            if typeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: 6) {
+                    day
                     times
-                }
-                Spacer(minLength: 8)
-                VStack(alignment: .trailing, spacing: 4) {
-                    HStack(alignment: .firstTextBaseline, spacing: 3) {
-                        Text(row.hours).numberStyle(.stat)
-                        Text("hrs").font(.subheadline)
+                    HStack(alignment: .firstTextBaseline, spacing: 12) {
+                        hours
+                        if showPay { pay }
                     }
-                    .foregroundStyle(Palette.ink)
-                    if showPay {
-                        Text(row.pay)
-                            .numberStyle(.small)
-                            .foregroundStyle(Palette.muted)
+                }
+            } else {
+                HStack(alignment: .firstTextBaseline) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        day
+                        times
+                    }
+                    Spacer(minLength: 8)
+                    VStack(alignment: .trailing, spacing: 4) {
+                        hours
+                        if showPay { pay }
                     }
                 }
             }
@@ -198,7 +201,7 @@ private struct ShiftCard: View {
             .font(.subheadline)
             .foregroundStyle(Palette.ink)
 
-            HStack(spacing: 10) {
+            AdaptiveStack(spacing: 10) {
                 Button(action: edit) {
                     Label("Edit", systemImage: "pencil")
                 }
@@ -226,12 +229,35 @@ private struct ShiftCard: View {
         .accessibilityIdentifier("log-shift-row")
     }
 
+    private var day: some View {
+        Text(row.day)
+            .font(.tcHeadline)
+            .foregroundStyle(Palette.ink)
+    }
+
+    private var hours: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 3) {
+            Text(row.hours).numberStyle(.stat)
+            Text("hrs").font(.subheadline)
+        }
+        .foregroundStyle(Palette.ink)
+    }
+
+    private var pay: some View {
+        Text(row.pay)
+            .numberStyle(.small)
+            .foregroundStyle(Palette.muted)
+    }
+
+    /// "7:02 AM – 3:31 PM" as one piece of text, so large sizes wrap at the dash, not inside a time.
     private var times: some View {
-        HStack(spacing: 6) {
-            Text(row.clockIn)
-            Text("–").foregroundStyle(Palette.muted)
-            Text(row.clockOut ?? "now")
-                .foregroundStyle(row.clockOut == nil ? Palette.firText : Palette.ink)
+        func whole(_ s: String) -> String { s.replacingOccurrences(of: " ", with: "\u{00A0}") }
+        let out = Text(whole(row.clockOut ?? "now")).foregroundStyle(row.clockOut == nil ? Palette.firText : Palette.ink)
+        return AdaptiveStack(spacing: 6, alignment: .firstTextBaseline) {
+            Text("\(whole(row.clockIn))\u{00A0}– \(out)")
+                .numberStyle(.body)
+                .foregroundStyle(Palette.ink)
+                .fixedSize(horizontal: false, vertical: true)
             if row.endsNextDay {
                 Text("next day")
                     .font(.caption.weight(.semibold))
@@ -241,8 +267,6 @@ private struct ShiftCard: View {
                     .background(Palette.sapSoft, in: Capsule())
             }
         }
-        .numberStyle(.body)
-        .foregroundStyle(Palette.ink)
     }
 
     private func detail<Content: View>(icon: String, tint: Color, @ViewBuilder content: () -> Content) -> some View {
@@ -250,7 +274,7 @@ private struct ShiftCard: View {
             Image(systemName: icon)
                 .font(.footnote.weight(.semibold))
                 .foregroundStyle(tint)
-                .frame(width: 18)
+                .frame(width: iconWidth)
                 .accessibilityHidden(true)
             content()
                 .fixedSize(horizontal: false, vertical: true)

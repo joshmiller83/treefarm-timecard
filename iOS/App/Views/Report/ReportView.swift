@@ -11,6 +11,7 @@ struct ReportView: View {
     @State private var pickingDates = false
     /// Whose time card an admin is looking at; nil = their own.
     @State private var personId: UUID?
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         NavigationStack {
@@ -103,6 +104,7 @@ struct ReportView: View {
                     Text(name)
                         .font(.body.weight(.semibold))
                         .foregroundStyle(Palette.ink)
+                        .multilineTextAlignment(.leading)
                 }
                 Spacer()
                 Image(systemName: "chevron.up.chevron.down")
@@ -111,6 +113,7 @@ struct ReportView: View {
                     .accessibilityHidden(true)
             }
             .padding(.horizontal, 14)
+            .padding(.vertical, 6)
             .frame(minHeight: GloveButtonStyle.minHeight + 4)
             .background(Palette.surface, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
             .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Palette.line, lineWidth: 1))
@@ -126,9 +129,9 @@ struct ReportView: View {
             GloveSegmented(options: [(ReportRange.thisWeek, "This week"), (.lastWeek, "Last week"), (.thisMonth, "This month")],
                            selection: Binding(get: { range }, set: { range = $0 }),
                            identifier: "report-range")
-            HStack(spacing: 10) {
+            AdaptiveStack(spacing: 10) {
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(range == .custom ? "Your dates" : range.title)
+                    Text(range == .custom ? "Your dates" : "Dates")
                         .font(.caption)
                         .foregroundStyle(Palette.muted)
                     Text(card.range)
@@ -136,7 +139,7 @@ struct ReportView: View {
                         .foregroundStyle(Palette.ink)
                         .accessibilityIdentifier("report-range-label")
                 }
-                Spacer(minLength: 8)
+                if !typeSize.isAccessibilitySize { Spacer(minLength: 8) }
                 Button {
                     pickingDates = true
                 } label: {
@@ -144,7 +147,7 @@ struct ReportView: View {
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(range == .custom ? Palette.firInk : Palette.firText)
                         .padding(.horizontal, 14)
-                        .frame(minHeight: GloveButtonStyle.minHeight)
+                        .frame(maxWidth: typeSize.isAccessibilitySize ? .infinity : nil, minHeight: GloveButtonStyle.minHeight)
                         .background(range == .custom ? Palette.fir : Palette.firSoft, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                         .contentShape(Rectangle())
                 }
@@ -156,7 +159,7 @@ struct ReportView: View {
     }
 
     private func stats(_ report: ReportContent) -> some View {
-        HStack(alignment: .top, spacing: 12) {
+        AdaptiveStack(spacing: 12, alignment: .top) {
             StatColumn(label: "Hours", value: report.hours, identifier: "report-hours")
             StatColumn(label: "Trees", value: report.trees, identifier: "report-trees")
             StatColumn(label: report.days == 1 ? "Day" : "Days", value: "\(report.days)", identifier: "report-days")
@@ -166,7 +169,7 @@ struct ReportView: View {
 
     private func exports(_ report: ReportContent) -> some View {
         let name = report.card.fileName
-        return HStack(spacing: 10) {
+        return AdaptiveStack(spacing: 10) {
             ShareLink(item: report.pdfFile, preview: SharePreview(name, image: Image(systemName: "doc.richtext"))) {
                 Label("Export PDF", systemImage: "square.and.arrow.up")
             }
@@ -176,7 +179,7 @@ struct ReportView: View {
                 Label("CSV", systemImage: "tablecells")
             }
             .buttonStyle(.gloveSecondary)
-            .frame(maxWidth: 130)
+            .frame(maxWidth: typeSize.isAccessibilitySize ? .infinity : 130)
             .accessibilityLabel("Export CSV")
             .accessibilityIdentifier("export-csv")
         }
@@ -206,7 +209,7 @@ struct PickDatesSheet: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     VStack(spacing: 4) {
-                        PickerRow(title: "From", value: Fmt.day(noon(from), calendar), isExpanded: open == .from,
+                        PickerRow(title: "From", value: Fmt.day(noon(from), calendar), monospaced: false, isExpanded: open == .from,
                                   identifier: "pick-from", toggle: { open = open == .from ? nil : .from }) {
                             DatePicker("From", selection: fromBinding, displayedComponents: .date)
                                 .datePickerStyle(.graphical)
@@ -214,7 +217,7 @@ struct PickDatesSheet: View {
                                 .labelsHidden()
                         }
                         Divider().overlay(Palette.line)
-                        PickerRow(title: "To", value: Fmt.day(noon(to), calendar), isExpanded: open == .to,
+                        PickerRow(title: "To", value: Fmt.day(noon(to), calendar), monospaced: false, isExpanded: open == .to,
                                   identifier: "pick-to", toggle: { open = open == .to ? nil : .to }) {
                             DatePicker("To", selection: toBinding, in: noon(from)..., displayedComponents: .date)
                                 .datePickerStyle(.graphical)

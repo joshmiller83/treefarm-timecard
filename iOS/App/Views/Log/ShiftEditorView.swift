@@ -119,7 +119,10 @@ private struct EditorForm: View {
             }
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            saveBar
+            // While "Delete this shift?" is up, its two answers are the only big buttons.
+            if model.stage == .editing {
+                saveBar
+            }
         }
         .interactiveDismissDisabled(model.draft != model.initialDraft)
     }
@@ -194,6 +197,8 @@ private struct EditorForm: View {
                         .padding(.horizontal, 12)
                         .padding(.vertical, 8)
                         .background(open == .date ? Palette.firSoft : Palette.stripe, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .strokeBorder(open == .date ? Palette.fir.opacity(0.35) : Palette.line, lineWidth: 1))
                         .frame(minHeight: GloveButtonStyle.minHeight)
                         .contentShape(Rectangle())
                 }

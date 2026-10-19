@@ -7,6 +7,8 @@ struct PickerRow<Picker: View>: View {
     var value: String
     /// A small tag after the value, such as "Next day".
     var tag: String? = nil
+    /// Times read in Plex Mono; dates in the body font.
+    var monospaced = true
     var isExpanded: Bool
     var identifier: String
     var toggle: () -> Void
@@ -28,18 +30,24 @@ struct PickerRow<Picker: View>: View {
                             .padding(.vertical, 3)
                             .background(Palette.sapSoft, in: Capsule())
                     }
-                    Text(value)
-                        .numberStyle(.body)
-                        .foregroundStyle(isExpanded ? Palette.firText : Palette.ink)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-                        .background(isExpanded ? Palette.firSoft : Palette.stripe, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    Group {
+                        if monospaced {
+                            Text(value).numberStyle(.body)
+                        } else {
+                            Text(value).font(.body.weight(.medium))
+                        }
+                    }
+                    .foregroundStyle(isExpanded ? Palette.firText : Palette.ink)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(isExpanded ? Palette.firSoft : Palette.stripe, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .strokeBorder(isExpanded ? Palette.fir.opacity(0.35) : Palette.line, lineWidth: 1))
                 }
                 .frame(minHeight: GloveButtonStyle.minHeight)
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .accessibilityElement(children: .ignore)
             .accessibilityLabel(title)
             .accessibilityValue([value, tag].compactMap { $0 }.joined(separator: ", "))
             .accessibilityHint(isExpanded ? "Closes the picker" : "Opens a picker")
@@ -136,25 +144,62 @@ extension View {
 }
 
 /// A labeled number for totals: "HOURS  38.25".
+/// At the largest text sizes it becomes a row (label left, number right) inside an
+/// `AdaptiveStack`, so numbers are never squeezed or cut.
 struct StatColumn: View {
     var label: String
     var value: String
     var identifier: String? = nil
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(label.uppercased())
-                .font(.caption2.weight(.semibold))
-                .tracking(0.6)
-                .foregroundStyle(Palette.muted)
-            Text(value)
-                .numberStyle(.stat)
-                .foregroundStyle(Palette.ink)
-                .lineLimit(1)
-                .minimumScaleFactor(0.6)
+        Group {
+            if typeSize.isAccessibilitySize {
+                HStack(alignment: .firstTextBaseline) {
+                    caption
+                    Spacer(minLength: 8)
+                    number
+                }
+            } else {
+                VStack(alignment: .leading, spacing: 2) {
+                    caption
+                    number
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
+                }
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier(identifier ?? "stat-\(label.lowercased())")
+    }
+
+    private var caption: some View {
+        Text(label.uppercased())
+            .font(.caption2.weight(.semibold))
+            .tracking(0.6)
+            .foregroundStyle(Palette.muted)
+    }
+
+    private var number: some View {
+        Text(value)
+            .numberStyle(.stat)
+            .foregroundStyle(Palette.ink)
+    }
+}
+
+/// Side by side, or stacked at the accessibility text sizes where side by side would
+/// break words ("Tree s").
+struct AdaptiveStack<Content: View>: View {
+    var spacing: CGFloat = 10
+    var alignment: VerticalAlignment = .center
+    @ViewBuilder var content: Content
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    var body: some View {
+        let layout = typeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: spacing))
+            : AnyLayout(HStackLayout(alignment: alignment, spacing: spacing))
+        layout { content }
     }
 }
