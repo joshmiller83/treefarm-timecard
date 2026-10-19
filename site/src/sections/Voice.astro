@@ -213,6 +213,15 @@ const pieces = (w: string) => w.split(/(\d+(?:,\d{3})*)/).filter(Boolean);
     visibility: visible;
   }
 
+  /* ---- Static page, desktop: the phone sits up beside the headline, not halfway down the
+     transcript ---- */
+  @media (min-width: 900px) {
+    html:not(.motion) #voice .frame {
+      align-self: start;
+      margin-top: 24px;
+    }
+  }
+
   /* ---- Desktop stage: the pocket rides over the stage phone ---- */
   /* The sticky frame holds .extras; lift it over the fixed stage (z 5) so the pocket covers it. */
   html.stage-on #voice .frame {
