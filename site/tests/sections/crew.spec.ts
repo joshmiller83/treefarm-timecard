@@ -5,6 +5,7 @@
  */
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
+import { AT, AT_MOB } from '../../src/sections/crew/schedule';
 import { settle, watch } from '../e2e/helpers';
 
 const CONFLICT = 'Row 12 was shaped by Sam on Oct 16.';
@@ -27,6 +28,13 @@ async function toProgress(page: Page, p: number, wait = 900) {
   }, p);
   await page.waitForTimeout(wait);
 }
+
+/** Computed opacity of the first element matching sel. */
+const opacityOf = (page: Page, sel: string) => page.locator(sel).first().evaluate((e) => Number(getComputedStyle(e).opacity));
+
+const LAYER = (id: string) => `[data-crew-screens] > [data-screen="${id}"]`;
+const PEEK = (id: string) => `[data-crew-peek-screens] > [data-screen="${id}"]`;
+const TEAM = PEEK('team-1500');
 
 async function seriousIn(page: Page) {
   const r = await new AxeBuilder({ page }).include('#crew').withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'best-practice']).analyze();
@@ -132,8 +140,68 @@ test.describe('with motion', () => {
   test('has no serious accessibility problems mid-story', async ({ page }) => {
     await page.goto('/?motion=on');
     await settle(page);
+    for (const p of [0.3, 0.55, 0.75, 0.86]) {
+      await toProgress(page, p);
+      expect(await seriousIn(page), `at ${p}`).toEqual([]);
+    }
+  });
+
+  test('scrubbed forward slowly, the Team tab’s rows wait for their turn', async ({ page }) => {
+    await page.goto('/?motion=on');
+    await settle(page);
     await toProgress(page, 0.55);
-    expect(await seriousIn(page)).toEqual([]);
+    // A slow forward scrub, the way most people read: a little at a time.
+    for (let p = 0.56; p <= AT.rows[0] - 0.006; p += 0.01) await toProgress(page, p, 90);
+    await toProgress(page, AT.rows[0] - 0.006, 900);
+    for (const sel of ['[data-team-row]', '[data-team-total]', '[data-invite]', '[data-fields-row]']) {
+      const ops = await page.locator(`${TEAM} ${sel}`).evaluateAll((els) => els.map((e) => Number(getComputedStyle(e).opacity)));
+      expect(ops.length, sel).toBeGreaterThan(0);
+      for (const o of ops) expect(o, `${sel} before the rows`).toBeLessThan(0.05);
+    }
+    for (let p = AT.rows[0]; p <= AT.invite[0] - 0.006; p += 0.01) await toProgress(page, p, 90);
+    await toProgress(page, AT.invite[0] - 0.006, 900);
+    for (const sel of ['[data-invite]', '[data-fields-row]']) expect(await opacityOf(page, `${TEAM} ${sel}`), `${sel} before its window`).toBeLessThan(0.05);
+    const rows = await page.locator(`${TEAM} [data-team-row]`).evaluateAll((els) => els.map((e) => Number(getComputedStyle(e).opacity)));
+    for (const o of rows) expect(o, 'rows in').toBeGreaterThan(0.95);
+  });
+
+  test('cuts to the Team tab, holds the banner, and never shows a half-faded phone in front', async ({ page }) => {
+    await page.goto('/?motion=on');
+    await settle(page);
+    // The banner arrives early and holds.
+    for (const p of [AT.banner[1] + 0.004, AT.bannerOut[0] - 0.004]) {
+      await toProgress(page, p);
+      expect(await opacityOf(page, `[data-stage] ${LAYER('trees-1500-synced')} [data-banner]`), `banner at ${p}`).toBeGreaterThan(0.9);
+    }
+    // Sam's map → the Team tab is a cut: one or the other, never both at once.
+    for (const [p, s, t] of [
+      [AT.teamCut - 0.004, 1, 0],
+      [AT.teamCut + 0.004, 0, 1],
+    ] as const) {
+      await toProgress(page, p);
+      expect(await opacityOf(page, PEEK('sam-1449-trees')), `Sam’s map at ${p}`).toBe(s);
+      expect(await opacityOf(page, TEAM), `Team tab at ${p}`).toBe(t);
+    }
+    // The exit: while the second phone is in front of yours it stays opaque.
+    await toProgress(page, 0.86);
+    for (let p = AT.exit[0]; p <= AT.exit[1] + 0.001; p += 0.01) {
+      await toProgress(page, p, 700);
+      const { z, o } = await page.locator('[data-crew-peek]').evaluate((e) => ({ z: Number(getComputedStyle(e).zIndex), o: Number(getComputedStyle(e).opacity) }));
+      if (z > 0) expect(o, `peek in front at ${p.toFixed(2)}`).toBeGreaterThan(0.98);
+    }
+  });
+
+  test('keeps the owner’s name tag off the server when it lights up, on a short laptop screen', async ({ page }) => {
+    await page.setViewportSize({ width: 1366, height: 657 });
+    await page.goto('/?motion=on');
+    await settle(page);
+    await toProgress(page, 0.7, 400);
+    await toProgress(page, AT.serverLit[1]);
+    const [tag, srv] = await Promise.all([page.locator('[data-crew-chip="owner"]').boundingBox(), page.locator('[data-crew-server-in] [data-server-glyph]').boundingBox()]);
+    const overlap = !!tag && !!srv && tag.x < srv.x + srv.width && srv.x < tag.x + tag.width && tag.y < srv.y + srv.height && srv.y < tag.y + tag.height;
+    const tagOpacity = await opacityOf(page, '[data-crew-chip="owner"]');
+    expect(!overlap || tagOpacity < 0.05, 'tag over the server').toBe(true);
+    expect(await opacityOf(page, '[data-crew-server-in] [data-server-glyph]')).toBeGreaterThan(0.95);
   });
 });
 
@@ -158,4 +226,58 @@ test.describe('at 375 with motion', () => {
     await expect(page.locator('#crew figure [data-phone][role="img"]').first()).toHaveAttribute('aria-label', /Synced/);
     expect(problems).toEqual([]);
   });
+
+  /** Each event of the story, at its own progress, and what has to be in view for it. */
+  const A = AT_MOB;
+  const mid = (w: readonly [number, number]) => (w[0] + w[1]) / 2;
+  const EVENTS: Array<[string, number, string]> = [
+    ['the bars go', A.barsOut[1], `${LAYER('trees-1447-block3')} [data-statusbar]`],
+    ['Sam taps row 12', A.tap.sam, `${PEEK('sam-1449-trees')} [data-row-label="12"]`],
+    ['Sam’s row 12 turns gold', A.samFill[1], `${PEEK('sam-1449-trees')} [data-map-row="12"]`],
+    ['Sam’s change goes up', mid(A.packetSam), '[data-packet="sam"]'],
+    ['you tap row 11', A.tap.row11, `${LAYER('trees-1456-offline')} [data-row-label="11"]`],
+    ['row 11 turns gold', A.fill11[1], `${LAYER('trees-1456-offline')} [data-map-row="11"]`],
+    ['you tap row 12', A.tap.row12, `${LAYER('trees-1456-offline')} [data-row-label="12"]`],
+    ['2 changes waiting', A.count[1], `${LAYER('trees-1456-offline')} [data-sync-line]`],
+    ['the bars come back', A.barsIn[1], `${LAYER('trees-1456-offline')} [data-statusbar]`],
+    ['your changes go up', mid(A.packetsUp), '[data-packet="alex-2"]'],
+    ['the server takes them', mid(A.pulseSync), '[data-crew-server-in] [data-server-glyph]'],
+    ['Sam’s row comes down', mid(A.packetDown), '[data-packet="down-alex"]'],
+    ['Synced', A.syncedIn[1], `${LAYER('trees-1500-synced')} [data-sync-line]`],
+    ['row 12 turns green', A.green[1], `${LAYER('trees-1500-synced')} [data-map-row="12"]`],
+    ['the banner', A.banner[1], `${LAYER('trees-1500-synced')} [data-banner]`],
+    ['the banner holds', A.banner[1] + 0.03, `${LAYER('trees-1500-synced')} [data-banner]`],
+    ['the Team tab’s rows', A.rows[1], `${PEEK('team-1500')} [data-team-row]`],
+    ['Invite someone', A.invite[1], `${PEEK('team-1500')} [data-invite]`],
+    ['the server lights up', A.serverLit[1], '[data-crew-server-in] [data-server-glyph]'],
+  ];
+
+  for (const [w, h] of [
+    [375, 812],
+    [320, 640],
+  ] as const) {
+    test(`plays every event where the copy cards leave the phone clear (${w} × ${h})`, async ({ page }) => {
+      test.setTimeout(120_000);
+      await page.setViewportSize({ width: w, height: h });
+      await page.goto('/?motion=on');
+      await settle(page);
+      await expect(page.locator('html')).toHaveClass(/motion/);
+      await toProgress(page, 0, 600);
+      for (const [name, p, sel] of EVENTS) {
+        await toProgress(page, p, 800);
+        const hit = await page.evaluate((sel) => {
+          const cards = Array.from(document.querySelectorAll('#crew .beat:not(.beat-head)')).map((e) => e.getBoundingClientRect());
+          const els = Array.from(document.querySelectorAll(sel)).filter((e) => e.getBoundingClientRect().width > 0);
+          if (!els.length) return 'missing';
+          for (const e of els) {
+            const r = e.getBoundingClientRect();
+            if (r.bottom < 0 || r.top > innerHeight) return `off screen (${Math.round(r.top)})`;
+            for (const c of cards) if (r.left < c.right && c.left < r.right && r.top < c.bottom && c.top < r.bottom) return `under a card (${Math.round(r.top)}–${Math.round(r.bottom)} vs ${Math.round(c.top)}–${Math.round(c.bottom)})`;
+          }
+          return '';
+        }, sel);
+        expect(hit, `${name} at ${p.toFixed(3)}`).toBe('');
+      }
+    });
+  }
 });
