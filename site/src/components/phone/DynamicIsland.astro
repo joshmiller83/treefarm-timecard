@@ -1,44 +1,121 @@
 ---
-/** STUB (device-b): replace the look, keep the Props and hooks in CONTRACT.md. */
+/**
+ * DynamicIsland (device-b): Time Card's Live Activity in the Dynamic Island.
+ *
+ *   rest      126 × 37 pt, radius 18.5 (the bare island)
+ *   compact   250 × 37 pt: fir + 'Row 37' left of the camera, '6:29' (Plex Mono) right
+ *   expanded  371 × 160 pt, radius 44: place, big timer, [Row 37] [Row 38] [Break] at 40 pt
+ *
+ * Hooks
+ *   [data-island]            the one black element; scenes tween width, height and
+ *                            border-radius between the sizes above (data-size is the static one)
+ *   [data-island-compact]    compact content: fades in at 70% of the morph
+ *   [data-island-expanded]   expanded content: fades in at 70% of the morph
+ *   [data-timer]             the expanded timer (data-timer="fixed" unless live)
+ *   [data-island-row="37"]…, [data-island-break]   the expanded buttons (util.tap targets)
+ *
+ * Positioning: y 11 pt from the screen's top, horizontally centred with left/right 0 and
+ * auto margins (no transform), so a width tween stays centred and transforms stay free.
+ * `inline` renders it in normal flow for crops outside a phone (set --pt on a wrapper).
+ */
+import { FIELD, MOMENTS, fmtHMS, positionAt, treesAt, workedAt } from '../../data/ledger';
+
 export interface Props {
   size?: 'rest' | 'compact' | 'expanded';
+  /** Current row, compact leading. Default the 2:16 PM row (37). */
   row?: number;
+  /** Compact trailing, worked time as H:MM. Default '6:29'. */
   time?: string;
+  /** Expanded timer, H:MM:SS. Default '6:29:10'. */
   timer?: string;
   field?: string;
   block?: string;
+  /** The two row buttons; Break follows. Default [37, 38]. */
   rows?: [number, number];
+  /** Optional: trees this shift, shown under the place in the expanded view. Default 230. */
+  trees?: number;
+  /** Optional: let DayClock drive the expanded timer (data-timer="worked"). Default false (fixed). */
+  live?: boolean;
+  /** Optional: render in normal flow (a crop outside a phone) instead of at y 11 pt. */
+  inline?: boolean;
 }
-const { size = 'rest', row = 37, time = '6:29', timer = '6:29:10', field = 'North field', block = 'Block 2', rows = [37, 38] } = Astro.props;
+
+const at = MOMENTS.island;
+const pos = positionAt(at);
+const {
+  size = 'rest',
+  row = pos.row,
+  time = fmtHMS(workedAt(at)).replace(/:\d\d$/, ''),
+  // The expanded view opens 10 s after 2:16 PM (brief: 6:29:10).
+  timer = fmtHMS(workedAt(at + 10 / 60)),
+  field = FIELD.name,
+  block = `Block ${pos.block}`,
+  rows = [pos.row, pos.row + 1],
+  trees = treesAt(at),
+  live = false,
+  inline = false,
+} = Astro.props;
 ---
 
-<div class="island" data-island data-size={size}>
-  <div class="isl-compact" data-island-compact><span>Row {row}</span><span class="mono">{time}</span></div>
+<div class:list={['island', inline && 'island--inline']} data-island data-size={size}>
+  <div class="isl-compact" data-island-compact>
+    <span class="isl-lead">
+      <svg class="isl-fir" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M12 2.6 7.4 8.7h2.4l-3.9 5.1h2.7l-3.9 5.3h14.6l-3.9-5.3h2.7l-3.9-5.1h2.4Z" fill="currentColor" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"></path>
+        <rect x="10.9" y="18.4" width="2.2" height="3.6" rx="0.9" fill="currentColor"></rect>
+      </svg>
+      <span class="isl-row">Row {row}</span>
+    </span>
+    <span class="isl-trail isl-mono" data-island-time>{time}</span>
+  </div>
+
   <div class="isl-expanded" data-island-expanded>
-    <span>{field} · {block}</span>
-    <span class="mono" data-timer="fixed">{timer}</span>
-    <span>[Row {rows[0]}] [Row {rows[1]}] [Break]</span>
-    <span class="isl-stub">DynamicIsland · stub · device-b</span>
+    <div class="isl-top">
+      <span class="isl-badge">
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path d="M12 2.6 7.4 8.7h2.4l-3.9 5.1h2.7l-3.9 5.3h14.6l-3.9-5.3h2.7l-3.9-5.1h2.4Z" fill="currentColor" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"></path>
+          <rect x="10.9" y="18.4" width="2.2" height="3.6" rx="0.9" fill="currentColor"></rect>
+        </svg>
+      </span>
+      <span class="isl-pill">On the clock</span>
+    </div>
+    <div class="isl-mid">
+      <span class="isl-place">
+        <span class="isl-field">{field} · {block}</span>
+        <span class="isl-sub">Row {row} · <span class="isl-mono">{trees}</span> trees</span>
+      </span>
+      <span class="isl-timer isl-mono" data-timer={live ? 'worked' : 'fixed'}>{timer}</span>
+    </div>
+    <div class="isl-btns">
+      <span class="isl-btn isl-btn--row" data-island-row={rows[0]}>Row {rows[0]}</span>
+      <span class="isl-btn isl-btn--row" data-island-row={rows[1]}>Row {rows[1]}</span>
+      <span class="isl-btn isl-btn--break" data-island-break>Break</span>
+    </div>
   </div>
 </div>
 
 <style>
   .island {
     position: absolute;
-    left: 50%;
     top: calc(11 * var(--pt));
-    transform: translateX(-50%);
+    left: 0;
+    right: 0;
+    margin-inline: auto;
     width: calc(126 * var(--pt));
     height: calc(37 * var(--pt));
-    border-radius: calc(19 * var(--pt));
+    border-radius: calc(18.5 * var(--pt));
     background: #000;
     color: #fff;
     font-family: var(--font-system);
-    font-size: calc(13 * var(--pt));
-    contain: layout;
+    -webkit-font-smoothing: antialiased;
     overflow: hidden;
+    contain: layout paint;
     z-index: 8;
-    outline: 1px dashed rgba(226, 166, 68, 0.6);
+  }
+  .island--inline {
+    position: relative;
+    top: auto;
+    flex: none;
   }
   .island[data-size='compact'] {
     width: calc(250 * var(--pt));
@@ -48,31 +125,166 @@ const { size = 'rest', row = 37, time = '6:29', timer = '6:29:10', field = 'Nort
     height: calc(160 * var(--pt));
     border-radius: calc(44 * var(--pt));
   }
+
+  .isl-mono {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Content keeps its final size and is anchored to the island's corners, so it never
+     reflows while the island morphs; it only fades. */
   .isl-compact,
   .isl-expanded {
     position: absolute;
-    inset: 0;
-    display: flex;
-    padding: 0 calc(14 * var(--pt));
-    align-items: center;
-    justify-content: space-between;
+    top: 0;
+    left: 50%;
     opacity: 0;
-  }
-  .isl-expanded {
-    flex-direction: column;
-    justify-content: center;
-    gap: calc(4 * var(--pt));
+    pointer-events: none;
   }
   .island[data-size='compact'] .isl-compact,
   .island[data-size='expanded'] .isl-expanded {
     opacity: 1;
   }
-  .mono {
-    font-family: var(--font-mono);
+
+  /* ---------- Compact: 250 × 37, the camera in the middle 126 pt ---------- */
+  .isl-compact {
+    width: calc(250 * var(--pt));
+    height: calc(37 * var(--pt));
+    margin-left: calc(-125 * var(--pt));
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 calc(13 * var(--pt)) 0 calc(11 * var(--pt));
   }
-  .isl-stub {
-    font-family: var(--font-mono);
-    font-size: 9px;
-    opacity: 0.6;
+  .isl-lead {
+    display: flex;
+    align-items: center;
+    gap: calc(3.5 * var(--pt));
+  }
+  .isl-fir {
+    width: calc(14 * var(--pt));
+    height: calc(14 * var(--pt));
+    color: var(--fir-lit);
+    flex: none;
+  }
+  .isl-row {
+    font-size: calc(13.5 * var(--pt));
+    font-weight: 600;
+    letter-spacing: -0.015em;
+    white-space: nowrap;
+  }
+  .isl-trail {
+    font-size: calc(14.5 * var(--pt));
+    font-weight: 600;
+    color: var(--fir-lit);
+    letter-spacing: -0.02em;
+  }
+
+  /* ---------- Expanded: 371 × 160, radius 44 ---------- */
+  .isl-expanded {
+    width: calc(371 * var(--pt));
+    height: calc(160 * var(--pt));
+    margin-left: calc(-185.5 * var(--pt));
+    padding: 0 calc(20 * var(--pt)) calc(14 * var(--pt));
+    display: grid;
+    grid-template-rows: calc(37 * var(--pt)) 1fr auto;
+  }
+  /* Leading and trailing sit beside the camera (y 0–37). */
+  .isl-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: calc(4 * var(--pt));
+  }
+  .isl-badge {
+    display: grid;
+    place-items: center;
+    width: calc(26 * var(--pt));
+    height: calc(26 * var(--pt));
+    border-radius: 50%;
+    background: #2e7a4e;
+    color: #f7f2e4;
+  }
+  .isl-badge svg {
+    width: calc(16 * var(--pt));
+    height: calc(16 * var(--pt));
+  }
+  .isl-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: calc(5 * var(--pt));
+    height: calc(22 * var(--pt));
+    padding: 0 calc(9 * var(--pt)) 0 calc(8 * var(--pt));
+    border-radius: calc(11 * var(--pt));
+    background: rgba(136, 207, 164, 0.16);
+    color: var(--fir-lit);
+    font-size: calc(12 * var(--pt));
+    font-weight: 600;
+    letter-spacing: -0.005em;
+    white-space: nowrap;
+  }
+  .isl-pill::before {
+    content: '';
+    width: calc(6 * var(--pt));
+    height: calc(6 * var(--pt));
+    border-radius: 50%;
+    background: currentColor;
+  }
+  .isl-mid {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: calc(12 * var(--pt));
+    padding-bottom: calc(2 * var(--pt));
+  }
+  .isl-place {
+    display: grid;
+    gap: calc(2 * var(--pt));
+    min-width: 0;
+  }
+  .isl-field {
+    font-size: calc(15 * var(--pt));
+    font-weight: 600;
+    letter-spacing: -0.012em;
+    white-space: nowrap;
+  }
+  .isl-sub {
+    font-size: calc(13 * var(--pt));
+    color: rgba(235, 235, 245, 0.6);
+    white-space: nowrap;
+  }
+  .isl-sub .isl-mono {
+    font-size: calc(12.5 * var(--pt));
+    font-weight: 500;
+  }
+  .isl-timer {
+    font-size: calc(32 * var(--pt));
+    font-weight: 600;
+    line-height: 1;
+    letter-spacing: -0.03em;
+    white-space: nowrap;
+  }
+  .isl-btns {
+    display: grid;
+    grid-template-columns: 1fr 1fr 0.86fr;
+    gap: calc(8 * var(--pt));
+  }
+  .isl-btn {
+    display: grid;
+    place-items: center;
+    height: calc(40 * var(--pt));
+    border-radius: calc(13 * var(--pt));
+    font-size: calc(15 * var(--pt));
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+  }
+  .isl-btn--row {
+    background: #2e7a4e;
+    color: #fff;
+  }
+  .isl-btn--break {
+    background: rgba(255, 255, 255, 0.14);
+    color: #fff;
   }
 </style>

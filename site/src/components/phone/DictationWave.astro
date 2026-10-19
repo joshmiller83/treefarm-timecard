@@ -1,58 +1,121 @@
 ---
-/** STUB (device-b): replace the look, keep the Props and hooks in CONTRACT.md. */
-import { waveHeights } from '../../scripts/wave';
+/**
+ * DictationWave (device-b): Siri listening while you dictate a note. A card in the snippet's
+ * material with 24 level bars (3 pt wide, 2 pt gap) and your words typed under them.
+ *
+ * Hooks
+ *   [data-wave]                 the card; data-seed / data-bars feed setWave()
+ *   [data-wave-bar]             one bar: transform scaleY(h), h from waveHeights(progress)
+ *   [data-transcript]           your words (util.typeIn target)
+ *     > [data-word="0".."n"]    pre-split word spans
+ *
+ * Scenes scrub it with setWave(waveEl, progress) from src/scripts/wave.ts. The server render
+ * draws waveHeights(progress) statically, so the static page shows a frozen, real-looking wave.
+ */
+import { WAVE_MIN, waveHeights } from '../../scripts/wave';
 
 export interface Props {
+  /** Number of bars. Default 24. */
   bars?: number;
+  /** Noise seed (same seed + progress = same wave). Default 7. */
   seed?: number;
+  /** Progress to draw statically (0–1). Default 0.55, mid-sentence. */
   progress?: number;
+  /** Transcript typed under the wave, e.g. SIRI.shiftNote.answer. */
   transcript?: string;
+  /** Top of the card in pt from the screen's top. Default 64 (the snippet's slot). */
+  top?: number;
 }
-const { bars = 24, seed = 7, progress = 0.5, transcript } = Astro.props;
+const { bars = 24, seed = 7, progress = 0.55, transcript, top = 64 } = Astro.props;
 const heights = waveHeights(progress, seed, bars);
+
+// Each bar takes its colour from a left-to-right sweep through the Siri glow's palette.
+const STOPS = ['#88CFA4', '#7FB2D9', '#C9A0E0', '#E2A644'];
+const hex = (h: string) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+const mix = (u: number) => {
+  const x = Math.min(0.9999, Math.max(0, u)) * (STOPS.length - 1);
+  const k = Math.floor(x);
+  const t = x - k;
+  const a = hex(STOPS[k]!);
+  const b = hex(STOPS[k + 1]!);
+  return `rgb(${a.map((v, i) => Math.round(v + (b[i]! - v) * t)).join(' ')})`;
+};
+const words = transcript ? transcript.trim().split(/\s+/) : [];
 ---
 
-<div class="wave" data-wave>
-  <div class="wave-bars">
-    {heights.map((h) => <i data-wave-bar style={`transform:scaleY(${h.toFixed(3)})`} />)}
+<div
+  class:list={['wave', transcript && 'wave--text']}
+  data-wave
+  data-seed={seed}
+  data-bars={bars}
+  data-progress={progress}
+  style={top !== 64 ? `--wave-top:${top}` : undefined}
+>
+  <div class="wave-bars" style={`--bars:${bars};--wave-min:${WAVE_MIN}`}>
+    {heights.map((h, i) => <i data-wave-bar style={`transform:scaleY(${h.toFixed(3)});background:${mix(bars > 1 ? i / (bars - 1) : 0.5)}`} />)}
   </div>
-  {transcript && <div class="wave-text" data-transcript>{transcript}</div>}
-  <span class="wave-stub">DictationWave · stub · device-b</span>
+  {
+    transcript && (
+      <div class="wave-text" data-transcript>
+        {words.map((w, i) => (
+          <>
+            {i > 0 && ' '}
+            <span class="w" data-word={i}>
+              {w}
+            </span>
+          </>
+        ))}
+      </div>
+    )
+  }
 </div>
 
 <style>
   .wave {
     position: absolute;
     left: calc(16 * var(--pt));
-    right: calc(16 * var(--pt));
-    top: calc(300 * var(--pt));
+    top: calc(var(--wave-top, 64) * var(--pt));
+    width: calc(361 * var(--pt));
+    padding: calc(16 * var(--pt)) calc(20 * var(--pt));
+    border-radius: calc(26 * var(--pt));
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0) 48%),
+      linear-gradient(var(--siri-card), var(--siri-card)),
+      rgba(20, 24, 22, 0.86);
+    box-shadow:
+      inset 0 calc(0.75 * var(--pt)) 0 rgba(255, 255, 255, 0.14),
+      inset 0 0 0 calc(0.75 * var(--pt)) rgba(255, 255, 255, 0.06),
+      0 calc(12 * var(--pt)) calc(32 * var(--pt)) rgba(0, 0, 0, 0.32);
     display: grid;
     justify-items: center;
     gap: calc(12 * var(--pt));
     color: #fff;
     font-family: var(--font-system);
-    z-index: 5;
-    outline: 1px dashed rgba(226, 166, 68, 0.6);
+    -webkit-font-smoothing: antialiased;
+    z-index: 7;
+  }
+  .wave--text {
+    padding-bottom: calc(18 * var(--pt));
   }
   .wave-bars {
     display: flex;
-    gap: calc(2 * var(--pt));
-    height: calc(40 * var(--pt));
     align-items: center;
+    gap: calc(2 * var(--pt));
+    height: calc(36 * var(--pt));
   }
   .wave-bars i {
+    flex: none;
     width: calc(3 * var(--pt));
     height: 100%;
-    border-radius: 999px;
-    background: #fff;
+    border-radius: calc(1.5 * var(--pt));
+    transform-origin: 50% 50%;
   }
   .wave-text {
+    max-width: calc(300 * var(--pt));
     font-size: calc(17 * var(--pt));
+    line-height: calc(22 * var(--pt));
+    letter-spacing: -0.008em;
     text-align: center;
-  }
-  .wave-stub {
-    font-family: var(--font-mono);
-    font-size: 9px;
-    opacity: 0.6;
+    text-wrap: balance;
   }
 </style>

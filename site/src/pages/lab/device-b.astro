@@ -1,69 +1,207 @@
 ---
-/** Lab: device-b (owner). */
+/**
+ * Lab: device-b (owner). Every state of DynamicIsland, SiriSnippet, SiriGlow, DictationWave
+ * and ControlsCard, side by side at real device size (a 393 pt screen = 393 CSS px where the
+ * window allows), plus crops and a scrub panel that drives the island morph and the wave the
+ * way a scene would.
+ */
 import Lab from '../../layouts/Lab.astro';
 import Phone from '../../components/phone/Phone.astro';
 import Screen from '../../components/phone/Screen.astro';
 import LockScreen from '../../components/phone/LockScreen.astro';
+import LiveActivity from '../../components/phone/LiveActivity.astro';
+import StatusBar from '../../components/phone/StatusBar.astro';
+import AppChrome from '../../components/app/AppChrome.astro';
 import DynamicIsland from '../../components/phone/DynamicIsland.astro';
 import SiriSnippet from '../../components/phone/SiriSnippet.astro';
 import SiriGlow from '../../components/phone/SiriGlow.astro';
 import DictationWave from '../../components/phone/DictationWave.astro';
 import ControlsCard from '../../components/ControlsCard.astro';
+import { MOMENTS, SHIFT_NOTE, fmtClock } from '../../data/ledger';
 import { SIRI } from '../../data/siri';
+
+/** Real device size: the phone whose screen is 393 px wide, shrunk to fit narrow windows. */
+const REAL = 'min(910px, calc((100vw - 32px) * 852 / 393))';
+
+const snippets = [
+  { key: 'clock-in', note: '7:02 · clock in (hero)', at: MOMENTS.clockIn, line: SIRI.clockIn, glow: true, la: true },
+  { key: 'misheard', note: '7:18 · misheard check, chips', at: MOMENTS.misheard, line: SIRI.misheard, glow: true },
+  { key: 'misheard-no', note: '7:18 · “No” tapped (gold ring)', at: MOMENTS.misheard, line: SIRI.misheard, chosen: 'No', glow: true },
+  { key: 'status', note: '2:01 · status (voice final)', at: MOMENTS.status, line: SIRI.howMany, la: true },
+  { key: 'clock-out-ask', note: '4:31 · clock-out question, “Yes” tapped', at: MOMENTS.clockOut, line: SIRI.clockOutAsk, chosen: 'Yes', glow: true },
+  { key: 'clock-out', note: '4:31 · clocked out', at: MOMENTS.clockOut, line: SIRI.clockOut },
+];
+
+/** An abstract home screen behind the island: wallpaper, icon grid, dock (lab context only). */
+const homeIcons = Array.from({ length: 20 }, (_, i) => i);
+const dockIcons = [0, 1, 2, 3];
+const islandAt = fmtClock(MOMENTS.island);
 ---
 
 <Lab title="device-b" owner="device-b">
-  <section>
-    <h2>Siri</h2>
+  <p class="lab-intro">
+    Dynamic Island, Siri snippet, Siri glow, dictation wave and the Controls card. Phones are at real device size
+    (a 393 pt screen is 393 CSS px) where the window allows. Hooks and props: <code>src/components/CONTRACT.md</code>.
+  </p>
+
+  <section aria-labelledby="h-snippet">
+    <h2 id="h-snippet">Siri snippet</h2>
     <div class="lab-row">
-      <div class="lab-cell">
-        <Phone label="Siri misheard check" height="560px">
+      {
+        snippets.map((s) => (
+          <div class="lab-cell" data-lab-cell={`snippet-${s.key}`}>
+            <Phone label={`Lock screen at ${fmtClock(s.at)}. Siri says: ${s.line.reply}`} height={REAL}>
+              <div class="screens" data-screens>
+                <Screen stateId={`lab-snippet-${s.key}`} alt="" final>
+                  <LockScreen time={fmtClock(s.at)} live={false}>
+                    <SiriSnippet
+                      slot="top"
+                      text={s.line.reply ?? ''}
+                      choices={'choices' in s.line ? s.line.choices : undefined}
+                      chosen={s.chosen}
+                    />
+                    {s.la && <LiveActivity at={s.at} fixed />}
+                  </LockScreen>
+                  {s.glow && <SiriGlow still={false} />}
+                </Screen>
+              </div>
+            </Phone>
+            <p>{s.note}</p>
+          </div>
+        ))
+      }
+    </div>
+  </section>
+
+  <section aria-labelledby="h-glow">
+    <h2 id="h-glow">Siri glow</h2>
+    <div class="lab-row">
+      <div class="lab-cell" data-lab-cell="glow-live">
+        <Phone label="Siri glow, full" height={REAL}>
           <div class="screens" data-screens>
-            <Screen stateId="lab-siri-1" alt="" final>
-              <LockScreen time="7:18" live={false}>
-                <Fragment slot="top"><SiriGlow /><SiriSnippet text={SIRI.misheard.reply} choices={SIRI.misheard.choices} chosen="No" /></Fragment>
-              </LockScreen>
+            <Screen stateId="lab-glow-live" alt="" final>
+              <LockScreen time="7:02" live={false} />
+              <SiriGlow still={false} />
             </Screen>
           </div>
         </Phone>
-        <p>snippet + choices</p>
+        <p>still=false · listening</p>
       </div>
-      <div class="lab-cell">
-        <Phone label="Dictation" height="560px">
-          <div class="screens" data-screens>
-            <Screen stateId="lab-siri-2" alt="" final>
-              <LockScreen time="2:36" live={false}>
-                <Fragment slot="top"><SiriGlow /><DictationWave transcript={SIRI.shiftNote.answer} /></Fragment>
-              </LockScreen>
+      <div class="lab-cell" data-lab-cell="glow-thinking">
+        <Phone label="Siri glow, ring rotated 60 degrees" height={REAL}>
+          <div class="screens rot60" data-screens>
+            <Screen stateId="lab-glow-thinking" alt="" final>
+              <LockScreen time="7:18" live={false} />
+              <SiriGlow still={false} />
             </Screen>
           </div>
         </Phone>
-        <p>dictation</p>
+        <p>[data-glow-ring] rotation 60° · thinking</p>
       </div>
-      <div class="lab-cell">
-        <Phone label="Reduced motion glow" height="560px">
+      <div class="lab-cell" data-lab-cell="glow-still">
+        <Phone label="Siri glow, faint static border" height={REAL}>
           <div class="screens" data-screens>
-            <Screen stateId="lab-siri-3" alt="" final>
+            <Screen stateId="lab-glow-still" alt="" final>
               <LockScreen time="2:01" live={false}>
-                <Fragment slot="top"><SiriGlow still /><SiriSnippet text={SIRI.howMany.reply} /></Fragment>
+                <SiriSnippet slot="top" text={SIRI.howMany.reply ?? ''} />
               </LockScreen>
+              <SiriGlow still />
             </Screen>
           </div>
         </Phone>
-        <p>still glow</p>
+        <p>still · reduced-motion figures</p>
+      </div>
+      <div class="lab-cell" data-lab-cell="glow-auto">
+        <Phone label="Siri glow with the default still prop" height={REAL}>
+          <div class="screens" data-screens>
+            <Screen stateId="lab-glow-auto" alt="" final>
+              <LockScreen time="7:02" live={false}>
+                <SiriSnippet slot="top" text={SIRI.clockIn.reply} />
+              </LockScreen>
+              <SiriGlow />
+            </Screen>
+          </div>
+        </Phone>
+        <p>default (auto) · full under html.motion, faint without</p>
       </div>
     </div>
   </section>
-  <section>
-    <h2>Dynamic Island</h2>
+
+  <section aria-labelledby="h-wave">
+    <h2 id="h-wave">Dictation wave</h2>
+    <div class="lab-row">
+      <div class="lab-cell" data-lab-cell="wave-listen">
+        <Phone label="Siri listening for a shift note" height={REAL}>
+          <div class="screens" data-screens>
+            <Screen stateId="lab-wave-listen" alt="" final>
+              <LockScreen time="2:36" live={false}>
+                <DictationWave slot="top" progress={0.02} />
+              </LockScreen>
+              <SiriGlow still={false} />
+            </Screen>
+          </div>
+        </Phone>
+        <p>progress .02 · before you speak</p>
+      </div>
+      <div class="lab-cell" data-lab-cell="wave-speaking">
+        <Phone label={`Dictating: ${SHIFT_NOTE}`} height={REAL}>
+          <div class="screens" data-screens>
+            <Screen stateId="lab-wave-speaking" alt="" final>
+              <LockScreen time="2:36" live={false}>
+                <DictationWave slot="top" progress={0.55} transcript={SIRI.shiftNote.answer} />
+              </LockScreen>
+              <SiriGlow still={false} />
+            </Screen>
+          </div>
+        </Phone>
+        <p>progress .55 · transcript</p>
+      </div>
+      <div class="lab-cell" data-lab-cell="wave-reply">
+        <Phone label={`Siri says: ${SIRI.shiftNote.reply}`} height={REAL}>
+          <div class="screens" data-screens>
+            <Screen stateId="lab-wave-reply" alt="" final>
+              <LockScreen time="2:36" live={false}>
+                <Fragment slot="top">
+                  <DictationWave progress={1} transcript={SIRI.shiftNote.answer} />
+                  <SiriSnippet text={SIRI.shiftNote.reply} top={178} />
+                </Fragment>
+              </LockScreen>
+            </Screen>
+          </div>
+        </Phone>
+        <p>progress 1 · reply below (SiriSnippet top=178)</p>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="h-island">
+    <h2 id="h-island">Dynamic Island</h2>
     <div class="lab-row">
       {
         (['rest', 'compact', 'expanded'] as const).map((size) => (
-          <div class="lab-cell">
-            <Phone label={`Dynamic Island ${size}`} height="560px">
+          <div class="lab-cell" data-lab-cell={`island-${size}`}>
+            <Phone label={`Home screen at ${islandAt} with the Dynamic Island ${size}`} height={REAL}>
               <div class="screens" data-screens>
                 <Screen stateId={`lab-island-${size}`} alt="" final>
-                  <div class="home" />
+                  <div class="home">
+                    <StatusBar time={islandAt} live={false} tone="light" />
+                    <div class="home-grid">
+                      {homeIcons.map((i) => (
+                        <span class="home-app" style={`--h:${(i * 47) % 360}`}>
+                          <i />
+                          <b />
+                        </span>
+                      ))}
+                    </div>
+                    <div class="home-search" />
+                    <div class="home-dock">
+                      {dockIcons.map((i) => (
+                        <span class="home-app" style={`--h:${(i * 83 + 120) % 360}`}>
+                          <i />
+                        </span>
+                      ))}
+                    </div>
+                  </div>
                   <DynamicIsland size={size} />
                 </Screen>
               </div>
@@ -72,18 +210,259 @@ import { SIRI } from '../../data/siri';
           </div>
         ))
       }
+      <div class="lab-cell" data-lab-cell="island-app">
+        <Phone label={`Trees tab at ${islandAt} with the Dynamic Island compact`} height={REAL}>
+          <div class="screens" data-screens>
+            <Screen stateId="lab-island-app" alt="" tone="light" final>
+              <AppChrome title="Trees" tab="trees" time={islandAt} subtitle="North field">
+                <div class="fake-card" />
+                <div class="fake-card short" />
+              </AppChrome>
+              <DynamicIsland size="compact" />
+            </Screen>
+          </div>
+        </Phone>
+        <p>compact over a light app</p>
+      </div>
+    </div>
+
+    <h3>Crops (inline, for the static figures)</h3>
+    <div class="lab-row">
+      <div class="lab-cell" data-lab-cell="crop-compact">
+        <div class="crop" role="img" aria-label="Dynamic Island, compact: Row 37, 6:29">
+          <div aria-hidden="true"><DynamicIsland size="compact" inline /></div>
+        </div>
+        <p>compact · inline · --pt: 1px</p>
+      </div>
+      <div class="lab-cell" data-lab-cell="crop-expanded">
+        <div class="crop" role="img" aria-label="Dynamic Island, expanded: North field, Block 2, 6:29:10, Row 37, Row 38, Break">
+          <div aria-hidden="true"><DynamicIsland size="expanded" inline /></div>
+        </div>
+        <p>expanded · inline · --pt: 1px</p>
+      </div>
     </div>
   </section>
-  <section>
-    <h2>ControlsCard</h2>
-    <ControlsCard />
+
+  <section aria-labelledby="h-scrub">
+    <h2 id="h-scrub">Scrub: the morph and the wave as a scene drives them</h2>
+    <div class="lab-row scrub">
+      <div class="lab-cell">
+        <Phone label="Dynamic Island morph and dictation wave demo" height={REAL}>
+          <div class="screens" data-screens>
+            <Screen stateId="lab-scrub" alt="" final>
+              <LockScreen time="2:36" live={false}>
+                <Fragment slot="top"><DictationWave progress={0} transcript={SIRI.shiftNote.answer} top={210} /></Fragment>
+              </LockScreen>
+              <DynamicIsland size="rest" />
+            </Screen>
+          </div>
+        </Phone>
+      </div>
+      <div class="scrub-panel">
+        <label for="scrub">Progress <output id="scrub-out" for="scrub">0.00</output></label>
+        <input id="scrub" type="range" min="0" max="1" step="0.001" value="0" data-scrub />
+        <p>
+          0–.5: rest → compact, .5–1: compact → expanded. Width, height and radius tween on <code>[data-island]</code>;
+          content fades in over the last 30% of each morph. The wave runs <code>setWave(el, progress)</code>.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="h-controls">
+    <h2 id="h-controls">ControlsCard</h2>
+    <div class="lab-row controls-row">
+      <div class="lab-cell controls-cell" data-lab-cell="controls-wide">
+        <ControlsCard />
+        <p>34rem (desktop copy column) · highlightAction</p>
+      </div>
+      <div class="lab-cell controls-cell narrow" data-lab-cell="controls-narrow">
+        <ControlsCard />
+        <p>303px (mobile card) · highlightAction</p>
+      </div>
+      <div class="lab-cell controls-cell narrow" data-lab-cell="controls-plain">
+        <ControlsCard highlightAction={false} />
+        <p>highlightAction=false</p>
+      </div>
+    </div>
   </section>
 </Lab>
 
+<script>
+  import { setWave } from '../../scripts/wave';
+
+  const input = document.querySelector<HTMLInputElement>('[data-scrub]');
+  const out = document.getElementById('scrub-out');
+  const cell = input?.closest('.scrub');
+  const island = cell?.querySelector<HTMLElement>('[data-island]');
+  const compact = island?.querySelector<HTMLElement>('[data-island-compact]');
+  const expanded = island?.querySelector<HTMLElement>('[data-island-expanded]');
+  const wave = cell?.querySelector<HTMLElement>('[data-wave]');
+  const SIZES = { rest: [126, 37, 18.5], compact: [250, 37, 18.5], expanded: [371, 160, 44] } as const;
+  const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+  const ease = (t: number) => 1 - Math.pow(1 - t, 3);
+
+  function render(p: number) {
+    if (!island || !compact || !expanded) return;
+    const first = p < 0.5;
+    const t = ease(first ? p / 0.5 : (p - 0.5) / 0.5);
+    const [a, b] = first ? [SIZES.rest, SIZES.compact] : [SIZES.compact, SIZES.expanded];
+    island.style.width = `calc(${lerp(a[0], b[0], t)} * var(--pt))`;
+    island.style.height = `calc(${lerp(a[1], b[1], t)} * var(--pt))`;
+    island.style.borderRadius = `calc(${lerp(a[2], b[2], t)} * var(--pt))`;
+    const fadeIn = Math.max(0, (t - 0.7) / 0.3);
+    compact.style.opacity = String(first ? fadeIn : 1 - Math.min(1, t / 0.3));
+    expanded.style.opacity = String(first ? 0 : fadeIn);
+    if (wave) setWave(wave, p);
+    if (out) out.textContent = p.toFixed(2);
+  }
+  input?.addEventListener('input', () => render(Number(input.value)));
+  if (input) render(Number(input.value));
+</script>
+
 <style>
+  .lab-intro {
+    max-width: 60ch;
+    color: var(--on-stage-muted);
+  }
+  .lab-intro code,
+  .scrub-panel code {
+    font-family: var(--font-mono);
+    font-size: 0.875em;
+    color: var(--on-stage);
+  }
+  h3 {
+    font-family: var(--font-display);
+    font-size: 1.125rem;
+    margin: 40px 0 16px;
+  }
+  .lab-cell > p {
+    max-width: 36ch;
+    text-align: center;
+  }
+
+  /* 'Thinking': the conic ring turned 60deg, as voice.ts does at [.3, .4]. */
+  .rot60 :global([data-glow-ring]) {
+    transform: rotate(60deg);
+  }
+
+  /* ---------- Abstract home screen (lab context) ---------- */
   .home {
     position: absolute;
     inset: 0;
-    background: linear-gradient(160deg, #1d4a33, #0d2418);
+    background:
+      radial-gradient(120% 60% at 70% 105%, rgba(199, 154, 94, 0.55), transparent 60%),
+      linear-gradient(180deg, #0d2418 0%, #1c3a2b 55%, #3c4f39 100%);
+  }
+  .home-grid {
+    position: absolute;
+    left: calc(27 * var(--pt));
+    right: calc(27 * var(--pt));
+    top: calc(76 * var(--pt));
+    display: grid;
+    grid-template-columns: repeat(4, calc(62 * var(--pt)));
+    justify-content: space-between;
+    row-gap: calc(28 * var(--pt));
+  }
+  .home-app {
+    display: grid;
+    justify-items: center;
+    gap: calc(7 * var(--pt));
+  }
+  .home-app i {
+    width: calc(62 * var(--pt));
+    height: calc(62 * var(--pt));
+    border-radius: calc(14 * var(--pt));
+    background: linear-gradient(160deg, hsl(var(--h) 22% 46% / 0.9), hsl(var(--h) 26% 30% / 0.9));
+    box-shadow: inset 0 calc(0.75 * var(--pt)) 0 rgba(255, 255, 255, 0.18);
+  }
+  .home-app b {
+    width: calc(40 * var(--pt));
+    height: calc(5 * var(--pt));
+    border-radius: 99px;
+    background: rgba(255, 255, 255, 0.45);
+  }
+  .home-search {
+    position: absolute;
+    left: 50%;
+    bottom: calc(132 * var(--pt));
+    width: calc(86 * var(--pt));
+    height: calc(30 * var(--pt));
+    margin-left: calc(-43 * var(--pt));
+    border-radius: 99px;
+    background: rgba(255, 255, 255, 0.16);
+  }
+  .home-dock {
+    position: absolute;
+    left: calc(12 * var(--pt));
+    right: calc(12 * var(--pt));
+    bottom: calc(12 * var(--pt));
+    height: calc(94 * var(--pt));
+    border-radius: calc(34 * var(--pt));
+    background: rgba(255, 255, 255, 0.14);
+    box-shadow: inset 0 calc(0.75 * var(--pt)) 0 rgba(255, 255, 255, 0.16);
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    padding: 0 calc(8 * var(--pt));
+  }
+
+  .fake-card {
+    height: calc(180 * var(--pt));
+    margin: calc(12 * var(--pt)) calc(16 * var(--pt));
+    border-radius: calc(16 * var(--pt));
+    background: var(--paper);
+    box-shadow: 0 1px 0 rgba(20, 34, 26, 0.06);
+  }
+  .fake-card.short {
+    height: calc(96 * var(--pt));
+  }
+
+  /* ---------- Crops ---------- */
+  .crop {
+    --pt: 1px;
+    display: grid;
+    place-items: center;
+    width: min(100%, 420px);
+    padding: 24px 0;
+    border-radius: 28px;
+    background: linear-gradient(180deg, #0d2418, #1c3a2b);
+    border: 1px solid var(--stage-line);
+    overflow: hidden;
+  }
+
+  /* ---------- Scrub ---------- */
+  .scrub {
+    align-items: center;
+  }
+  .scrub-panel {
+    display: grid;
+    gap: 12px;
+    max-width: 30rem;
+  }
+  .scrub-panel label {
+    font-family: var(--font-mono);
+    font-size: 0.875rem;
+    color: var(--on-stage);
+  }
+  .scrub-panel input {
+    width: 100%;
+    min-height: 44px;
+    accent-color: var(--gold-lit);
+  }
+  .scrub-panel p {
+    color: var(--on-stage-muted);
+  }
+
+  /* ---------- Controls ---------- */
+  .controls-row {
+    align-items: flex-start;
+  }
+  .controls-cell {
+    width: min(100%, 34rem);
+    justify-items: stretch;
+  }
+  .controls-cell.narrow {
+    width: min(100%, 303px);
   }
 </style>

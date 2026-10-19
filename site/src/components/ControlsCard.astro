@@ -1,39 +1,274 @@
 ---
-/** STUB (device-b): replace the look, keep the Props and hooks in CONTRACT.md. Real text, page level. */
-import Stub from './dev/Stub.astro';
-
+/**
+ * ControlsCard (device-b, page level, real text): the two ways to run Time Card without Siri.
+ * Left, an outline of an iPhone's left edge with the Action button in gold and the label
+ * 'Action button → Next row'. Right, three round 64 px Control Center tiles: Next row,
+ * Break, Clock in. The qualifiers (Action button on iPhones that have one, Control Center
+ * needs iOS 18 or later) live in the section copy, not here.
+ *
+ * Hooks
+ *   [data-controls]                                   the card
+ *   [data-control="next-row"|"break"|"clock-in"]      one tile (li)
+ *   [data-action-button]                              the gold glow layer: opacity pulse
+ *   [data-action-key]                                 the gold Action button shape itself
+ *   [data-action-label]                               the label (fade/slide in)
+ */
 export interface Props {
+  /** Highlight the Action button in gold. Default true. */
   highlightAction?: boolean;
+  class?: string;
 }
-const { highlightAction = true } = Astro.props;
+const { highlightAction = true, class: cls } = Astro.props;
+
+const tiles = [
+  {
+    id: 'next-row',
+    label: 'Next row',
+    // Arrow to a line: "move on to the next row".
+    glyph: '<path d="M3.8 12h12.4M11.6 7.2l4.8 4.8-4.8 4.8M20.2 5.2v13.6"/>',
+  },
+  {
+    id: 'break',
+    label: 'Break',
+    // A cup.
+    glyph:
+      '<path d="M4.6 9.4h11.2v4.4a5 5 0 0 1-5 5h-1.2a5 5 0 0 1-5-5Z"/><path d="M15.8 10.8h1.4a2.6 2.6 0 0 1 0 5.2h-1.6"/><path d="M8.2 3.6c-.7.9-.7 1.8 0 2.7M11.6 3.6c-.7.9-.7 1.8 0 2.7"/>',
+  },
+  {
+    id: 'clock-in',
+    label: 'Clock in',
+    glyph: '<circle cx="12" cy="12" r="8.6"/><path d="M12 7.2v5l3.3 2"/>',
+  },
+] as const;
 ---
 
-<div class="controls card-dark" data-controls data-highlight={highlightAction ? 'action' : undefined}>
-  <ul class="tiles">
-    <li data-control="next-row">Next row</li>
-    <li data-control="break">Break</li>
-    <li data-control="clock-in">Clock in</li>
-  </ul>
-  <p data-action-button>Action button → Next row</p>
-  <Stub name="ControlsCard" owner="device-b" />
+<div
+  class:list={['controls', cls]}
+  data-controls
+  data-highlight={highlightAction ? 'action' : undefined}
+  role="group"
+  aria-label="Time Card’s controls without Siri"
+>
+  <div class="cc-grid">
+  <div class="cc-action">
+    <div class="cc-edge" aria-hidden="true">
+      <svg viewBox="0 0 76 196" width="76" height="196" focusable="false">
+        <g class="cc-fade" fill="none" stroke-linecap="round" stroke-linejoin="round">
+          <!-- titanium frame, then the screen's edge just inside it -->
+          <path class="cc-frame" d="M76 4H46A38 38 0 0 0 8 42V196"></path>
+          <path class="cc-glass" d="M76 10H47A32 32 0 0 0 15 42V196"></path>
+          <!-- volume up, volume down -->
+          <rect class="cc-key" x="3" y="104" width="5" height="30" rx="2.5"></rect>
+          <rect class="cc-key" x="3" y="146" width="5" height="30" rx="2.5"></rect>
+        </g>
+        <!-- a 1px gold leader from the Action button to its label -->
+        <path class="cc-leader" d="M12 73H76"></path>
+        <!-- the Action button -->
+        <rect class="cc-key cc-key--action" data-action-key x="3" y="62" width="5" height="22" rx="2.5"></rect>
+      </svg>
+      <span class="cc-glow" data-action-button></span>
+    </div>
+    <p class="cc-label" data-action-label>
+      <span class="cc-label-key">Action button</span>
+      <span class="cc-label-cmd"><span class="cc-arrow" aria-hidden="true">→</span><span class="sr-only">runs</span> Next row</span>
+    </p>
+  </div>
+
+  <div class="cc-center">
+    <p class="cc-eyebrow" aria-hidden="true">Control Center</p>
+    <ul class="cc-tiles" aria-label="Control Center">
+      {
+        tiles.map((t) => (
+          <li class="cc-tile" data-control={t.id}>
+            <span class="cc-circle" aria-hidden="true">
+              <svg viewBox="0 0 24 24" focusable="false" set:html={t.glyph} />
+            </span>
+            <span class="cc-name">{t.label}</span>
+          </li>
+        ))
+      }
+    </ul>
+  </div>
+  </div>
 </div>
 
 <style>
   .controls {
-    display: grid;
-    gap: 12px;
-    max-width: 30rem;
+    /* Inline-size containment has no intrinsic width, so always fill the container. */
+    container-type: inline-size;
+    width: 100%;
+    box-sizing: border-box;
+    background: var(--card-dark);
+    border: 1px solid var(--stage-line);
+    border-radius: var(--radius-card);
+    color: var(--on-stage);
+    overflow: hidden;
   }
-  .tiles {
+
+  .cc-grid {
+    display: grid;
+  }
+
+  /* ---------- Action button ---------- */
+  .cc-action {
     display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    padding: 4px 20px 0 12px;
+    min-height: 168px;
+    overflow: hidden;
+  }
+  .cc-edge {
+    position: relative;
+    flex: none;
+    width: 76px;
+    height: 164px;
+    margin-top: 8px;
+  }
+  .cc-edge svg {
+    display: block;
+    /* The edge fades out below the volume buttons: the rest of the phone is implied. */
+    -webkit-mask-image: linear-gradient(180deg, #000 70%, transparent 98%);
+    mask-image: linear-gradient(180deg, #000 70%, transparent 98%);
+  }
+  .cc-frame {
+    stroke: #8a9a90;
+    stroke-width: 2;
+  }
+  .cc-glass {
+    stroke: rgba(168, 187, 174, 0.28);
+    stroke-width: 1;
+  }
+  /* Static layers stay at opacity 1 (the static page fades nothing); hidden ones use display. */
+  .cc-leader {
+    display: none;
+    stroke: var(--gold-lit);
+    stroke-width: 1;
+    stroke-opacity: 0.9;
+  }
+  .controls[data-highlight='action'] .cc-leader {
+    display: inline;
+  }
+  .cc-key {
+    fill: var(--card-dark);
+    stroke: #8a9a90;
+    stroke-width: 1.5;
+  }
+  .controls[data-highlight='action'] .cc-key--action {
+    fill: var(--gold-lit);
+    stroke: var(--gold-lit);
+  }
+  /* A pre-blurred gold halo around the Action button; scenes pulse its opacity. */
+  .cc-glow {
+    position: absolute;
+    left: -22px;
+    top: 41px;
+    width: 50px;
+    height: 64px;
+    border-radius: 50%;
+    background: radial-gradient(closest-side, rgba(226, 166, 68, 0.55), rgba(226, 166, 68, 0.18) 55%, rgba(226, 166, 68, 0) 100%);
+    pointer-events: none;
+    display: none;
+  }
+  .controls[data-highlight='action'] .cc-glow {
+    display: block;
+  }
+
+  .cc-label {
+    /* First line centred on the leader line (y 73 in the sketch, +8 px margin). */
+    margin-top: 59px;
+    display: grid;
+    gap: 2px;
+    font-family: var(--font-body);
+    font-size: 1rem;
+    line-height: 1.4;
+  }
+  .cc-label-key {
+    font-weight: 600;
+    color: var(--on-stage);
+  }
+  .controls[data-highlight='action'] .cc-label-key {
+    color: var(--gold-lit);
+  }
+  .cc-label-cmd {
+    font-weight: 600;
+    color: var(--on-stage);
+  }
+  .cc-arrow {
+    color: var(--on-stage-muted);
+    font-weight: 400;
+  }
+
+  /* ---------- Control Center ---------- */
+  .cc-center {
+    padding: 18px 20px 20px;
+    border-top: 1px solid var(--stage-line);
+  }
+  .cc-eyebrow {
+    font-family: var(--font-mono);
+    font-size: var(--text-eyebrow);
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--on-stage-muted);
+  }
+  .cc-tiles {
+    display: flex;
+    justify-content: space-between;
     gap: 12px;
+    max-width: 288px;
+    margin: 14px 0 0;
     padding: 0;
     list-style: none;
-    font-size: 0.875rem;
   }
-  .tiles li {
-    padding: 8px 12px;
-    border-radius: 999px;
-    background: rgba(255, 255, 255, 0.06);
+  .cc-tile {
+    display: grid;
+    justify-items: center;
+    gap: 8px;
+    min-width: 64px;
+  }
+  .cc-circle {
+    display: grid;
+    place-items: center;
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: rgba(242, 245, 239, 0.1);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.12),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+    color: var(--on-stage);
+  }
+  .cc-tile[data-control='next-row'] .cc-circle {
+    background: var(--fir-mid);
+    color: #fff;
+  }
+  .cc-circle svg {
+    width: 27px;
+    height: 27px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.85;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .cc-name {
+    font-family: var(--font-body);
+    font-size: 0.875rem;
+    line-height: 1.2;
+    color: var(--on-stage);
+    white-space: nowrap;
+  }
+
+  /* Wide: Action button on the left, Control Center on the right. */
+  @container (min-width: 460px) {
+    .cc-grid {
+      grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+    }
+    .cc-center {
+      border-top: 0;
+      border-left: 1px solid var(--stage-line);
+      padding: 20px 22px 22px;
+    }
   }
 </style>
