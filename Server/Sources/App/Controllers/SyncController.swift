@@ -53,12 +53,21 @@ struct SyncController: RouteCollection {
         var results: [MutationResult] = []
         for mutation in body.mutations {
             let result = try await req.db.transaction { db -> MutationResult in
+                if let prior = try await AppliedMutationModel.find(mutation.id, on: db) {
+                    guard prior.userId == userId, prior.farmId == farmId else {
+                        return .rejected(mutation.id, .forbidden, "That change id was already used.")
+                    }
+                    return try ServerJSON.decode(MutationResult.self, from: prior.resultJSON)
+                }
                 // The caller's role can change partway through a batch, so it's read each time.
                 guard let caller = try await RecordStore(db: db).member(userId, farm: farmId), caller.removedAt == nil else {
                     return .rejected(mutation.id, .forbidden, "You’re no longer on this farm.")
                 }
                 let outcome = try await PushApplier(db: db, farmId: farmId, caller: caller, now: now).apply(mutation.record)
-                return outcome.result(mutation.id)
+                let result = outcome.result(mutation.id)
+                try await AppliedMutationModel(id: mutation.id, userId: userId, farmId: farmId,
+                                               resultJSON: try ServerJSON.string(result), createdAt: now).create(on: db)
+                return result
             }
             results.append(result)
         }
