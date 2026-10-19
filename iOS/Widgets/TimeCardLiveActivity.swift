@@ -3,66 +3,34 @@ import SwiftUI
 import TimeCardCore
 import WidgetKit
 
-/// Placeholder Live Activity: the status and a running timer. The real lock-screen
-/// layout (row buttons, break, undo) comes with the Live Activity slice.
+/// The lock-screen Live Activity and the Dynamic Island. The views live in
+/// Shared/LiveActivity so the app's tests can render them; this only places them.
 struct TimeCardLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: TimeCardActivityAttributes.self) { context in
-            HStack(spacing: 12) {
-                Image(systemName: "leaf.fill")
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(context.state.phase.title)
-                        .font(.headline)
-                    Text(context.attributes.farmName)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer()
-                Text(timerInterval: context.state.shownTimerStart...Date.distantFuture, countsDown: false)
-                    .font(.title2.monospacedDigit().weight(.semibold))
-                    .multilineTextAlignment(.trailing)
-                    .frame(maxWidth: 120)
-            }
-            .padding()
-            .activityBackgroundTint(Color(red: 0x1D / 255, green: 0x5B / 255, blue: 0x3A / 255).opacity(0.9))
-            .activitySystemActionForegroundColor(.white)
-            .foregroundStyle(.white)
+            LiveLockScreenView(display: LiveActivityDisplay(context.state), isStale: context.isStale)
+                .activityBackgroundTint(LiveColors.dynamicBackground)
+                .activitySystemActionForegroundColor(LiveColors.dynamicInk)
         } dynamicIsland: { context in
-            DynamicIsland {
+            let display = LiveActivityDisplay(context.state)
+            return DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
-                    Label(context.state.phase.title, systemImage: "leaf.fill")
+                    LiveIslandLeading(display: display)
                 }
                 DynamicIslandExpandedRegion(.trailing) {
-                    Text(timerInterval: context.state.shownTimerStart...Date.distantFuture, countsDown: false)
-                        .monospacedDigit()
-                        .frame(maxWidth: 80)
+                    LiveIslandTrailing(display: display)
+                }
+                DynamicIslandExpandedRegion(.bottom) {
+                    LiveIslandBottom(display: display)
                 }
             } compactLeading: {
-                Image(systemName: "leaf.fill")
+                LiveIslandCompactLeading(display: display)
             } compactTrailing: {
-                Text(timerInterval: context.state.shownTimerStart...Date.distantFuture, countsDown: false)
-                    .monospacedDigit()
-                    .frame(maxWidth: 56)
+                LiveIslandCompactTrailing(display: display)
             } minimal: {
-                Image(systemName: "leaf.fill")
+                LiveIslandMinimal(display: display)
             }
+            .keylineTint(LiveColors.island(onBreak: display.isOnBreak).timer)
         }
-    }
-}
-
-extension LiveSnapshot.Phase {
-    var title: String {
-        switch self {
-        case .working: "Working"
-        case .lunch: "Lunch"
-        case .onBreak: "On break"
-        }
-    }
-}
-
-extension LiveSnapshot {
-    /// While working the timer counts total worked time; on a break it counts the break.
-    var shownTimerStart: Date {
-        phase == .working ? timerStart : (breakStart ?? timerStart)
     }
 }
