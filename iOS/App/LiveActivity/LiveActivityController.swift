@@ -113,8 +113,9 @@ final class LiveActivityController {
         }
     }
 
-    /// Waits until every update so far has reached ActivityKit. Intents call this before
-    /// returning, so iOS doesn't suspend the app between saving a row and showing it.
+    /// Waits until every update so far has reached ActivityKit. `IntentRunner.afterChange`
+    /// waits for it inside a background task, so iOS doesn't suspend the app between saving a
+    /// row and showing it.
     func waitUntilIdle() async {
         while let worker {
             await worker.value

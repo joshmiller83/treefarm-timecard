@@ -98,13 +98,25 @@ final class ActivityKitHost: LiveActivityHosting {
 }
 
 /// One `beginBackgroundTask`, ended once, by the caller or when iOS runs out of patience.
+/// A UIKit background task: keeps the app running for a little while after iOS would
+/// suspend it (an intent returned, the app left the screen). `onExpire` runs if iOS ends it first.
 @MainActor
-private final class BackgroundTask {
+final class BackgroundTask {
     private var id = UIBackgroundTaskIdentifier.invalid
+    private let name: String
+    private let onExpire: @MainActor () -> Void
+
+    init(name: String = "Live Activity update", onExpire: @escaping @MainActor () -> Void = {}) {
+        self.name = name
+        self.onExpire = onExpire
+    }
 
     func begin() {
-        id = UIApplication.shared.beginBackgroundTask(withName: "Live Activity update") { [weak self] in
-            MainActor.assumeIsolated { self?.end() }
+        id = UIApplication.shared.beginBackgroundTask(withName: name) { [weak self] in
+            MainActor.assumeIsolated {
+                self?.onExpire()
+                self?.end()
+            }
         }
     }
 

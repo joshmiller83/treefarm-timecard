@@ -20,6 +20,21 @@ final class IntentShellTests {
         model.actions.onLiveSnapshot = { [weak self] in self?.published.append($0) }
     }
 
+    // MARK: After a change
+
+    /// A lock-screen press sends its change right away instead of waiting out the pause a
+    /// tap in the app gets, so it reaches the server before iOS suspends the app.
+    @Test func aChangeFromTheLockScreenSyncsAtOnce() async throws {
+        #expect(model.actions.perform(.clockIn(fieldId: nil)).succeeded)
+        #expect(try model.session.store.pendingCount() > 0)
+        IntentRunner.afterChange(model)
+        let deadline = Date().addingTimeInterval(1)
+        while try model.session.store.pendingCount() > 0 && Date() < deadline {
+            try await Task.sleep(for: .milliseconds(50))
+        }
+        #expect(try model.session.store.pendingCount() == 0, "still waiting for the 1.5 s pause")
+    }
+
     // MARK: Lock-screen buttons
 
     @Test func theLockScreenButtonsRunTheFieldActions() async throws {

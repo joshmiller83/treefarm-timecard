@@ -76,6 +76,28 @@ enum IntentRunner {
         Speech.firstSentence(speech)
     }
 
+    // MARK: After a change
+
+    /// The longest a change from Siri or the lock screen keeps the app awake to reach the server.
+    static let syncCap: Duration = .seconds(8)
+
+    /// After a change from Siri, a lock-screen button or a control. iOS may suspend the app as
+    /// soon as the intent returns, so a background task keeps it running until the change is on
+    /// its way to the server (a pass now, not after the usual pause, for up to `syncCap`), the
+    /// lock screen shows it, and Siri's suggestions have caught up; then a background refresh
+    /// is booked for anything still waiting. The intent itself doesn't wait for any of this.
+    static func afterChange(_ model: AppModel) {
+        let hold = BackgroundTask(name: "Time Card sync")
+        hold.begin()
+        Task { @MainActor in
+            _ = await model.session.syncNow(within: syncCap)
+            await model.liveActivity.waitUntilIdle()
+            await SiriSuggestions.shared.settled()
+            model.scheduleBackgroundRefresh()
+            hold.end()
+        }
+    }
+
     // MARK: The model
 
     /// The model intents work on: the shared one, which `reopenStorage()` replaces when the app

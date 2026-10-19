@@ -57,16 +57,22 @@ struct VoiceCommands {
     var now: () -> Date = Date.init
     /// Siri resolves spoken times on the phone's own calendar.
     var phoneCalendar: Calendar = .current
-    /// Runs after every change, so Siri's row and block suggestions follow the work.
-    var onChange: @MainActor () -> Void = { SiriSuggestions.shared.refreshNow() }
+    /// Runs after every change: Siri's row and block suggestions follow the work (once things
+    /// settle), and the change goes to the server and the lock screen before iOS suspends the app.
+    var onChange: @MainActor () -> Void
     /// Opens the database again for a model that couldn't open it, and returns the new model
     /// (which carries its own `storageError` if it still can't). Nil: nothing to retry with.
     var reopen: (@MainActor () -> AppModel)?
 
     init(model: AppModel, device: DeviceConditions, reopen: (@MainActor () -> AppModel)? = nil) {
-        self.current = Current(model)
+        let current = Current(model)
+        self.current = current
         self.device = device
         self.reopen = reopen
+        self.onChange = {
+            SiriSuggestions.shared.changed()
+            IntentRunner.afterChange(current.model)
+        }
     }
 
     /// The running app's model, on this phone as it is right now.

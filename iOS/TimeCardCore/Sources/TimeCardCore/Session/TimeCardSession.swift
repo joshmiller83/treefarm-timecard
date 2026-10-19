@@ -216,6 +216,14 @@ public final class TimeCardSession {
         return await engine.syncNow()
     }
 
+    /// Runs a pass now and waits for it, but no longer than `limit` (it carries on after).
+    /// Nil when it took longer.
+    @discardableResult
+    public func syncNow(within limit: Duration) async -> SyncOutcome? {
+        guard let engine else { return .signedOut }
+        return await Self.within(limit) { await engine.syncNow() }
+    }
+
     public func dismissNotice() {
         latestNotice = nil
     }

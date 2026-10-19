@@ -66,7 +66,8 @@ final class AppModel {
 
     /// The lock screen's Live Activity follows every change.
     func liveSnapshotChanged(_ snapshot: LiveSnapshot?) {
-        liveActivity.update(snapshot, attributes: activityAttributes)
+        // Once the session has opened, no snapshot really means off the clock.
+        liveActivity.update(snapshot, attributes: activityAttributes, sessionLoaded: session.hasOpened)
     }
 
     var activityAttributes: TimeCardActivityAttributes? {
@@ -124,7 +125,7 @@ final class AppModel {
         _ = await session.syncNow()
     }
 
-    private func scheduleBackgroundRefresh() {
+    func scheduleBackgroundRefresh() {
         guard mode == .live, case .signedIn = session.auth else { return }
         let request = BGAppRefreshTaskRequest(identifier: Self.backgroundRefreshID)
         request.earliestBeginDate = Date(timeIntervalSinceNow: 15 * 60)
