@@ -259,13 +259,14 @@ struct LiveTimerRow: View {
     var timerSize: CGFloat
 
     var body: some View {
-        HStack(alignment: .lastTextBaseline, spacing: 7) {
+        HStack(alignment: .lastTextBaseline, spacing: 5) {
             LiveTimer(start: display.timerStart, size: timerSize, color: colors.timer, characters: display.timerCharacters)
-            // A ten-hour day on a small phone has no room for the caption; the number stays.
+            // When the timer needs room for ten hours on a small phone, or the text is large,
+            // the caption goes; the number stays.
             ViewThatFits(in: .horizontal) {
-                HStack(alignment: .lastTextBaseline, spacing: 6) {
+                HStack(alignment: .lastTextBaseline, spacing: 4) {
                     if display.timerCaption != nil { caption }
-                    Spacer(minLength: 6)
+                    Spacer(minLength: 4)
                     rightStat
                 }
                 HStack(alignment: .lastTextBaseline, spacing: 0) {
