@@ -214,6 +214,8 @@ test.describe('clock-out', () => {
 
   test('the paper lifts out of the preview for a reader scrolling down (Chromium and WebKit)', async ({ page, isMobile }) => {
     test.skip(isMobile, 'desktop: the stage phone');
+    // A reader's wheel through eight chapters, twice (Chromium, then WebKit): slow on a busy machine.
+    test.setTimeout(150_000);
     const at = DESK.lift[0] + 0.004;
     const check = async (p: Page, engine: string) => {
       await settle(p);

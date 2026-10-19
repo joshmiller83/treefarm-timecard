@@ -34,27 +34,51 @@
   color: var(--muted);
 }
 
-/* Without motion each section paints its own tint; with motion the fixed tint layers do. */
+/* Without motion each section paints its own tint; with motion the fixed tint layers do.
+   A seam layer starts each chapter from the colour the one above ends on (the moving page
+   crossfades its tints), so the static page also reads as one sky from dawn to dusk. */
+html:not(.motion) .sec {
+  --seam-layer: linear-gradient(180deg, var(--seam, transparent) 0, transparent min(52vh, 460px));
+}
+html:not(.motion) .sec-voice {
+  --seam: #0a1c13; /* the hero's fir rows */
+}
+html:not(.motion) .sec-lock-screen {
+  --seam: #12281c; /* morning's foot */
+}
+html:not(.motion) .sec-field {
+  --seam: #0e2117; /* focus's foot */
+}
+html:not(.motion) .sec-notes {
+  --seam: #0c1d14; /* field's foot */
+}
+html:not(.motion) .sec-crew,
+html:not(.motion) .sec-pace {
+  --seam: #222a16; /* afternoon's foot, under its low glow */
+}
+html:not(.motion) .sec-clock-out {
+  --seam: #322813; /* pace's foot */
+}
 html:not(.motion) .sec[data-tint='dawn'] {
-  background: var(--tint-dawn);
+  background: var(--seam-layer), var(--tint-dawn);
 }
 html:not(.motion) .sec[data-tint='morning'] {
-  background: var(--tint-morning);
+  background: var(--seam-layer), var(--tint-morning);
 }
 html:not(.motion) .sec[data-tint='focus'] {
-  background: var(--tint-focus);
+  background: var(--seam-layer), var(--tint-focus);
 }
 html:not(.motion) .sec[data-tint='field'] {
-  background: var(--tint-field);
+  background: var(--seam-layer), var(--tint-field);
 }
 html:not(.motion) .sec[data-tint='afternoon'] {
-  background: var(--tint-afternoon);
+  background: var(--seam-layer), var(--tint-afternoon);
 }
 html:not(.motion) .sec[data-tint='pace'] {
-  background: var(--tint-pace);
+  background: var(--seam-layer), var(--tint-pace);
 }
 html:not(.motion) .sec[data-tint='dusk'] {
-  background: var(--tint-dusk);
+  background: var(--seam-layer), var(--tint-dusk);
 }
 html:not(.motion) .sec[data-tint='lights-up'] {
   background: var(--bg);

@@ -241,10 +241,8 @@ const alt = {
 <!--
   Static page (no motion): the section is light after its dusk band, so it tells the header
   (header.ts follows the section's data-theme) which part is under it. With motion the scene
-  owns the theme: dark at dusk, light from the lights-up.
-  On desktop the static header keeps its dark bar whatever the theme (Header.astro's
-  html:not(.motion) .site-header rule), so a 'light' there would turn its text ink on that dark
-  bar. There the section stays 'dark' and the header stays light-on-dark, readable.
+  owns the theme: dark at dusk, light from the lights-up. The static header (desktop and
+  mobile) turns light with ink text over the light part, as it does over the open chapter.
 -->
 <script is:inline>
   (function () {
@@ -252,14 +250,13 @@ const alt = {
     var t = s && s.querySelector('.track');
     var r = document.documentElement;
     if (!t || !('IntersectionObserver' in window)) return;
-    var narrow = matchMedia('(max-width: 899.98px)');
     var io;
     var watch = function () {
       if (io) io.disconnect();
       io = new IntersectionObserver(
         function (e) {
           if (r.classList.contains('motion')) return;
-          s.dataset.theme = e[e.length - 1].isIntersecting || !narrow.matches ? 'dark' : 'light';
+          s.dataset.theme = e[e.length - 1].isIntersecting ? 'dark' : 'light';
         },
         { rootMargin: '-56px 0px ' + (64 - innerHeight) + 'px 0px' },
       );
@@ -678,7 +675,11 @@ const alt = {
     left: 50%;
     width: 100vw;
     margin-left: -50vw;
-    background: var(--tint-dusk);
+    /* From pace's foot at the top (shell.css's seam), and a short dusk-to-paper fade at the foot. */
+    background:
+      var(--seam-layer, none),
+      linear-gradient(180deg, transparent calc(100% - 140px), var(--bg)),
+      var(--tint-dusk);
   }
   :global(html:not(.motion) .sec-clock-out > .track .eyebrow) {
     color: var(--gold-lit);

@@ -685,12 +685,15 @@ registerScene('voice', (ctx) => {
 }, { dayStart: MOMENTS.misheard });
 ```
 
-`ctx`: `{ id, section, tl, phone, screens, extras, frame, beats, q, q1, day, isDesk, util,
+`ctx`: `{ id, section, tl, phone, screens, extras, frame, beats, q, q1, day, clock, isDesk, util,
 gsap, ScrollTrigger, SplitText, Flip, stage, trigger, tint }`. `tl` is scrubbed (`start 'top top'`,
 `end 'bottom bottom'`, `scrub 0.6`) and normalized: place everything between 0 and 1.
+`clock` is the DayClock's real-time tick (`wake()` drops it, `idle()` starts the 5 s tick).
 `util`: `tap, odometer, karaoke, typeIn, drawLine, crossfade, sheen, callout, ambient`
 (see `src/scripts/util.ts`). Leave the phone at rest at 0 and 1, and end screen layers in the
-state the next section starts from.
+state the next section starts from. On desktop `phone` is the shared stage phone: never let a
+tween on it render at build time (`immediateRender: false` on a `fromTo`), because the chapter
+before yours may still own it (zoomed, moved) when your scene is built.
 
 ## Real captures: the state id registry
 

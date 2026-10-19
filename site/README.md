@@ -28,7 +28,7 @@ npm run dev            # http://localhost:4321 (use your team's port: npm run de
 | `npm run preview` | Serves `dist/` on 4321 |
 | `npm run check` | `astro check` (TypeScript strict) |
 | `npm test` | Vitest: ledger arithmetic, Siri wording, DayClock math, odometer, and the shared components' models (Live Activity, wallpapers, captures, wave, Clock/notes/team views, field map, report) |
-| `npm run test:e2e` | Playwright against the built site: the page (`tests/e2e`: smoke, reduced motion, axe, overflow, nav) and the component labs (`tests/lab`, one spec per team, projects `lab-desktop` and `lab-mobile`). Build first. `PW_PORT=4330` to change the port, `PW_ALL=1` to add WebKit and Firefox (page and labs). Just the page: `-- --project=desktop --project=mobile` |
+| `npm run test:e2e` | Playwright against the built site: the page (`tests/e2e`: smoke, reduced motion, axe, overflow, nav; `tests/sections`: one spec per chapter) and the component labs (`tests/lab`, one spec per team, projects `lab-desktop` and `lab-mobile`). Build first. `PW_PORT=4330` to change the port, `PW_ALL=1` to add WebKit and Firefox (page and labs). Just the page: `-- --project=desktop --project=mobile` |
 | `npm run test:all` | check + unit + build + e2e |
 | `npm run shoot -- …` | Screenshots (below) |
 | `npm run og` | Rebuilds `public/og.png` from the hidden `/og/` route (commit the PNG) |
@@ -85,6 +85,13 @@ npx astro preview stop                           # stops this worktree's backgro
   ScrollTrigger pins). Copy beats sit at scroll progress `--at` (0–1). Each section's scene
   (`src/scripts/scenes/<id>.ts`) is imported and built lazily when the section is within
   1.5 viewports, inside `gsap.matchMedia` (`desk` ≥ 900px wide and ≥ 560px tall, `mob` below 900px).
+  On the first load a scene below the fold (the voice chapter) waits for the hero's load
+  sequence, the first scroll or 4 s, then builds in its own idle task; `__tf.ready` resolves
+  after it. Phone screens far from the viewport skip rendering (`content-visibility: auto`).
+- **One film**: the day only runs forwards (7:02 → 2:01 → 2:14 → 2:16 → 2:30 → 2:44 → 3:00 →
+  3:40 → 4:31): each scene's `dayStart` is where the chapter before it left the clock. A scene
+  never renders a from-state onto the shared stage phone at build time (`immediateRender: false`),
+  because the chapter before it may still own the phone. Sections clip sideways overflow.
 - **The stage** (desktop with motion): one fixed phone. When a section becomes active its
   `[data-screens]` container moves into the stage phone (0.35 s crossfade and sheen) and its
   own figure is visually hidden but still read by screen readers. `--stage-x/-y/-w/-h` on
@@ -93,7 +100,8 @@ npx astro preview stop                           # stops this worktree's backgro
 - **DayClock** (`dayclock.ts`): one shared minute drives status-bar clocks (`[data-clock]`),
   Live Activity timers (`[data-timer]`), the shift ribbon and the header DayMark. Scenes tween
   it with `day.to(tl, minute, start, end)`; only the active section's tween shows. Timers tick in
-  real time for up to 5 s after scrolling stops. Pause motion stops all of it.
+  real time for up to 5 s after scrolling stops (`ctx.clock.wake()/idle()` in a scene). Pause
+  motion stops all of it.
 - **One ledger**: every number comes from `src/data/ledger.ts`, every spoken line from
   `src/data/siri.ts`. Never type a number or a Siri line by hand.
 
