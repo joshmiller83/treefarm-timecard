@@ -28,7 +28,7 @@ export const POSES = {
   /** Desktop: behind the stage phone. */
   desk: {
     hidden: { x: 0, y: 0, rotate: 0, scale: 0.86 },
-    rest: { x: -0.32, y: -0.04, rotate: -4, scale: 0.86 },
+    rest: { x: -0.36, y: -0.04, rotate: -4, scale: 0.86 },
     front: { x: -0.2, y: 0, rotate: -1.5, scale: 1 },
   },
   /** Mobile: behind the section phone. */
@@ -38,6 +38,9 @@ export const POSES = {
     front: { x: -0.08, y: 0.01, rotate: -1, scale: 1 },
   },
 } satisfies Record<string, Record<'hidden' | 'rest' | 'front', Pose>>;
+
+/** Desktop camera: the stage phone (and the rig the second phone hangs on) during the chapter. */
+export const PULL = { scale: 0.88, y: 0.035 } as const;
 
 /** Where the point (u·w, v·h) of a box lands once the pose is applied (box coordinates). */
 export function posePoint(box: Box, pose: Pose, u: number, v: number): Pt {

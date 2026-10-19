@@ -24,6 +24,8 @@ export const AT = {
 
   // [0, .08] 2:44 → 2:47: the second phone slides out, names, the server, the wires draw.
   enter: [0, 0.08] as Win,
+  /** Desktop: the camera pulls back a little so both phones and the server fit the frame. */
+  pull: [0, 0.07] as Win,
   peekIn: [0.005, 0.07] as Win,
   chips: [0.03, 0.07] as Win,
   server: [0.02, 0.06] as Win,
@@ -56,17 +58,17 @@ export const AT = {
   queue2: [0.376, 0.388] as Win,
 
   // [.42, .6] 3:00: back in range. Two changes go up, Sam's row comes down, row 12 turns green.
-  barsIn: [0.44, 0.49] as Win,
-  undim: [0.44, 0.5] as Win,
-  packetsUp: [0.468, 0.528] as Win,
-  pulseSync: [0.524, 0.548] as Win,
-  packetDown: [0.53, 0.566] as Win,
-  syncOut: [0.552, 0.566] as Win,
+  barsIn: [0.425, 0.465] as Win,
+  undim: [0.425, 0.48] as Win,
+  packetsUp: [0.448, 0.5] as Win,
+  pulseSync: [0.496, 0.52] as Win,
+  packetDown: [0.502, 0.536] as Win,
+  syncOut: [0.524, 0.536] as Win,
   /** The offline layer → the synced layer (sync lines out of both, so nothing jumps). */
-  swap: 0.566,
-  syncedIn: [0.566, 0.584] as Win,
-  green: [0.568, 0.592] as Win,
-  banner: [0.578, 0.618] as Win,
+  swap: 0.536,
+  syncedIn: [0.536, 0.554] as Win,
+  green: [0.538, 0.562] as Win,
+  banner: [0.548, 0.588] as Win,
 
   // [.6, .66] the banner goes.
   bannerOut: [0.624, 0.656] as Win,
@@ -77,8 +79,8 @@ export const AT = {
   zSwap: 0.7,
   forward: [0.7, 0.78] as Win,
   wiresDim: [0.68, 0.72] as Win,
-  rows: [0.738, 0.8] as Win,
-  invite: [0.79, 0.81] as Win,
+  rows: [0.712, 0.78] as Win,
+  invite: [0.77, 0.792] as Win,
   workers: [0.8, 0.84] as Win,
   serverLit: [0.84, 0.88] as Win,
 
@@ -94,7 +96,7 @@ export const DAY_TRACK: ReadonlyArray<{ start: number; end: number; min: Minute 
   { start: 0.15, end: AT.tap.sam, min: CONFLICT.at }, // 2:49: Sam taps
   { start: 0.26, end: AT.tap.row11, min: kept.at }, // 2:50: Alex taps row 11
   { start: 0.29, end: AT.tap.row12, min: REJECTED.at }, // 2:56: Alex taps row 12
-  { start: 0.4, end: AT.barsIn[0], min: OFFLINE.back }, // 3:00: back in range
+  { start: 0.39, end: AT.barsIn[0], min: OFFLINE.back }, // 3:00: back in range
 ];
 
 /** The DayClock minute at progress p (piecewise linear, like the scrubbed tweens). */

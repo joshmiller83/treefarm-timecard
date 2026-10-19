@@ -5,7 +5,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { CONFLICT_MESSAGE, CREW_MARKS, MARKS, MOMENTS, OFFLINE, TEAM, fmtTime } from '../../data/ledger.ts';
+import { CONFLICT_MESSAGE, MOMENTS, OFFLINE, TEAM, fmtTime } from '../../data/ledger.ts';
 import { COPY, copyLines } from './copy.ts';
 import { POSES, poseBounds, posePoint, wirePath, type Pose } from './geometry.ts';
 import { AT, DAY_FROM, DAY_TRACK, dayAt, windows } from './schedule.ts';

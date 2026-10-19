@@ -1,43 +1,711 @@
 ---
 /**
- * THE CREW · 2:47 PM. PLACEHOLDER from the foundation: the section team owns this file and
- * src/scripts/scenes/crew.ts. Spec: jq '.sections[] | select(.id=="crew")' docs/landing/brief.json
+ * THE CREW · 2:47 PM · Block 3 (brief: sections[crew]).
+ *
+ * One live map for the whole crew, offline marks that sync later, first mark wins (with the
+ * app's exact message), admins and workers, and the farm's own small server.
+ *
+ * Static first: the server markup is the composed no-motion figure (three phones in a row on
+ * desktop, stacked on mobile: offline, synced, the owner's Team tab, under a static server
+ * glyph). With motion, Alex's phone carries three layers (block 3 → offline → synced) and the
+ * extras add a second phone (Sam's map, then the owner's), name chips, the server and its
+ * wires; src/scripts/scenes/crew.ts scrubs it all with the DayClock. Every number, row, time
+ * and line comes from the ledger through ./crew/story.ts.
  */
 import SectionShell from '../components/SectionShell.astro';
 import Phone from '../components/phone/Phone.astro';
 import Screen from '../components/phone/Screen.astro';
 import TreesTab from '../components/app/TreesTab.astro';
+import TeamTab from '../components/app/TeamTab.astro';
+import Icon from '../components/app/Icon.astro';
+import ServerGlyph from './crew/ServerGlyph.astro';
 import { CONFLICT_MESSAGE, MOMENTS } from '../data/ledger';
+import { COPY } from './crew/copy';
+import { AT } from './crew/schedule';
+import { BLOCK, CAPTION, CONFLICT, LABELS, OFFLINE_LINE, ROWS, STEPS, SYNCED_LINE } from './crew/story';
 
-const label = `Two phones. Your map shows the message: ${CONFLICT_MESSAGE} Synced. The owner’s phone shows the Team tab with this week’s hours for Alex, Sam and Rosa and an Invite someone button.`;
+const [, b1, b2, b3, b4] = AT.beats;
+const map = { block: BLOCK, rows: ROWS.view, zoom: 'L' as const };
+const [stepOff, stepSync, stepOwner] = STEPS;
 ---
 
 <SectionShell id="crew">
   <Fragment slot="intro">
-    <p>Everyone on the crew shares one live map. When Sam marks a row, it shows up on your phone too.</p>
+    <p>{COPY.body}</p>
   </Fragment>
-  <div class="beat" data-beat="1" style="--at:.25">
-    <p>No signal at the back of the field? Keep working. Time Card saves your marks on your phone and syncs when you’re back in range.</p>
-  </div>
-  <div class="beat" data-beat="2" style="--at:.45">
-    <p>If two people mark the same tree, the first one counts, and the other phone says so:</p>
-    <p class="siri-reply">{CONFLICT_MESSAGE}</p>
-  </div>
-  <div class="beat" data-beat="3" style="--at:.7">
-    <p>Farm owners and crew leads are admins. They invite people with a code, set up fields and blocks, and see everyone’s hours and reports.</p>
-  </div>
-  <div class="beat" data-beat="4" style="--at:.88">
-    <p>Workers see only their own hours and pay. The crew shares one small server that your farm runs itself.</p>
+
+  <div class="beat crew-beat" data-beat="1" style={`--at:${b1}`}>
+    <span class="crew-ic" aria-hidden="true"><Icon name="wifi.slash" size="20px" weight={2} /></span>
+    <p><strong>{COPY.offline.lead}</strong> {COPY.offline.rest}</p>
   </div>
 
-  <figure class="shot" data-stage-shot slot="figure">
-    <Phone label={label}>
-      <div class="screens" data-screens>
-        <Screen stateId="trees-1500-synced" alt={label} tone="light" final>
-          <TreesTab at={MOMENTS.synced} block={3} rows={[6, 16]} zoom="L" syncLine="Synced" banner={CONFLICT_MESSAGE} />
-        </Screen>
+  <div class="beat crew-beat" data-beat="2" style={`--at:${b2}`}>
+    <span class="crew-ic" aria-hidden="true"><Icon name="check" size="20px" weight={2.2} /></span>
+    <p><strong>{COPY.firstWins.lead}</strong> {COPY.firstWins.rest}</p>
+    <p class="crew-msg"><q>{COPY.firstWins.quote}</q></p>
+  </div>
+
+  <div class="beat crew-beat" data-beat="3" style={`--at:${b3}`}>
+    <span class="crew-ic" aria-hidden="true"><Icon name="people" size="20px" weight={2} /></span>
+    <p><strong>{COPY.admins.lead}</strong> {COPY.admins.rest}</p>
+    <p class="crew-workers-line"><strong>{COPY.workers}</strong></p>
+  </div>
+
+  <div class="beat crew-beat" data-beat="4" style={`--at:${b4}`}>
+    <span class="crew-ic" aria-hidden="true"><Icon name="server" size="20px" weight={2} /></span>
+    <p><strong>{COPY.server}</strong></p>
+  </div>
+
+  <figure class="shot crew-shot" data-stage-shot slot="figure">
+    <!-- Without motion: the farm's server above the three phones, wired to each. -->
+    <div class="crew-net static-only" aria-hidden="true">
+      <div class="crew-net-srv">
+        <ServerGlyph />
+        <span class="crew-net-label">Your farm’s server</span>
       </div>
-    </Phone>
-    <figcaption>First mark wins, and the other phone says so: “{CONFLICT_MESSAGE}”</figcaption>
+      <div class="crew-fan-box">
+        <svg class="crew-fan" viewBox="0 0 600 72" preserveAspectRatio="none" focusable="false">
+          <path class="crew-fan-wire crew-fan-wire--off" d="M300 2C300 44 100 30 100 72"></path>
+          <path class="crew-fan-wire" d="M300 2V72"></path>
+          <path class="crew-fan-wire" d="M300 2C300 44 500 30 500 72"></path>
+        </svg>
+        <span class="crew-fan-nosig"></span>
+      </div>
+      <span class="crew-drop"></span>
+    </div>
+
+    <div class="crew-trio">
+      <!-- Alex's phone: first in the DOM (the stage moves its [data-screens]; mobile scenes use it). -->
+      <div class="crew-cell crew-cell--main">
+        <Phone label={LABELS.main}>
+          <div class="screens crew-screens" data-screens data-crew-screens>
+            <Screen stateId="trees-1447-block3" alt={LABELS.main} tone="light">
+              <TreesTab at={MOMENTS.crew} {...map} syncSlot />
+            </Screen>
+            <Screen stateId="trees-1456-offline" alt={LABELS.offline} tone="light">
+              <TreesTab at={MOMENTS.alexRow12} {...map} syncLine={OFFLINE_LINE} noService />
+            </Screen>
+            <Screen stateId="trees-1500-synced" alt={LABELS.main} tone="light" final>
+              <TreesTab at={MOMENTS.synced} {...map} syncLine={SYNCED_LINE} banner={CONFLICT_MESSAGE} />
+            </Screen>
+          </div>
+        </Phone>
+        <p class="crew-step static-only">
+          <span class="crew-step-n">{stepSync.n}</span><time>{stepSync.time}</time><span aria-hidden="true">·</span><span>{stepSync.title}</span>
+        </p>
+      </div>
+
+      <div class="crew-cell crew-cell--off static-only">
+        <Phone label={LABELS.offline}>
+          <div class="screens">
+            <Screen stateId="trees-1456-offline" alt={LABELS.offline} tone="light" final>
+              <TreesTab at={MOMENTS.alexRow12} {...map} syncLine={OFFLINE_LINE} noService />
+            </Screen>
+          </div>
+        </Phone>
+        <p class="crew-step">
+          <span class="crew-step-n">{stepOff.n}</span><time>{stepOff.time}</time><span aria-hidden="true">·</span><span>{stepOff.title}</span>
+        </p>
+      </div>
+
+      <div class="crew-cell crew-cell--owner static-only">
+        <Phone label={LABELS.owner}>
+          <div class="screens">
+            <Screen stateId="team-1500" alt={LABELS.owner} tone="light" final>
+              <TeamTab />
+            </Screen>
+          </div>
+        </Phone>
+        <p class="crew-step">
+          <span class="crew-step-n">{stepOwner.n}</span><time>{stepOwner.time}</time><span aria-hidden="true">·</span><span>{stepOwner.title}</span>
+        </p>
+      </div>
+    </div>
+
+    <figcaption>{CAPTION}</figcaption>
   </figure>
+
+  <!-- With motion: the second phone, names, the server and its wires (aligned to --stage-* on desktop). -->
+  <div slot="extras" class="crew-x motion-only" data-crew-x>
+    <div class="crew-dim" data-crew-dim aria-hidden="true"></div>
+    <div class="crew-rig" data-crew-rig>
+      <div class="crew-peek" data-crew-peek>
+        <Phone variant="peek" label={LABELS.peek} height="var(--crew-ph)">
+          <div class="screens crew-peek-screens" data-crew-peek-screens>
+            <Screen stateId="sam-1449-trees" alt={LABELS.peek} tone="light">
+              <TreesTab at={CONFLICT.at} who="Sam" {...map} />
+            </Screen>
+            <Screen stateId="team-1500" alt={LABELS.owner} tone="light" final>
+              <TeamTab />
+            </Screen>
+          </div>
+        </Phone>
+        <span class="crew-chip crew-chip--peek" data-crew-chip="sam" aria-hidden="true">{CONFLICT.by}</span>
+        <span class="crew-chip crew-chip--peek" data-crew-chip="owner" aria-hidden="true">Owner’s phone</span>
+      </div>
+
+      <div class="crew-deco" aria-hidden="true">
+        <svg class="crew-wires" data-crew-wires focusable="false">
+          <defs>
+            <mask id="crew-mask-sam" maskUnits="userSpaceOnUse" x="-4000" y="-4000" width="8000" height="8000">
+              <path data-wire-reveal="sam" pathLength="1" d="M0 0"></path>
+            </mask>
+            <mask id="crew-mask-alex" maskUnits="userSpaceOnUse" x="-4000" y="-4000" width="8000" height="8000">
+              <path data-wire-reveal="alex" pathLength="1" d="M0 0"></path>
+            </mask>
+          </defs>
+          <g data-wires>
+            <path class="crew-wire" data-wire="sam" mask="url(#crew-mask-sam)" d="M0 0"></path>
+            <path class="crew-wire" data-wire="alex" mask="url(#crew-mask-alex)" d="M0 0"></path>
+          </g>
+          <g data-wire-nosig-at>
+            <g class="crew-nosig" data-wire-nosig>
+              <circle r="8.5"></circle>
+              <path d="M-3.4 -3.4 3.4 3.4"></path>
+            </g>
+          </g>
+          <g class="crew-packet" data-packet="sam"><circle class="crew-packet-halo" r="8"></circle><circle r="3.4"></circle></g>
+          <g class="crew-packet" data-packet="alex-1"><circle class="crew-packet-halo" r="8"></circle><circle r="3.4"></circle></g>
+          <g class="crew-packet" data-packet="alex-2"><circle class="crew-packet-halo" r="8"></circle><circle r="3.4"></circle></g>
+          <g class="crew-packet crew-packet--green" data-packet="down-alex"><circle class="crew-packet-halo" r="8"></circle><circle r="3.4"></circle></g>
+          <g class="crew-packet crew-packet--green" data-packet="down-sam"><circle class="crew-packet-halo" r="8"></circle><circle r="3.4"></circle></g>
+        </svg>
+        <div class="crew-server" data-crew-server>
+          <div class="crew-server-in" data-crew-server-in>
+            <ServerGlyph />
+            <span class="crew-server-label">Your farm’s server</span>
+          </div>
+          <i class="crew-srv-anchor" data-srv-anchor></i>
+        </div>
+        <span class="crew-chip crew-chip--you" data-crew-chip="you">You</span>
+      </div>
+
+      <p class="crew-workers" data-crew-workers>
+        <Icon name="lock" size="15px" />
+        {COPY.workers}
+      </p>
+    </div>
+  </div>
 </SectionShell>
+
+<style>
+  /* ================= Section-wide sizes ================= */
+  :global(#crew) {
+    /* Mobile with motion: room above the phone for the server, and a slightly smaller phone. */
+    --crew-pad: 68px;
+    --crew-ph-mob: min(46svh, 400px);
+    /* Without motion: the three phones' height. */
+    --crew-static-h: min(64svh, 480px);
+  }
+  @media (min-width: 900px) {
+    :global(#crew) {
+      --crew-static-h: min(66svh, 540px, calc((100vw - 48px) * 0.56));
+    }
+  }
+
+  /* ================= Copy ================= */
+  .crew-beat {
+    display: grid;
+    gap: 14px;
+    justify-items: start;
+  }
+  .crew-beat p {
+    margin: 0;
+  }
+  .crew-beat strong {
+    color: var(--on-stage);
+    font-weight: 600;
+  }
+  .crew-ic {
+    display: grid;
+    place-items: center;
+    width: 38px;
+    height: 38px;
+    border-radius: 12px;
+    background: rgba(136, 207, 164, 0.09);
+    box-shadow: inset 0 0 0 1px var(--stage-line);
+    color: var(--fir-lit);
+  }
+  .crew-workers-line {
+    padding-top: 2px;
+  }
+
+  /* The conflict message as page text: a twin of the in-app banner (ink, a rust rule, white). */
+  .crew-msg {
+    position: relative;
+    max-width: 100%;
+    margin-top: 2px !important;
+    padding: 14px 18px 14px 30px;
+    border-radius: 16px;
+    background: #14221a;
+    box-shadow:
+      inset 0 0 0 1px rgba(242, 245, 239, 0.08),
+      0 14px 34px rgba(2, 8, 5, 0.32);
+    font-family: var(--font-body);
+    font-weight: 500;
+    font-size: clamp(1.0625rem, 1rem + 0.3vw, 1.1875rem);
+    line-height: 1.4;
+    color: #fff;
+  }
+  .crew-msg::before {
+    content: '';
+    position: absolute;
+    left: 14px;
+    top: 13px;
+    bottom: 13px;
+    width: 4px;
+    border-radius: 99px;
+    background: #c4512f;
+  }
+
+  /* Desktop with motion: the workers line rides by the stage phone as a chip instead. */
+  @media (min-width: 900px) {
+    :global(html.motion) .crew-workers-line {
+      display: none;
+    }
+  }
+  @media (max-width: 899.98px) {
+    :global(html.motion) .crew-beat {
+      gap: 12px;
+    }
+    :global(html.motion) .crew-ic {
+      width: 34px;
+      height: 34px;
+      border-radius: 11px;
+    }
+  }
+
+  /* ================= Figure without motion ================= */
+  .crew-shot {
+    width: 100%;
+  }
+  .crew-trio {
+    display: grid;
+    justify-items: center;
+    gap: 48px;
+  }
+  /* The trio and the wires above it share one width, so the wires land on the phones. */
+  .crew-trio,
+  .crew-net {
+    justify-self: stretch;
+    width: min(100%, calc(var(--crew-static-h) * 420 / 879 * 3 + 168px));
+    margin-inline: auto;
+  }
+  .crew-cell {
+    display: grid;
+    justify-items: center;
+    gap: 16px;
+    --phone-h: var(--crew-static-h);
+  }
+  .crew-cell--off {
+    order: 1;
+  }
+  .crew-cell--main {
+    order: 2;
+  }
+  .crew-cell--owner {
+    order: 3;
+  }
+  .crew-step {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    font-family: var(--font-mono);
+    font-weight: 500;
+    font-size: 0.75rem;
+    line-height: 1.3;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--on-stage-muted);
+  }
+  .crew-step time {
+    color: var(--on-stage);
+  }
+  .crew-step-n {
+    display: grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    box-shadow: inset 0 0 0 1px rgba(226, 166, 68, 0.55);
+    color: var(--gold-lit);
+    letter-spacing: 0;
+  }
+
+  /* The server above the phones, wired to each one. */
+  .crew-net {
+    display: grid;
+    justify-items: center;
+    margin-bottom: 8px;
+  }
+  .crew-net-srv {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 14px 6px 8px;
+    border-radius: 999px;
+    background: rgba(16, 34, 26, 0.8);
+    box-shadow: inset 0 0 0 1px var(--stage-line);
+  }
+  .crew-net-label {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--on-stage-muted);
+  }
+  .crew-fan-box {
+    position: relative;
+    display: none;
+    width: 100%;
+  }
+  .crew-fan {
+    display: block;
+    width: 100%;
+    height: 64px;
+    overflow: visible;
+  }
+  /* Phone 1's wire carries a small no-signal mark halfway down. */
+  .crew-fan-nosig {
+    position: absolute;
+    left: 33.3%;
+    top: 52%;
+    width: 17px;
+    height: 17px;
+    translate: -50% -50%;
+    border-radius: 50%;
+    background: #0f1d14;
+    box-shadow: inset 0 0 0 1.25px rgba(168, 187, 174, 0.55);
+  }
+  .crew-fan-nosig::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 9px;
+    height: 1.75px;
+    margin: -0.875px 0 0 -4.5px;
+    border-radius: 2px;
+    background: #e8907a;
+    rotate: 45deg;
+  }
+  .crew-fan-wire {
+    fill: none;
+    stroke: rgba(136, 207, 164, 0.55);
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-dasharray: 0.01 7;
+    vector-effect: non-scaling-stroke;
+  }
+  /* Phone 1 had no signal: its wire is faint. */
+  .crew-fan-wire--off {
+    stroke: rgba(168, 187, 174, 0.28);
+  }
+  .crew-drop {
+    width: 0;
+    height: 30px;
+    border-left: 2px dotted rgba(136, 207, 164, 0.5);
+  }
+
+  @media (min-width: 900px) {
+    .crew-trio {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      column-gap: 0;
+    }
+    .crew-fan-box {
+      display: block;
+    }
+    .crew-drop {
+      display: none;
+    }
+    /* The whole width: the heading on the left, the five lines on the right, the figure below. */
+    :global(html:not(.motion) #crew .track) {
+      row-gap: 56px;
+    }
+    :global(html:not(.motion) #crew .beats) {
+      grid-column: 1 / -1;
+      max-width: none;
+      grid-template-columns: repeat(12, minmax(0, 1fr));
+      column-gap: var(--col-gap);
+      row-gap: 36px;
+      align-items: start;
+    }
+    :global(html:not(.motion) #crew .beat-head) {
+      grid-column: 1 / span 5;
+      grid-row: 1 / span 4;
+    }
+    :global(html:not(.motion) #crew .beats > .beat:not(.beat-head)) {
+      grid-column: 7 / -1;
+    }
+    :global(html:not(.motion) #crew .frame) {
+      grid-column: 1 / -1;
+    }
+    :global(html:not(.motion) #crew .crew-shot figcaption) {
+      max-width: 52ch;
+    }
+  }
+
+  /* ================= With motion ================= */
+  :global(html.motion) .crew-trio {
+    display: block;
+  }
+  :global(html.motion) .crew-cell--main {
+    --phone-h: inherit;
+  }
+  @media (max-width: 899.98px) {
+    :global(html.motion) .crew-shot {
+      padding-top: var(--crew-pad);
+    }
+    /* Explicit layers: your phone (2) over the second phone's rig (1), whatever transforms the
+       taps put on the phone; the scene lifts the rig to 3 for the owner's beat. */
+    :global(html.motion) .crew-cell--main {
+      --phone-h: var(--crew-ph-mob);
+      position: relative;
+      z-index: 2;
+    }
+  }
+  /* The frame holds only decoration here; let the copy beside it take the pointer. */
+  :global(html.motion #crew .frame) {
+    pointer-events: none;
+  }
+
+  /* ---------- Extras ---------- */
+  .crew-x {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+  .crew-x :global(*) {
+    pointer-events: none;
+  }
+  /* The key light dims while there is no signal (an overlay behind the stage phone). */
+  .crew-dim {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    background:
+      radial-gradient(60% 70% at 72% 52%, rgba(3, 8, 5, 0.1), rgba(3, 8, 5, 0.62) 70%),
+      rgba(3, 8, 5, 0.2);
+  }
+  /* The rig is the rect of the phone the second phone hangs behind. */
+  .crew-rig {
+    position: absolute;
+    left: 50%;
+    top: var(--crew-pad);
+    height: var(--crew-ph-mob);
+    width: calc(var(--crew-ph-mob) * 420 / 879);
+    translate: -50% 0;
+    --crew-ph: var(--crew-ph-mob);
+    --crew-gap: var(--crew-pad);
+  }
+  @media (max-width: 899.98px) {
+    .crew-dim {
+      display: none;
+    }
+    .crew-rig {
+      z-index: 1;
+    }
+  }
+  /* Desktop: exactly over the stage phone, from --stage-*. The scene refines them into
+     --crew-s* from the stage slot's untransformed rect: stage.ts measures the phone itself,
+     which this chapter scales (the camera pull), so a resize mid-chapter would skew --stage-*. */
+  @media (min-width: 900px) {
+    .crew-rig {
+      left: var(--crew-sx, var(--stage-x));
+      top: var(--crew-sy, var(--stage-y));
+      width: var(--crew-sw, var(--stage-w));
+      height: var(--crew-sh, var(--stage-h));
+      translate: none;
+      --crew-ph: var(--crew-sh, var(--stage-h));
+      --crew-gap: calc(var(--crew-sy, var(--stage-y)) - var(--chrome-h));
+    }
+  }
+
+  .crew-peek {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    opacity: 0;
+  }
+  .crew-peek :global(.phone-shadow) {
+    opacity: 0.7;
+  }
+
+  .crew-chip {
+    position: absolute;
+    z-index: 3;
+    display: inline-flex;
+    align-items: center;
+    height: 26px;
+    padding: 0 11px;
+    border-radius: 999px;
+    background: var(--card-dark);
+    box-shadow:
+      inset 0 0 0 1px rgba(136, 207, 164, 0.22),
+      0 6px 16px rgba(2, 8, 5, 0.35);
+    color: var(--on-stage);
+    font-family: var(--font-mono);
+    font-weight: 500;
+    font-size: 13px;
+    line-height: 1;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    opacity: 0;
+  }
+  /* Name tags ride on each phone's top edge (the second phone's is drawn larger: it is scaled down). */
+  /* No CSS translate on anything GSAP moves (it writes translate: none): anchor by bottom. */
+  .crew-chip--peek {
+    left: 7%;
+    bottom: calc(100% + 11px);
+    height: 32px;
+    padding: 0 13px;
+    font-size: 15px;
+  }
+  .crew-chip--you {
+    right: 6%;
+    bottom: calc(100% + 10px);
+  }
+
+  .crew-deco {
+    position: absolute;
+    inset: 0;
+  }
+  .crew-wires {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+  }
+  .crew-wires mask path {
+    fill: none;
+    stroke: #fff;
+    stroke-width: 14;
+    stroke-linecap: butt;
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+  }
+  .crew-wire {
+    fill: none;
+    stroke: rgba(136, 207, 164, 0.78);
+    stroke-width: 2.4;
+    stroke-linecap: round;
+    stroke-dasharray: 0.01 6.6;
+  }
+  .crew-nosig {
+    opacity: 0;
+  }
+  .crew-nosig circle {
+    fill: #0f1d14;
+    stroke: rgba(168, 187, 174, 0.55);
+    stroke-width: 1.25;
+  }
+  .crew-nosig path {
+    stroke: #e8907a;
+    stroke-width: 1.75;
+    stroke-linecap: round;
+  }
+  .crew-packet {
+    opacity: 0;
+    fill: var(--gold-lit);
+  }
+  .crew-packet--green {
+    fill: var(--fir-lit);
+  }
+  .crew-packet-halo {
+    opacity: 0.22;
+  }
+
+  /* Positioned with left/top only (no translate), so the scene can read its offsets. */
+  .crew-server {
+    position: absolute;
+    z-index: 2;
+    left: calc(var(--srv-u) * 100% - var(--srv-size) / 2);
+    top: calc(var(--srv-y) - var(--srv-size) / 2);
+    height: var(--srv-size);
+  }
+  .crew-server-in {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 100%;
+    opacity: 0;
+    transform-origin: calc(var(--srv-size) / 2) 50%;
+  }
+  .crew-server-label {
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1.2;
+    color: var(--on-stage-muted);
+    white-space: nowrap;
+  }
+  /* Where the wires meet the glyph: the middle of its floor. */
+  .crew-srv-anchor {
+    position: absolute;
+    left: calc(var(--srv-size) / 2);
+    top: calc(var(--srv-size) * 0.9);
+    width: 0;
+    height: 0;
+  }
+
+  .crew-workers {
+    position: absolute;
+    z-index: 5;
+    right: 0;
+    top: calc(100% + 14px);
+    display: none;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    padding: 9px 15px 9px 12px;
+    border-radius: 999px;
+    background: var(--card-dark);
+    box-shadow:
+      inset 0 0 0 1px rgba(136, 207, 164, 0.22),
+      0 10px 26px rgba(2, 8, 5, 0.4);
+    color: var(--on-stage);
+    font-size: 15px;
+    font-weight: 500;
+    line-height: 1.2;
+    white-space: nowrap;
+    opacity: 0;
+  }
+  .crew-workers :global(.icon) {
+    color: var(--gold-lit);
+    flex: none;
+  }
+  .crew-rig {
+    --srv-u: 0.5;
+    --srv-y: calc(var(--crew-pad) / -2);
+    --srv-size: 34px;
+  }
+  @media (min-width: 900px) {
+    .crew-workers {
+      display: inline-flex;
+    }
+    /* The rig is pulled back (scaled .88) on desktop: sit the server well above the phone. */
+    .crew-rig {
+      --srv-u: 0.05;
+      --srv-y: calc(var(--crew-gap) * -1 - 4px);
+      --srv-size: clamp(30px, calc(var(--crew-gap) * 0.56), 42px);
+    }
+  }
+
+  @media (max-width: 899.98px) {
+    /* Your phone is the one the page follows: on a phone only the other one needs a name. */
+    .crew-chip--you {
+      display: none;
+    }
+    .crew-chip--peek {
+      height: 28px;
+      padding: 0 11px;
+      font-size: 13px;
+    }
+  }
+
+  /* Taps on the light app screens: a fir ring (the shared white one vanishes on white). */
+  .crew-screens :global(.tap-ring),
+  .crew-peek-screens :global(.tap-ring) {
+    background: rgba(29, 91, 58, 0.45);
+  }
+</style>
