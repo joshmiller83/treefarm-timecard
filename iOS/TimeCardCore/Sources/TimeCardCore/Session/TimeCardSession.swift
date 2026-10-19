@@ -103,13 +103,7 @@ public final class TimeCardSession {
     public func signOut() async {
         await closeEngine()
         await authService.logout()
-        try? store.wipe()
-        auth = .signedOut
-        chosenFarm = nil
-        chosenMembership = nil
-        snapshot = store.snapshot
-        syncStatus = SyncStatus()
-        latestNotice = nil
+        forgetFarmData()
     }
 
     /// Asks the server for the person's farms again (on launch and foreground).
@@ -156,6 +150,77 @@ public final class TimeCardSession {
         latestNotice = nil
     }
 
+    // MARK: Your account
+
+    /// Changes the person's name or password (`UpdateMeRequest`). The answer becomes the
+    /// cached `/me`, and a sync brings down the renamed crew records before this returns.
+    public func updateMe(_ request: UpdateMeRequest) async throws {
+        let me = try await expiring { try await self.authService.updateMe(request) }
+        auth = .signedIn(me)
+        await open(me: me)
+        _ = await engine?.syncNow()
+    }
+
+    /// Deletes the person's login. Hours still on this phone are sent first (best effort),
+    /// since shifts stay with the farm; then the phone forgets the person and the farm.
+    public func deleteAccount(password: String) async throws {
+        if !password.isEmpty { _ = await engine?.syncNow() }
+        try await expiring { try await self.authService.deleteAccount(password: password) }
+        await closeEngine()
+        forgetFarmData()
+    }
+
+    /// The devices signed in to this account, most recently used first. The one marked
+    /// `isCurrent` is this phone; sign out with `signOut()` rather than revoking it.
+    public func listSessions() async throws -> [SessionInfo] {
+        try await expiring { try await self.api.sessions() }
+    }
+
+    /// Signs another device out.
+    public func revokeSession(_ id: UUID) async throws {
+        try await expiring { try await self.api.revokeSession(id: id) }
+    }
+
+    // MARK: Running the farm (admins)
+
+    /// The open farm's invites, newest first, without codes.
+    public func listInvites() async throws -> [InviteInfo] {
+        let farmId = try openFarmId()
+        return try await expiring { try await self.api.invites(farmId: farmId) }
+    }
+
+    /// A single-use invite to the open farm, good for 7 days. Its `code` is shown only now.
+    public func createInvite(role: Role, note: String = "") async throws -> InviteInfo {
+        let farmId = try openFarmId()
+        return try await expiring { try await self.api.createInvite(farmId: farmId, CreateInviteRequest(role: role, note: note)) }
+    }
+
+    public func revokeInvite(_ id: UUID) async throws {
+        let farmId = try openFarmId()
+        try await expiring { try await self.api.revokeInvite(farmId: farmId, id: id) }
+    }
+
+    /// A single-use password-reset code for someone on the open farm, good for 24 hours.
+    public func resetCode(for userId: UUID) async throws -> ResetCodeResponse {
+        let farmId = try openFarmId()
+        return try await expiring { try await self.api.resetCode(farmId: farmId, userId: userId) }
+    }
+
+    /// Takes someone off the open farm (their hours stay). A sync brings the change down
+    /// before this returns, so the crew list shows it.
+    public func removeMember(_ userId: UUID) async throws {
+        let farmId = try openFarmId()
+        try await expiring { try await self.api.removeMember(farmId: farmId, userId: userId) }
+        _ = await engine?.syncNow()
+    }
+
+    /// The open farm's shifts that clock in within `[from, to)`, as the server's CSV.
+    /// Workers get their own; admins one person's (`userId`) or everyone's.
+    public func exportCSV(from: Date? = nil, to: Date? = nil, userId: UUID? = nil) async throws -> Data {
+        let farmId = try openFarmId()
+        return try await expiring { try await self.api.exportCSV(farmId: farmId, from: from, to: to, userId: userId) }
+    }
+
     // MARK: Choosing a farm
 
     /// The farm to open: the remembered one if the person is still on it, else the first
@@ -171,6 +236,35 @@ public final class TimeCardSession {
     }
 
     // MARK: Plumbing
+
+    /// Runs a server call; a 401 means the sign-in ended, so the person is asked to sign in
+    /// again and syncing waits, as when the sync engine hears it.
+    private func expiring<T>(_ call: () async throws -> T) async throws -> T {
+        do {
+            return try await call()
+        } catch APIError.unauthorized(let reason) {
+            await authService.markExpired()
+            auth = await authService.state
+            await engine?.markSignedOut()
+            throw APIError.unauthorized(reason: reason)
+        }
+    }
+
+    private func openFarmId() throws -> UUID {
+        guard let farmId = farm?.id else { throw APIError.client(status: 403, reason: "You’re not on this farm.") }
+        return farmId
+    }
+
+    /// Forgets the person's farm data on this phone (after signing out or deleting the account).
+    private func forgetFarmData() {
+        try? store.wipe()
+        auth = .signedOut
+        chosenFarm = nil
+        chosenMembership = nil
+        snapshot = store.snapshot
+        syncStatus = SyncStatus()
+        latestNotice = nil
+    }
 
     private func adopt(_ me: MeResponse, previousUser: UUID?) async {
         if let previousUser, previousUser != me.user.id {

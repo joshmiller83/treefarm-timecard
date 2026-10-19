@@ -119,6 +119,35 @@ public actor AuthService {
         }
     }
 
+    // MARK: Your account
+
+    /// Changes the person's name or password and caches the new `/me`. A password
+    /// change keeps this phone signed in; the server signs out every other device.
+    @discardableResult
+    public func updateMe(_ request: UpdateMeRequest) async throws -> MeResponse {
+        do {
+            let me = try await api.updateMe(request)
+            try cacheMe(me)
+            state = .signedIn(me)
+            return me
+        } catch let error as APIError {
+            if case .unauthorized = error { markExpired() }
+            throw error
+        }
+    }
+
+    /// Deletes the login on the server, then forgets it here. Shifts stay with the farm.
+    public func deleteAccount(password: String) async throws {
+        guard !password.isEmpty else { throw AuthError.invalid("Enter your password.") }
+        do {
+            try await api.deleteAccount(DeleteAccountRequest(password: password))
+        } catch let error as APIError {
+            if case .unauthorized = error { markExpired() }
+            throw error
+        }
+        forget()
+    }
+
     /// The sync engine got a 401: keep the person, ask them to sign in again.
     public func markExpired() {
         if case .signedIn(let me) = state { state = .expired(me) }
@@ -127,6 +156,11 @@ public actor AuthService {
     /// Ends the session on the server if it can, and forgets it here either way.
     public func logout() async {
         try? await api.logout()
+        forget()
+    }
+
+    /// Drops the token and the cached person without asking the server.
+    private func forget() {
         try? tokens.clear()
         try? cache.setValue(nil, forKey: Self.meKey)
         state = .signedOut
