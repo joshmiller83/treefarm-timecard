@@ -49,7 +49,7 @@ struct FmtDateTests {
     }
 
     @Test func everyMonthAndWeekdayName() {
-        let months = (1...12).map { Fmt.monthDay(F.wall(String(format: "2026-%02d-01 12:00", $0)), F.indy) }
+        let months = (1...12).map { Fmt.monthDay(F.wall("2026-\($0)-01 12:00"), F.indy) }
         #expect(months == ["Jan 1", "Feb 1", "Mar 1", "Apr 1", "May 1", "Jun 1", "Jul 1", "Aug 1", "Sep 1", "Oct 1", "Nov 1", "Dec 1"])
         let days = (12...18).map { Fmt.dayLong(F.wall("2026-10-\($0) 12:00"), F.indy) }
         #expect(days == ["Monday, Oct 12", "Tuesday, Oct 13", "Wednesday, Oct 14", "Thursday, Oct 15", "Friday, Oct 16", "Saturday, Oct 17", "Sunday, Oct 18"])

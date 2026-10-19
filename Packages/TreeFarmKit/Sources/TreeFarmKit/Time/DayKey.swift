@@ -26,7 +26,8 @@ public struct DayKey: Hashable, Comparable, Codable, Sendable, CustomStringConve
     }
 
     public var description: String {
-        String(format: "%04d-%02d-%02d", year, month, day)
+        let y = String(year)
+        return String(repeating: "0", count: max(0, 4 - y.count)) + y + "-" + Fmt.pad2(month) + "-" + Fmt.pad2(day)
     }
 
     public static func < (a: DayKey, b: DayKey) -> Bool {

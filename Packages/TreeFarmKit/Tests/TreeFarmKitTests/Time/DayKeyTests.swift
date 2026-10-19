@@ -10,6 +10,7 @@ struct DayKeyTests {
         #expect(key.description == "2026-10-18")
         #expect(DayKey(year: 2026, month: 1, day: 5).description == "2026-01-05")
         #expect(DayKey("2026-1-5") == DayKey(year: 2026, month: 1, day: 5))
+        #expect(DayKey(year: 987, month: 12, day: 31).description == "0987-12-31")
     }
 
     @Test(arguments: ["", "abc", "2026-10", "2026/10/18", "2026-10-18x", "2026-13-01", "2026-00-10", "2026-02-29", "2026-04-31", "2026-10-00", "-2026-10-18", "2026--10-18", "20260-10-18"])
