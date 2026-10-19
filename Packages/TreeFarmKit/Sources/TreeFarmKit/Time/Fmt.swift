@@ -65,7 +65,75 @@ public enum Fmt {
         (n < 0 ? "-" : "") + grouped(n.magnitude)
     }
 
+    // MARK: Dates and times
+
+    /// "7:02 AM".
+    public static func time(_ d: Date, _ cal: FarmCalendar) -> String {
+        let c = parts(d, cal)
+        return clock(c.hour, c.minute) + (c.hour < 12 ? " AM" : " PM")
+    }
+
+    /// For Siri to say. Inside the workday, 6:00 AM to 5:59 PM, it's just "7:02" or "4:31":
+    /// each hour on the dial means one time there (6–11 morning, 12 noon, 1–5 afternoon).
+    /// Outside it, AM or PM is added so "5:45 AM" and "6:10 PM" can't be mistaken.
+    public static func spokenTime(_ d: Date, _ cal: FarmCalendar) -> String {
+        let c = parts(d, cal)
+        if (6..<18).contains(c.hour) { return clock(c.hour, c.minute) }
+        return time(d, cal)
+    }
+
+    /// "Sun, Oct 18".
+    public static func day(_ d: Date, _ cal: FarmCalendar) -> String {
+        let c = parts(d, cal)
+        return "\(weekdays[c.weekday - 1].prefix(3)), \(months[c.month - 1]) \(c.day)"
+    }
+
+    /// "Sunday, Oct 18".
+    public static func dayLong(_ d: Date, _ cal: FarmCalendar) -> String {
+        let c = parts(d, cal)
+        return "\(weekdays[c.weekday - 1]), \(months[c.month - 1]) \(c.day)"
+    }
+
+    /// "Oct 18".
+    public static func monthDay(_ d: Date, _ cal: FarmCalendar) -> String {
+        let c = parts(d, cal)
+        return "\(months[c.month - 1]) \(c.day)"
+    }
+
+    /// "Sun 10/18", for the report's date column.
+    public static func shortDay(_ d: Date, _ cal: FarmCalendar) -> String {
+        let c = parts(d, cal)
+        return "\(weekdays[c.weekday - 1].prefix(3)) \(c.month)/\(c.day)"
+    }
+
+    /// A period's label: "Oct 18, 2026" for one day, "Oct 12 – Oct 18, 2026" for a range,
+    /// and "Dec 28, 2026 – Jan 3, 2027" when it crosses into a new year. `endExclusive` is the
+    /// first moment after the period, as from `weekBounds` or `monthBounds`.
+    public static func rangeLabel(start: Date, endExclusive: Date, _ cal: FarmCalendar) -> String {
+        let first = cal.dayKey(start)
+        let last = max(first, cal.dayKey(cal.addDays(endExclusive, -1)))
+        if first == last { return monthDay(start, cal) + ", \(first.year)" }
+        let lastDate = cal.date(on: last, hour: 12, minute: 0)
+        if first.year != last.year {
+            return monthDay(start, cal) + ", \(first.year) – " + monthDay(lastDate, cal) + ", \(last.year)"
+        }
+        return monthDay(start, cal) + " – " + monthDay(lastDate, cal) + ", \(last.year)"
+    }
+
     // MARK: Helpers
+
+    private static let months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+    private static let weekdays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+
+    private static func parts(_ d: Date, _ cal: FarmCalendar) -> (month: Int, day: Int, weekday: Int, hour: Int, minute: Int) {
+        let c = cal.calendar.dateComponents([.month, .day, .weekday, .hour, .minute], from: d)
+        return (c.month ?? 1, c.day ?? 1, c.weekday ?? 1, c.hour ?? 0, c.minute ?? 0)
+    }
+
+    /// "7:02" on a 12-hour dial.
+    private static func clock(_ hour: Int, _ minute: Int) -> String {
+        "\(hour % 12 == 0 ? 12 : hour % 12):\(pad2(minute))"
+    }
 
     static func pad2(_ n: Int) -> String { n < 10 ? "0\(n)" : "\(n)" }
 
