@@ -174,6 +174,29 @@ struct ShiftEditorModelTests {
         let saved = try #require(session.snapshot.shifts[sams.id])
         #expect(saved.userId == F.sam)
         #expect(saved.rateCents == 1800)
+        #expect(model.ownerLine == "Editing Sam Ortiz’s shift.")
+    }
+
+    @Test func yourOwnShiftNeedsNoOwnerLine() async throws {
+        let mine = F.shift(10, 16, from: (7, 0), to: (15, 0))
+        let session = try await F.session(shifts: [mine])
+        defer { Task { await session.stop() } }
+        #expect(try #require(ShiftEditorModel(session: session, shiftId: mine.id, now: { now })).ownerLine == nil)
+    }
+
+    @Test func aShiftDeletedElsewhereIsntBroughtBack() async throws {
+        let mine = F.shift(10, 16, from: (7, 0), to: (15, 0))
+        let session = try await F.session(shifts: [mine])
+        defer { Task { await session.stop() } }
+        let model = try #require(ShiftEditorModel(session: session, shiftId: mine.id, now: { now }))
+        var gone = mine
+        gone.deletedAt = now
+        gone.updatedAt = now
+        try session.save([.shift(gone)])
+        model.draft.notes = "Late edit"
+        #expect(model.save() == nil)
+        #expect(model.visibleProblem == LogWording.missing)
+        #expect(session.snapshot.shifts[mine.id] == nil)
     }
 
     @Test func totalsLineReadsWorkedAndBreaks() async throws {

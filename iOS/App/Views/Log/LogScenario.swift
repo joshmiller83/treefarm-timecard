@@ -33,7 +33,9 @@ enum LogScenario: String {
     private static var editorTaken = false
 
     /// `-UITestReportPeriod lastWeek|thisMonth|…` picks the Report's range at launch.
-    static var reportPeriod: String? { value(after: "-UITestReportPeriod") }
+    static var reportPeriod: String? {
+        AppModel.shared.mode == .live ? nil : value(after: "-UITestReportPeriod")
+    }
 
     private static func value(after flag: String) -> String? {
         let args = ProcessInfo.processInfo.arguments

@@ -42,9 +42,24 @@ final class ShiftEditorModel {
         }
         draft = loaded
         initialDraft = loaded
+        if shiftId != nil {
+            let held = ShiftTrees(snapshot: session.snapshot)
+            trees = held.count(loaded.id)
+            treeSummary = held.summary(loaded.id)
+        } else {
+            trees = 0
+            treeSummary = ""
+        }
     }
 
     var isNew: Bool { draft.isNew }
+
+    /// "Editing Sam Ortiz’s shift." when an admin opens someone else's; nil for your own.
+    var ownerLine: String? {
+        guard draft.userId != session.membership?.userId else { return nil }
+        let name = session.snapshot.members[draft.userId]?.displayName ?? "someone else"
+        return "Editing \(name)’s shift."
+    }
     /// The shift was open when the editor opened, so it may stay open.
     var canStayOpen: Bool { draft.original?.isOpen == true }
 
@@ -68,16 +83,10 @@ final class ShiftEditorModel {
         return t.breaks > 0 ? worked + " · " + Fmt.minutesText(t.breaks) + " of breaks" : worked
     }
 
-    /// Trees the shift holds (saved shifts only).
-    var trees: Int {
-        guard !isNew else { return 0 }
-        return ShiftTrees(snapshot: session.snapshot).count(draft.id)
-    }
-
-    var treeSummary: String {
-        guard !isNew else { return "" }
-        return ShiftTrees(snapshot: session.snapshot).summary(draft.id)
-    }
+    /// Trees the shift holds (saved shifts only), counted when the editor opened.
+    let trees: Int
+    /// "Block 1: rows 1–12", or "".
+    let treeSummary: String
 
     var deleteQuestion: String { LogWording.deleteQuestion(trees: trees, isOpen: draft.original?.isOpen == true) }
     var deleteButton: String { LogWording.deleteButton(trees: trees) }
@@ -118,6 +127,11 @@ final class ShiftEditorModel {
     func save() -> String? {
         triedToSave = true
         saveError = nil
+        // Deleted on another device while this was open: don't bring it back.
+        if !isNew && session.snapshot.shifts[draft.id] == nil {
+            saveError = LogWording.missing
+            return nil
+        }
         let at = now()
         let shift = draft.shift(calendar: calendar, now: at)
         if ShiftRules.validate(shift, others: others, now: at, calendar: calendar) != nil { return nil }

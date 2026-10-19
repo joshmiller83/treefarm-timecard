@@ -131,6 +131,13 @@ private struct EditorForm: View {
 
     private var whenCard: some View {
         VStack(alignment: .leading, spacing: 4) {
+            if let owner = model.ownerLine {
+                Label(owner, systemImage: "person.crop.circle")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Palette.sapInk)
+                    .padding(.bottom, 8)
+                    .accessibilityIdentifier("editor-owner")
+            }
             SectionLabel("When")
                 .padding(.bottom, 6)
             dateRow.id(EditorField.date)
