@@ -177,6 +177,63 @@ struct ShiftNotesTests {
         #expect(editor.text == "")
         #expect(editor.status == .idle)
     }
+
+    @Test func aTrimmedServerEchoDoesntChangeWhatYouTyped() {
+        let id = UUID()
+        var saved: [String] = []
+        let editor = ShiftNotesEditor(debounce: .seconds(5))
+        editor.save = { _, text in saved.append(text) }
+        editor.load(shiftId: id, notes: "")
+        editor.setEditing(true)
+        editor.text = "Rows 3 to 5 done.\n"
+        editor.edited()
+        editor.flush()
+        #expect(saved == ["Rows 3 to 5 done.\n"])
+
+        // The server stores notes trimmed, and the next pull brings that copy back.
+        editor.load(shiftId: id, notes: "Rows 3 to 5 done.")
+        #expect(editor.text == "Rows 3 to 5 done.\n")
+        editor.setEditing(false)
+        #expect(editor.text == "Rows 3 to 5 done.\n")
+
+        // The next words go on the new line, not "done.Fuel low".
+        editor.text += "Fuel low"
+        editor.edited()
+        editor.flush()
+        #expect(saved.last == "Rows 3 to 5 done.\nFuel low")
+    }
+
+    @Test func sirisNewLineStillShowsWhenYoureNotTyping() {
+        let id = UUID()
+        let editor = ShiftNotesEditor(debounce: .seconds(5))
+        editor.save = { _, _ in }
+        editor.load(shiftId: id, notes: "Rows 3 to 5 done.")
+        editor.load(shiftId: id, notes: "Rows 3 to 5 done.\nFuel low")
+        #expect(editor.text == "Rows 3 to 5 done.\nFuel low")
+    }
+
+    @Test func notesThatArriveWhileTheBoxHasFocusWaitUntilYouLetGo() {
+        let id = UUID()
+        var saved: [String] = []
+        let editor = ShiftNotesEditor(debounce: .seconds(5))
+        editor.save = { _, text in saved.append(text) }
+        editor.load(shiftId: id, notes: "Block 2")
+        editor.setEditing(true)
+        editor.load(shiftId: id, notes: "Block 2\nFuel low")
+        #expect(editor.text == "Block 2")
+        editor.setEditing(false)
+        #expect(editor.text == "Block 2\nFuel low")
+
+        // Typing meanwhile wins: it saves over what came in.
+        editor.setEditing(true)
+        editor.load(shiftId: id, notes: "Something else")
+        editor.text = "Block 2\nFuel low\nRain"
+        editor.edited()
+        editor.flush()
+        editor.setEditing(false)
+        #expect(editor.text == "Block 2\nFuel low\nRain")
+        #expect(saved == ["Block 2\nFuel low\nRain"])
+    }
 }
 
 @Suite("Toasts")

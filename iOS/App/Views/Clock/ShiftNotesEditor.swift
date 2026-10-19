@@ -24,6 +24,9 @@ final class ShiftNotesEditor {
     @ObservationIgnored private(set) var shiftId: UUID?
     @ObservationIgnored private var lastSaved = ""
     @ObservationIgnored private var pending: Task<Void, Never>?
+    /// Newer notes from elsewhere, held while the text box has focus.
+    @ObservationIgnored private var incoming: String?
+    @ObservationIgnored private var editing = false
     @ObservationIgnored private let debounce: Duration
 
     init(debounce: Duration = .milliseconds(800)) {
@@ -31,17 +34,37 @@ final class ShiftNotesEditor {
     }
 
     /// Shows a shift's notes. The same shift's newer notes replace the text only when
-    /// nothing typed here is waiting to save.
+    /// nothing typed here is waiting to save and the text box doesn't have focus.
     func load(shiftId: UUID?, notes: String) {
         if shiftId != self.shiftId {
             flush()
             self.shiftId = shiftId
             text = notes
             lastSaved = notes
+            incoming = nil
             status = notes.isEmpty ? .idle : .saved
             return
         }
-        guard pending == nil, notes != lastSaved else { return }
+        // The server trims notes as it stores them, so the copy that comes back from our own
+        // save can lack a trailing space or new line. That's an echo, not someone else's change.
+        guard notes != lastSaved, notes != Limits.clampNotes(lastSaved) else {
+            incoming = nil
+            return
+        }
+        incoming = notes
+        takeIncoming()
+    }
+
+    /// The text box gained or lost focus. Notes that arrived meanwhile show once it's let go,
+    /// unless something was typed (that wins when it saves).
+    func setEditing(_ editing: Bool) {
+        self.editing = editing
+        if !editing { takeIncoming() }
+    }
+
+    private func takeIncoming() {
+        guard let notes = incoming, pending == nil, !editing else { return }
+        incoming = nil
         if text == lastSaved { text = notes }
         lastSaved = notes
     }
@@ -55,6 +78,8 @@ final class ShiftNotesEditor {
             if status == .saving { status = text.isEmpty ? .idle : .saved }
             return
         }
+        // What's typed here is saved next, over anything that arrived meanwhile.
+        incoming = nil
         status = .saving
         let delay = debounce
         pending = Task { [weak self] in
@@ -72,6 +97,7 @@ final class ShiftNotesEditor {
         do {
             try save?(shiftId, text)
             lastSaved = text
+            incoming = nil
             status = .saved
         } catch {
             status = .failed

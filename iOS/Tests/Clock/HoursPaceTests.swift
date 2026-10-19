@@ -47,7 +47,19 @@ struct PaceCardTests {
 
     @Test func noTreesNoCard() {
         let open = f.shift(f.today(7, 0))
-        #expect(PaceCard(state: f.state(shifts: [open]), now: f.today(9, 0), showPay: true) == nil)
+        let state = f.state(shifts: [open])
+        #expect(PaceCard(state: state, now: f.today(9, 0), showPay: true) == nil)
+        #expect(!PaceCard.hasTrees(state: state, index: state.index))
+    }
+
+    @Test func aSharedIndexGivesTheSameCard() {
+        // The Clock tab builds the mark index once per redraw and hands it round.
+        let monday = f.shift(f.at(f.day(-2), 7, 0), f.at(f.day(-2), 9, 0))
+        let state = f.state(shifts: [monday], marks: f.marks(rows: 0...1, on: monday) + f.marks(rows: 2...3, on: monday, userId: f.otherUserId))
+        let index = state.index
+        #expect(PaceCard.hasTrees(state: state, index: index))
+        #expect(PaceCard(state: state, index: index, now: f.today(8, 0), showPay: true) == PaceCard(state: state, now: f.today(8, 0), showPay: true))
+        #expect(FieldSummary(state: state, index: index) == FieldSummary(state: state))
     }
 
     @Test func todayThisWeekAndTheSeason() {

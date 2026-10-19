@@ -1,5 +1,6 @@
 import SwiftUI
 import TimeCardCore
+import UIKit
 
 /// Buttons that sit on the colored status card. Like `GloveButtonStyle`, every one is at
 /// least 54 pt tall with a clear pressed state, so they're easy to hit with gloves on.
@@ -77,12 +78,26 @@ extension ButtonStyle where Self == CardButtonStyle {
     static func card(_ kind: CardButtonStyle.Kind) -> CardButtonStyle { CardButtonStyle(kind: kind) }
 }
 
-/// A few colors only the status card uses, from the web time card.
+/// A few colors only the Clock tab uses, from the web time card.
 enum ClockColors {
     /// The pulsing "on the clock" light.
     static let pulse = Color(red: 0xA8 / 255, green: 0xEB / 255, blue: 0xC0 / 255)
     /// Deep rust that reads on white: "Tap again to clock out".
     static let alarm = Color(red: 0x8E / 255, green: 0x2F / 255, blue: 0x18 / 255)
+
+    /// The toast sits on `Palette.ink`: near-black in light mode, pale green in dark mode.
+    /// Its icons flip with it. Done: mint on dark (about 12:1), fir on pale (about 7:1).
+    static let toastDone = adaptive(light: 0xA8EBC0, dark: 0x1D5B3A)
+    /// Problem: sap gold on dark (about 7:1), rust on pale (about 5.5:1).
+    static let toastProblem = adaptive(light: 0xE2A644, dark: 0xA2391F)
+
+    private static func adaptive(light: UInt32, dark: UInt32) -> Color {
+        Color(UIColor { traits in
+            let hex = traits.userInterfaceStyle == .dark ? dark : light
+            return UIColor(red: CGFloat(hex >> 16 & 0xFF) / 255, green: CGFloat(hex >> 8 & 0xFF) / 255,
+                           blue: CGFloat(hex & 0xFF) / 255, alpha: 1)
+        })
+    }
 }
 
 /// The status card's pill: small caps, letter-spaced, with a light that pulses while working.
@@ -149,19 +164,34 @@ struct ClockPill: View {
     }
 }
 
-/// A card heading in Zilla Slab with something small on the right.
+/// A card heading in Zilla Slab with something small on the right; at the largest text
+/// sizes the small thing goes underneath, so neither squeezes into a ragged column.
 struct CardHeading<Trailing: View>: View {
     var title: String
     @ViewBuilder var trailing: Trailing
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 12) {
-            Text(title)
-                .headingStyle(.tcTitle2)
-                .accessibilityAddTraits(.isHeader)
-            Spacer(minLength: 8)
-            trailing
+        if typeSize.isAccessibilitySize {
+            VStack(alignment: .leading, spacing: 4) {
+                heading
+                trailing
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        } else {
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                heading
+                Spacer(minLength: 8)
+                trailing
+            }
         }
+    }
+
+    private var heading: some View {
+        Text(title)
+            .headingStyle(.tcTitle2)
+            .accessibilityAddTraits(.isHeader)
     }
 }
 

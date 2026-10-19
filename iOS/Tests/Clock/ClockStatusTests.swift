@@ -85,6 +85,8 @@ struct ClockStatusTests {
         #expect(s.workedLabel == "worked this shift")
         #expect(s.worked == 23.5 * 3600)
         #expect(s.stale == "You’ve been clocked in since Tue, Oct 13 at 7:00 AM.")
+        // 7:00 AM alone would read as later today.
+        #expect(s.meta == ["Clocked in Tue, Oct 13 at 7:00 AM · No breaks yet"])
     }
 
     @Test func aShiftOpenMoreThanSixteenHoursIsFlaggedToo() {
@@ -106,29 +108,82 @@ struct ClockStatusTests {
 }
 
 @Suite("Changing the start time")
-struct StartTimeTests {
+struct PickedStartTimeTests {
     let f = ClockFixture()
+
+    func newStart(_ picked: Date, from original: Date) -> Date {
+        PickedStartTime.newStart(picked: picked, original: original, calendar: f.calendar)
+    }
 
     @Test func anUnchangedTimeKeepsTheExactStart() {
         let original = f.today(7, 2, 41)
-        #expect(StartTime.newStart(picked: f.today(7, 2), original: original, calendar: f.calendar) == original)
+        #expect(newStart(f.today(7, 2), from: original) == original)
     }
 
     @Test func aNewTimeLandsOnTheShiftsDayInTheFarmsZone() {
         let original = f.at(f.day(-1), 7, 2, 41)
-        let picked = f.today(6, 30, 15)
-        #expect(StartTime.newStart(picked: picked, original: original, calendar: f.calendar) == f.at(f.day(-1), 6, 30))
+        #expect(newStart(f.today(6, 30, 15), from: original) == f.at(f.day(-1), 6, 30))
+    }
+
+    @Test func flippingAmToPmStaysOnTheSameDay() {
+        // One flick of the AM/PM wheel is 12 hours either way; it never means yesterday evening.
+        #expect(newStart(f.today(19, 0), from: f.today(7, 0)) == f.today(19, 0))
+        #expect(newStart(f.today(7, 0), from: f.today(19, 0)) == f.today(7, 0))
+        #expect(newStart(f.today(23, 0), from: f.today(11, 0)) == f.today(23, 0))
+        #expect(newStart(f.today(1, 0), from: f.today(13, 0)) == f.today(1, 0))
     }
 
     @Test func justAfterMidnightAnEveningTimeMeansTheNightBefore() {
         let original = f.today(0, 5)
-        #expect(StartTime.newStart(picked: f.today(23, 50), original: original, calendar: f.calendar) == f.at(f.day(-1), 23, 50))
-        #expect(StartTime.newStart(picked: f.today(0, 1), original: original, calendar: f.calendar) == f.today(0, 1))
+        #expect(newStart(f.today(23, 50), from: original) == f.at(f.day(-1), 23, 50))
+        #expect(newStart(f.today(21, 0), from: original) == f.at(f.day(-1), 21, 0))
+        #expect(newStart(f.today(0, 1), from: original) == f.today(0, 1))
+        // Outside the three hours around midnight it's the same day.
+        #expect(newStart(f.today(20, 59), from: original) == f.today(20, 59))
+        #expect(newStart(f.today(23, 50), from: f.today(3, 0)) == f.today(23, 50))
     }
 
     @Test func justBeforeMidnightAnEarlyTimeMeansTheNextMorning() {
         let original = f.today(23, 58)
-        #expect(StartTime.newStart(picked: f.today(0, 3), original: original, calendar: f.calendar) == f.at(f.day(1), 0, 3))
-        #expect(StartTime.newStart(picked: f.today(22, 0), original: original, calendar: f.calendar) == f.today(22, 0))
+        #expect(newStart(f.today(0, 3), from: original) == f.at(f.day(1), 0, 3))
+        #expect(newStart(f.today(22, 0), from: original) == f.today(22, 0))
+        #expect(newStart(f.today(3, 0), from: original) == f.today(3, 0))
+    }
+
+    @Test func theSheetSaysWhichDayAndHowFar() {
+        let original = f.today(7, 0)
+        #expect(PickedStartTime.preview(start: f.today(19, 0), original: original, calendar: f.calendar)
+                == "Wed, Oct 14 at 7:00 PM · 12 h later")
+        #expect(PickedStartTime.preview(start: f.today(6, 45), original: original, calendar: f.calendar)
+                == "Wed, Oct 14 at 6:45 AM · 15 min earlier")
+        #expect(PickedStartTime.preview(start: f.at(f.day(-1), 23, 50), original: f.today(0, 5), calendar: f.calendar)
+                == "Tue, Oct 13 at 11:50 PM · 15 min earlier")
+        #expect(PickedStartTime.preview(start: original, original: original, calendar: f.calendar)
+                == "Wed, Oct 14 at 7:00 AM · no change")
+        // Clocked in at 7:12:40; five minutes on the wheel reads as five minutes.
+        let withSeconds = f.today(7, 12, 40)
+        #expect(PickedStartTime.preview(start: f.today(7, 17), original: withSeconds, calendar: f.calendar)
+                == "Wed, Oct 14 at 7:17 AM · 5 min later")
+        #expect(PickedStartTime.preview(start: withSeconds, original: withSeconds, calendar: f.calendar)
+                == "Wed, Oct 14 at 7:12 AM · no change")
+    }
+}
+
+@Suite("Clock out asks twice")
+struct ClockOutTapTests {
+    let t = Date(timeIntervalSince1970: 1_792_000_000)
+
+    @Test func theFirstTapAsks() {
+        #expect(ClockOutTap.decide(armedAt: nil, now: t) == .arm)
+    }
+
+    @Test func aBouncyDoubleTapDoesntEndTheShift() {
+        #expect(ClockOutTap.decide(armedAt: t, now: t.addingTimeInterval(0.15)) == .ignore)
+        #expect(ClockOutTap.decide(armedAt: t, now: t.addingTimeInterval(0.59)) == .ignore)
+    }
+
+    @Test func aDeliberateSecondTapClocksOut() {
+        #expect(ClockOutTap.decide(armedAt: t, now: t.addingTimeInterval(0.6)) == .confirm)
+        #expect(ClockOutTap.decide(armedAt: t, now: t.addingTimeInterval(3)) == .confirm)
     }
 }

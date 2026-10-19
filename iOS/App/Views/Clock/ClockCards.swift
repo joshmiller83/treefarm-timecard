@@ -115,7 +115,7 @@ struct PaceCardView: View {
                 Text("Counts shifts with trees marked")
                     .font(.footnote)
                     .foregroundStyle(Palette.muted)
-                    .multilineTextAlignment(.trailing)
+                    .multilineTextAlignment(typeSize.isAccessibilitySize ? .leading : .trailing)
             }
             Text(pace.headline)
                 .font(.body.weight(.medium))
@@ -222,6 +222,11 @@ struct ShiftNotesCardView: View {
                 }
                 .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(focused ? Palette.fir : Palette.line, lineWidth: focused ? 1.5 : 1))
                 .onChange(of: editor.text) { editor.edited() }
+                .onChange(of: focused) { _, now in
+                    // Letting go saves what's typed, then shows anything that came in meanwhile.
+                    if !now { editor.flush() }
+                    editor.setEditing(now)
+                }
                 .accessibilityLabel("Shift notes")
                 .accessibilityIdentifier("shift-notes")
             HStack(alignment: .firstTextBaseline) {

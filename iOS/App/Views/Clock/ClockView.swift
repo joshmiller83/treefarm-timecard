@@ -19,6 +19,9 @@ struct ClockView: View {
     /// Bumped after each action: the work position lives outside the observed snapshot.
     @State private var refresh = 0
     @State private var notes = ShiftNotesEditor()
+    /// The gear's box: 54 pt, a little larger at the biggest text sizes.
+    @ScaledMetric(relativeTo: .title3) private var gearScaled: CGFloat = GloveButtonStyle.minHeight
+    private var gearBox: CGFloat { min(72, max(GloveButtonStyle.minHeight, gearScaled)) }
 
     var body: some View {
         let _ = refresh
@@ -53,14 +56,16 @@ struct ClockView: View {
                     .background(Palette.bg, ignoresSafeAreaEdges: .top)
             }
             .toolbar(.hidden, for: .navigationBar)
-            .overlay(alignment: .bottom) {
+            .overlay(alignment: .top) {
+                // At the top, clear of the row tiles, Break and Undo people tap next; and
+                // taps pass straight through it, so a gloved tap never lands on the message.
                 if let toast {
                     ToastView(toast: toast)
                         .padding(.horizontal, 16)
-                        .padding(.bottom, 12)
+                        .padding(.top, 6)
                         .frame(maxWidth: 640)
-                        .transition(.move(edge: .bottom).combined(with: .opacity))
-                        .onTapGesture { withAnimation { self.toast = nil } }
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                        .allowsHitTesting(false)
                         .id(toast.id)
                 }
             }
@@ -117,8 +122,10 @@ struct ClockView: View {
             Button { sheet = .settings } label: {
                 Image(systemName: "gearshape")
                     .font(.title3.weight(.semibold))
+                    // The glyph grows a little with the text, never past its glove-sized box.
+                    .dynamicTypeSize(...DynamicTypeSize.accessibility1)
                     .foregroundStyle(Palette.ink)
-                    .frame(width: GloveButtonStyle.minHeight, height: GloveButtonStyle.minHeight)
+                    .frame(width: gearBox, height: gearBox)
                     .background(Palette.surface, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                     .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Palette.line, lineWidth: 1))
                     .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
@@ -140,6 +147,8 @@ struct ClockView: View {
     private func content(_ state: FieldState) -> some View {
         let status = ClockStatus(state: state, now: Date())
         let working = NowWorking(state: state, live: model.actions.liveSnapshot())
+        // Who holds each tree, built once per redraw: a late-season farm has thousands of marks.
+        let index = state.index
 
         // The card's words roll over with the clock (midnight, the 16-hour warning) without a tap.
         TimelineView(.everyMinute) { context in
@@ -161,14 +170,14 @@ struct ClockView: View {
                 .id("now")
             TreesCardView(content: .shift(working), onOpenMap: mapAction)
                 .id("trees")
-        } else if let field = FieldSummary(state: state) {
+        } else if let field = FieldSummary(state: state, index: index) {
             TreesCardView(content: .field(field), onOpenMap: mapAction)
                 .id("trees")
         }
 
-        if PaceCard(state: state, now: Date(), showPay: showPay) != nil {
+        if PaceCard.hasTrees(state: state, index: index) {
             TimelineView(.periodic(from: .now, by: 30)) { context in
-                if let pace = PaceCard(state: state, now: context.date, showPay: showPay) {
+                if let pace = PaceCard(state: state, index: index, now: context.date, showPay: showPay) {
                     PaceCardView(pace: pace)
                 }
             }
@@ -215,6 +224,7 @@ struct ClockView: View {
                     Label("Past shifts", systemImage: "list.bullet.rectangle")
                 }
                 .buttonStyle(.gloveSecondary)
+                .accessibilityIdentifier("past-shifts")
             }
         }
     }
@@ -237,6 +247,8 @@ struct ClockView: View {
             }
         case .editShift(let id):
             ShiftEditorView(shiftId: id)
+                .accessibilityElement(children: .contain)
+                .accessibilityIdentifier("shift-editor-sheet")
         }
     }
 

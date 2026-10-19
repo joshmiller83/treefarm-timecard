@@ -83,13 +83,15 @@ final class ClockFlowUITests: XCTestCase {
         shot(app, "5 Clocked out")
     }
 
-    /// Two taps on Clock out. The second has to land within five seconds, so on a slow test
-    /// machine this asks again if the first one lapsed.
+    /// Two taps on Clock out. The second counts after a short pause (so a bouncy double tap
+    /// can't end the shift) and within five seconds, so on a slow test machine this asks again
+    /// if the first one lapsed.
     private func clockOut(_ app: XCUIApplication, file: StaticString = #filePath, line: UInt = #line) {
         let out = app.buttons["clock-out"]
         let off = NSPredicate(format: "label == %@", "Off the clock")
         for _ in 0..<3 {
             out.tap()
+            Thread.sleep(forTimeInterval: 0.8)
             out.tap()
             let done = XCTNSPredicateExpectation(predicate: off, object: element("status-pill", in: app))
             if XCTWaiter().wait(for: [done], timeout: 4) == .completed { return }
@@ -112,6 +114,51 @@ final class ClockFlowUITests: XCTestCase {
         // Left alone, it goes back after a few seconds, so a pocket bump can't finish the job later.
         waitFor(out, label: "Clock out", timeout: 8)
         waitFor(element("status-pill", in: app), label: "On the clock")
+    }
+
+    func testADoubleTapOnClockOutOnlyAsks() {
+        let app = launch()
+        let clockIn = app.buttons["clock-in"]
+        XCTAssertTrue(clockIn.waitForExistence(timeout: 10))
+        clockIn.tap()
+        let out = app.buttons["clock-out"]
+        XCTAssertTrue(out.waitForExistence(timeout: 5))
+        out.doubleTap()
+        waitFor(out, label: "Tap again to clock out")
+        Thread.sleep(forTimeInterval: 1)
+        waitFor(element("status-pill", in: app), label: "On the clock")
+        shot(app, "Double tap only asks")
+    }
+
+    /// The toast never stands between a gloved tap and the next row.
+    func testTapsGoStraightPastTheMessage() {
+        let app = launch()
+        let clockIn = app.buttons["clock-in"]
+        XCTAssertTrue(clockIn.waitForExistence(timeout: 10))
+        clockIn.tap()
+        let toast = element("toast", in: app)
+        waitFor(toast, labelBeginsWith: "Clocked in at")
+
+        let first = app.buttons["next-row-0"]
+        XCTAssertTrue(first.waitForExistence(timeout: 5))
+        first.tap()
+        waitFor(toast, labelBeginsWith: "Row 5 marked")
+        waitFor(element("now-place", in: app), label: "Block 1, row 6")
+        // Straight away, with that message still up.
+        first.tap()
+        waitFor(toast, labelBeginsWith: "Row 6 marked")
+        let message = toast.frame
+        shot(app, "Message clear of the rows")
+        waitFor(element("now-place", in: app), label: "Block 1, row 7")
+        XCTAssertFalse(message.intersects(first.frame), "the message covers the next row")
+
+        // Whatever the message sits on still takes the tap: here, the gear.
+        let gear = app.buttons["settings-button"]
+        XCTAssertTrue(message.intersects(gear.frame), "expected the message over the header")
+        first.tap()
+        waitFor(toast, labelBeginsWith: "Row 7 marked")
+        gear.tap()
+        XCTAssertTrue(app.buttons["settings-done"].waitForExistence(timeout: 5))
     }
 
     func testRowButtonsMarkRowsAndUndoTakesThemBack() {
@@ -163,6 +210,8 @@ final class ClockFlowUITests: XCTestCase {
         let later = app.buttons["start-nudge5"]
         XCTAssertTrue(later.waitForExistence(timeout: 5))
         later.tap()
+        // The sheet says which day the time lands on, and how far it moves.
+        waitFor(element("start-preview", in: app), labelContains: "· 5 min later")
         app.buttons["start-save"].tap()
         waitFor(element("form-error", in: app), label: "That time hasn’t happened yet. Pick an earlier time.")
         shot(app, "Change start time refused")
@@ -180,9 +229,46 @@ final class ClockFlowUITests: XCTestCase {
         XCTAssertTrue(warning.waitForExistence(timeout: 10))
         waitFor(element("big-timer", in: app), labelContains: "worked this shift")
         shot(app, "Forgot to clock out")
+        // The meta line names the day, so 7:00 AM can't read as later today.
+        waitFor(element("status-meta", in: app), labelContains: " at 7:00 AM")
         app.buttons["fix-times"].tap()
         // The shift editor (from the Log tab) opens on top.
-        XCTAssertTrue(app.navigationBars.firstMatch.waitForExistence(timeout: 5))
+        XCTAssertTrue(element("shift-editor-sheet", in: app).waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["fix-times"].isHittable)
+    }
+
+    func testHidingPayIsRememberedNextTime() {
+        var app = launch(["-UITestScrollTo", "hours"])
+        let toggle = element("pay-toggle", in: app)
+        XCTAssertTrue(toggle.waitForExistence(timeout: 10))
+        if toggle.label == "Show pay" { toggle.tap() }
+        waitFor(toggle, label: "Hide pay")
+        toggle.tap()
+        waitFor(toggle, label: "Show pay")
+        XCTAssertFalse(element("pay-today", in: app).exists)
+
+        app.terminate()
+        app = launch(["-UITestScrollTo", "hours"])
+        let again = element("pay-toggle", in: app)
+        XCTAssertTrue(again.waitForExistence(timeout: 10))
+        waitFor(again, label: "Show pay")
+        shot(app, "Pay stays hidden")
+        // Leave it as other tests expect.
+        again.tap()
+        waitFor(again, label: "Hide pay")
+    }
+
+    func testPastShiftsOpensTheLog() throws {
+        let app = launch()
+        XCTAssertTrue(app.buttons["clock-in"].waitForExistence(timeout: 10))
+        let past = app.buttons["past-shifts"]
+        guard past.waitForExistence(timeout: 2) else {
+            throw XCTSkip("MainTabView doesn’t provide openTab yet, so Past shifts stays hidden.")
+        }
+        past.tap()
+        let log = app.tabBars.buttons["Log"]
+        let selected = XCTNSPredicateExpectation(predicate: NSPredicate(format: "isSelected == true"), object: log)
+        XCTAssertEqual(XCTWaiter().wait(for: [selected], timeout: 5), .completed)
     }
 
     func testSettingsKeepSiriChoicesAndYourDetails() {

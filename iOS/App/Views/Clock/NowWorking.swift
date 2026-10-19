@@ -88,12 +88,12 @@ struct FieldSummary: Equatable {
     /// "1,104 of 8,540 trees shaped"
     var line: String
 
-    /// Nil when the current field has no blocks yet.
-    init?(state: FieldState) {
+    /// Nil when the current field has no blocks yet. Pass the state's `index` when you have it.
+    init?(state: FieldState, index: MarkIndex? = nil) {
         guard let field = state.currentField else { return nil }
         let walker = state.walker(for: field)
         guard !walker.blocks.isEmpty else { return nil }
-        let progress = walker.progress(index: state.index)
+        let progress = walker.progress(index: index ?? state.index)
         fieldName = field.name
         shaped = progress.shaped
         total = progress.total

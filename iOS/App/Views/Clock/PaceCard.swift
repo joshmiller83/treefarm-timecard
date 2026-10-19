@@ -25,10 +25,15 @@ struct PaceCard: Equatable {
     var columns: [Column]
     var notes: [String]
 
-    /// Nil until a tree has been marked this season.
-    init?(state: FieldState, now: Date, showPay: Bool) {
+    /// Whether any of your shifts has trees marked this season: cheap, for deciding to show the card.
+    static func hasTrees(state: FieldState, index: MarkIndex) -> Bool {
+        state.liveShifts.contains { state.treeCount($0, index: index) > 0 }
+    }
+
+    /// Nil until a tree has been marked this season. Pass the state's `index` when you have it.
+    init?(state: FieldState, index: MarkIndex? = nil, now: Date, showPay: Bool) {
         let cal = state.calendar
-        let index = state.index
+        let index = index ?? state.index
         let count: (Shift) -> Int = { state.treeCount($0, index: index) }
         let shifts = state.liveShifts
         let season = Pace.stats(shifts, now: now, treeCount: count)

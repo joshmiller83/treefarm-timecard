@@ -18,6 +18,8 @@ struct StatusCardView: View {
     var onEditShift: () -> Void
 
     @Environment(\.dynamicTypeSize) private var typeSize
+    /// When "Tap again to clock out" appeared.
+    @State private var armedAt: Date?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -28,6 +30,8 @@ struct StatusCardView: View {
                 .font(.subheadline.weight(.medium))
                 .opacity(0.88)
                 .fixedSize(horizontal: false, vertical: true)
+                // The timer says it, so VoiceOver doesn't hear "worked today" twice.
+                .accessibilityHidden(true)
             if status.isOnBreak {
                 breakLine
                     .padding(.top, 10)
@@ -105,7 +109,7 @@ struct StatusCardView: View {
             .lineLimit(1)
             .minimumScaleFactor(0.5)
             .contentTransition(.numericText())
-            .accessibilityLabel("\(Fmt.spokenDuration(worked)) \(status.workedLabel.components(separatedBy: " · ").first ?? "")")
+            .accessibilityLabel("\(Fmt.spokenDuration(worked)) \(status.workedLabel.replacingOccurrences(of: " · ", with: ", "))")
             .accessibilityAddTraits(status.isWorking ? .updatesFrequently : [])
             .accessibilityIdentifier("big-timer")
     }
@@ -232,11 +236,16 @@ struct StatusCardView: View {
                     .accessibilityIdentifier("clock-out-question")
             }
             Button {
-                if confirmingOut {
-                    confirmingOut = false
-                    onClockOut()
-                } else {
+                switch ClockOutTap.decide(armedAt: confirmingOut ? armedAt : nil, now: Date()) {
+                case .arm:
+                    armedAt = Date()
                     withAnimation(.easeOut(duration: 0.15)) { confirmingOut = true }
+                case .ignore:
+                    break
+                case .confirm:
+                    confirmingOut = false
+                    armedAt = nil
+                    onClockOut()
                 }
             } label: {
                 Label(confirmingOut ? "Tap again to clock out" : "Clock out", systemImage: confirmingOut ? "exclamationmark.circle.fill" : "stop.fill")
@@ -290,5 +299,21 @@ struct StatusCardView: View {
         case .working: Palette.fir
         case .onBreak: Palette.sap
         }
+    }
+}
+
+/// The two-step Clock out. The confirming tap counts only after a short pause, so a bouncy
+/// gloved double tap shows "Tap again to clock out" but can't also end the shift.
+enum ClockOutTap: Equatable {
+    case arm
+    case ignore
+    case confirm
+
+    static let settle: TimeInterval = 0.6
+
+    /// `armedAt` is when "Tap again" appeared, or nil when it isn't showing.
+    static func decide(armedAt: Date?, now: Date) -> ClockOutTap {
+        guard let armedAt else { return .arm }
+        return now.timeIntervalSince(armedAt) < settle ? .ignore : .confirm
     }
 }

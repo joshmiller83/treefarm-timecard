@@ -52,11 +52,15 @@ struct ClockStatus: Equatable {
             return
         }
 
-        let label = Hours.isStale(open, now: now, calendar: cal) ? "worked this shift" : "worked today"
-        if Hours.isStale(open, now: now, calendar: cal) || Hours.forgotToClockOut(open, now: now) {
+        let earlierDay = Hours.isStale(open, now: now, calendar: cal)
+        let label = earlierDay ? "worked this shift" : "worked today"
+        if earlierDay || Hours.forgotToClockOut(open, now: now) {
             stale = "You’ve been clocked in since \(Fmt.day(open.start, cal)) at \(Fmt.time(open.start, cal))."
         }
-        let clockedIn = "Clocked in \(Fmt.time(open.start, cal))"
+        // A shift from an earlier day names the day, so 7:00 AM can't read as later today.
+        let clockedIn = earlierDay
+            ? "Clocked in \(Fmt.day(open.start, cal)) at \(Fmt.time(open.start, cal))"
+            : "Clocked in \(Fmt.time(open.start, cal))"
 
         if let b = open.openBreak {
             phase = .onBreak(b.kind)
@@ -87,24 +91,43 @@ struct ClockStatus: Equatable {
     }
 }
 
-/// "Change start time": the picked wall-clock time, in the farm's zone, on whichever day puts
-/// it nearest the original start. So 11:50 PM for a shift clocked in at 12:05 AM means the
-/// night before, and 12:03 AM for one at 11:58 PM means the next morning (which ShiftRules
-/// then refuses as a time that hasn't happened yet).
-enum StartTime {
+/// "Change start time": the wheel's hour and minute, in the farm's zone, on the shift's own day.
+/// The AM/PM wheel is explicit, so a pick only crosses midnight when both the original start and
+/// the picked time sit within three hours of it: 11:50 PM for a shift clocked in at 12:05 AM means
+/// the night before, and 12:03 AM for one at 11:58 PM the next morning (which ShiftRules then
+/// refuses as a time that hasn't happened yet). 7:00 PM for a 7:00 AM start stays on the same day.
+///
+/// Siri's "Fix my start time" resolves a spoken time differently (the latest matching time at
+/// or before now), since a spoken "7" carries no AM or PM.
+enum PickedStartTime {
+    /// How close to midnight both times must be before a pick moves to the next or previous day.
+    static let midnightWindow = 3 * 60
+
     /// An untouched hour and minute keep the exact original start (seconds and all), so
     /// opening the picker and saving changes nothing.
     static func newStart(picked: Date, original: Date, calendar: FarmCalendar) -> Date {
         let cal = calendar.calendar
         let p = cal.dateComponents([.hour, .minute], from: picked)
         let o = cal.dateComponents([.hour, .minute], from: original)
-        if p.hour == o.hour && p.minute == o.minute { return original }
-        let day = calendar.dayKey(original)
-        return [-1, 0, 1]
-            .map { offset in
-                let key = calendar.dayKey(calendar.addDays(calendar.date(on: day, hour: 12, minute: 0), offset))
-                return calendar.date(on: key, hour: p.hour ?? 0, minute: p.minute ?? 0)
-            }
-            .min { abs($0.timeIntervalSince(original)) < abs($1.timeIntervalSince(original)) }!
+        let (ph, pm) = (p.hour ?? 0, p.minute ?? 0)
+        let (oh, om) = (o.hour ?? 0, o.minute ?? 0)
+        if ph == oh && pm == om { return original }
+        let picked = ph * 60 + pm, started = oh * 60 + om
+        let lateNight = 24 * 60 - midnightWindow
+        let offset = started < midnightWindow && picked >= lateNight ? -1
+            : started >= lateNight && picked < midnightWindow ? 1
+            : 0
+        let day = calendar.dayKey(calendar.addDays(calendar.date(on: calendar.dayKey(original), hour: 12, minute: 0), offset))
+        return calendar.date(on: day, hour: ph, minute: pm)
+    }
+
+    /// Under the wheel: "Sun, Oct 18 at 7:00 PM · 12 h earlier", so the day is never a surprise.
+    static func preview(start: Date, original: Date, calendar: FarmCalendar) -> String {
+        let when = "\(Fmt.day(start, calendar)) at \(Fmt.time(start, calendar))"
+        // Measured from the minute on the clock, so "+5 min" says 5 min, whatever the seconds.
+        let shown = calendar.calendar.dateInterval(of: .minute, for: original)?.start ?? original
+        let moved = start == original ? 0 : start.timeIntervalSince(shown)
+        guard abs(moved) >= 30 else { return "\(when) · no change" }
+        return "\(when) · \(Fmt.minutesText(abs(moved))) \(moved < 0 ? "earlier" : "later")"
     }
 }

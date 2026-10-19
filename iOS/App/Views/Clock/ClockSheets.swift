@@ -113,6 +113,12 @@ struct StartTimeSheet: View {
                         .environment(\.timeZone, calendar.timeZone)
                         .onChange(of: picked) { problem = nil }
                         .accessibilityIdentifier("start-picker")
+                    Label(PickedStartTime.preview(start: resolved, original: shift.start, calendar: calendar), systemImage: "calendar")
+                        .font(.callout.weight(.semibold))
+                        .foregroundStyle(Palette.ink)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("start-preview")
                     HStack(spacing: 8) {
                         nudge(-15)
                         nudge(-5)
@@ -154,8 +160,13 @@ struct StartTimeSheet: View {
         .accessibilityIdentifier("start-nudge\(minutes)")
     }
 
+    /// The moment the wheel means, on whichever day `PickedStartTime` puts it.
+    private var resolved: Date {
+        PickedStartTime.newStart(picked: picked, original: shift.start, calendar: calendar)
+    }
+
     private func save() {
-        let start = StartTime.newStart(picked: picked, original: shift.start, calendar: calendar)
+        let start = resolved
         guard start != shift.start else { dismiss(); return }
         let reply = onSave(start)
         if reply.succeeded {
@@ -216,7 +227,7 @@ struct FlowRows: Layout {
     }
 }
 
-/// The message after a tap, what Siri would have said, floating above the tab bar.
+/// The message after a tap, what Siri would have said, floating at the top of the Clock tab.
 struct ToastView: View {
     var toast: ClockToast
 
@@ -224,7 +235,7 @@ struct ToastView: View {
         HStack(alignment: .top, spacing: 10) {
             Image(systemName: toast.succeeded ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
                 .font(.body.weight(.semibold))
-                .foregroundStyle(toast.succeeded ? ClockColors.pulse : Palette.sap)
+                .foregroundStyle(toast.succeeded ? ClockColors.toastDone : ClockColors.toastProblem)
                 .accessibilityHidden(true)
             Text(toast.text)
                 .font(.callout.weight(.semibold))
