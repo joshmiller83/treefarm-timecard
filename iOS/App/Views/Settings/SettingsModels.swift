@@ -3,9 +3,10 @@ import TimeCardCore
 
 /// Hourly pay as people type it: "18.50", "$18.5", "18". Empty means no rate yet.
 enum RateText {
-    static let maxCents = 99_999
+    /// The same ceiling the Team tab and the server use ($10,000 an hour).
+    static let maxCents = Limits.maxRateCents
 
-    /// Cents, or nil when it isn't a pay amount (negative, three decimals, over $999.99).
+    /// Cents, or nil when it isn't a pay amount (negative, three decimals, over the ceiling).
     static func parse(_ text: String) -> Int? {
         var s = text.trimmingCharacters(in: .whitespaces)
         if s.hasPrefix("$") { s.removeFirst() }
@@ -45,7 +46,7 @@ struct ProfileForm: Equatable {
         if Limits.clampName(name).isEmpty { return "Add your name. It goes on your time card." }
         guard RateText.parse(rate) != nil else {
             let plain = rate.replacingOccurrences(of: "$", with: "").trimmingCharacters(in: .whitespaces)
-            if let value = Double(plain), value >= 1000 { return "Hourly pay goes up to $999.99." }
+            if let value = Double(plain), value * 100 > Double(Limits.maxRateCents) { return RateChange.outOfRange }
             return "Enter your hourly pay like 18.50."
         }
         return nil
@@ -69,19 +70,12 @@ struct ProfileForm: Equatable {
     /// to save or something to fix.
     func records(for member: Member, openShift: Shift?, now: Date) -> [SyncRecord] {
         guard problem == nil, isChanged(from: member), let cents = RateText.parse(rate) else { return [] }
-        let stamp = now.roundedToMillisecond
         var updated = member
         updated.displayName = Limits.clampName(name)
         updated.jobTitle = Limits.clampName(job)
         updated.rateCents = cents
-        updated.updatedAt = stamp
-        var records: [SyncRecord] = [.member(updated)]
-        if cents != member.rateCents, var shift = openShift, shift.rateCents != cents {
-            shift.rateCents = cents
-            shift.updatedAt = stamp
-            records.append(.shift(shift))
-        }
-        return records
+        // The same rule as an admin's change in the Team tab.
+        return RateChange.records(member: updated, from: member, openShift: openShift, now: now)
     }
 }
 

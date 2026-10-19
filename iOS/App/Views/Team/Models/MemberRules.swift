@@ -18,15 +18,17 @@ struct MemberDraft: Equatable {
 /// admin hears "no" right away instead of from a sync rejection later.
 enum MemberRules {
     static let lastAdmin = "A farm needs at least one admin. Make someone else an admin first."
-    static let maxRateCents = 1_000_000
-    static let rateRange = "The pay rate has to be between $0 and $10,000 an hour."
+    static let maxRateCents = Limits.maxRateCents
+    static let rateRange = RateChange.outOfRange
     static let rateFormat = "Enter the pay rate in dollars, like 18.50."
     static let jobTooLong = "Job titles can be up to \(Limits.name) characters."
     static let removeYourself = "You can’t remove yourself. To leave the farm, delete your account in Settings."
 
     /// The edit as a member record, or what to fix. Refuses to leave the farm without a
     /// current admin. Email is the account's and never changes here.
-    static func save(_ draft: MemberDraft, for member: Member, members: [Member], now: Date) -> TeamEdit {
+    /// `openShift` is the person's shift on the clock: a new rate counts from it, as when
+    /// people change their own rate in Settings (`RateChange`).
+    static func save(_ draft: MemberDraft, for member: Member, members: [Member], openShift: Shift? = nil, now: Date) -> TeamEdit {
         guard let cents = parseRate(draft.rateText) else { return .problem(rateFormat) }
         guard (0...maxRateCents).contains(cents) else { return .problem(rateRange) }
         let job = draft.jobTitle.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -39,8 +41,7 @@ enum MemberRules {
         saved.role = draft.role
         saved.jobTitle = job
         saved.rateCents = cents
-        saved.updatedAt = max(now.roundedToMillisecond, member.updatedAt.addingTimeInterval(0.001))
-        return .save([.member(saved)])
+        return .save(RateChange.records(member: saved, from: member, openShift: openShift, now: now))
     }
 
     /// True when `member` is the farm's only current admin.

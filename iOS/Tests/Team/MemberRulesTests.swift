@@ -40,6 +40,23 @@ struct MemberRulesTests {
         #expect(saved.email == f.sam.email)
     }
 
+    /// The same rule as changing your own rate in Settings: the shift on the clock pays at the
+    /// new rate from now on; finished shifts keep theirs.
+    @Test func aRaiseCountsFromTheShiftOnTheClock() {
+        let f = TeamFixture()
+        let open = Shift(userId: f.sam.userId, farmId: f.farm.id, start: f.now.addingTimeInterval(-3600), rateCents: f.sam.rateCents,
+                         updatedAt: f.now.addingTimeInterval(-3600))
+        var draft = MemberDraft(f.sam)
+        draft.rateText = "21.00"
+        let edit = MemberRules.save(draft, for: f.sam, members: [f.alex, f.sam, f.jo], openShift: open, now: f.now)
+        guard case .save(let records) = edit, records.count == 2, case .shift(let shift) = records[1] else {
+            Issue.record("expected the member and the open shift, got \(edit)")
+            return
+        }
+        #expect(shift.id == open.id)
+        #expect(shift.rateCents == 2100)
+    }
+
     @Test func anUnsetRateStartsEmpty() {
         let f = TeamFixture()
         #expect(MemberDraft(f.jo).rateText == "")

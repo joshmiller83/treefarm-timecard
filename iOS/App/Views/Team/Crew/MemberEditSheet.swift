@@ -59,7 +59,7 @@ struct MemberEditSheet: View {
                                 .accessibilityIdentifier("member-rate")
                             Text("an hour").font(.subheadline).foregroundStyle(Palette.muted)
                         }
-                        Text("New shifts use this rate. Shifts already started keep the rate they began with.")
+                        Text(RateChange.footnote)
                             .font(.footnote)
                             .foregroundStyle(Palette.muted)
                             .fixedSize(horizontal: false, vertical: true)
@@ -123,7 +123,8 @@ struct MemberEditSheet: View {
 
     private func save() {
         let current = session.snapshot.members[member.userId] ?? member
-        let edit = MemberRules.save(draft, for: current, members: Array(session.snapshot.members.values), now: Date())
+        let open = session.snapshot.openShift(for: member.userId)
+        let edit = MemberRules.save(draft, for: current, members: Array(session.snapshot.members.values), openShift: open, now: Date())
         do {
             if let text = try TeamSave.apply(edit, in: session) {
                 problem = text

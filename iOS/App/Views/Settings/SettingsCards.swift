@@ -64,7 +64,7 @@ struct ProfileCard: View {
                 .background(Palette.surface, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                 .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Palette.line, lineWidth: 1))
             }
-            Text("Your name and job print on your time card. Pay is only for your totals here; it never shows on the report. A new rate counts from the shift you’re on.")
+            Text("Your name and job print on your time card. Pay is only for your totals here; it never shows on the report. \(RateChange.footnote)")
                 .font(.footnote)
                 .foregroundStyle(Palette.muted)
                 .fixedSize(horizontal: false, vertical: true)

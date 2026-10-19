@@ -13,13 +13,14 @@ struct RateTextTests {
         #expect(RateText.parse(".75") == 75)
         #expect(RateText.parse("") == 0)
         #expect(RateText.parse("999.99") == 99999)
+        #expect(RateText.parse("2500") == 250_000, "the Team tab's ceiling, $10,000, applies here too")
     }
 
     @Test func refusesWhatIsntPay() {
         #expect(RateText.parse("abc") == nil)
         #expect(RateText.parse("-5") == nil)
         #expect(RateText.parse("18.505") == nil)
-        #expect(RateText.parse("1000") == nil)
+        #expect(RateText.parse("10000.01") == nil)
         #expect(RateText.parse("1.2.3") == nil)
     }
 
@@ -84,8 +85,8 @@ struct ProfileFormTests {
         form.name = "Josh"
         form.rate = "eighteen"
         #expect(form.problem == "Enter your hourly pay like 18.50.")
-        form.rate = "2000"
-        #expect(form.problem == "Hourly pay goes up to $999.99.")
+        form.rate = "20000"
+        #expect(form.problem == "The pay rate has to be between $0 and $10,000 an hour.")
         #expect(form.records(for: f.me, openShift: nil, now: now).isEmpty)
     }
 

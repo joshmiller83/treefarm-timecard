@@ -28,6 +28,16 @@ extension SyncRecord {
     }
 }
 
+public enum RecordMetadata {
+    /// The `updatedAt` for an edit of a record last written at `previous`: now, to the
+    /// millisecond, but always after `previous`. A phone whose clock is behind the last writer
+    /// would otherwise stamp an older time, and the server keeps the newer copy and refuses
+    /// the edit after the person was told it was saved.
+    public static func stamp(_ now: Date, after previous: Date) -> Date {
+        max(now.roundedToMillisecond, previous.roundedToMillisecond.addingTimeInterval(0.001)).roundedToMillisecond
+    }
+}
+
 extension Date {
     /// This instant as it comes back from the wire, which carries milliseconds.
     /// Stamp records with it so a saved copy equals the one read back.

@@ -342,6 +342,8 @@ public enum Limits {
     public static let clockSkew: TimeInterval = 5 * 60
     /// Mutations per sync push.
     public static let pushBatch = 200
+    /// The highest hourly rate, in cents ($10,000), for Settings, the Team tab and the server.
+    public static let maxRateCents = 1_000_000
 
     public static func clampNotes(_ s: String) -> String { clamp(s, notes) }
     public static func clampReason(_ s: String) -> String { clamp(s, reason) }
