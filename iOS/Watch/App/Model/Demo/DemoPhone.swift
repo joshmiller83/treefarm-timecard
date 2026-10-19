@@ -16,10 +16,11 @@ final class DemoPhone {
     private var lastAction: String?
     private let now: () -> Date
     var recordWorkouts = true
+    var signedIn = true
 
-    init(working: Bool = false, now: @escaping () -> Date = Date.init) {
+    init(working: Bool = false, lunch: Bool = false, now: @escaping () -> Date = Date.init) {
         self.now = now
-        self.state = DemoFarm.state(now: now(), working: working)
+        self.state = DemoFarm.state(now: now(), working: working || lunch, lunchSince: lunch ? now().addingTimeInterval(-12 * 60 - 40) : nil)
     }
 
     /// One watch request, envelope in and `.reply` envelope out (always).
@@ -27,6 +28,11 @@ final class DemoPhone {
         let received = now()
         guard case .request(let request)? = try? WatchEnvelope.decode(data).message else {
             var reply = WatchReply.unreadable(WatchDisplay.updatePhone)
+            reply.state = makeState()
+            return Self.envelope(reply)
+        }
+        guard signedIn else {
+            var reply = WatchReply(requestId: request.id, speech: Speech.signedOut, succeeded: false, keepQueued: true)
             reply.state = makeState()
             return Self.envelope(reply)
         }
@@ -51,6 +57,7 @@ final class DemoPhone {
     /// The next state, from one revision counter.
     func makeState() -> WatchState {
         revision += 1
+        guard signedIn else { return .signedOut(epoch: epoch, revision: revision, now: now()) }
         return WatchStateBuilder.build(state: state, now: now(), epoch: epoch, revision: revision, recordWorkouts: recordWorkouts,
                                        appliedRequestIds: inbox.recentIds(WatchState.maxAppliedIds), lastAction: lastAction,
                                        canUndo: !undo.isEmpty)
@@ -87,7 +94,7 @@ final class DemoPhone {
 enum DemoFarm {
     static let timeZone = TimeZone(identifier: "America/Indiana/Indianapolis")!
 
-    static func state(now: Date, working: Bool) -> FieldState {
+    static func state(now: Date, working: Bool, lunchSince: Date? = nil) -> FieldState {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = timeZone
         let today = calendar.startOfDay(for: now)
@@ -138,7 +145,9 @@ enum DemoFarm {
 
         if working {
             // On the clock since 7:02, with 38 trees marked this morning.
-            let open = Shift(userId: josh.userId, farmId: farmId, start: at(today, 7, 2), rateCents: 1500, updatedAt: at(today, 7, 2))
+            let lunch = lunchSince.map { [Break(kind: .lunch, start: $0)] } ?? []
+            let open = Shift(userId: josh.userId, farmId: farmId, start: at(today, 7, 2), breaks: lunch, rateCents: 1500,
+                             updatedAt: at(today, 7, 2))
             shifts.append(open)
             shape(block2, rows: 14...16, shift: open.id, user: josh.userId, on: today)
             shape(block2, rows: 17...17, trees: 0..<8, shift: open.id, user: josh.userId, on: today)

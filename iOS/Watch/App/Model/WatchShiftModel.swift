@@ -331,6 +331,11 @@ final class WatchShiftModel {
         await flush()
     }
 
+    /// Shows a sentence the watch says on its own (the battery at clock-in).
+    func say(_ text: String) {
+        show(WatchToast(text: text, kind: .info))
+    }
+
     /// Sends what waits, oldest first.
     func flush() async {
         await courier.flush()
@@ -632,6 +637,7 @@ extension WatchShiftModel {
             let demo = DemoWatchTransport.fromLaunchArguments(arguments)
             let model = WatchShiftModel(transport: demo, store: FileOutboxStore(directory: directory), directory: directory, demo: demo)
             model.registerAppObservers()
+            if let page = DemoWatchTransport.page(arguments) { model.pages.selection = page }
             return model
         }
         if isHostingTests {

@@ -18,8 +18,9 @@ struct PageMemory: Equatable, Sendable {
         self.selection = selection
     }
 
+    /// The app left the screen (wrist down, Always On, background). The first time counts.
     mutating func wentAway(at time: Date) {
-        awaySince = time
+        if awaySince == nil { awaySince = time }
     }
 
     mutating func cameBack(at time: Date) {

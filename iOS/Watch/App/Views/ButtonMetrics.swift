@@ -30,8 +30,14 @@ struct ButtonMetrics: Equatable, Sendable {
     var clockOut: CGFloat { pick(52, 56, 58) }
     var secondary: CGFloat { pick(48, 52, 54) }
 
+    /// The primary button's words: a little smaller on the smallest watches, so "Back to work"
+    /// and "Row 14 done" keep their words.
+    var primaryFont: Font {
+        isSmall ? .system(.headline, design: .rounded).weight(.bold) : .system(.title3, design: .rounded).weight(.semibold)
+    }
+
     /// The big timer's size before Dynamic Type scales it.
-    var timer: CGFloat { pick(30, 34, 36) }
+    var timer: CGFloat { pick(32, 38, 42) }
 
     var isSmall: Bool { size == .small }
     var isLarge: Bool { size == .large }

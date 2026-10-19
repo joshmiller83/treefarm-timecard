@@ -6,7 +6,11 @@ import TreeFarmKit
 ///
 /// Launch arguments:
 /// - `-watchDemo`: signed in, off the clock, next row 14 in block 2.
-/// - `-watchDemoWorking`: on the clock since 7:02 instead.
+/// - `-watchDemoWorking`: on the clock since 7:02 instead; `-watchDemoLunch`: on lunch too.
+/// - `-watchDemoPage controls|now|today`: the page to open on.
+/// - `-watchDemoNoWorkouts`: "Record shifts as workouts" is off on the phone.
+/// - `-watchDemoSignedOut`: nobody is signed in on the phone.
+/// - `-watchDemoNeverConnected` (with `-watchPhoneAway`): the watch has never heard from it.
 /// - `-watchPhoneAway`: the phone starts out of reach.
 /// - `-watchPhoneBackAfter <seconds>`: an away phone comes back by itself after that long.
 /// - `-watchPhonePushEvery <seconds>`: the phone pushes its state on its own (a context
@@ -15,6 +19,17 @@ import TreeFarmKit
 /// The Today page also shows its controls (phone away or back, push the state) in demo mode.
 final class DemoWatchTransport: WatchTransport, @unchecked Sendable {
     static let argument = "-watchDemo"
+
+    /// The page `-watchDemoPage` asks for.
+    static func page(_ arguments: [String]) -> ShiftPage? {
+        guard let i = arguments.firstIndex(of: "-watchDemoPage"), i + 1 < arguments.count else { return nil }
+        switch arguments[i + 1] {
+        case "controls": return .controls
+        case "today": return .today
+        case "now": return .now
+        default: return nil
+        }
+    }
 
     let events: AsyncStream<WatchTransportEvent>
     let phone: DemoPhone
@@ -26,11 +41,14 @@ final class DemoWatchTransport: WatchTransport, @unchecked Sendable {
     private let pushEvery: Duration?
     /// How long the phone takes to answer, for a realistic "sending" dot.
     private let latency: Duration
+    /// `-watchDemoNeverConnected`: no state yet, until the phone is asked.
+    private let neverConnected: Bool
 
     @MainActor
     init(phone: DemoPhone, reachable: Bool = true, backAfter: Duration? = nil, pushEvery: Duration? = nil,
-         latency: Duration = .milliseconds(250)) {
+         latency: Duration = .milliseconds(250), neverConnected: Bool = false) {
         self.phone = phone
+        self.neverConnected = neverConnected
         self.reachable = reachable
         self.backAfter = backAfter
         self.pushEvery = pushEvery
@@ -44,10 +62,14 @@ final class DemoWatchTransport: WatchTransport, @unchecked Sendable {
             guard let i = arguments.firstIndex(of: flag), i + 1 < arguments.count, let value = Double(arguments[i + 1]) else { return nil }
             return .milliseconds(Int(value * 1000))
         }
-        return DemoWatchTransport(phone: DemoPhone(working: arguments.contains("-watchDemoWorking")),
+        let phone = DemoPhone(working: arguments.contains("-watchDemoWorking"), lunch: arguments.contains("-watchDemoLunch"))
+        phone.recordWorkouts = !arguments.contains("-watchDemoNoWorkouts")
+        phone.signedIn = !arguments.contains("-watchDemoSignedOut")
+        return DemoWatchTransport(phone: phone,
                                   reachable: !arguments.contains("-watchPhoneAway"),
                                   backAfter: seconds(after: "-watchPhoneBackAfter"),
-                                  pushEvery: seconds(after: "-watchPhonePushEvery"))
+                                  pushEvery: seconds(after: "-watchPhonePushEvery"),
+                                  neverConnected: arguments.contains("-watchDemoNeverConnected"))
     }
 
     // MARK: WatchTransport
@@ -60,7 +82,7 @@ final class DemoWatchTransport: WatchTransport, @unchecked Sendable {
         continuation.yield(.reachabilityChanged(isReachable))
         Task { @MainActor in
             // What WatchConnectivity replays after activation: the last application context.
-            self.pushState()
+            if !self.neverConnected { self.pushState() }
             if let backAfter = self.backAfter {
                 try? await Task.sleep(for: backAfter)
                 self.setReachable(true)
