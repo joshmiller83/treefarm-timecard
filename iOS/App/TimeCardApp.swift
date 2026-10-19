@@ -26,15 +26,19 @@ struct TimeCardApp: App {
         .onChange(of: scenePhase) { _, phase in
             switch phase {
             case .active:
+                AppDatabase.resume()
                 // Woken before the first unlock after a restart, the database was sealed; it opens now.
                 if model.storageError != nil { AppModel.reopenIfSealed() }
                 if model !== AppModel.shared { model = AppModel.shared }
                 Task { await model.sceneBecameActive() }
-            case .background: model.sceneEnteredBackground()
+            case .background:
+                model.sceneEnteredBackground()
+                AppDatabase.suspend()
             default: break
             }
         }
         .backgroundTask(.appRefresh(AppModel.backgroundRefreshID)) {
+            await MainActor.run { AppDatabase.resume() }
             await AppModel.reopenIfSealed().backgroundRefresh()
         }
     }

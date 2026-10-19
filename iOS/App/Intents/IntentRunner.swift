@@ -14,7 +14,9 @@ enum IntentRunner {
     /// Runs a voice command's logic (see `VoiceCommands`). Everything it runs sees
     /// `IntentContext.isRunning`.
     static func voice<Result: Sendable>(_ body: @MainActor @Sendable (VoiceCommands) async -> Result) async -> Result {
-        await IntentContext.$isRunning.withValue(true) {
+        // The app may have let go of the database when it last went to the background.
+        AppDatabase.resume()
+        return await IntentContext.$isRunning.withValue(true) {
             await body(makeVoice())
         }
     }

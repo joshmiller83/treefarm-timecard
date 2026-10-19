@@ -333,6 +333,10 @@ public actor SyncEngine {
                 update { $0.phase = phase; $0.lastError = error.userMessage }
                 return error.isRetryable ? .retryLater(error) : .failed(error.userMessage)
             }
+        } catch where AppDatabase.isSuspension(error) {
+            // The app is going to sleep and let go of the database: try again when it wakes.
+            update { $0.phase = .idle }
+            return .retryLater(.transport("The database is paused while Time Card is in the background."))
         } catch {
             let message = "Couldn't save on this phone: \(error.localizedDescription)"
             update { $0.phase = .failed; $0.lastError = message }

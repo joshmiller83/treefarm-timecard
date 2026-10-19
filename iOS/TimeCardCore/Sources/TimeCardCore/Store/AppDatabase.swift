@@ -40,6 +40,24 @@ public enum AppDatabase {
         return pool
     }
 
+    /// Lets go of the database before iOS suspends the app (going to the background, or a
+    /// background task running out). Writes until `resume()` fail with SQLITE_ABORT, which
+    /// syncing treats as "try again later".
+    public static func suspend() {
+        NotificationCenter.default.post(name: Database.suspendNotification, object: nil)
+    }
+
+    /// The app (or an intent, or a background refresh) is running again.
+    public static func resume() {
+        NotificationCenter.default.post(name: Database.resumeNotification, object: nil)
+    }
+
+    /// True for the errors a suspended database gives: wait and try again.
+    public static func isSuspension(_ error: any Error) -> Bool {
+        guard let error = error as? DatabaseError else { return false }
+        return error.resultCode == .SQLITE_INTERRUPT || error.resultCode == .SQLITE_ABORT
+    }
+
     /// A private in-memory database, for tests and UI-test runs.
     public static func openInMemory() throws -> DatabaseQueue {
         let queue = try DatabaseQueue(configuration: configuration())
@@ -52,6 +70,10 @@ public enum AppDatabase {
         config.foreignKeysEnabled = true
         // Siri and lock-screen intents may write while the app is also syncing.
         config.busyMode = .timeout(5)
+        // The file sits in a shared container: iOS kills an app suspended while holding a
+        // lock on it (0xdead10cc). The app posts `Database.suspendNotification` when it goes
+        // to the background and `resumeNotification` when it (or an intent) runs again.
+        config.observesSuspensionNotifications = true
         return config
     }
 

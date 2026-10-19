@@ -115,6 +115,8 @@ final class BackgroundTask {
         id = UIApplication.shared.beginBackgroundTask(withName: name) { [weak self] in
             MainActor.assumeIsolated {
                 self?.onExpire()
+                // iOS is about to suspend the app: let go of the shared database first.
+                AppDatabase.suspend()
                 self?.end()
             }
         }
