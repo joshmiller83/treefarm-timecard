@@ -52,18 +52,18 @@ const tiles = [
   <div class="cc-grid">
   <div class="cc-action">
     <div class="cc-edge" aria-hidden="true">
-      <svg viewBox="0 0 76 196" width="76" height="196" focusable="false">
-        <g class="cc-fade" fill="none" stroke-linecap="round" stroke-linejoin="round">
-          <!-- titanium frame, then the screen's edge just inside it -->
-          <path class="cc-frame" d="M76 4H46A38 38 0 0 0 8 42V196"></path>
-          <path class="cc-glass" d="M76 10H47A32 32 0 0 0 15 42V196"></path>
-          <!-- volume up, volume down -->
-          <rect class="cc-key" x="3" y="104" width="5" height="30" rx="2.5"></rect>
-          <rect class="cc-key" x="3" y="146" width="5" height="30" rx="2.5"></rect>
+      <!-- The phone's edge: titanium frame, the screen's edge just inside it, volume up. It
+           fades out downward and to the right (CSS mask), so the rest of the phone is implied. -->
+      <svg class="cc-sketch" viewBox="0 0 76 140" width="76" height="140" focusable="false">
+        <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+          <path class="cc-frame" d="M76 4H46A38 38 0 0 0 8 42V140"></path>
+          <path class="cc-glass" d="M76 10H47A32 32 0 0 0 15 42V140"></path>
+          <rect class="cc-key" x="3" y="98" width="5" height="28" rx="2.5"></rect>
         </g>
-        <!-- a 1px gold leader from the Action button to its label -->
-        <path class="cc-leader" d="M12 73H76"></path>
-        <!-- the Action button -->
+      </svg>
+      <!-- Unfaded on top: the gold Action button and a 1px leader to its label. -->
+      <svg class="cc-marks" viewBox="0 0 76 140" width="76" height="140" focusable="false">
+        <path class="cc-leader" d="M12 73H76" fill="none"></path>
         <rect class="cc-key cc-key--action" data-action-key x="3" y="62" width="5" height="22" rx="2.5"></rect>
       </svg>
       <span class="cc-glow" data-action-button></span>
@@ -115,6 +115,7 @@ const tiles = [
     align-items: flex-start;
     gap: 6px;
     padding: 4px 20px 0 12px;
+    /* 8 px over the sketch and its 140 px: the fade ends exactly at the bottom. */
     min-height: 152px;
     overflow: hidden;
   }
@@ -122,14 +123,26 @@ const tiles = [
     position: relative;
     flex: none;
     width: 76px;
-    height: 148px;
+    height: 140px;
     margin-top: 8px;
   }
   .cc-edge svg {
+    position: absolute;
+    inset: 0;
     display: block;
-    /* The edge fades out below the volume buttons: the rest of the phone is implied. */
-    -webkit-mask-image: linear-gradient(180deg, #000 70%, transparent 98%);
-    mask-image: linear-gradient(180deg, #000 70%, transparent 98%);
+    overflow: visible;
+  }
+  /* The sketch fades out within its own 140 px box (it ends where the card or the divider
+     does): down past the volume button, and right along the top of the frame. */
+  .cc-sketch {
+    -webkit-mask-image:
+      linear-gradient(180deg, #000 60%, transparent 100%),
+      linear-gradient(90deg, #000 68%, transparent 100%);
+    -webkit-mask-composite: source-in;
+    mask-image:
+      linear-gradient(180deg, #000 60%, transparent 100%),
+      linear-gradient(90deg, #000 68%, transparent 100%);
+    mask-composite: intersect;
   }
   .cc-frame {
     stroke: #8a9a90;
