@@ -60,32 +60,41 @@ final class ClockFlowUITests: XCTestCase {
         shot(app, "1 Off the clock")
 
         clockIn.tap()
-        waitFor(pill, label: "On the clock")
         waitFor(element("toast", in: app), labelBeginsWith: "Clocked in at")
+        waitFor(pill, label: "On the clock")
         waitFor(element("now-place", in: app), label: "Block 1, row 5")
         shot(app, "2 Clocked in")
 
         app.buttons["start-lunch"].tap()
-        waitFor(pill, label: "On lunch")
         waitFor(element("toast", in: app), labelBeginsWith: "Lunch started at")
+        waitFor(pill, label: "On lunch")
         waitFor(element("break-line", in: app), labelBeginsWith: "Lunch started")
         shot(app, "3 On lunch")
 
         app.buttons["back-to-work"].tap()
-        waitFor(pill, label: "On the clock")
         waitFor(element("toast", in: app), labelBeginsWith: "Back at")
+        waitFor(pill, label: "On the clock")
         shot(app, "4 Back to work")
 
-        let out = app.buttons["clock-out"]
-        out.tap()
-        waitFor(out, label: "Tap again to clock out")
-        waitFor(element("clock-out-question", in: app), labelBeginsWith: "You’ve worked")
-        shot(app, "5 Tap again to clock out")
-        out.tap()
-        waitFor(pill, label: "Off the clock")
+        clockOut(app)
         waitFor(element("toast", in: app), labelBeginsWith: "Clocked out at")
+        waitFor(pill, label: "Off the clock")
         waitFor(element("status-meta", in: app), labelBeginsWith: "Last clocked out at")
-        shot(app, "6 Clocked out")
+        shot(app, "5 Clocked out")
+    }
+
+    /// Two taps on Clock out. The second has to land within five seconds, so on a slow test
+    /// machine this asks again if the first one lapsed.
+    private func clockOut(_ app: XCUIApplication, file: StaticString = #filePath, line: UInt = #line) {
+        let out = app.buttons["clock-out"]
+        let off = NSPredicate(format: "label == %@", "Off the clock")
+        for _ in 0..<3 {
+            out.tap()
+            out.tap()
+            let done = XCTNSPredicateExpectation(predicate: off, object: element("status-pill", in: app))
+            if XCTWaiter().wait(for: [done], timeout: 4) == .completed { return }
+        }
+        XCTFail("Couldn’t clock out", file: file, line: line)
     }
 
     func testClockOutAsksTwiceAndForgetsTheFirstTap() {
@@ -97,6 +106,8 @@ final class ClockFlowUITests: XCTestCase {
         XCTAssertTrue(out.waitForExistence(timeout: 5))
         out.tap()
         waitFor(out, label: "Tap again to clock out")
+        waitFor(element("clock-out-question", in: app), labelBeginsWith: "You’ve worked")
+        shot(app, "Tap again to clock out")
         // Left alone, it goes back after a few seconds, so a pocket bump can't finish the job later.
         waitFor(out, label: "Clock out", timeout: 8)
         waitFor(element("status-pill", in: app), label: "On the clock")
@@ -137,16 +148,12 @@ final class ClockFlowUITests: XCTestCase {
         fuel.tap()
         shot(app, "Other break")
         app.buttons["break-go"].tap()
-        waitFor(element("status-pill", in: app), label: "On break")
         waitFor(element("toast", in: app), labelBeginsWith: "Break for Fuel run started at")
+        waitFor(element("status-pill", in: app), label: "On break")
         waitFor(element("break-line", in: app), labelContains: "Fuel run")
     }
 
-    func testChangeStartTimeSaysWhyATimeWontWork() throws {
-        let calendar = Calendar.current
-        let midnight = calendar.startOfDay(for: calendar.date(byAdding: .day, value: 1, to: Date())!)
-        try XCTSkipIf(midnight.timeIntervalSinceNow < 10 * 60, "Five minutes later would land on tomorrow")
-
+    func testChangeStartTimeSaysWhyATimeWontWork() {
         let app = launch()
         let clockIn = app.buttons["clock-in"]
         XCTAssertTrue(clockIn.waitForExistence(timeout: 10))

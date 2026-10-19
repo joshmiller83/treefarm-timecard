@@ -57,9 +57,9 @@ struct StatusCardView: View {
         .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(border, lineWidth: 1))
         .animation(.easeInOut(duration: 0.25), value: status.phase)
         .task(id: confirmingOut) {
-            // "Tap again to clock out" waits four seconds, then quietly goes back.
+            // "Tap again to clock out" waits five seconds, then quietly goes back.
             guard confirmingOut else { return }
-            try? await Task.sleep(for: .seconds(4))
+            try? await Task.sleep(for: .seconds(5))
             if !Task.isCancelled { withAnimation { confirmingOut = false } }
         }
     }

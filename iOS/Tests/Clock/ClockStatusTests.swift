@@ -119,4 +119,16 @@ struct StartTimeTests {
         let picked = f.today(6, 30, 15)
         #expect(StartTime.newStart(picked: picked, original: original, calendar: f.calendar) == f.at(f.day(-1), 6, 30))
     }
+
+    @Test func justAfterMidnightAnEveningTimeMeansTheNightBefore() {
+        let original = f.today(0, 5)
+        #expect(StartTime.newStart(picked: f.today(23, 50), original: original, calendar: f.calendar) == f.at(f.day(-1), 23, 50))
+        #expect(StartTime.newStart(picked: f.today(0, 1), original: original, calendar: f.calendar) == f.today(0, 1))
+    }
+
+    @Test func justBeforeMidnightAnEarlyTimeMeansTheNextMorning() {
+        let original = f.today(23, 58)
+        #expect(StartTime.newStart(picked: f.today(0, 3), original: original, calendar: f.calendar) == f.at(f.day(1), 0, 3))
+        #expect(StartTime.newStart(picked: f.today(22, 0), original: original, calendar: f.calendar) == f.today(22, 0))
+    }
 }

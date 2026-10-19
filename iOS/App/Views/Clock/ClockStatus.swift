@@ -87,7 +87,10 @@ struct ClockStatus: Equatable {
     }
 }
 
-/// "Change start time": the picked wall-clock time on the shift's own day, in the farm's zone.
+/// "Change start time": the picked wall-clock time, in the farm's zone, on whichever day puts
+/// it nearest the original start. So 11:50 PM for a shift clocked in at 12:05 AM means the
+/// night before, and 12:03 AM for one at 11:58 PM means the next morning (which ShiftRules
+/// then refuses as a time that hasn't happened yet).
 enum StartTime {
     /// An untouched hour and minute keep the exact original start (seconds and all), so
     /// opening the picker and saving changes nothing.
@@ -96,6 +99,12 @@ enum StartTime {
         let p = cal.dateComponents([.hour, .minute], from: picked)
         let o = cal.dateComponents([.hour, .minute], from: original)
         if p.hour == o.hour && p.minute == o.minute { return original }
-        return calendar.date(on: calendar.dayKey(original), hour: p.hour ?? 0, minute: p.minute ?? 0)
+        let day = calendar.dayKey(original)
+        return [-1, 0, 1]
+            .map { offset in
+                let key = calendar.dayKey(calendar.addDays(calendar.date(on: day, hour: 12, minute: 0), offset))
+                return calendar.date(on: key, hour: p.hour ?? 0, minute: p.minute ?? 0)
+            }
+            .min { abs($0.timeIntervalSince(original)) < abs($1.timeIntervalSince(original)) }!
     }
 }
