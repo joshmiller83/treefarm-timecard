@@ -24,21 +24,34 @@ struct ClockView: View {
         let _ = refresh
         let state = model.actions.state()
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    header
-                    if let state {
-                        content(state)
+            ScrollViewReader { proxy in
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 16) {
+                        header
+                        if let state {
+                            content(state)
+                        }
                     }
+                    .padding(.horizontal, 16)
+                    .padding(.top, 8)
+                    .padding(.bottom, 28)
+                    .frame(maxWidth: 640)
+                    .frame(maxWidth: .infinity)
                 }
-                .padding(.horizontal, 16)
-                .padding(.top, 8)
-                .padding(.bottom, 28)
-                .frame(maxWidth: 640)
-                .frame(maxWidth: .infinity)
+                .task {
+                    guard model.mode != .live, let target = ClockScenario.scrollTarget else { return }
+                    try? await Task.sleep(for: .seconds(1.5))
+                    proxy.scrollTo(target, anchor: .top)
+                }
             }
             .scrollDismissesKeyboard(.interactively)
             .screenBackground()
+            .overlay(alignment: .top) {
+                // Cards scroll under the status bar; keep the clock and battery readable.
+                Color.clear
+                    .frame(height: 0)
+                    .background(Palette.bg, ignoresSafeAreaEdges: .top)
+            }
             .toolbar(.hidden, for: .navigationBar)
             .overlay(alignment: .bottom) {
                 if let toast {
@@ -74,6 +87,13 @@ struct ClockView: View {
         .onDisappear { notes.flush() }
         .task {
             if await ClockScenario.applyIfRequested(model) { refresh += 1 }
+            guard model.mode != .live, let open = ClockScenario.sheetToOpen else { return }
+            switch open {
+            case "settings": sheet = .settings
+            case "break": sheet = .breakReason
+            case "start": if let shift = model.actions.state()?.openShift { sheet = .startTime(shift) }
+            default: break
+            }
         }
     }
 
@@ -134,6 +154,7 @@ struct ClockView: View {
             onClockOut: { run(.clockOut) },
             onChangeStart: { if let open = state.openShift { sheet = .startTime(open) } },
             onEditShift: { sheet = .editShift(status.shiftId) })
+            .id("status")
 
         if status.phase == .off {
             offTheClockLinks
@@ -146,9 +167,12 @@ struct ClockView: View {
                 onBreak: { run(.startBreak(.break, reason: "")) },
                 onUndo: { run(.undo) },
                 onMove: { run(.moveTo(blockId: $0, row: nil)) })
+                .id("now")
             TreesCardView(content: .shift(working), onOpenMap: mapAction)
+                .id("trees")
         } else if let field = FieldSummary(state: state) {
             TreesCardView(content: .field(field), onOpenMap: mapAction)
+                .id("trees")
         }
 
         TimelineView(.periodic(from: .now, by: 30)) { context in
@@ -156,9 +180,11 @@ struct ClockView: View {
                 PaceCardView(pace: pace)
             }
         }
+        .id("pace")
 
         if status.shiftId != nil {
             ShiftNotesCardView(editor: notes)
+                .id("notes")
         }
 
         TimelineView(.periodic(from: .now, by: 15)) { context in
@@ -166,6 +192,7 @@ struct ClockView: View {
                 sheet = .settings
             }
         }
+        .id("hours")
     }
 
     private var offTheClockLinks: some View {

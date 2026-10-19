@@ -46,6 +46,7 @@ struct TreesCardView: View {
         }
         .card()
         .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("trees-card")
     }
 
     private var isShift: Bool {
@@ -119,7 +120,7 @@ struct PaceCardView: View {
                             Circle()
                                 .fill(Palette.fir)
                                 .frame(width: 6, height: 6)
-                                .alignmentGuide(.firstTextBaseline) { $0[.bottom] - 1 }
+                                .alignmentGuide(.firstTextBaseline) { $0.height / 2 + 5 }
                                 .accessibilityHidden(true)
                             Text(note)
                                 .font(.callout)

@@ -15,7 +15,7 @@ struct CardButtonStyle: ButtonStyle {
         case outlineOnSap
         /// Solid sap ink on the break card: "Tap again to clock out".
         case confirmOnSap
-        /// A quieter, shorter-text chip on fir (Change start time).
+        /// A quieter, smaller-text button on fir (Change start time).
         case chipOnFir
         /// The same on the break card.
         case chipOnSap
@@ -27,12 +27,12 @@ struct CardButtonStyle: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(isChip ? .callout.weight(.semibold) : .headline)
+            .font(isChip ? .subheadline.weight(.semibold) : .headline)
             .multilineTextAlignment(.center)
             .foregroundStyle(foreground)
-            .padding(.horizontal, isChip ? 14 : 16)
+            .padding(.horizontal, isChip ? 10 : 16)
             .padding(.vertical, 10)
-            .frame(maxWidth: isChip ? nil : .infinity, minHeight: minHeight)
+            .frame(maxWidth: .infinity, minHeight: minHeight)
             .background(background, in: shape)
             .overlay(shape.strokeBorder(border, lineWidth: 1.5))
             .contentShape(shape)

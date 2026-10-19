@@ -18,7 +18,7 @@ struct NowWorkingCardView: View {
                 SectionLabel("Now working")
                 Spacer(minLength: 8)
                 if !card.fieldName.isEmpty {
-                    Label(card.fieldName, systemImage: "leaf")
+                    Label(card.fieldName, systemImage: "tree")
                         .font(.subheadline)
                         .foregroundStyle(Palette.muted)
                         .lineLimit(1)

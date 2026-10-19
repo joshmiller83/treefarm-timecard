@@ -162,15 +162,10 @@ struct StatusCardView: View {
 
     private var shiftChips: some View {
         let chip: CardButtonStyle.Kind = status.isOnBreak ? .chipOnSap : .chipOnFir
-        return ViewThatFits(in: .horizontal) {
-            HStack(spacing: 8) {
-                changeStartButton.buttonStyle(.card(chip))
-                editShiftButton.buttonStyle(.card(chip))
-            }
-            VStack(alignment: .leading, spacing: 8) {
-                changeStartButton.buttonStyle(.card(chip))
-                editShiftButton.buttonStyle(.card(chip))
-            }
+        return twoUp {
+            changeStartButton.buttonStyle(.card(chip))
+        } second: {
+            editShiftButton.buttonStyle(.card(chip))
         }
     }
 

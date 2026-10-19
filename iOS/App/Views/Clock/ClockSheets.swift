@@ -113,6 +113,11 @@ struct StartTimeSheet: View {
                         .environment(\.timeZone, calendar.timeZone)
                         .onChange(of: picked) { problem = nil }
                         .accessibilityIdentifier("start-picker")
+                    HStack(spacing: 8) {
+                        nudge(-15)
+                        nudge(-5)
+                        nudge(5)
+                    }
                     if let problem {
                         ErrorMessage(text: problem)
                     }
@@ -131,8 +136,22 @@ struct StartTimeSheet: View {
                 }
             }
         }
-        .presentationDetents([.large])
+        .presentationDetents([.fraction(0.75), .large])
         .presentationDragIndicator(.visible)
+    }
+
+    /// Glove-sized steps for the wheel: "−15 min", "−5 min", "+5 min".
+    private func nudge(_ minutes: Int) -> some View {
+        Button {
+            picked = picked.addingTimeInterval(TimeInterval(minutes * 60))
+        } label: {
+            Text("\(minutes < 0 ? "−" : "+")\(abs(minutes)) min")
+                .font(.tcNumber)
+                .monospacedDigit()
+        }
+        .buttonStyle(.gloveSecondary)
+        .accessibilityLabel("\(abs(minutes)) minutes \(minutes < 0 ? "earlier" : "later")")
+        .accessibilityIdentifier("start-nudge\(minutes)")
     }
 
     private func save() {

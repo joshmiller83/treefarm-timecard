@@ -9,7 +9,8 @@ import TimeCardCore
 /// - `lunch`: the same, on lunch for the last 14 minutes.
 /// - `stale`: still clocked in since 7:00 AM yesterday (forgot to clock out).
 ///
-/// Live launches ignore it. Records go through `session.save` and rows through
+/// `-UITestScrollTo <card>` and `-UITestOpen <sheet>` (below) help take screenshots.
+/// Live launches ignore all of these. Records go through `session.save` and rows through
 /// `FieldActions`, the same paths the app uses.
 @MainActor
 enum ClockScenario: String {
@@ -17,6 +18,21 @@ enum ClockScenario: String {
 
     static let argument = "-UITestClock"
     private static var applied = false
+
+    /// `-UITestScrollTo <card>` scrolls the Clock tab to a card (status, now, trees, pace,
+    /// notes, hours) for screenshots.
+    static var scrollTarget: String? {
+        let args = ProcessInfo.processInfo.arguments
+        guard let i = args.firstIndex(of: "-UITestScrollTo"), i + 1 < args.count else { return nil }
+        return args[i + 1]
+    }
+
+    /// `-UITestOpen settings|break|start` opens that sheet, for screenshots.
+    static var sheetToOpen: String? {
+        let args = ProcessInfo.processInfo.arguments
+        guard let i = args.firstIndex(of: "-UITestOpen"), i + 1 < args.count else { return nil }
+        return args[i + 1]
+    }
 
     static var requested: ClockScenario? {
         let args = ProcessInfo.processInfo.arguments

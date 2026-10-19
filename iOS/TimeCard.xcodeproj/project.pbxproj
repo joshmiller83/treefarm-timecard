@@ -24,6 +24,7 @@
 		4AA0F140DA0AC52F9E4211A3 /* NowWorking.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6EC09F62BE7A4EE1AB0D7EA2 /* NowWorking.swift */; };
 		4C4F9F482F05AA8C690EADED /* ReportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 165D9CB59A2B73311DD924DB /* ReportView.swift */; };
 		4CE2765501913B4EEF9A13AE /* TimeCardCore in Frameworks */ = {isa = PBXBuildFile; productRef = 1F16EF2DBAA82812E5FCBF05 /* TimeCardCore */; };
+		56196C19D16D487B1AA1A347 /* ClockFlowUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95F68CA9405378E319B596FA /* ClockFlowUITests.swift */; };
 		56E3F456E020D3F26D8FCE9D /* TimeCardCore in Frameworks */ = {isa = PBXBuildFile; productRef = 76760F4A041CFB039DF2E1BF /* TimeCardCore */; };
 		5840091B8188A4BF57AD73A8 /* PlatformTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A441859AAEFA8511A46EA2F /* PlatformTests.swift */; };
 		599CF5E9C4D373F558210B4B /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 6BC6220C858784A309DE828F /* Assets.xcassets */; };
@@ -46,6 +47,7 @@
 		A52443D525B164CED3CE9F97 /* TimeCardActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24D0A0F8E20930ACEF5AD5CB /* TimeCardActivityAttributes.swift */; };
 		A557B44473F43053CBA86614 /* TreesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB142D28E01DD5D7B047B8BA /* TreesView.swift */; };
 		AB841C6B733FCCF45B27A71D /* ClockSheets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07B52841E4ED2B39D828A789 /* ClockSheets.swift */; };
+		ABD58F89C76AD9A4714CC26B /* SettingsModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71B4ECA4143ED24CAF22C346 /* SettingsModelTests.swift */; };
 		B36F932D59108B2F4C40620E /* Appearance.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5935F4ACB9CB99F78AD24707 /* Appearance.swift */; };
 		B3A31CF1F267626DAE69CD97 /* SignInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB37F784FF57349039E30269 /* SignInView.swift */; };
 		B958CCE566260AFB7A9D922B /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 76F859F4EF55B8D49AECE08D /* SwiftUI.framework */; };
@@ -61,7 +63,9 @@
 		E9F3A70825BDE99356AD28AD /* Typography.swift in Sources */ = {isa = PBXBuildFile; fileRef = 430050FEBA83C41B0D8C1F39 /* Typography.swift */; };
 		EAA5990A3440A02D877A6008 /* StatusCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09497989FB7E542068BDD854 /* StatusCardView.swift */; };
 		EC667902F7B2D991519539B0 /* TimeCardActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24D0A0F8E20930ACEF5AD5CB /* TimeCardActivityAttributes.swift */; };
+		F04936B959D17F4FEFCE751E /* SettingsCards.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5001CCDE93E2A772A6F2739A /* SettingsCards.swift */; };
 		F2DC4499FFD5F66BA1844426 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 268D96072E557AB5DA77E1FA /* WidgetKit.framework */; };
+		FA633CB68BDB36A67A5A6B70 /* SettingsModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCB3AB404159719E56FB7440 /* SettingsModels.swift */; };
 		FF6FFF5EDAE4581A8CD35E19 /* TimeCardWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 9DE6B97E96723E748D99793B /* TimeCardWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
@@ -125,6 +129,7 @@
 		4533B607361861A2BBFEC580 /* Fonts */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Fonts; path = App/Resources/Fonts; sourceTree = SOURCE_ROOT; };
 		4A6A9D908CF458D9A4ECF38C /* ClockEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClockEnvironment.swift; sourceTree = "<group>"; };
 		4E751EFB1A84C048A71D83B9 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
+		5001CCDE93E2A772A6F2739A /* SettingsCards.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsCards.swift; sourceTree = "<group>"; };
 		576C231644ECC8C6932C2E33 /* TimeCardWidgetsBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimeCardWidgetsBundle.swift; sourceTree = "<group>"; };
 		5935F4ACB9CB99F78AD24707 /* Appearance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Appearance.swift; sourceTree = "<group>"; };
 		6A441859AAEFA8511A46EA2F /* PlatformTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlatformTests.swift; sourceTree = "<group>"; };
@@ -132,6 +137,7 @@
 		6D3C73C06F60AE9FE2F7F003 /* PaceCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaceCard.swift; sourceTree = "<group>"; };
 		6EC09F62BE7A4EE1AB0D7EA2 /* NowWorking.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NowWorking.swift; sourceTree = "<group>"; };
 		6FCC01A96E160B37BAC78F46 /* HoursPay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HoursPay.swift; sourceTree = "<group>"; };
+		71B4ECA4143ED24CAF22C346 /* SettingsModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsModelTests.swift; sourceTree = "<group>"; };
 		75E425709A1FCF4E60DE4173 /* Palette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Palette.swift; sourceTree = "<group>"; };
 		76F859F4EF55B8D49AECE08D /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 		7C111B64C0C07020B9DCCDD2 /* TimeCardUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimeCardUITests.swift; sourceTree = "<group>"; };
@@ -139,6 +145,7 @@
 		87281864A7B6C79D025F7336 /* MainTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainTabView.swift; sourceTree = "<group>"; };
 		8C42AEC580754A7C4570AB15 /* TimeCard.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = TimeCard.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		91519E30548CFC57A34F19EE /* IntentRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntentRunner.swift; sourceTree = "<group>"; };
+		95F68CA9405378E319B596FA /* ClockFlowUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClockFlowUITests.swift; sourceTree = "<group>"; };
 		97460A95F1CA9E6D45762BFE /* LiveActivityButtons.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityButtons.swift; sourceTree = "<group>"; };
 		98BD916919AFEA594B96FDBB /* JoinView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JoinView.swift; sourceTree = "<group>"; };
 		99943374729E87599B2C037E /* ActivityKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ActivityKit.framework; path = System/Library/Frameworks/ActivityKit.framework; sourceTree = SDKROOT; };
@@ -164,6 +171,7 @@
 		E2D5BD8F2781DF7FC276319C /* ClockStyles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClockStyles.swift; sourceTree = "<group>"; };
 		E48D61AF82088B1C9CFDD3F2 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		F45FCDA3212B014A83DF1857 /* NowWorkingCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NowWorkingCardView.swift; sourceTree = "<group>"; };
+		FCB3AB404159719E56FB7440 /* SettingsModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsModels.swift; sourceTree = "<group>"; };
 		FE706B521FDE4D5D4F38A4B7 /* ClockStatusTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClockStatusTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -252,6 +260,7 @@
 				FE706B521FDE4D5D4F38A4B7 /* ClockStatusTests.swift */,
 				3F84FA8BEE8F5D9192B59B77 /* HoursPaceTests.swift */,
 				A109B6BD4AE65A47FFAD3C86 /* NowWorkingNotesTests.swift */,
+				71B4ECA4143ED24CAF22C346 /* SettingsModelTests.swift */,
 			);
 			path = Clock;
 			sourceTree = "<group>";
@@ -311,6 +320,7 @@
 			isa = PBXGroup;
 			children = (
 				7C111B64C0C07020B9DCCDD2 /* TimeCardUITests.swift */,
+				A91872FA180589C0A3E50380 /* Clock */,
 			);
 			path = UITests;
 			sourceTree = "<group>";
@@ -353,6 +363,8 @@
 		A7A77BD1491F3A0F96AD91D2 /* Settings */ = {
 			isa = PBXGroup;
 			children = (
+				5001CCDE93E2A772A6F2739A /* SettingsCards.swift */,
+				FCB3AB404159719E56FB7440 /* SettingsModels.swift */,
 				DF7548AC9CE7DC4BC309E713 /* SettingsView.swift */,
 			);
 			path = Settings;
@@ -366,6 +378,14 @@
 				BB37F784FF57349039E30269 /* SignInView.swift */,
 			);
 			path = SignIn;
+			sourceTree = "<group>";
+		};
+		A91872FA180589C0A3E50380 /* Clock */ = {
+			isa = PBXGroup;
+			children = (
+				95F68CA9405378E319B596FA /* ClockFlowUITests.swift */,
+			);
+			path = Clock;
 			sourceTree = "<group>";
 		};
 		AD92A9BB98F18AE091154218 /* Design */ = {
@@ -598,6 +618,7 @@
 				BA9C90434C91A9947E06602D /* HoursPaceTests.swift in Sources */,
 				093D12E51C7962A139CA14B3 /* NowWorkingNotesTests.swift in Sources */,
 				5840091B8188A4BF57AD73A8 /* PlatformTests.swift in Sources */,
+				ABD58F89C76AD9A4714CC26B /* SettingsModelTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -605,6 +626,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				56196C19D16D487B1AA1A347 /* ClockFlowUITests.swift in Sources */,
 				210A451BC06E8FF049CC8269 /* TimeCardUITests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -639,6 +661,8 @@
 				4C4F9F482F05AA8C690EADED /* ReportView.swift in Sources */,
 				D13E042FE534FB7568A52475 /* ResetPasswordView.swift in Sources */,
 				A0E91B616D12F7A09D9CB812 /* RootView.swift in Sources */,
+				F04936B959D17F4FEFCE751E /* SettingsCards.swift in Sources */,
+				FA633CB68BDB36A67A5A6B70 /* SettingsModels.swift in Sources */,
 				3B3E0A8E54FB630EFF4F45D1 /* SettingsView.swift in Sources */,
 				BB7A7BA9144FF746B18BBFBF /* ShiftEditorView.swift in Sources */,
 				87DA791A2675D7768713CC64 /* ShiftNotesEditor.swift in Sources */,
