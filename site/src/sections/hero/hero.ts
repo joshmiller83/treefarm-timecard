@@ -1,62 +1,16 @@
 /**
- * HERO · 7:02 Clock in: the section's data and choreography as plain values, so Vitest can
- * check them against the brief and the ledger (hero.test.ts), and Hero.astro and the scene
- * (src/scripts/scenes/hero.ts) share one source.
+ * HERO · 7:02 Clock in: the section's choreography and scenery as plain values, so Vitest can
+ * check them against the brief (hero.test.ts), and Hero.astro and the scene
+ * (src/scripts/scenes/hero.ts) share one source. The words live in ./copy.ts (build time
+ * only, so the Siri lines never ride along in the scene's bundle).
  *
- *   heroPhoneLabel()      the phone's aria-label, built from the ledger and the Siri lines
- *   spokenWords(text)     “Clock in with Time Card.” as word spans (quotes on the ends)
  *   INTRO, cue(), …       the on-load sequence, in seconds (mobile plays it at 70%)
  *   SCROLL                the scrubbed scene's windows, in progress units (0–1)
  *   BANDS, bandTrees()…   the three fir-row silhouettes, as tiling SVG pattern geometry
  *   STARS                 four faint dawn stars
  *
- * Pure: no DOM, no GSAP. Safe in Astro frontmatter, the scene bundle and Vitest.
+ * Pure: no DOM, no GSAP, no imports. Safe in Astro frontmatter, the scene bundle and Vitest.
  */
-import { MOMENTS, fmtTime } from '../../data/ledger.ts';
-import { SIRI } from '../../data/siri.ts';
-import { activityView } from '../../components/system/lockscreen/activity.ts';
-
-export const REPO = 'https://github.com/joshmiller83/treefarm-timecard';
-
-// ---------------------------------------------------------------------------
-// Words
-
-/**
- * The phone's aria-label, as the brief words it:
- * 'iPhone lock screen at 7:02 AM. Siri says: Clocked in at 7:02. You’re on block 2, row 14.
- *  The Time Card Live Activity shows On the clock, North field, Block 2, 0 trees this shift,
- *  and buttons for row 14, row 15, row 16 and Break.'
- */
-export function heroPhoneLabel(): string {
-  const v = activityView({ at: MOMENTS.clockIn });
-  return (
-    `iPhone lock screen at ${fmtTime(MOMENTS.clockIn)}. Siri says: ${SIRI.clockIn.reply} ` +
-    `The Time Card Live Activity shows ${v.pill}, ${v.field}, ${v.block}, ${v.treesText} trees this shift, ` +
-    `and buttons for row ${v.rows.join(', row ')} and Break.`
-  );
-}
-
-export interface SpokenWord {
-  text: string;
-  /** Carries the opening curly quote. */
-  open: boolean;
-  /** Carries the closing curly quote. */
-  close: boolean;
-  /** Joined to the next word with a no-break space (keeps 'Time Card' on one line). */
-  glue: boolean;
-}
-
-/** A spoken line as word spans for the karaoke-style reveal. The quotes ride the end words. */
-export function spokenWords(text: string): SpokenWord[] {
-  const parts = text.trim().split(/\s+/);
-  return parts.map((w, i) => ({
-    text: w,
-    open: i === 0,
-    close: i === parts.length - 1,
-    glue: w === 'Time' && parts[i + 1]?.startsWith('Card') === true,
-  }));
-}
-
 // ---------------------------------------------------------------------------
 // The load sequence (seconds). Runs once, under html.motion only; never touches the H1.
 

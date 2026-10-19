@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { MOMENTS, fmtTime } from '../../data/ledger.ts';
 import { SIRI } from '../../data/siri.ts';
+import { heroPhoneLabel, spokenWords } from './copy.ts';
 import {
   BANDS,
   INTRO,
@@ -13,9 +14,7 @@ import {
   bandTrees,
   cue,
   groundAt,
-  heroPhoneLabel,
   introEnd,
-  spokenWords,
 } from './hero.ts';
 
 describe('the phone label', () => {
