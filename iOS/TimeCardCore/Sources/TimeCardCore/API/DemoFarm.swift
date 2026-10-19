@@ -6,13 +6,13 @@ public enum DemoFarm {
     public static let email = "demo@example.com"
     public static let password = "demo-password"
 
-    /// A stub server already holding the demo farm, with its admin signed in.
-    public static func makeServer(now: Date = Date()) async -> (server: StubAPIClient, me: MeResponse) {
+    /// A stub server already holding the demo farm. With `signedIn`, the demo admin's
+    /// session is live on it (as if they'd signed in before).
+    public static func makeServer(signedIn: Bool = true, now: Date = Date()) -> (server: StubAPIClient, me: MeResponse) {
         let records = makeRecords(now: now)
-        let server = StubAPIClient()
-        await server.seed(farmId: records.farm.id, records.all)
-        await server.addAccount(email: email, password: password, me: records.me)
-        await server.signIn(as: records.me)
+        let server = StubAPIClient(seed: .init(farmId: records.farm.id, records: records.all,
+                                              accounts: [.init(email: email, password: password, me: records.me)],
+                                              signedIn: signedIn ? records.me : nil))
         return (server, records.me)
     }
 

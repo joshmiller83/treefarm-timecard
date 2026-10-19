@@ -5,7 +5,7 @@ import Testing
 @Suite("Demo farm")
 struct DemoFarmTests {
     @Test func theDemoServerHasASignedInAdminAndAFarm() async throws {
-        let demo = await DemoFarm.makeServer()
+        let demo = DemoFarm.makeServer()
         let me = try await demo.server.me()
         #expect(me == demo.me)
         #expect(me.memberships.first?.role == .admin)
@@ -18,7 +18,8 @@ struct DemoFarmTests {
     }
 
     @Test func theDemoPersonCanSignInByPassword() async throws {
-        let demo = await DemoFarm.makeServer()
+        let demo = DemoFarm.makeServer(signedIn: false)
+        await #expect(throws: APIError.self) { _ = try await demo.server.me() }
         let auth = try await demo.server.login(LoginRequest(email: DemoFarm.email, password: DemoFarm.password, deviceName: "d"))
         #expect(auth.me == demo.me)
     }

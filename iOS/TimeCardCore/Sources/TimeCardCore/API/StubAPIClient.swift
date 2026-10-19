@@ -36,6 +36,46 @@ public actor StubAPIClient: APIClient {
 
     public init() {}
 
+    /// What a stub can start with, so it's ready without any `await` (the app's UI-test mode).
+    public struct Seed: Sendable {
+        public var farmId: UUID
+        public var records: [SyncRecord]
+        public var accounts: [Credentials]
+        public var signedIn: MeResponse?
+
+        public struct Credentials: Sendable {
+            public var email: String
+            public var password: String
+            public var me: MeResponse
+
+            public init(email: String, password: String, me: MeResponse) {
+                self.email = email
+                self.password = password
+                self.me = me
+            }
+        }
+
+        public init(farmId: UUID, records: [SyncRecord], accounts: [Credentials] = [], signedIn: MeResponse? = nil) {
+            self.farmId = farmId
+            self.records = records
+            self.accounts = accounts
+            self.signedIn = signedIn
+        }
+    }
+
+    public init(seed: Seed) {
+        var records: [EntityKey: Stored] = [:]
+        var seq: Int64 = 0
+        for record in seed.records {
+            seq += 1
+            records[EntityKey(record.kind, record.entityId)] = Stored(seq: seq, record: record)
+        }
+        self.seq = seq
+        self.farms = [seed.farmId: records]
+        self.accounts = Dictionary(seed.accounts.map { (Self.normalize($0.email), Account(password: $0.password, me: $0.me)) }) { $1 }
+        self.signedIn = seed.signedIn
+    }
+
     // MARK: Setting up
 
     /// Stores records as if other devices had pushed them.
