@@ -10,9 +10,10 @@ import AppIntents
 /// can be given any phrase or put on the Action button.
 ///
 /// Phrases with a row, block or field in them are filled in from those entities' suggested
-/// values; `VoiceCommands` calls `updateAppShortcutParameters()` after every change, so
-/// "Mark row 14" always covers the next ten open rows. Every phrase is listed in
-/// docs/voice-test.md.
+/// values; `SiriSuggestions` calls `updateAppShortcutParameters()` whenever they change, so
+/// "Mark row 14" always covers the next ten open rows. A time can't be part of a phrase (App
+/// Shortcut parameters can't be dates), so the start time is asked for. Every phrase is
+/// listed in docs/voice-test.md.
 struct TimeCardShortcuts: AppShortcutsProvider {
     static var shortcutTileColor: ShortcutTileColor { .grayGreen }
 

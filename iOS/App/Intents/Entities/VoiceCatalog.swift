@@ -8,6 +8,10 @@ enum VoiceCatalog {
     /// How many upcoming rows Siri learns by name, so "Mark row 14 in Time Card" works as
     /// one phrase.
     static let suggestedRowCount = 10
+    /// How many blocks Siri learns by name. Each one is said five ways (and its number in
+    /// words), so a big farm's every block would crowd Siri's phrases; any block can still be
+    /// named when Siri asks "Which block?".
+    static let suggestedBlockCount = 12
 
     // MARK: Rows
 
@@ -51,7 +55,17 @@ enum VoiceCatalog {
 
     // MARK: Blocks
 
-    /// The field you're in first, in walk order, then the other fields' blocks.
+    /// The blocks Siri learns by name: the field you're in, the `count` blocks nearest the
+    /// one you're in, in walk order.
+    static func suggestedBlocks(_ state: FieldState, count: Int = suggestedBlockCount) -> [BlockEntity] {
+        guard let field = state.currentField ?? state.liveFields.first else { return [] }
+        let all = state.walker(for: field).blocks
+        let here = state.nextRows(1).first.flatMap { row in all.firstIndex { $0.id == row.blockId } } ?? 0
+        let nearest = all.indices.sorted { abs($0 - here) < abs($1 - here) || (abs($0 - here) == abs($1 - here) && $0 > $1) }.prefix(count)
+        return nearest.sorted().map { block(for: all[$0], field: field) }
+    }
+
+    /// Every block: the field you're in first, in walk order, then the other fields' blocks.
     static func blocks(_ state: FieldState) -> [BlockEntity] {
         orderedFields(state).flatMap { field in
             state.walker(for: field).blocks.map { block(for: $0, field: field) }

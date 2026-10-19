@@ -6,9 +6,14 @@ import TimeCardCore
 /// it at the right moment ("Clock In" around the time you usually start, "Next Row" while
 /// you're working). Only routine, repeatable actions are donated; one-off fixes aren't.
 ///
-/// Siri and Shortcuts runs are logged by iOS itself, so only the app's own buttons donate,
-/// through `AppModel.performInApp(_:)`.
+/// Siri and Shortcuts runs are logged by iOS itself, so only actions from the app's own
+/// buttons donate: `performed(_:reply:state:)` does nothing inside an intent.
 enum IntentDonations {
+    /// Hands an intent to iOS. Tests collect them instead.
+    @MainActor static var donor: @MainActor (any AppIntent) -> Void = { intent in
+        IntentDonationManager.shared.donate(intent: intent)
+    }
+
     /// The intent that does what this command did, or nil when it isn't worth suggesting.
     static func intent(for command: FieldCommand, state: FieldState?) -> (any AppIntent)? {
         switch command {
@@ -32,13 +37,12 @@ enum IntentDonations {
         }
     }
 
-    static func donate(_ command: FieldCommand, state: FieldState?) {
-        guard let intent = intent(for: command, state: state) else { return }
-        donate(intent)
-    }
-
-    private static func donate(_ intent: some AppIntent) {
-        IntentDonationManager.shared.donate(intent: intent)
+    /// After a field action: donates it when it worked, came from the app's own buttons (not
+    /// an intent) and is worth suggesting.
+    @MainActor
+    static func performed(_ command: FieldCommand, reply: FieldReply, state: FieldState?) {
+        guard reply.succeeded, !IntentContext.isRunning, let intent = intent(for: command, state: state) else { return }
+        donor(intent)
     }
 }
 
@@ -48,10 +52,8 @@ extension AppModel {
     @discardableResult
     func performInApp(_ command: FieldCommand) -> FieldReply {
         let reply = actions.perform(command)
-        if reply.succeeded {
-            IntentDonations.donate(command, state: actions.state())
-            TimeCardShortcuts.updateAppShortcutParameters()
-        }
+        IntentDonations.performed(command, reply: reply, state: actions.state())
+        if reply.succeeded { SiriSuggestions.shared.changed() }
         return reply
     }
 }

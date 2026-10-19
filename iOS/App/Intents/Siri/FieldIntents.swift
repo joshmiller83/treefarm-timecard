@@ -6,10 +6,15 @@ import TimeCardCore
 // command's logic in `VoiceCommands` (or a multi-step `SiriFlows` flow) and speaks what
 // that says, which is TreeFarmKit's wording. None opens the app, and all of them run with
 // the phone locked in a pocket: the database stays readable after the first unlock.
+//
+// Every one that changes the day is also a `LiveActivityIntent`. Siri runs them with the app
+// in the background, and iOS lets a background app start a Live Activity only from inside a
+// LiveActivityIntent, so this is what lets "Clock in with Time Card" put the timer on the lock
+// screen, and any command bring it back after iOS ended it (eight hours) or it was swiped away.
 
 // MARK: Clock
 
-struct ClockInIntent: AppIntent {
+struct ClockInIntent: AppIntent, LiveActivityIntent {
     static let title: LocalizedStringResource = "Clock In"
     static var description: IntentDescription? { IntentDescription("Starts a shift and the lock-screen timer, and says which row is next.") }
     static let openAppWhenRun = false
@@ -35,7 +40,7 @@ struct ClockInIntent: AppIntent {
     }
 }
 
-struct ClockOutIntent: AppIntent {
+struct ClockOutIntent: AppIntent, LiveActivityIntent {
     static let title: LocalizedStringResource = "Clock Out"
     static var description: IntentDescription? { IntentDescription("Ends the shift after asking first, then says the hours and trees.") }
     static let openAppWhenRun = false
@@ -53,7 +58,7 @@ struct ClockOutIntent: AppIntent {
 
 // MARK: Breaks
 
-struct TakeBreakIntent: AppIntent {
+struct TakeBreakIntent: AppIntent, LiveActivityIntent {
     static let title: LocalizedStringResource = "Take a Break"
     static var description: IntentDescription? { IntentDescription("Starts lunch or a break. Turn on “Ask for a break reason” in Settings to be asked what a break is for.") }
     static let openAppWhenRun = false
@@ -88,7 +93,7 @@ struct TakeBreakIntent: AppIntent {
     }
 }
 
-struct BackToWorkIntent: AppIntent {
+struct BackToWorkIntent: AppIntent, LiveActivityIntent {
     static let title: LocalizedStringResource = "Back to Work"
     static var description: IntentDescription? { IntentDescription("Ends lunch or a break and says how long it was.") }
     static let openAppWhenRun = false
@@ -104,7 +109,7 @@ struct BackToWorkIntent: AppIntent {
 
 // MARK: Rows
 
-struct NextRowIntent: AppIntent {
+struct NextRowIntent: AppIntent, LiveActivityIntent {
     static let title: LocalizedStringResource = "Next Row"
     static var description: IntentDescription? { IntentDescription("Marks the row you're on shaped, like the lock-screen button, and says which row is next.") }
     static let openAppWhenRun = false
@@ -118,7 +123,7 @@ struct NextRowIntent: AppIntent {
     }
 }
 
-struct MarkRowByNumberIntent: AppIntent {
+struct MarkRowByNumberIntent: AppIntent, LiveActivityIntent {
     static let title: LocalizedStringResource = "Mark a Row"
     static var description: IntentDescription? { IntentDescription("Marks a whole row shaped. A row far from where you are is checked first, in case Siri misheard.") }
     static let openAppWhenRun = false
@@ -146,7 +151,7 @@ struct MarkRowByNumberIntent: AppIntent {
     }
 }
 
-struct MarkTreesIntent: AppIntent {
+struct MarkTreesIntent: AppIntent, LiveActivityIntent {
     static let title: LocalizedStringResource = "Mark Trees"
     static var description: IntentDescription? { IntentDescription("Marks some trees in one row: from the first tree to the last.") }
     static let openAppWhenRun = false
@@ -172,12 +177,13 @@ struct MarkTreesIntent: AppIntent {
             row: row, first: firstTree, last: lastTree,
             askRow: { try await self.$row.requestValue(.say(VoiceText.whichRow)) },
             askFirst: { try await self.$firstTree.requestValue(.say(VoiceText.firstTree)) },
-            askLast: { try await self.$lastTree.requestValue(.say(VoiceText.lastTree)) })
+            askLast: { try await self.$lastTree.requestValue(.say(VoiceText.lastTree)) },
+            confirm: { question in await self.askYesNo(question, yes: "Mark them") })
         return .result(dialog: reply.dialog)
     }
 }
 
-struct MoveToBlockIntent: AppIntent {
+struct MoveToBlockIntent: AppIntent, LiveActivityIntent {
     static let title: LocalizedStringResource = "Move to a Block"
     static var description: IntentDescription? { IntentDescription("Sets where you're working, so “next row” starts there.") }
     static let openAppWhenRun = false
@@ -207,7 +213,7 @@ struct MoveToBlockIntent: AppIntent {
     }
 }
 
-struct UndoIntent: AppIntent {
+struct UndoIntent: AppIntent, LiveActivityIntent {
     static let title: LocalizedStringResource = "Undo"
     static var description: IntentDescription? { IntentDescription("Takes back the last row, break, note or move.") }
     static let openAppWhenRun = false
@@ -223,7 +229,7 @@ struct UndoIntent: AppIntent {
 
 // MARK: Notes and times
 
-struct AddShiftNoteIntent: AppIntent {
+struct AddShiftNoteIntent: AppIntent, LiveActivityIntent {
     static let title: LocalizedStringResource = "Add a Note"
     static var description: IntentDescription? { IntentDescription("Adds a dictated note to today's shift.") }
     static let openAppWhenRun = false
@@ -244,7 +250,7 @@ struct AddShiftNoteIntent: AppIntent {
     }
 }
 
-struct NoteTreeIntent: AppIntent {
+struct NoteTreeIntent: AppIntent, LiveActivityIntent {
     static let title: LocalizedStringResource = "Note a Tree"
     static var description: IntentDescription? { IntentDescription("Leaves a note on one tree, with a flag if it needs attention, is dead or needs replanting. The row is the one you're on unless you pick one.") }
     static let openAppWhenRun = false
@@ -276,12 +282,13 @@ struct NoteTreeIntent: AppIntent {
             askRow: { try await self.$row.requestValue(.say(VoiceText.whichRow)) },
             askTree: { try await self.$tree.requestValue(.say(VoiceText.whichTree)) },
             askNote: { try await self.$note.requestValue(.say(VoiceText.whatsTheNote)) },
-            askFlag: { try await self.$flag.requestValue(.say(VoiceText.anyFlag)) })
+            askFlag: { try await self.$flag.requestValue(.say(VoiceText.anyFlag)) },
+            confirm: { question in await self.askYesNo(question, yes: "Add it") })
         return .result(dialog: reply.dialog)
     }
 }
 
-struct FixStartTimeIntent: AppIntent {
+struct FixStartTimeIntent: AppIntent, LiveActivityIntent {
     static let title: LocalizedStringResource = "Fix My Start Time"
     static var description: IntentDescription? { IntentDescription("Changes when the open shift started, checked by the same rules as the app.") }
     static let openAppWhenRun = false
@@ -304,7 +311,7 @@ struct FixStartTimeIntent: AppIntent {
 
 /// One App Shortcut for the less frequent commands (an app gets ten App Shortcuts):
 /// "Add a note", "Note a tree", "Mark trees", "Fix my start time" in Time Card.
-struct FieldTaskIntent: AppIntent {
+struct FieldTaskIntent: AppIntent, LiveActivityIntent {
     static let title: LocalizedStringResource = "Notes and Fixes"
     static var description: IntentDescription? { IntentDescription("Add a note, note a tree, mark some trees, or fix your start time.") }
     static let openAppWhenRun = false
@@ -358,12 +365,14 @@ struct FieldTaskIntent: AppIntent {
                 row: row, tree: tree, note: note, flag: flag, askRow: askRow,
                 askTree: { try await self.$tree.requestValue(.say(VoiceText.whichTree)) },
                 askNote: { try await self.$note.requestValue(.say(VoiceText.whatsTheNote)) },
-                askFlag: { try await self.$flag.requestValue(.say(VoiceText.anyFlag)) })
+                askFlag: { try await self.$flag.requestValue(.say(VoiceText.anyFlag)) },
+                confirm: { question in await self.askYesNo(question, yes: "Add it") })
         case .markTrees:
             reply = try await SiriFlows.markTrees(
                 row: row, first: tree, last: lastTree, askRow: askRow,
                 askFirst: { try await self.$tree.requestValue(.say(VoiceText.firstTree)) },
-                askLast: { try await self.$lastTree.requestValue(.say(VoiceText.lastTree)) })
+                askLast: { try await self.$lastTree.requestValue(.say(VoiceText.lastTree)) },
+                confirm: { question in await self.askYesNo(question, yes: "Mark them") })
         case .fixStart:
             reply = try await SiriFlows.fixStart(time, askTime: { try await self.$time.requestValue(.say(VoiceText.whatTime)) })
         }

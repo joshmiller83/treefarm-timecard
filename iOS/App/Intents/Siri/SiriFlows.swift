@@ -15,14 +15,16 @@ enum SiriFlows {
         return await IntentRunner.voice { await $0.markRow(target.rowRef, confirm: confirm) }
     }
 
-    /// "Mark trees" → "Which row?" → "First tree?" → "Last tree?"
+    /// "Mark trees" → "Which row?" → "First tree?" → "Last tree?", then a check when the row is
+    /// far away or in another block, in case Siri misheard it.
     static func markTrees(row: RowEntity?, first: Int?, last: Int?,
-                          askRow: Asker<RowEntity>, askFirst: Asker<Int>, askLast: Asker<Int>) async throws -> VoiceReply {
+                          askRow: Asker<RowEntity>, askFirst: Asker<Int>, askLast: Asker<Int>,
+                          confirm: @escaping VoiceCommands.Confirm) async throws -> VoiceReply {
         if let stop = await check(.marking) { return .failed(stop) }
         let target = try await value(row, or: askRow)
         let from = try await value(first, or: askFirst)
         let to = try await value(last, or: askLast)
-        return await IntentRunner.voice { await $0.markTrees(row: target.rowRef, first: from, last: to) }
+        return await IntentRunner.voice { await $0.markTrees(row: target.rowRef, first: from, last: to, confirm: confirm) }
     }
 
     /// "I'm in block 3", or "Move to another block" → "Which block?"
@@ -40,17 +42,21 @@ enum SiriFlows {
     }
 
     /// "Note a tree" → "Which tree?" → "What's the note?" → "Any flag?" The row is the one
-    /// you're on unless one was named, so usually only the tree number is needed.
+    /// you're on unless one was named, so usually only the tree number is needed. A named row
+    /// far away or in another block is checked first, in case Siri misheard it.
     static func noteTree(row: RowEntity?, tree: Int?, note: String?, flag: FlagOption?,
-                         askRow: Asker<RowEntity>, askTree: Asker<Int>, askNote: Asker<String>, askFlag: Asker<FlagOption>) async throws -> VoiceReply {
+                         askRow: Asker<RowEntity>, askTree: Asker<Int>, askNote: Asker<String>, askFlag: Asker<FlagOption>,
+                         confirm: @escaping VoiceCommands.Confirm) async throws -> VoiceReply {
         if let stop = await check(.signedIn) { return .failed(stop) }
         let here = await IntentRunner.voice { $0.currentRow() }
         let target: RowRef
-        if let row { target = row.rowRef } else if let here { target = here } else { target = try await askRow().rowRef }
+        var spoken = true
+        if let row { target = row.rowRef } else if let here { target = here; spoken = false } else { target = try await askRow().rowRef }
         let number = try await value(tree, or: askTree)
         let body = try await value(given(note), or: askNote)
         let chosen = try await value(flag, or: askFlag)
-        return await IntentRunner.voice { await $0.noteTree(row: target, tree: number, body: body, flag: chosen.flag) }
+        let check = spoken ? confirm : nil
+        return await IntentRunner.voice { await $0.noteTree(row: target, tree: number, body: body, flag: chosen.flag, confirm: check) }
     }
 
     /// "Fix my start time" → "What time did you start?"

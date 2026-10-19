@@ -66,6 +66,24 @@ struct VoiceCatalogTests {
         #expect(VoiceCatalog.blocks(ids: [block3.id.uuidString], state: state).map(\.title) == ["Block 3"])
     }
 
+    /// Siri learns only the blocks near you by name, so a big farm doesn't crowd its phrases;
+    /// any block is still found when said.
+    @Test func blockSuggestionsAreTheNearbyBlocksOfYourField() async throws {
+        let model = await Demo.model()
+        #expect(VoiceCatalog.suggestedBlocks(try Demo.state(model)).map(\.title) == ["Block 1", "Block 2", "Block 3", "Block 4"])
+        #expect(VoiceCatalog.suggestedBlockCount == 12)
+        _ = await Demo.voice(model).moveTo(block: try Demo.block(model, "3").id, row: nil)
+        let state = try Demo.state(model)
+        #expect(VoiceCatalog.suggestedBlocks(state, count: 1).map(\.title) == ["Block 3"])
+        #expect(VoiceCatalog.suggestedBlocks(state, count: 2).map(\.title) == ["Block 3", "Block 4"], "the one ahead first")
+        #expect(VoiceCatalog.suggestedBlocks(state, count: 3).map(\.title) == ["Block 2", "Block 3", "Block 4"])
+        // Creek Field's block isn't suggested, but is found by name.
+        let creek = try Demo.block(model, "1", in: "Creek Field")
+        #expect(!VoiceCatalog.suggestedBlocks(state).contains { $0.blockId == creek.id })
+        #expect(VoiceCatalog.blocks(ids: [creek.id.uuidString], state: state).count == 1)
+        #expect(VoiceCatalog.blocks(state).contains { $0.blockId == creek.id })
+    }
+
     @Test func fieldsByName() async throws {
         let model = await Demo.model()
         let state = try Demo.state(model)

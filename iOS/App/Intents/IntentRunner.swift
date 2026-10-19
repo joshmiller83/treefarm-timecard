@@ -11,48 +11,61 @@ enum IntentRunner {
     /// Builds Siri's view of the running app. Tests point it at the demo farm.
     static var makeVoice: @MainActor () -> VoiceCommands = { VoiceCommands.live() }
 
-    /// Runs a voice command's logic (see `VoiceCommands`).
+    /// Runs a voice command's logic (see `VoiceCommands`). Everything it runs sees
+    /// `IntentContext.isRunning`.
     static func voice<Result: Sendable>(_ body: @MainActor @Sendable (VoiceCommands) async -> Result) async -> Result {
-        await body(makeVoice())
+        await IntentContext.$isRunning.withValue(true) {
+            await body(makeVoice())
+        }
     }
 
     /// The farm as the field actions see it, or nil when the app can't open it (locked
     /// since a restart, or signed out). Entity queries read rows, blocks and fields here.
     static func fieldState() async -> FieldState? {
-        let voice = makeVoice()
-        guard await voice.blocker() == nil else { return nil }
-        return voice.actions.state()
+        await voice { voice in
+            guard await voice.blocker() == nil else { return nil }
+            return voice.actions.state()
+        }
     }
 
     /// Runs a field command for a Live Activity button or a control.
     static func perform(_ command: FieldCommand) async -> FieldReply {
-        let voice = makeVoice()
-        if let blocked = await voice.blocker() { return FieldReply(speech: blocked, succeeded: false) }
-        let reply = voice.actions.perform(command)
-        if reply.succeeded { voice.onChange() }
-        VoiceCommands.log.info("button \(VoiceCommands.name(of: command), privacy: .public): \(reply.succeeded ? "done" : "refused", privacy: .public)")
-        return reply
+        await voice { voice in
+            if let blocked = await voice.blocker() { return FieldReply(speech: blocked, succeeded: false) }
+            let reply = voice.actions.perform(command)
+            if reply.succeeded { voice.onChange() }
+            VoiceCommands.log.info("button \(VoiceCommands.name(of: command), privacy: .public): \(reply.succeeded ? "done" : "refused", privacy: .public)")
+            return reply
+        }
     }
 
     static func answer(_ question: FieldQuestion) async -> String {
-        let voice = makeVoice()
-        if let blocked = await voice.blocker() { return blocked }
-        return voice.actions.answer(question)
+        await voice { voice in
+            if let blocked = await voice.blocker() { return blocked }
+            return voice.actions.answer(question)
+        }
     }
 
     /// A lock-screen button press. Buttons can't speak, so when the action is refused (the row
     /// was shaped by someone else between the screen drawing and the tap, say) the reason's
     /// first sentence shows on the Live Activity in place of the last action, next to the
-    /// refreshed row buttons.
+    /// refreshed row buttons, with no Undo beside it: Undo would take back an earlier action.
+    /// When there's no shift to show any more (clocked out on another phone and synced, or
+    /// signed out), the press takes the leftover activity down instead of doing nothing.
     @discardableResult
     static func press(_ command: FieldCommand) async -> FieldReply {
         let reply = await perform(command)
-        if !reply.succeeded {
-            let actions = makeVoice().actions
-            if var snapshot = actions.liveSnapshot() {
-                snapshot.lastAction = lockScreenNote(reply.speech)
-                actions.onLiveSnapshot?(snapshot)
-            }
+        guard !reply.succeeded else { return reply }
+        let model = makeVoice().model
+        // Without its data (sealed since a restart) the app can't tell what the card should say.
+        guard model.storageError == nil else { return reply }
+        let actions = model.actions
+        if var snapshot = actions.liveSnapshot() {
+            snapshot.lastAction = lockScreenNote(reply.speech)
+            snapshot.canUndo = false
+            actions.onLiveSnapshot?(snapshot)
+        } else {
+            actions.onLiveSnapshot?(nil)
         }
         return reply
     }
@@ -73,4 +86,35 @@ enum IntentRunner {
         }
         return speech
     }
+
+    // MARK: The model
+
+    /// The model intents work on: `AppModel.shared`, or, when the app woke before the first
+    /// unlock after a restart (database sealed) and the phone has been unlocked since, the
+    /// model `reopenStorage()` opened then.
+    static var model: AppModel { reopened ?? AppModel.shared }
+
+    private static var reopened: AppModel?
+
+    /// Opens the database again for a model that couldn't open it. `VoiceCommands.blocker()`
+    /// calls this only once the phone has been unlocked, when the file is readable again.
+    /// Returns the new model, which carries its own `storageError` if it still can't open.
+    ///
+    /// Until `AppModel.shared` can be replaced (it's a constant), the reopened model is kept
+    /// here for Siri and the lock screen; the app's window keeps the one it launched with.
+    static func reopenStorage() -> AppModel {
+        let fresh = AppEnvironment.makeModel()
+        if fresh.storageError == nil {
+            reopened = fresh
+            SiriSuggestions.shared.follow(fresh)
+        }
+        return fresh
+    }
+}
+
+/// Whether the code running now was started by an intent. The app's own buttons teach Siri
+/// (`IntentDonations`); an intent's run doesn't, since iOS logs Siri's and Shortcuts' runs
+/// itself. Task-local, so it holds for exactly the code an intent runs, however it's reached.
+enum IntentContext {
+    @TaskLocal static var isRunning = false
 }

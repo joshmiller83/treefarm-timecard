@@ -5,9 +5,10 @@ import TimeCardCore
 @testable import TimeCard
 
 /// The intents themselves (Siri's, the lock screen's and the multi-step flows), run through
-/// `IntentRunner` against the demo farm. Serialized: they point the runner at their model.
+/// `IntentRunner` against the demo farm. Serialized: they point the runner at their model,
+/// and point it back at the running app after each test.
 @MainActor
-@Suite("Intents", .serialized)
+@Suite("Intents", .serialized, .restoresIntentRunner)
 final class IntentShellTests {
     let model: AppModel
     var published: [LiveSnapshot?] = []
@@ -56,6 +57,29 @@ final class IntentShellTests {
         #expect(snapshot.nextRows.first?.title == "Row 5")
     }
 
+    /// Undo beside a refusal would take back the action before it, not the refused one.
+    @Test func aRefusalOffersNoUndo() async throws {
+        _ = await IntentRunner.perform(.clockIn(fieldId: nil))
+        _ = await IntentRunner.press(.markNextRow)
+        #expect((published.last ?? nil)?.canUndo == true)
+        let row1 = try Demo.row(model, 1)
+        _ = try await MarkRowIntent(blockId: row1.blockId, row: row1.row).perform()
+        let snapshot = try #require(published.last ?? nil)
+        #expect(snapshot.lastAction?.hasPrefix("Row 1 was shaped by") == true)
+        #expect(snapshot.canUndo == false)
+    }
+
+    /// Clocked out on another phone, synced, and the lock screen still shows a running card:
+    /// a press takes it down rather than doing nothing while the timer runs on.
+    @Test func aPressAfterClockingOutElsewhereEndsTheCard() async throws {
+        #expect(Demo.openShift(model) == nil)
+        published.removeAll()
+        let reply = await IntentRunner.press(.markNextRow)
+        #expect(reply.speech == Speech.notClockedIn)
+        #expect(published.count == 1)
+        #expect(published.last == .some(nil), "nil ends the activity")
+    }
+
     @Test func aButtonForABlockThatIsGoneChangesNothing() async throws {
         _ = await IntentRunner.perform(.clockIn(fieldId: nil))
         published.removeAll()
@@ -73,6 +97,26 @@ final class IntentShellTests {
     }
 
     // MARK: Siri intents
+
+    /// iOS lets a background app start a Live Activity only inside a LiveActivityIntent, and
+    /// Siri runs these in the background: "Clock in with Time Card" must put the timer up.
+    @Test func everyCommandThatChangesTheDayCanStartTheLockScreenTimer() {
+        let changing: [any AppIntent] = [
+            ClockInIntent(), ClockOutIntent(), TakeBreakIntent(), BackToWorkIntent(), NextRowIntent(), MarkRowByNumberIntent(),
+            MarkTreesIntent(), MoveToBlockIntent(), UndoIntent(), AddShiftNoteIntent(), NoteTreeIntent(), FixStartTimeIntent(),
+            FieldTaskIntent(),
+        ]
+        for intent in changing {
+            #expect((intent as Any) is any LiveActivityIntent, "\(type(of: intent))")
+        }
+        let buttons: [any AppIntent] = [MarkRowIntent(), StartBreakButtonIntent(), BackToWorkButtonIntent(), UndoButtonIntent(),
+                                        NextRowButtonIntent(), ClockInButtonIntent()]
+        for intent in buttons {
+            #expect((intent as Any) is any LiveActivityIntent, "\(type(of: intent))")
+        }
+        // Asking a question changes nothing on the lock screen.
+        #expect(!((AskTimeCardIntent() as Any) is any LiveActivityIntent))
+    }
 
     @Test func siriIntentsRunAgainstTheSameModel() async throws {
         _ = try await ClockInIntent().perform()
@@ -116,7 +160,8 @@ final class IntentShellTests {
         let asked = Asked()
         let markRow = try await SiriFlows.markRow(nil, askRow: asked.row("row"), confirm: { _ in true })
         let markTrees = try await SiriFlows.markTrees(row: nil, first: nil, last: nil,
-                                                      askRow: asked.row("row"), askFirst: asked.int("first", 1), askLast: asked.int("last", 2))
+                                                      askRow: asked.row("row"), askFirst: asked.int("first", 1), askLast: asked.int("last", 2),
+                                                      confirm: asked.yes("confirm"))
         let note = try await SiriFlows.addNote(nil, askText: asked.text("note", "Fuel"))
         let start = try await SiriFlows.fixStart(nil, askTime: asked.time("time"))
         for reply in [markRow, markTrees, note, start] {
@@ -129,19 +174,45 @@ final class IntentShellTests {
         _ = await IntentRunner.perform(.clockIn(fieldId: nil))
         let asked = Asked(row: try #require(VoiceCatalog.suggestedRows(try Demo.state(model)).first))
         let reply = try await SiriFlows.markTrees(row: nil, first: nil, last: nil,
-                                                  askRow: asked.row("row"), askFirst: asked.int("first", 1), askLast: asked.int("last", 6))
-        #expect(asked.questions == ["row", "first", "last"])
+                                                  askRow: asked.row("row"), askFirst: asked.int("first", 1), askLast: asked.int("last", 6),
+                                                  confirm: asked.yes("confirm"))
+        #expect(asked.questions == ["row", "first", "last"], "row 5 is where you are: nothing to check")
         #expect(reply.speech == "Marked trees 1 to 6 in row 5.")
+    }
+
+    @Test func aFarRowForTreesIsCheckedLast() async throws {
+        _ = await IntentRunner.perform(.clockIn(fieldId: nil))
+        let state = try Demo.state(model)
+        let far = try #require(VoiceCatalog.rows(matching: "row 18", state: state).first)
+        let asked = Asked(row: far, confirms: false)
+        let reply = try await SiriFlows.markTrees(row: nil, first: nil, last: nil,
+                                                  askRow: asked.row("row"), askFirst: asked.int("first", 1), askLast: asked.int("last", 6),
+                                                  confirm: asked.yes("confirm"))
+        #expect(asked.questions == ["row", "first", "last", "confirm: Row 18 in block 1? That’s 13 rows ahead."])
+        #expect(reply.speech == "Okay, nothing marked.")
     }
 
     @Test func aTreeNoteNeedsOnlyTheTreeNumberTheNoteAndAFlag() async throws {
         let asked = Asked()
         let reply = try await SiriFlows.noteTree(row: nil, tree: nil, note: nil, flag: nil,
                                                  askRow: asked.row("row"), askTree: asked.int("tree", 6),
-                                                 askNote: asked.text("note", "Leader broken"), askFlag: asked.flag("flag", .replant))
+                                                 askNote: asked.text("note", "Leader broken"), askFlag: asked.flag("flag", .replant),
+                                                 confirm: asked.yes("confirm"))
         #expect(asked.questions == ["tree", "note", "flag"], "the row is the one you're on")
         #expect(reply.speech == "Noted on block 1, row 5, tree 6.")
         #expect(model.snapshot.notes.values.first?.flag == .replant)
+    }
+
+    @Test func aTreeNoteInARowFarAwayIsChecked() async throws {
+        let state = try Demo.state(model)
+        let far = try #require(VoiceCatalog.rows(matching: "row 3 in block 2", state: state).first)
+        let asked = Asked(confirms: true)
+        let reply = try await SiriFlows.noteTree(row: far, tree: 2, note: "Dead", flag: .dead,
+                                                 askRow: asked.row("row"), askTree: asked.int("tree", 6),
+                                                 askNote: asked.text("note", "x"), askFlag: asked.flag("flag", .noFlag),
+                                                 confirm: asked.yes("confirm"))
+        #expect(asked.questions == ["confirm: Row 3 in block 2? You’re in block 1."])
+        #expect(reply.speech == "Noted on block 2, row 3, tree 2.")
     }
 
     @Test func whatWasAlreadySaidIsNotAskedAgain() async throws {
@@ -178,7 +249,8 @@ final class IntentShellTests {
         let asked = Asked()
         let note = try await SiriFlows.noteTree(row: nil, tree: nil, note: nil, flag: nil,
                                                 askRow: asked.row("row"), askTree: asked.int("tree", 1),
-                                                askNote: asked.text("note", "x"), askFlag: asked.flag("flag", .noFlag))
+                                                askNote: asked.text("note", "x"), askFlag: asked.flag("flag", .noFlag),
+                                                confirm: asked.yes("confirm"))
         let move = try await SiriFlows.moveTo(nil, row: nil, askBlock: asked.block("block"))
         #expect(note.speech == "Open Time Card to sign in.")
         #expect(move.speech == "Open Time Card to sign in.")
@@ -202,10 +274,42 @@ final class IntentShellTests {
         #expect((IntentDonations.intent(for: .moveTo(blockId: block2.id, row: nil), state: state) as? MoveToBlockIntent)?.block?.title == "Block 2")
         #expect(IntentDonations.intent(for: .undo, state: state) == nil)
         #expect(IntentDonations.intent(for: .addShiftNote("x"), state: state) == nil)
+    }
+
+    @Test func aButtonInTheAppDonatesWhatItDid() async throws {
+        let sent = Tally()
+        IntentDonations.donor = { sent.intents.append($0) }
+        defer { IntentDonations.donor = { IntentDonationManager.shared.donate(intent: $0) } }
 
         let reply = model.performInApp(.clockIn(fieldId: nil))
         #expect(reply.succeeded)
         #expect(Demo.openShift(model) != nil)
+        #expect(sent.intents.count == 1)
+        #expect(sent.intents.first is ClockInIntent)
+
+        // Undo and notes aren't worth suggesting; a refused tap did nothing to suggest.
+        model.performInApp(.addShiftNote("Fuel low"))
+        model.performInApp(.undo)
+        model.performInApp(.clockIn(fieldId: nil))
+        #expect(sent.intents.count == 1)
+
+        model.performInApp(.markNextRow)
+        #expect(sent.intents.count == 2)
+        #expect(sent.intents.last is NextRowIntent)
+    }
+
+    /// iOS logs Siri's own runs; donating them too would count them twice.
+    @Test func siriAndTheLockScreenDonateNothing() async throws {
+        let sent = Tally()
+        IntentDonations.donor = { sent.intents.append($0) }
+        defer { IntentDonations.donor = { IntentDonationManager.shared.donate(intent: $0) } }
+        _ = try await ClockInIntent().perform()
+        _ = try await NextRowButtonIntent().perform()
+        await IntentRunner.voice { _ in
+            IntentDonations.performed(.markNextRow, reply: FieldReply(speech: "", succeeded: true), state: nil)
+        }
+        #expect(Demo.marks(model, row: try Demo.row(model, 5)) == 12)
+        #expect(sent.intents.isEmpty)
     }
 }
 
@@ -216,11 +320,13 @@ final class Asked: @unchecked Sendable {
     let rowAnswer: RowEntity?
     let blockAnswer: BlockEntity?
     let timeAnswer: Date
+    let confirms: Bool
 
-    init(row: RowEntity? = nil, block: BlockEntity? = nil, time: Date = Date()) {
+    init(row: RowEntity? = nil, block: BlockEntity? = nil, time: Date = Date(), confirms: Bool = true) {
         rowAnswer = row
         blockAnswer = block
         timeAnswer = time
+        self.confirms = confirms
     }
 
     var questions: [String] { lock.withLock { _questions } }
@@ -251,5 +357,10 @@ final class Asked: @unchecked Sendable {
 
     func time(_ q: String) -> SiriFlows.Asker<Date> {
         { self.note(q); return self.timeAnswer }
+    }
+
+    /// A yes-or-no question, noted with what was asked: "confirm: Row 18 in block 1? …"
+    func yes(_ q: String) -> VoiceCommands.Confirm {
+        { question in self.note("\(q): \(question)"); return self.confirms }
     }
 }

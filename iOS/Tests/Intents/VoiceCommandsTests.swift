@@ -24,15 +24,43 @@ struct VoiceCommandsTests {
     }
 
     @Test func beforeTheFirstUnlockSiriAsksForOne() async {
-        let session = TimeCardSession(store: try! LocalStore.inMemory(), api: StubAPIClient(), tokens: InMemoryTokenStore(), deviceName: "t")
-        let model = AppModel(session: session, mode: .live, storageError: "Time Card couldn’t open its data.")
-        // Locked since the restart: the database file is still sealed.
-        let locked = Demo.voice(model, locked: true)
+        let sealed = Demo.sealedModel()
+        var tries = 0
+        // Locked since the restart: the database file is still sealed, so there's no point
+        // trying to open it again yet.
+        let locked = Demo.voice(sealed, locked: true, reopen: { tries += 1; return sealed })
         #expect(await locked.clockIn(field: nil).speech == "Unlock your phone once, then try again.")
         #expect(await locked.status(.trees).speech == "Unlock your phone once, then try again.")
-        // Unlocked and still broken: say what really went wrong.
-        let unlocked = Demo.voice(model, locked: false)
-        #expect(await unlocked.nextRow().speech == "Time Card couldn’t open its data.")
+        #expect(await locked.problem(before: .marking) == "Unlock your phone once, then try again.")
+        #expect(tries == 0)
+    }
+
+    /// The app woke before the first unlock (a Control Center tap, or Siri on a freshly
+    /// restarted phone) and stays in memory. After the unlock Siri said to do, it works.
+    @Test func afterThatUnlockTheDatabaseOpensAgain() async throws {
+        let sealed = Demo.sealedModel()
+        let opened = await Demo.model()
+        _ = await Demo.voice(opened).clockIn(field: nil)
+        var tries = 0
+        let voice = Demo.voice(sealed, reopen: { tries += 1; return opened })
+        let reply = await voice.nextRow()
+        #expect(reply.succeeded)
+        #expect(reply.speech == "Row 5 marked, 12 trees. Next is row 6.")
+        #expect(Demo.marks(opened, row: try Demo.row(opened, 5)) == 12)
+        #expect(voice.model === opened)
+        // Opened once; the rest of the command uses it.
+        #expect(await voice.status(.whereAmI).speech.hasPrefix("You’re on block 1, row 6."))
+        #expect(tries == 1)
+    }
+
+    @Test func unlockedAndStillBrokenSaysWhatWentWrong() async {
+        let sealed = Demo.sealedModel()
+        let stillBroken = Demo.sealedModel("Time Card couldn’t open its data on this phone (The disk is full.). Restart the phone and try again.")
+        let voice = Demo.voice(sealed, reopen: { stillBroken })
+        #expect(await voice.nextRow().speech == stillBroken.storageError)
+        #expect(voice.model === sealed)
+        // With nothing to try again with, the problem it woke with.
+        #expect(await Demo.voice(sealed).nextRow().speech == "Time Card couldn’t open its data.")
     }
 
     // MARK: Clock in and out
@@ -233,14 +261,46 @@ struct VoiceCommandsTests {
         let model = await Demo.model()
         let voice = Demo.voice(model)
         let row5 = try Demo.row(model, 5)
-        #expect(await voice.markTrees(row: row5, first: 1, last: 6).speech == Speech.notClockedIn)
+        let asked = Answerer(false)
+        #expect(await voice.markTrees(row: row5, first: 1, last: 6, confirm: asked.confirm).speech == Speech.notClockedIn)
         _ = await voice.clockIn(field: nil)
         #expect(await voice.problem(before: .marking) == nil)
-        #expect(await voice.markTrees(row: row5, first: 6, last: 1).speech == "Marked trees 1 to 6 in row 5.")
+        #expect(await voice.markTrees(row: row5, first: 6, last: 1, confirm: asked.confirm).speech == "Marked trees 1 to 6 in row 5.")
         #expect(Demo.marks(model, row: row5) == 6)
-        #expect(await voice.markTrees(row: row5, first: 8, last: nil).speech == "Marked tree 8 in row 5.")
-        #expect(await voice.markTrees(row: row5, first: 3, last: 4).speech == "Those trees were already shaped.")
-        #expect(await voice.markTrees(row: row5, first: 13, last: nil).speech == "Block 1 has 12 trees in each row.")
+        #expect(await voice.markTrees(row: row5, first: 8, last: nil, confirm: asked.confirm).speech == "Marked tree 8 in row 5.")
+        #expect(await voice.markTrees(row: row5, first: 3, last: 4, confirm: asked.confirm).speech == "Those trees were already shaped.")
+        #expect(await voice.markTrees(row: row5, first: 13, last: nil, confirm: asked.confirm).speech == "Block 1 has 12 trees in each row.")
+        #expect(asked.questions.isEmpty, "the row you're on is never checked")
+    }
+
+    /// "Forty" heard for "fourteen" mustn't quietly mark trees or note a tree in row 40.
+    @Test func farTreesAreCheckedInCaseSiriMisheard() async throws {
+        let model = await Demo.model()
+        let voice = Demo.voice(model)
+        _ = await voice.clockIn(field: nil)
+        let row20 = try Demo.row(model, 20)
+
+        let no = Answerer(false)
+        let declined = await voice.markTrees(row: row20, first: 1, last: 6, confirm: no.confirm)
+        #expect(no.questions == ["Row 20 in block 1? That’s 15 rows ahead."])
+        #expect(declined.speech == "Okay, nothing marked.")
+        #expect(!declined.succeeded)
+        #expect(Demo.marks(model, row: row20) == 0)
+
+        let yes = Answerer(true)
+        #expect(await voice.markTrees(row: row20, first: 1, last: 6, confirm: yes.confirm).speech == "Marked trees 1 to 6 in row 20.")
+        #expect(yes.questions.count == 1)
+
+        let otherBlock = Answerer(false)
+        let note = await voice.noteTree(row: try Demo.row(model, 2, block: "3"), tree: 4, body: "Leader broken", flag: .attention, confirm: otherBlock.confirm)
+        #expect(otherBlock.questions == ["Row 2 in block 3? You’re in block 1."])
+        #expect(note.speech == "Okay, no note added.")
+        #expect(model.snapshot.notes.isEmpty)
+
+        let fine = Answerer(true)
+        #expect(await voice.noteTree(row: try Demo.row(model, 2, block: "3"), tree: 4, body: "Leader broken", flag: .attention, confirm: fine.confirm)
+                    .speech == "Noted on block 3, row 2, tree 4.")
+        #expect(model.snapshot.notes.count == 1)
     }
 
     // MARK: Moving, undoing

@@ -12,6 +12,8 @@ enum VoiceText {
     static let stillClockedIn = "Okay, you’re still clocked in."
     /// "No" to "Row 40 in block 2? That’s 26 rows ahead."
     static let nothingMarked = "Okay, nothing marked."
+    /// "No" to "Row 40 in block 2? That’s 26 rows ahead." when noting a tree.
+    static let nothingNoted = "Okay, no note added."
 
     // Questions. The same words are in each parameter's `requestValueDialog`.
     static let whichRow = "Which row?"

@@ -98,9 +98,11 @@ struct BlockQuery: EntityStringQuery {
         return VoiceCatalog.blocks(ids: identifiers, state: state)
     }
 
+    /// The blocks near you in the field you're in (`VoiceCatalog.suggestedBlocks`); any block
+    /// of any field is still found by name.
     func suggestedEntities() async throws -> [BlockEntity] {
         guard let state = await IntentRunner.fieldState() else { return [] }
-        return VoiceCatalog.blocks(state)
+        return VoiceCatalog.suggestedBlocks(state)
     }
 
     func entities(matching string: String) async throws -> [BlockEntity] {

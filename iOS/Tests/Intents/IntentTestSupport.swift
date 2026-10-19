@@ -1,3 +1,4 @@
+import AppIntents
 import Foundation
 import Testing
 import TimeCardCore
@@ -16,10 +17,17 @@ enum Demo {
     }
 
     /// Siri's side of the app for that model, on an unlocked phone unless `locked`.
-    static func voice(_ model: AppModel, locked: Bool = false) -> VoiceCommands {
-        var voice = VoiceCommands(model: model, device: DeviceConditions(protectedDataAvailable: !locked))
+    static func voice(_ model: AppModel, locked: Bool = false, reopen: (@MainActor () -> AppModel)? = nil) -> VoiceCommands {
+        var voice = VoiceCommands(model: model, device: DeviceConditions(protectedDataAvailable: !locked), reopen: reopen)
         voice.onChange = {}
         return voice
+    }
+
+    /// A model whose database couldn't open, as when the app wakes before the first unlock
+    /// after a restart.
+    static func sealedModel(_ error: String = "Time Card couldn’t open its data.") -> AppModel {
+        let session = TimeCardSession(store: try! LocalStore.inMemory(), api: StubAPIClient(), tokens: InMemoryTokenStore(), deviceName: "t")
+        return AppModel(session: session, mode: .live, storageError: error)
     }
 
     static func state(_ model: AppModel) throws -> FieldState {
@@ -98,4 +106,36 @@ final class Speaker: @unchecked Sendable {
             return self.reply
         }
     }
+}
+
+/// Points `IntentRunner.makeVoice` back at the running app after each test, so nothing that
+/// runs later finds it aimed at a demo farm that's gone.
+struct RestoresIntentRunner: SuiteTrait, TestTrait, TestScoping {
+    var isRecursive: Bool { true }
+
+    func provideScope(for test: Test, testCase: Test.Case?, performing function: @Sendable () async throws -> Void) async throws {
+        guard testCase != nil else { return try await function() }
+        do {
+            try await function()
+        } catch {
+            await Self.restore()
+            throw error
+        }
+        await Self.restore()
+    }
+
+    @MainActor static func restore() {
+        IntentRunner.makeVoice = { VoiceCommands.live() }
+    }
+}
+
+extension Trait where Self == RestoresIntentRunner {
+    static var restoresIntentRunner: Self { Self() }
+}
+
+/// Counts what would go to iOS.
+@MainActor
+final class Tally {
+    var count = 0
+    var intents: [any AppIntent] = []
 }

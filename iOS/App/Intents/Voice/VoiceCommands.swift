@@ -50,35 +50,60 @@ struct VoiceCommands {
         case openShift
     }
 
-    let model: AppModel
+    /// The model this command works on. A reference, so `blocker()` can swap in a freshly
+    /// opened one when the database was still sealed when the app woke.
+    private let current: Current
     var device: DeviceConditions
     var now: () -> Date = Date.init
     /// Siri resolves spoken times on the phone's own calendar.
     var phoneCalendar: Calendar = .current
     /// Runs after every change, so Siri's row and block suggestions follow the work.
-    var onChange: @MainActor () -> Void = { TimeCardShortcuts.updateAppShortcutParameters() }
+    var onChange: @MainActor () -> Void = { SiriSuggestions.shared.refreshNow() }
+    /// Opens the database again for a model that couldn't open it, and returns the new model
+    /// (which carries its own `storageError` if it still can't). Nil: nothing to retry with.
+    var reopen: (@MainActor () -> AppModel)?
 
-    init(model: AppModel, device: DeviceConditions) {
-        self.model = model
+    init(model: AppModel, device: DeviceConditions, reopen: (@MainActor () -> AppModel)? = nil) {
+        self.current = Current(model)
         self.device = device
+        self.reopen = reopen
     }
 
     /// The running app's model, on this phone as it is right now.
     static func live() -> VoiceCommands {
-        VoiceCommands(model: AppModel.shared, device: .current())
+        let model = IntentRunner.model
+        SiriSuggestions.shared.follow(model)
+        return VoiceCommands(model: model, device: .current(), reopen: IntentRunner.reopenStorage)
     }
 
+    var model: AppModel { current.model }
     var actions: FieldActions { model.actions }
+
+    @MainActor
+    private final class Current {
+        var model: AppModel
+
+        init(_ model: AppModel) {
+            self.model = model
+        }
+    }
 
     // MARK: Ready?
 
     /// Nil when field actions can run; otherwise what to say instead. Opens the store and
     /// session first, since Siri may have just woken the app with no window.
+    ///
+    /// Before the first unlock after a restart the database file is sealed, so a process
+    /// woken then (by Siri, or a Control Center button) has no data. Once the phone has been
+    /// unlocked it opens the database again, so "Unlock your phone once, then try again" is
+    /// true. Only when that fails on an unlocked phone is the real problem said.
     func blocker() async -> String? {
-        if let problem = model.storageError {
-            // Before the first unlock after a restart the database is sealed. Unlocked and
-            // still failing is a real problem, so say what it is.
-            return device.protectedDataAvailable ? problem : VoiceText.unlockOnce
+        if model.storageError != nil {
+            guard device.protectedDataAvailable else { return VoiceText.unlockOnce }
+            guard let reopen else { return model.storageError }
+            let fresh = reopen()
+            if let problem = fresh.storageError { return problem }
+            current.model = fresh
         }
         await model.start()
         return actions.state() == nil ? FieldActions.signedOut : nil
@@ -106,11 +131,6 @@ struct VoiceCommands {
     /// The row you're on: the next open row from your work position.
     func currentRow() -> RowRef? {
         actions.state()?.nextRows(1).first
-    }
-
-    /// The farm's calendar, for times said out loud.
-    var farmCalendar: FarmCalendar? {
-        actions.state()?.calendar
     }
 
     // MARK: Clock
@@ -160,8 +180,11 @@ struct VoiceCommands {
         return await run(.markRow(row))
     }
 
-    /// Trees `first` through `last` (counting from 1, either order) in one row.
-    func markTrees(row: RowRef, first: Int, last: Int?) async -> VoiceReply {
+    /// Trees `first` through `last` (counting from 1, either order) in one row. The row was
+    /// said out loud, so one far away or in another block is checked first, as for a row.
+    func markTrees(row: RowRef, first: Int, last: Int?, confirm: Confirm) async -> VoiceReply {
+        if let stop = await problem(before: .marking) { return .failed(stop) }
+        guard await checked(row, confirm: confirm) else { return .failed(VoiceText.nothingMarked) }
         let a = first - 1, b = (last ?? first) - 1
         return await run(.markTrees(row, positions: min(a, b)...max(a, b)))
     }
@@ -181,16 +204,19 @@ struct VoiceCommands {
         await run(.addShiftNote(text))
     }
 
-    /// A note on tree `tree` (counting from 1) of a row.
-    func noteTree(row: RowRef, tree: Int, body: String, flag: NoteFlag) async -> VoiceReply {
-        await run(.addTreeNote(TreeRef(blockId: row.blockId, row: row.row, position: tree - 1), body: body, flag: flag))
+    /// A note on tree `tree` (counting from 1) of a row. A row that was said out loud (rather
+    /// than the one you're on) is checked first when it's far away or in another block.
+    func noteTree(row: RowRef, tree: Int, body: String, flag: NoteFlag, confirm: Confirm? = nil) async -> VoiceReply {
+        if let blocked = await blocker() { return .failed(blocked) }
+        if let confirm, !(await checked(row, confirm: confirm)) { return .failed(VoiceText.nothingNoted) }
+        return await run(.addTreeNote(TreeRef(blockId: row.blockId, row: row.row, position: tree - 1), body: body, flag: flag))
     }
 
-    /// "I started at 7:30": the latest 7:30 that has passed, on the farm's clock.
+    /// "I started at 7:30": the 7:30 nearest the shift's current start, on the farm's clock.
     func changeStart(to spoken: Date) async -> VoiceReply {
         if let blocked = await blocker() { return .failed(blocked) }
-        guard let calendar = farmCalendar else { return .failed(FieldActions.signedOut) }
-        let start = StartTime.resolve(spoken, now: now(), phoneCalendar: phoneCalendar, farm: calendar)
+        guard let state = actions.state() else { return .failed(FieldActions.signedOut) }
+        let start = StartTime.resolve(spoken, now: now(), near: state.openShift?.start, phoneCalendar: phoneCalendar, farm: state.calendar)
         return await run(.changeStart(start.roundedToMillisecond))
     }
 
@@ -216,6 +242,13 @@ struct VoiceCommands {
     }
 
     // MARK: Plumbing
+
+    /// Asks before working on a row far from where you are, or in another block, in case Siri
+    /// misheard ("forty" for "fourteen"). True: go ahead.
+    private func checked(_ row: RowRef, confirm: Confirm) async -> Bool {
+        guard let question = actions.confirmation(for: .markRow(row)) else { return true }
+        return await confirm(question)
+    }
 
     private func run(_ command: FieldCommand) async -> VoiceReply {
         if let blocked = await blocker() { return .failed(blocked) }
