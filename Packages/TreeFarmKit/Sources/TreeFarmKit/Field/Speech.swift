@@ -2,12 +2,12 @@ import Foundation
 
 /// Wording shared by Siri, the lock screen and the app, so they always say the same thing.
 public enum Speech {
-    public static let notClockedIn = "You're not clocked in. Say \"clock in with Time Card\" first."
-    public static let noSeason = "There's no active season. Ask an admin to start one."
-    public static let noField = "There's no field set up yet. Add one in the Trees tab."
-    public static let blockGone = "That block isn't on the map anymore."
+    public static let notClockedIn = "You’re not clocked in. Say \"clock in with Time Card\" first."
+    public static let noSeason = "There’s no active season. Ask an admin to start one."
+    public static let noField = "There’s no field set up yet. Add one in the Trees tab."
+    public static let blockGone = "That block isn’t on the map anymore."
     public static let emptyNote = "The note was empty, so nothing was saved."
-    public static let nothingToUndo = "There's nothing to undo."
+    public static let nothingToUndo = "There’s nothing to undo."
 
     /// "Block 2" for short names like "2" or "A"; longer names ("North 3") as they are.
     public static func blockTitle(_ block: Block) -> String {

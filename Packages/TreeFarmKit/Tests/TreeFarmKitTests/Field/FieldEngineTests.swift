@@ -13,7 +13,7 @@ struct FieldEngineTests {
 
     @Test mutating func clockInStartsAShiftAndSaysWhereYouAre() throws {
         let r = FieldEngine.run(.clockIn(fieldId: nil), &f.state, &undo, at: f.monday9)
-        #expect(r.speech == "Clocked in at \(t(f.monday9)). You're on block 1, row 1.")
+        #expect(r.speech == "Clocked in at \(t(f.monday9)). You’re on block 1, row 1.")
         let shift = try #require(f.state.openShift)
         #expect(shift.start == f.monday9)
         #expect(shift.rateCents == 1500)
@@ -24,7 +24,7 @@ struct FieldEngineTests {
     @Test mutating func clockingInTwiceSaysSinceWhen() {
         _ = FieldEngine.run(.clockIn(fieldId: nil), &f.state, &undo, at: f.monday9)
         let r = FieldEngine.run(.clockIn(fieldId: nil), &f.state, &undo, at: f.at(5))
-        #expect(r.speech == "You're already clocked in since \(t(f.monday9)).")
+        #expect(r.speech == "You’re already clocked in since \(t(f.monday9)).")
     }
 
     @Test mutating func clockInWithNoBlocksJustSaysTheTime() {
@@ -36,7 +36,7 @@ struct FieldEngineTests {
     @Test mutating func clockOutAsksFirstWithTodaysHours() {
         _ = FieldEngine.run(.clockIn(fieldId: nil), &f.state, &undo, at: f.monday9)
         let ask = FieldEngine.confirmation(for: .clockOut, state: f.state, now: f.at(60))
-        #expect(ask == "You've worked \(Fmt.spokenDuration(3600)) today. Clock out?")
+        #expect(ask == "You’ve worked \(Fmt.spokenDuration(3600)) today. Clock out?")
     }
 
     @Test mutating func clockOutSaysHoursAndTrees() throws {
@@ -50,7 +50,7 @@ struct FieldEngineTests {
 
     @Test mutating func clockOutWhenNotClockedIn() {
         let r = FieldEngine.run(.clockOut, &f.state, &undo, at: f.monday9)
-        #expect(r.speech == "You're not clocked in. Say \"clock in with Time Card\" first.")
+        #expect(r.speech == "You’re not clocked in. Say \"clock in with Time Card\" first.")
     }
 
     @Test mutating func clockOutDuringLunchClosesTheLunch() throws {
@@ -69,11 +69,11 @@ struct FieldEngineTests {
         let start = FieldEngine.run(.startBreak(.lunch, reason: ""), &f.state, &undo, at: f.at(180))
         #expect(start.speech == "Lunch started at \(t(f.at(180))).")
         let again = FieldEngine.run(.startBreak(.lunch, reason: ""), &f.state, &undo, at: f.at(185))
-        #expect(again.speech == "You're already on lunch since \(t(f.at(180))). Say \"back to work\" when you're done.")
+        #expect(again.speech == "You’re already on lunch since \(t(f.at(180))). Say \"back to work\" when you’re done.")
         let back = FieldEngine.run(.endBreak, &f.state, &undo, at: f.at(210))
         #expect(back.speech == "Back at \(t(f.at(210))). Lunch was 30 minutes.")
         let notOnBreak = FieldEngine.run(.endBreak, &f.state, &undo, at: f.at(211))
-        #expect(notOnBreak.speech == "You're not on a break.")
+        #expect(notOnBreak.speech == "You’re not on a break.")
     }
 
     @Test mutating func breakWithAReason() {
@@ -87,7 +87,7 @@ struct FieldEngineTests {
 
     @Test mutating func markingNeedsAShift() {
         let r = FieldEngine.run(.markNextRow, &f.state, &undo, at: f.monday9)
-        #expect(r.speech == "You're not clocked in. Say \"clock in with Time Card\" first.")
+        #expect(r.speech == "You’re not clocked in. Say \"clock in with Time Card\" first.")
     }
 
     @Test mutating func nextRowMarksTheFirstOpenRowAndMovesOn() {
@@ -103,7 +103,7 @@ struct FieldEngineTests {
     @Test mutating func nextRowSkipsRowsSomeoneElseShaped() {
         f.state.marks = f.samShaped(f.block1, rows: [1, 2], on: f.monday9.addingTimeInterval(-7 * 86400))
         let r0 = FieldEngine.run(.clockIn(fieldId: nil), &f.state, &undo, at: f.monday9)
-        #expect(r0.speech == "Clocked in at \(t(f.monday9)). You're on block 1, row 3.")
+        #expect(r0.speech == "Clocked in at \(t(f.monday9)). You’re on block 1, row 3.")
         let r = FieldEngine.run(.markNextRow, &f.state, &undo, at: f.at(10))
         #expect(r.speech == "Row 3 marked, 4 trees. Next is row 4.")
     }
@@ -172,11 +172,11 @@ struct FieldEngineTests {
     @Test mutating func farRowsAskFirst() {
         _ = FieldEngine.run(.clockIn(fieldId: nil), &f.state, &undo, at: f.monday9)
         #expect(FieldEngine.confirmation(for: .markRow(f.row(f.block1, 2)), state: f.state, now: f.at(1)) == nil)
-        #expect(FieldEngine.confirmation(for: .markRow(f.row(f.block2, 2)), state: f.state, now: f.at(1)) == "Row 2 in block 2? You're in block 1.")
+        #expect(FieldEngine.confirmation(for: .markRow(f.row(f.block2, 2)), state: f.state, now: f.at(1)) == "Row 2 in block 2? You’re in block 1.")
         var big = f.block1
         big.rowCount = 61
         f.state.blocks = [big, f.block2]
-        #expect(FieldEngine.confirmation(for: .markRow(f.row(big, 40)), state: f.state, now: f.at(1)) == "Row 40 in block 1? That's 39 rows ahead.")
+        #expect(FieldEngine.confirmation(for: .markRow(f.row(big, 40)), state: f.state, now: f.at(1)) == "Row 40 in block 1? That’s 39 rows ahead.")
         #expect(FieldEngine.confirmation(for: .markRow(f.row(big, 6)), state: f.state, now: f.at(1)) == nil)
     }
 
@@ -208,7 +208,7 @@ struct FieldEngineTests {
             #expect(o.records.allSatisfy { if case .treeMark(let m) = $0 { m.deletedAt == f.at(11) && m.updatedAt == f.at(11) } else { false } })
         }
         let nothing = FieldEngine.run(.undo, &f.state, &undo, at: f.at(12))
-        #expect(nothing.speech == "There's nothing to undo.")
+        #expect(nothing.speech == "There’s nothing to undo.")
     }
 
     @Test mutating func undoALunch() throws {
@@ -231,17 +231,17 @@ struct FieldEngineTests {
     @Test mutating func shiftNotesAppend() throws {
         _ = FieldEngine.run(.clockIn(fieldId: nil), &f.state, &undo, at: f.monday9)
         let r = FieldEngine.run(.addShiftNote("Fuel low on the shears"), &f.state, &undo, at: f.at(5))
-        #expect(r.speech == "Added to today's notes.")
+        #expect(r.speech == "Added to today’s notes.")
         _ = FieldEngine.run(.addShiftNote("Rows 3 and 4 are wet"), &f.state, &undo, at: f.at(6))
         #expect(try #require(f.state.openShift).notes == "Fuel low on the shears\nRows 3 and 4 are wet")
         let long = FieldEngine.run(.addShiftNote(String(repeating: "x", count: 2100)), &f.state, &undo, at: f.at(7))
-        #expect(long.speech == "Added to today's notes, but it was cut short to fit.")
+        #expect(long.speech == "Added to today’s notes, but it was cut short to fit.")
         #expect(try #require(f.state.openShift).notes.count == Limits.notes)
     }
 
     @Test mutating func shiftNotesNeedAShiftToday() {
         let r = FieldEngine.run(.addShiftNote("hello"), &f.state, &undo, at: f.monday9)
-        #expect(r.speech == "You're not clocked in. Say \"clock in with Time Card\" first.")
+        #expect(r.speech == "You’re not clocked in. Say \"clock in with Time Card\" first.")
     }
 
     @Test mutating func treeNotes() throws {

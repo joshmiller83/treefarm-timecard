@@ -23,7 +23,7 @@ struct FieldFixture {
         monday9 = cal.date(from: DateComponents(year: 2026, month: 10, day: 19, hour: 9))!
         let farmId = UUID()
         season = Season(farmId: farmId, name: "2026", startedAt: monday9.addingTimeInterval(-30 * 86400), updatedAt: monday9)
-        farm = Farm(id: farmId, name: "Dull's Tree Farm", timeZoneId: tz.identifier, weekStart: .monday, activeSeasonId: season.id, updatedAt: monday9)
+        farm = Farm(id: farmId, name: "Dull’s Tree Farm", timeZoneId: tz.identifier, weekStart: .monday, activeSeasonId: season.id, updatedAt: monday9)
         field = Field(farmId: farmId, name: "North", sortOrder: 0, updatedAt: monday9)
         block1 = Block(fieldId: field.id, name: "1", gridRow: 0, gridColumn: 0, rowCount: 5, treesPerRow: 4, updatedAt: monday9)
         block2 = Block(fieldId: field.id, name: "2", gridRow: 0, gridColumn: 1, rowCount: 3, treesPerRow: 4, updatedAt: monday9)

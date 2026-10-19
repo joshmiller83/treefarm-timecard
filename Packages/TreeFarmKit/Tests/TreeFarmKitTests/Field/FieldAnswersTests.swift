@@ -22,21 +22,21 @@ struct FieldAnswersTests {
 
     @Test mutating func treesAndPace() {
         workAHalfHour()
-        #expect(FieldAnswers.answer(.trees, state: f.state, now: f.at(30)) == "8 trees today, 16 an hour. You're on block 1, row 3.")
+        #expect(FieldAnswers.answer(.trees, state: f.state, now: f.at(30)) == "8 trees today, 16 an hour. You’re on block 1, row 3.")
     }
 
     @Test func treesBeforeAnyMarks() {
-        #expect(FieldAnswers.answer(.trees, state: f.state, now: f.monday9) == "No trees marked yet today. You're on block 1, row 1.")
+        #expect(FieldAnswers.answer(.trees, state: f.state, now: f.monday9) == "No trees marked yet today. You’re on block 1, row 1.")
     }
 
     @Test mutating func whereAmI() {
         workAHalfHour()
-        #expect(FieldAnswers.answer(.whereAmI, state: f.state, now: f.at(30)) == "You're on block 1, row 3. Next are rows 4 and 5.")
+        #expect(FieldAnswers.answer(.whereAmI, state: f.state, now: f.at(30)) == "You’re on block 1, row 3. Next are rows 4 and 5.")
     }
 
     @Test mutating func whereAmIAtTheEndOfABlock() {
         f.state.marks = f.samShaped(f.block1, rows: [1, 2, 3], on: f.monday9)
-        #expect(FieldAnswers.answer(.whereAmI, state: f.state, now: f.monday9) == "You're on block 1, row 4. Next are row 5 and block 2, row 1.")
+        #expect(FieldAnswers.answer(.whereAmI, state: f.state, now: f.monday9) == "You’re on block 1, row 4. Next are row 5 and block 2, row 1.")
     }
 
     @Test mutating func pace() {

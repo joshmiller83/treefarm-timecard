@@ -98,16 +98,16 @@ public enum FieldEngine {
             let cal = state.calendar
             let worked = Hours.bigClock(shifts: state.liveShifts, now: now, calendar: cal)
             let when = Hours.isStale(open, now: now, calendar: cal) ? "this shift" : "today"
-            return "You've worked \(Fmt.spokenDuration(worked)) \(when). Clock out?"
+            return "You’ve worked \(Fmt.spokenDuration(worked)) \(when). Clock out?"
         case .markRow(let row):
             guard let block = state.block(row.blockId), block.contains(row),
                   let here = state.nextRows(1).first, let hereBlock = state.block(here.blockId) else { return nil }
             if here.blockId != row.blockId {
-                return "Row \(row.row + 1) in \(Speech.blockPhrase(block))? You're in \(Speech.blockPhrase(hereBlock))."
+                return "Row \(row.row + 1) in \(Speech.blockPhrase(block))? You’re in \(Speech.blockPhrase(hereBlock))."
             }
             let distance = row.row - here.row
             guard abs(distance) > 5 else { return nil }
-            return "Row \(row.row + 1) in \(Speech.blockPhrase(block))? That's \(abs(distance)) rows \(distance > 0 ? "ahead" : "behind")."
+            return "Row \(row.row + 1) in \(Speech.blockPhrase(block))? That’s \(abs(distance)) rows \(distance > 0 ? "ahead" : "behind")."
         default:
             return nil
         }
@@ -138,7 +138,7 @@ public enum FieldEngine {
     private static func clockIn(_ fieldId: UUID?, _ state: FieldState, _ now: Date) throws(FieldFailure) -> FieldOutcome {
         let cal = state.calendar
         if let open = state.openShift {
-            throw FieldFailure("You're already clocked in since \(Fmt.spokenTime(open.start, cal)).")
+            throw FieldFailure("You’re already clocked in since \(Fmt.spokenTime(open.start, cal)).")
         }
         let shift: Shift
         do {
@@ -156,7 +156,7 @@ public enum FieldEngine {
                 if let row = walker.nextRows(from: FieldState.valid(position?.next, in: walker), count: 1, index: state.index).first,
                    let block = walker.block(row.blockId) {
                     position?.next = row
-                    speech += " You're on \(Speech.place(row, block))."
+                    speech += " You’re on \(Speech.place(row, block))."
                 } else {
                     speech += " Every row in \(field.name) is shaped."
                 }
@@ -179,7 +179,7 @@ public enum FieldEngine {
         let cal = state.calendar
         guard let open = state.openShift else { throw FieldFailure(Speech.notClockedIn) }
         if let b = open.openBreak {
-            throw FieldFailure("You're already on \(b.kind == .lunch ? "lunch" : "a break") since \(Fmt.spokenTime(b.start, cal)). Say \"back to work\" when you're done.")
+            throw FieldFailure("You’re already on \(b.kind == .lunch ? "lunch" : "a break") since \(Fmt.spokenTime(b.start, cal)). Say \"back to work\" when you’re done.")
         }
         let why = Limits.clampReason(reason)
         let updated: Shift
@@ -198,7 +198,7 @@ public enum FieldEngine {
 
     private static func endBreak(_ state: FieldState, _ now: Date) throws(FieldFailure) -> FieldOutcome {
         guard let open = state.openShift else { throw FieldFailure(Speech.notClockedIn) }
-        guard let b = open.openBreak else { throw FieldFailure("You're not on a break.") }
+        guard let b = open.openBreak else { throw FieldFailure("You’re not on a break.") }
         let updated: Shift
         do { updated = try Clock.endBreak(at: now, in: open) } catch { throw FieldFailure(error.message) }
         let what = b.kind == .lunch ? "Lunch" : "The break"
@@ -341,11 +341,11 @@ public enum FieldEngine {
         guard !note.isEmpty else { throw FieldFailure(Speech.emptyNote) }
         let combined = target.notes.isEmpty ? note : target.notes + "\n" + note
         let kept = String(combined.prefix(Limits.notes))
-        guard kept != target.notes else { throw FieldFailure("Today's notes are full, so nothing was added.") }
+        guard kept != target.notes else { throw FieldFailure("Today’s notes are full, so nothing was added.") }
         var updated = target
         updated.notes = kept
         updated.updatedAt = now
-        let speech = kept.count < combined.count ? "Added to today's notes, but it was cut short to fit." : "Added to today's notes."
+        let speech = kept.count < combined.count ? "Added to today’s notes, but it was cut short to fit." : "Added to today’s notes."
         return FieldOutcome(records: [.shift(updated)], position: nil,
                             undo: UndoEntry(label: "the note", restore: [.shift(target)], position: state.position),
                             speech: speech, lastAction: "Note added")

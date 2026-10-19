@@ -22,7 +22,7 @@ public enum FieldAnswers {
         case .hours:
             let h = Hours.summary(shifts: shifts, now: now, calendar: cal)
             let week = "\(Fmt.spokenDuration(h.week)) this week."
-            return h.today > 0 ? "\(Fmt.spokenDuration(h.today)) today, \(week)" : "You haven't worked yet today. \(week)"
+            return h.today > 0 ? "\(Fmt.spokenDuration(h.today)) today, \(week)" : "You haven’t worked yet today. \(week)"
 
         case .trees:
             let p = Pace.stats(today, now: now, treeCount: count)
@@ -59,7 +59,7 @@ public enum FieldAnswers {
         guard let first = next.first, let block = state.block(first.blockId) else {
             return state.walker(for: field).blocks.isEmpty ? nil : "Every row in \(field.name) is shaped."
         }
-        var s = "You're on \(Speech.place(first, block))."
+        var s = "You’re on \(Speech.place(first, block))."
         let rest = next.dropFirst()
         guard !rest.isEmpty else { return s }
         if rest.allSatisfy({ $0.blockId == first.blockId }) {
