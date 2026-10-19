@@ -193,6 +193,32 @@ export function boot(): void {
     trackTriggers.set(section, ScrollTrigger.create({ trigger: track, start: 'top top', end: 'bottom bottom' }));
   }
 
+  // ---- The reader's place, kept across a breakpoint change ----
+  // Crossing a breakpoint (an iPad turned to landscape) changes every track's height, while the
+  // browser keeps the scroll offset in px: the reader would land chapters away. The place is
+  // the chapter in charge and its progress, noted while the page scrolls (never in the half
+  // second after a resize, when the old triggers meet the new layout); after the breakpoint's
+  // scenes are in and ScrollTrigger has refreshed, the page scrolls back to it.
+  let place: { section: HTMLElement; p: number } | null = null;
+  let resizedAt = -1e9;
+  let restore: { section: HTMLElement; p: number; until: number } | null = null;
+  addEventListener('resize', () => (resizedAt = performance.now()), { passive: true });
+  const notePlace = () => {
+    if (!active || restore || performance.now() - resizedAt < 600) return;
+    const st = trackTriggers.get(active);
+    if (st) place = { section: active, p: Math.min(1, Math.max(0, st.progress)) };
+  };
+  ScrollTrigger.addEventListener('scrollEnd', notePlace);
+  ScrollTrigger.addEventListener('refresh', () => {
+    if (!restore) return notePlace();
+    const { section, p, until } = restore;
+    const st = trackTriggers.get(section);
+    if (st) window.scrollTo(0, Math.round(st.start + p * (st.end - st.start)));
+    // Scenes built at the new place can still move things a little: land again on the next
+    // refresh, for up to 2 s after the change.
+    if (performance.now() > until) restore = null;
+  });
+
   /** A section's own moving phone: the one holding its [data-screens] (a static figure's
    *  phone may come first in the DOM, as the crew's no-signal phone does). */
   const sectionPhone = (section: HTMLElement | null) =>
@@ -213,9 +239,16 @@ export function boot(): void {
   // the stage plus the hero's build never share one long task on a slow phone.
   const startScenes = () => {
     const mm = gsap.matchMedia();
+    let runs = 0;
     mm.add({ desk: DESK, mob: MOB }, (context) => {
       const { desk } = context.conditions as { desk: boolean; mob: boolean };
       isDesk = desk;
+      // A breakpoint change: go back to the reader's place once the new triggers are measured.
+      if (runs++ && place) {
+        restore = { ...place, until: performance.now() + 2000 };
+        gsap.delayedCall(0.05, () => ScrollTrigger.refresh());
+        gsap.delayedCall(2.1, () => (restore = null));
+      }
       stage = desk ? createStage(gsap) : null;
       const built = new Set<HTMLElement>();
       let firstBatch = true;
@@ -564,11 +597,17 @@ export function boot(): void {
   // phone and the page's classes still say motion, so a half-moving page would be left. Reload
   // onto the chapter the reader was in: the inline gate then serves the static page there.
   const reduce = matchMedia('(prefers-reduced-motion: reduce)');
-  reduce.addEventListener('change', () => {
-    if (!reduce.matches) return;
+  const toStatic = () => {
     if (active?.id) history.replaceState(history.state, '', `#${active.id}`);
     location.reload();
-  });
+  };
+  reduce.addEventListener('change', () => reduce.matches && toStatic());
+  // A wide window made shorter than 560px matches neither breakpoint: its scenes revert, but the
+  // page would keep its motion layout (beats placed for scenes that no longer run, drawn over
+  // each other). The head gate serves the static page below 560px, so do as the reduced-motion
+  // change does: reload onto the reader's chapter.
+  const tooShort = matchMedia('(min-width: 900px) and (max-height: 559.98px)');
+  tooShort.addEventListener('change', () => tooShort.matches && toStatic());
 
   // Hero's intro hold never outlives a failed or slow scene.
   window.setTimeout(() => root.classList.remove('intro-wait'), 1500);
