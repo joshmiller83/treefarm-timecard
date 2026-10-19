@@ -63,6 +63,14 @@ struct DayCard: Equatable, Sendable {
         return copy
     }
 
+    /// The rows after the one you're on, in one line: "Next: 16, 17", or with the block
+    /// when it changes, "Next: 20, Block 3, row 1".
+    var nextLine: String? {
+        guard !next.isEmpty else { return nil }
+        let rows = next.map { $0.block == here?.block ? String($0.row) : "\($0.block), row \($0.row)" }
+        return "Next: " + rows.joined(separator: ", ")
+    }
+
     var fieldProgress: Double {
         fieldTotal > 0 ? min(1, Double(fieldShaped) / Double(fieldTotal)) : 0
     }

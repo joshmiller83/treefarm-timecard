@@ -69,27 +69,55 @@ struct DaySnippetCard: View {
     let card: DayCard
     @Environment(\.dynamicTypeSize) private var typeSize
 
-    /// Siri gives a card only so much height, so at the largest text sizes it keeps to
-    /// what was asked: the status, then the asked-about numbers or where you are.
-    private var roomy: Bool { !typeSize.isAccessibilitySize }
+    /// At the accessibility text sizes Siri's own answer above the card is large too, and the
+    /// card gets about 290 points before Siri cuts it off. So it keeps to what was asked, each
+    /// part in as few lines as it can: the status, the asked-about numbers with their labels
+    /// beside them, and for "How many trees" the row you're on. Siri says it all out loud, and
+    /// its own answer above keeps growing; the card stops at the third accessibility size.
+    private var tight: Bool { typeSize.isAccessibilitySize }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: roomy ? 14 : 10) {
+        Group {
+            if tight { tightContent } else { roomyContent }
+        }
+        .padding(.horizontal, 18)
+        .padding(.vertical, tight ? 12 : 16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var roomyContent: some View {
+        VStack(alignment: .leading, spacing: 14) {
             header
             if card.topic == .whereAmI {
                 whereBlock
-                if roomy { StatRow(stats: SnippetStat.stats(for: card), compact: true) }
+                StatRow(stats: SnippetStat.stats(for: card), compact: true)
             } else if card.topic == .pay && card.pay == nil {
                 payHidden
             } else {
-                StatRow(stats: roomy ? SnippetStat.stats(for: card) : SnippetStat.essentials(for: card), compact: false)
+                StatRow(stats: SnippetStat.stats(for: card), compact: false)
                 if card.topic != .pay { rowLine }
             }
-            if roomy && card.fieldTotal > 0 && card.topic != .pay { progress }
+            if card.fieldTotal > 0 && card.topic != .pay { progress }
         }
-        .padding(.horizontal, 18)
-        .padding(.vertical, 16)
-        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var tightContent: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if card.topic == .whereAmI {
+                tightWhere
+            } else {
+                smallPill
+                if card.topic == .pay && card.pay == nil {
+                    payHidden
+                } else {
+                    VStack(alignment: .leading, spacing: 6) {
+                        ForEach(SnippetStat.essentials(for: card)) { TightStat(stat: $0) }
+                    }
+                    if card.topic == .trees { tightRowLine }
+                }
+            }
+        }
+        .dynamicTypeSize(...DynamicTypeSize.accessibility3)
     }
 
     // MARK: Parts
@@ -103,13 +131,18 @@ struct DaySnippetCard: View {
             }
             VStack(alignment: .leading, spacing: 8) {
                 pill
-                if roomy { fieldTitle }
+                fieldTitle
             }
         }
     }
 
     private var pill: some View {
         StatusPill(text: phaseText, tone: phaseTone).fixedSize()
+    }
+
+    /// The status, kept to the first accessibility size: it's a tag, not what was asked.
+    private var smallPill: some View {
+        pill.dynamicTypeSize(...DynamicTypeSize.accessibility1)
     }
 
     @ViewBuilder private var fieldTitle: some View {
@@ -161,6 +194,38 @@ struct DaySnippetCard: View {
         }
     }
 
+    /// The status and the block on one line, "Row 6" large under them, then "Next: 7, 8".
+    /// A block name too long to share the line keeps it, and the status gives way: it's
+    /// where you are that was asked.
+    private var tightWhere: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            if let here = card.here {
+                ViewThatFits(in: .horizontal) {
+                    HStack(alignment: .center, spacing: 12) {
+                        smallPill
+                        blockName(here)
+                    }
+                    Text(here.block)
+                        .font(.tcTitle2)
+                        .foregroundStyle(Palette.muted)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                bigRow(here)
+                    .accessibilityLabel("You’re on \(here.block), row \(here.row)")
+                if let next = card.nextLine {
+                    Text(next)
+                        .font(.body.weight(.medium))
+                        .monospacedDigit()
+                        .foregroundStyle(Palette.ink)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            } else {
+                smallPill
+                allShaped
+            }
+        }
+    }
+
     /// "Row 6" set as a heading: it names a place, like a sign at the end of the row.
     private func bigRow(_ here: DayCard.Spot) -> some View {
         Text("Row \(here.row)")
@@ -190,6 +255,31 @@ struct DaySnippetCard: View {
                     nextLabel(here)
                 }
             }
+        } else if card.fieldTotal > 0 {
+            allShaped
+        }
+    }
+
+    /// "→ Row 15, Block 2" on one line, or the block under the row, never off the side.
+    @ViewBuilder private var tightRowLine: some View {
+        if let here = card.here {
+            Label {
+                ViewThatFits(in: .horizontal) {
+                    Text("Row \(here.row), \(here.block)").fixedSize()
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text("Row \(here.row)")
+                        Text(here.block).foregroundStyle(Palette.muted).fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .monospacedDigit()
+                .foregroundStyle(Palette.ink)
+            } icon: {
+                Image(systemName: "arrow.forward.circle.fill")
+                    .foregroundStyle(Palette.fir)
+            }
+            .font(.body.weight(.semibold))
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("You’re on \(here.block), row \(here.row)")
         } else if card.fieldTotal > 0 {
             allShaped
         }
@@ -263,6 +353,7 @@ struct DaySnippetCard: View {
         Label("Every row is shaped", systemImage: "checkmark.seal.fill")
             .font(.subheadline.weight(.semibold))
             .foregroundStyle(Palette.firText)
+            .fixedSize(horizontal: false, vertical: true)
     }
 
     private var payHidden: some View {
@@ -292,6 +383,31 @@ struct DaySnippetCard: View {
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(Fmt.count(card.fieldShaped)) of \(Fmt.count(card.fieldTotal)) trees in \(card.fieldName) shaped")
+    }
+}
+
+/// One asked-about number at the accessibility sizes: "212 trees today" on one line when it
+/// fits, the label under the number when it doesn't.
+private struct TightStat: View {
+    let stat: SnippetStat
+
+    var body: some View {
+        let value = Text(stat.value)
+            .font(.custom(Typeface.numberSemiBold, size: 26, relativeTo: .title2))
+            .monospacedDigit()
+            .foregroundStyle(stat.focus ? Palette.firText : Palette.ink)
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
+        let label = Text(stat.label)
+            .font(.subheadline)
+            .foregroundStyle(Palette.muted)
+            .fixedSize(horizontal: false, vertical: true)
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) { value.fixedSize(); label.fixedSize() }
+            VStack(alignment: .leading, spacing: 0) { value; label }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(stat.spoken)
     }
 }
 

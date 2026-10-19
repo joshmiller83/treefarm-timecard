@@ -38,6 +38,16 @@ struct DaySnippetTests {
         #expect(SnippetStat.essentials(for: Self.sample.with(topic: .whereAmI)).isEmpty)
     }
 
+    /// At the accessibility sizes the next rows are one line of text, not a row of chips.
+    @Test func theNextRowsInOneLine() {
+        #expect(Self.sample.nextLine == "Next: 16, 17")
+        var card = Self.sample
+        card.next = [.init(block: "Block 2", row: 20), .init(block: "Block 3", row: 1)]
+        #expect(card.nextLine == "Next: 20, Block 3, row 1")
+        card.next = []
+        #expect(card.nextLine == nil)
+    }
+
     @Test func payShowsOnlyWhenItMay() {
         var card = Self.sample.with(topic: .pay)
         #expect(SnippetStat.stats(for: card).isEmpty)
@@ -87,12 +97,18 @@ struct DaySnippetTests {
     func itDrawsInEveryLook(_ topic: StatusTopic) throws {
         var card = Self.sample.with(topic: topic)
         if topic == .pay { card.payHidden = true }
-        let looks: [(String, ColorScheme, DynamicTypeSize)] = [("light", .light, .large), ("dark", .dark, .large), ("large-type", .light, .accessibility3)]
+        let looks: [(String, ColorScheme, DynamicTypeSize)] = [
+            ("light", .light, .large), ("dark", .dark, .large), ("xxxl", .light, .xxxLarge),
+            ("ax1", .light, .accessibility1), ("ax3", .light, .accessibility3), ("ax5", .light, .accessibility5), ("ax5-dark", .dark, .accessibility5),
+        ]
         for (name, scheme, size) in looks {
             let image = try #require(render(card, scheme: scheme, size: size), "\(topic) \(name)")
             #expect(image.size.width == 370)
-            // Siri shows about 340 points of card before it cuts it off.
-            #expect(image.size.height > 100 && image.size.height < 340, "\(topic) \(name): \(image.size.height)")
+            // Siri shows about 340 points of card before it cuts it off, and only about 290
+            // under its own answer at the accessibility sizes, where that answer is bigger too.
+            let room: CGFloat = size.isAccessibilitySize ? 280 : 340
+            #expect(image.size.height > 80 && image.size.height < room, "\(topic) \(name): \(image.size.height)")
+            #expect(width(card, size: size) <= 370, "\(topic) \(name): nothing runs off the side")
             save(image, "\(topic.rawValue)-\(name)")
         }
         if topic == .pay {
@@ -100,6 +116,28 @@ struct DaySnippetTests {
             card.pay = .init(todayCents: 9450, weekCents: 41_000)
             save(try #require(render(card, scheme: .light, size: .large)), "pay-shown-light")
         }
+    }
+
+    /// A long block name at the largest size still wraps or fits inside the card.
+    @Test(arguments: [StatusTopic.whereAmI, .trees, .summary])
+    func longNamesStayInside(_ topic: StatusTopic) {
+        var card = Self.sample.with(topic: topic)
+        card.here = .init(block: "North Ridge 12", row: 148)
+        card.next = [.init(block: "North Ridge 12", row: 149), .init(block: "South Hollow 3", row: 1)]
+        card.trees = 1_212
+        for size in [DynamicTypeSize.large, .accessibility3, .accessibility5] {
+            #expect(width(card, size: size) <= 370, "\(topic) \(size)")
+            if let image = render(card, scheme: .light, size: size) {
+                #expect(image.size.height < (size.isAccessibilitySize ? 280 : 340), "\(topic) \(size): \(image.size.height)")
+                save(image, "long-\(topic.rawValue)-\(size)")
+            }
+        }
+    }
+
+    /// How wide the card makes itself when offered 370 points: wider means something is cut off.
+    private func width(_ card: DayCard, size: DynamicTypeSize) -> CGFloat {
+        let host = UIHostingController(rootView: DaySnippetView(card: card).dynamicTypeSize(size))
+        return host.sizeThatFits(in: CGSize(width: 370, height: 2000)).width
     }
 
     private func render(_ card: DayCard, scheme: ColorScheme, size: DynamicTypeSize) -> UIImage? {
