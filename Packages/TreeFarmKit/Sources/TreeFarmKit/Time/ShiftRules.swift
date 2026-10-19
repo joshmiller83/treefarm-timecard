@@ -17,6 +17,11 @@ public enum ShiftRuleError: Error, Equatable, Sendable {
     case breakOutsideShift(Int)
     case onlyLatestBreakOpen
     case breaksOverlap
+    /// Changing the open shift's start ("Change start time" / "I started at 7:30").
+    case newStartInFuture
+    /// The first break's start, ready to show: "12:01 PM".
+    case newStartAfterFirstBreak(String)
+    case newStartOverlaps(from: String, to: String)
 
     public var message: String {
         switch self {
@@ -42,6 +47,12 @@ public enum ShiftRuleError: Error, Equatable, Sendable {
             "Only the latest break can be left open."
         case .breaksOverlap:
             "Two breaks overlap. Fix their times."
+        case .newStartInFuture:
+            "That time hasn’t happened yet. Pick an earlier time."
+        case .newStartAfterFirstBreak(let time):
+            "Your first break started at \(time). Pick a time before that."
+        case .newStartOverlaps(let from, let to):
+            "That overlaps your shift from \(from) to \(to)."
         }
     }
 }
@@ -68,6 +79,21 @@ public enum ShiftRules {
             return .overlaps(day: Fmt.day(o.start, calendar), from: Fmt.time(o.start, calendar), to: o.end.map { Fmt.time($0, calendar) } ?? "now")
         }
         return validateBreaks(shift, latest: latest)
+    }
+
+    /// Moving the start of the open shift ("Change start time" / "I started at 7:30").
+    /// The new start can't be in the future, after the first break, or inside another of the person's shifts.
+    public static func validateNewStart(_ start: Date, for shift: Shift, others: [Shift], now: Date, calendar: FarmCalendar) -> ShiftRuleError? {
+        if start > now { return .newStartInFuture }
+        if let end = shift.end, end <= start { return .endNotAfterStart }
+        if let first = shift.breaks.min(by: { $0.start < $1.start }), start > first.start {
+            return .newStartAfterFirstBreak(Fmt.time(first.start, calendar))
+        }
+        let rivals = others.filter { $0.isLive && $0.id != shift.id && $0.userId == shift.userId }
+        if let o = overlap(start, shift.end ?? now, rivals, now: now) {
+            return .newStartOverlaps(from: Fmt.time(o.start, calendar), to: o.end.map { Fmt.time($0, calendar) } ?? "now")
+        }
+        return nil
     }
 
     /// Breaks sorted by start, notes and break reasons trimmed and clamped to `Limits`.

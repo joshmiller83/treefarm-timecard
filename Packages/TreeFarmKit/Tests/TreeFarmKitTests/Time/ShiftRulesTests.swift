@@ -181,3 +181,54 @@ struct ShiftRulesNormalizeTests {
         #expect(ShiftRules.normalized(n) == n)
     }
 }
+
+@Suite("ShiftRules: change start time")
+struct ShiftRulesNewStartTests {
+    typealias F = TimeFixture
+    let now = F.wall("2026-10-18 10:00")
+
+    func check(_ start: String, _ shift: Shift, others: [Shift] = []) -> ShiftRuleError? {
+        ShiftRules.validateNewStart(F.wall(start), for: shift, others: others, now: now, calendar: F.indy)
+    }
+
+    @Test func anEarlierStartIsFine() {
+        let open = F.shift("2026-10-18 07:00", nil)
+        #expect(check("2026-10-18 06:30", open) == nil)
+        #expect(check("2026-10-18 10:00", open) == nil)
+    }
+
+    @Test func notInTheFuture() {
+        let open = F.shift("2026-10-18 07:00", nil)
+        #expect(check("2026-10-18 10:01", open) == .newStartInFuture)
+        #expect(ShiftRuleError.newStartInFuture.message == "That time hasn’t happened yet. Pick an earlier time.")
+    }
+
+    @Test func notAfterTheFirstBreak() {
+        let open = F.shift("2026-10-18 07:00", nil, breaks: [F.rest("2026-10-18 09:00", nil), F.lunch("2026-10-18 08:00", "2026-10-18 08:15")])
+        #expect(check("2026-10-18 08:30", open) == .newStartAfterFirstBreak("8:00 AM"))
+        #expect(ShiftRuleError.newStartAfterFirstBreak("8:00 AM").message == "Your first break started at 8:00 AM. Pick a time before that.")
+        #expect(check("2026-10-18 08:00", open) == nil)
+    }
+
+    @Test func notOverlappingAnotherShift() {
+        let open = F.shift("2026-10-18 07:00", nil)
+        let early = F.shift("2026-10-18 05:00", "2026-10-18 06:45")
+        #expect(check("2026-10-18 06:30", open, others: [early]) == .newStartOverlaps(from: "5:00 AM", to: "6:45 AM"))
+        #expect(ShiftRuleError.newStartOverlaps(from: "5:00 AM", to: "6:45 AM").message == "That overlaps your shift from 5:00 AM to 6:45 AM.")
+        #expect(check("2026-10-18 06:45", open, others: [early]) == nil)
+        #expect(check("2026-10-18 06:30", open, others: [F.shift("2026-10-18 05:00", "2026-10-18 06:45", deleted: true)]) == nil)
+        #expect(check("2026-10-18 06:30", open, others: [F.shift("2026-10-18 05:00", "2026-10-18 06:45", user: F.otherUserId)]) == nil)
+        #expect(check("2026-10-18 06:30", open, others: [open]) == nil)
+    }
+
+    @Test func aStaleShiftCanMoveOnItsOwnDay() {
+        let stale = F.shift("2026-10-17 07:00", nil)
+        #expect(check("2026-10-17 06:00", stale) == nil)
+    }
+
+    @Test func aClosedShiftsStartStaysBeforeItsEnd() {
+        let closed = F.shift("2026-10-16 07:00", "2026-10-16 15:00")
+        #expect(check("2026-10-16 15:30", closed) == .endNotAfterStart)
+        #expect(check("2026-10-16 06:00", closed) == nil)
+    }
+}
