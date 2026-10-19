@@ -267,10 +267,11 @@ registerScene(
         tl.set(la, { attr: { 'data-state': 'break' } }, P.break.start);
         textAt(face, SHORT_BREAK, BREAK_PILL, s[0]);
         to(one(la, '[data-la-break]'), { opacity: 1, duration: d * 0.5, ease: 'power1.inOut' }, s[0]);
-        // One face goes before the other comes (two labels never read over each other).
-        to(one(la, '[data-pill-face="clock"]'), { opacity: 0, duration: d * 0.1, ease: 'none' }, s[0]);
-        to(one(la, '[data-pill-face="break"]'), { opacity: 1, duration: d * 0.1, ease: 'none' }, s[0] + d * 0.09);
-        to(one(la, '[data-undo]'), { opacity: 0, duration: d * 0.15, ease: 'none' }, s[0]);
+        // The old face goes, then the new one comes with the new state (never two labels at once).
+        const sw = P.break.start - s[0];
+        to(one(la, '[data-pill-face="clock"]'), { opacity: 0, duration: sw, ease: 'none' }, s[0]);
+        to(one(la, '[data-pill-face="break"]'), { opacity: 1, duration: d * 0.12, ease: 'none' }, P.break.start);
+        to(one(la, '[data-undo]'), { opacity: 0, duration: sw, ease: 'none' }, s[0]);
         to(one(la, '[data-worked-line]'), { opacity: 1, duration: d * 0.25, ease: 'none' }, P.break.start);
         // Each row button folds into its right edge; its label fades first, so it never squashes.
         if (rows.length) {
@@ -457,8 +458,8 @@ registerScene(
         // line) and the timer resumes at 6:43:00, with the short face text behind it.
         tl.set(la, { attr: { 'data-state': 'working' } }, P.back.end);
         to(one(la, '[data-la-break]'), { opacity: 0, duration: d * 0.5, ease: 'power1.inOut' }, s[0]);
-        to(one(la, '[data-pill-face="break"]'), { opacity: 0, duration: d * 0.12, ease: 'none' }, s[0]);
-        to(one(la, '[data-pill-face="clock"]'), { opacity: 1, duration: d * 0.12, ease: 'none' }, s[0] + d * 0.11);
+        to(one(la, '[data-pill-face="break"]'), { opacity: 0, duration: P.back.end - s[0], ease: 'none' }, s[0]);
+        to(one(la, '[data-pill-face="clock"]'), { opacity: 1, duration: d * 0.12, ease: 'none' }, P.back.end);
         textAt(pillBreak, BREAK_PILL, SHORT_BREAK, P.back.end - 0.0005);
         to(one(la, '[data-worked-line]'), { opacity: 0, duration: d * 0.2, ease: 'none' }, s[0]);
         // Back to work wipes off towards the rows' side and fades as it goes: no blank gold sliver.

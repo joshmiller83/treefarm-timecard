@@ -140,10 +140,10 @@ const JUST_BEFORE = 0.5;
 
 /**
  * Where, through each Live Activity transition, the day crosses its boundary (2:30, 2:44) and
- * the card's data-state switches: after the pill faces and Undo have crossed (break), after
- * the gold face has gone (back), so the timer never shows one state under the other's pill.
+ * the card's data-state switches: once the old pill face (and Undo) has gone, and just as the
+ * new face starts in, so the timer never shows one state under the other state's pill.
  */
-export const LA_SWITCH = { break: 0.2, back: 0.28 } as const;
+export const LA_SWITCH = { break: 0.1, back: 0.16 } as const;
 
 export function plan(mode: Mode): Plan {
   const at = AT[mode];

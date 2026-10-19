@@ -302,9 +302,9 @@ const split = (s: string) => {
     line-height: 1.15;
     color: var(--on-stage);
   }
-  /* Hanging quotes only where there is room for them: never into a card's padding or the
-     page gutter on a phone. */
-  @media (min-width: 600px) {
+  /* Hanging quotes only where there is room for them: into a tablet card's padding, or a
+     desktop margin wide enough (from 1320px); never into a phone's gutter or a narrow one. */
+  @media (min-width: 600px) and (max-width: 899.98px), (min-width: 1320px) {
     .nb .spoken q::before,
     .nb-you q::before {
       margin-left: -0.42em;
