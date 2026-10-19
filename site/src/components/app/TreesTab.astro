@@ -330,9 +330,17 @@ const modeIndex = MODES.findIndex((m) => m.id === mode);
     right: 0;
     top: calc(var(--hd) + var(--top) * var(--pt));
     height: calc((var(--bot) - var(--top)) * var(--pt));
-    border: calc(1 * var(--pt)) solid #9db5a3;
     border-radius: calc(12 * var(--pt));
     background: #fff;
+  }
+  /* The border draws over the row stripes. */
+  .tt-map :global(.tm-sheet)::after {
+    content: '';
+    position: absolute;
+    z-index: 1;
+    inset: 0;
+    border: calc(1 * var(--pt)) solid #9db5a3;
+    border-radius: inherit;
   }
   .tt-map :global(.tm-row) {
     position: absolute;
@@ -474,13 +482,11 @@ const modeIndex = MODES.findIndex((m) => m.id === mode);
   .tt-map :global(.tm-name) {
     position: absolute;
     left: calc(7 * var(--pt) + var(--gut));
-    top: calc(1 * var(--pt));
+    top: 0;
+    font-family: var(--font-display);
     font-weight: 600;
-    font-size: calc(15 * var(--pt));
-    letter-spacing: -0.01em;
-    color: var(--ink);
-  }
-  .tt-map :global(.tm-target .tm-name) {
+    font-size: calc(17 * var(--pt));
+    line-height: 1.2;
     color: var(--ink);
   }
   .tt-map :global(.tm-cols) {
