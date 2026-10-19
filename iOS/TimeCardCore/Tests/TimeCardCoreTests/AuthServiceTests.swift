@@ -162,4 +162,13 @@ struct AuthServiceTests {
         #expect(await relaunched.state == .expired(me))
         _ = auth
     }
+
+    @Test func signInScreensSpeakPlainly() {
+        #expect(signInMessage(for: APIError.offline) == "You're offline. Connect to the internet to sign in.")
+        #expect(signInMessage(for: APIError.unauthorized(reason: "That email and password don't match.")) == "That email and password don't match.")
+        #expect(signInMessage(for: APIError.rateLimited(reason: "", retryAfter: 600)) == "Too many tries. Try again in 10 minutes.")
+        #expect(signInMessage(for: APIError.client(status: 410, reason: "That invite code has expired.")) == "That invite code has expired.")
+        #expect(signInMessage(for: AuthError.invalid("Enter your password.")) == "Enter your password.")
+        #expect(signInMessage(for: APIError.server(status: 502, reason: APIError.serverTrouble)) == APIError.serverTrouble)
+    }
 }

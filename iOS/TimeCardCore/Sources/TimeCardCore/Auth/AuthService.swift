@@ -163,3 +163,9 @@ public func userMessage(for error: any Error) -> String {
     default: "Something went wrong: \(error.localizedDescription)"
     }
 }
+
+/// Like `userMessage(for:)`, worded for the sign-in, join and reset screens.
+public func signInMessage(for error: any Error) -> String {
+    if case APIError.offline = error { return "You're offline. Connect to the internet to sign in." }
+    return userMessage(for: error)
+}
