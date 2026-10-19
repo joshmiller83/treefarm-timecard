@@ -398,7 +398,11 @@ struct LiveIslandLeading: View {
         }
         .padding(.leading, 4)
         .frame(maxHeight: .infinity, alignment: .center)
+        .dynamicTypeSize(...LiveIslandLeading.largestText)
     }
+
+    /// The island has a fixed size, so text stops growing here, as on the lock screen.
+    static let largestText = DynamicTypeSize.large
 }
 
 /// Expanded, trailing: the timer.
@@ -416,6 +420,7 @@ struct LiveIslandTrailing: View {
         }
         .padding(.trailing, 4)
         .frame(maxHeight: .infinity, alignment: .center)
+        .dynamicTypeSize(...LiveIslandLeading.largestText)
     }
 }
 
@@ -436,6 +441,7 @@ struct LiveIslandBottom: View {
         // Clear of the island's rounded bottom corners.
         .padding(.horizontal, 8)
         .padding(.bottom, 10)
+        .dynamicTypeSize(...LiveIslandLeading.largestText)
     }
 }
 
@@ -456,6 +462,7 @@ struct LiveIslandCompactLeading: View {
                     .fixedSize()
             }
         }
+        .dynamicTypeSize(...LiveIslandLeading.largestText)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(display.isOnBreak ? display.statusTitle : display.compactRow.map { "Next, row \($0)" } ?? display.statusTitle)
     }

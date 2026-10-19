@@ -32,9 +32,8 @@ final class LiveActivityUITests: XCTestCase {
 
         lockAndWake()
         // The first time, iOS asks under the activity whether to keep showing it.
-        let allow = springboard.buttons["Allow"]
-        if allow.waitForExistence(timeout: 3) {
-            allow.tap()
+        for title in ["Allow", "Always Allow"] where springboard.buttons[title].waitForExistence(timeout: 2) {
+            springboard.buttons[title].tap()
             sleep(1)
         }
         XCTAssertTrue(row7.waitForExistence(timeout: 10), "No row 7 button on the lock screen.\n\(springboard.debugDescription)")

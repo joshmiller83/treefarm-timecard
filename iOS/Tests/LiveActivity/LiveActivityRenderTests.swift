@@ -78,6 +78,8 @@ struct LiveActivityRenderTests {
             let display = LiveActivityDisplay(snapshot)
             try Self.save(IslandBackdrop(display: display), "island-\(name)")
         }
+        try Self.save(IslandBackdrop(display: LiveActivityDisplay(F.working(lastAction: "Row 14 marked", canUndo: true, now: now)))
+            .environment(\.dynamicTypeSize, .accessibility5), "island-working-ax5")
     }
 
     // MARK: Rendering
