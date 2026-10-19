@@ -1,9 +1,11 @@
 /**
  * CLOCK OUT (section team). The exchange at dusk, the lights-up and the paper time card.
  * Runs against the built site like tests/e2e (projects 'desktop' 1440 × 900 and 'mobile' 375 × 812).
+ * The paper's lift is also checked in WebKit (launched here when it is installed).
  */
 import AxeBuilder from '@axe-core/playwright';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, webkit, type Page } from '@playwright/test';
+import { BEAT_AT, DESK, MOB } from '../../src/sections/clock-out/model.ts';
 
 const ASK = 'You’ve worked 8 hours 30 minutes today. Clock out?';
 const ANSWER = 'Clocked out at 4:31. 8 hours 30 minutes, 290 trees.';
@@ -50,6 +52,63 @@ async function scrollTrack(page: Page, p: number, wait = 1100) {
   await page.waitForTimeout(wait);
 }
 
+/** Scrolls like a reader: from where the page is, in ~600 px wheel steps, to progress `p` of the track. */
+async function readTo(page: Page, p: number, wait = 1300) {
+  const target = await page.evaluate((p) => {
+    const track = document.querySelector<HTMLElement>('#clock-out .track')!;
+    const top = track.getBoundingClientRect().top + scrollY;
+    return Math.round(top + p * Math.max(0, track.offsetHeight - innerHeight));
+  }, p);
+  let y = await page.evaluate(() => scrollY);
+  while (target - y > 700) {
+    await page.mouse.wheel(0, 600);
+    await page.waitForTimeout(80);
+    y = await page.evaluate(() => scrollY);
+  }
+  await page.evaluate((t) => window.scrollTo(0, t), target);
+  await page.waitForTimeout(wait);
+}
+
+type Box = { left: number; top: number; right: number; bottom: number; width: number; height: number };
+const boxOf = (page: Page, selector: string) =>
+  page.evaluate((sel) => {
+    const el = document.querySelector(sel);
+    if (!el) return null;
+    const r = el.getBoundingClientRect();
+    return { left: r.left, top: r.top, right: r.right, bottom: r.bottom, width: r.width, height: r.height } as Box;
+  }, selector);
+const overlap = (a: Box, b: Box) => a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+
+/** WCAG contrast of the header's text against its own background (composited over the page under it). */
+async function headerContrast(page: Page) {
+  return page.evaluate(() => {
+    const parse = (c: string) => (c.match(/[\d.]+/g) ?? ['0', '0', '0', '1']).map(Number);
+    const lum = ([r, g, b]: number[]) => {
+      const f = (v: number) => ((v /= 255) <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
+      return 0.2126 * f(r!) + 0.7152 * f(g!) + 0.0722 * f(b!);
+    };
+    const header = document.querySelector<HTMLElement>('.site-header')!;
+    const under = document.elementsFromPoint(innerWidth / 2, header.getBoundingClientRect().bottom + 4).find((el) => !header.contains(el));
+    let base = [236, 241, 236];
+    for (let el: Element | null = under ?? null; el; el = el.parentElement) {
+      const c = parse(getComputedStyle(el).backgroundColor);
+      if ((c[3] ?? 1) > 0.5) {
+        base = c.slice(0, 3);
+        break;
+      }
+    }
+    const [r, g, b, a = 1] = parse(getComputedStyle(header).backgroundColor);
+    const bg = [r!, g!, b!].map((v, i) => v * a + base[i]! * (1 - a));
+    const ratio = (fg: number[]) => {
+      const [l1, l2] = [lum(fg), lum(bg)].sort((x, y) => y - x);
+      return (l1! + 0.05) / (l2! + 0.05);
+    };
+    const brand = header.querySelector('.brand') ?? header;
+    const gh = Array.from(header.querySelectorAll('a')).find((a) => /github/i.test(a.textContent ?? '')) ?? header;
+    return { brand: ratio(parse(getComputedStyle(brand).color)), github: ratio(parse(getComputedStyle(gh).color)), theme: header.dataset.theme };
+  });
+}
+
 async function serious(page: Page) {
   const results = await new AxeBuilder({ page })
     .include('#clock-out')
@@ -92,7 +151,11 @@ test.describe('clock-out', () => {
     await expect(report).toHaveAttribute('aria-label', /Report tab with This week selected: .*39:55 hours and 1,347 trees over 5 days/);
     await expectPaper(page);
     await expect(sec(page).getByText('No pay on the report. Ever.')).toHaveCount(1);
-    await expect(sec(page).getByRole('list', { name: 'Export formats' }).getByRole('listitem')).toHaveText(['PDF', 'CSV']);
+    await expect(sec(page).getByRole('list', { name: 'Exports as' }).getByRole('listitem')).toHaveText(['PDF', 'CSV']);
+    // One Report tab in the markup (desktop borrows the after part's for the stage).
+    await expect(page.locator('[data-screen="report-week"]')).toHaveCount(1);
+    // The question layer's timer is fixed at 8:30:00, so the idle tick never runs it past the ledger.
+    await expect(page.locator('[data-screen="lock-1631-ask"] [data-timer]').first()).toHaveAttribute('data-timer', 'fixed');
     // No pay figures or currency anywhere in the section, phones included.
     const text = (await sec(page).textContent()) ?? '';
     expect(text).not.toMatch(/[$€£]|\bwage|\bpaid\b/i);
@@ -148,6 +211,134 @@ test.describe('clock-out', () => {
     await expect(sec(page)).toHaveAttribute('data-theme', 'light');
     expect(await serious(page)).toEqual([]);
   });
+
+  test('the paper lifts out of the preview for a reader scrolling down (Chromium and WebKit)', async ({ page, isMobile }) => {
+    test.skip(isMobile, 'desktop: the stage phone');
+    const at = DESK.lift[0] + 0.004;
+    const check = async (p: Page, engine: string) => {
+      await settle(p);
+      await readTo(p, at, 1600);
+      const paper = await boxOf(p, '#clock-out [data-paper]');
+      const thumb = await boxOf(p, '[data-stage] [data-paper-thumb]');
+      expect(paper && thumb, engine).toBeTruthy();
+      for (const k of ['left', 'top', 'width', 'height'] as const) {
+        expect(Math.abs(paper![k] - thumb![k]), `${engine}: paper ${k} ${paper![k].toFixed(1)} vs preview ${thumb![k].toFixed(1)}`).toBeLessThanOrEqual(8);
+      }
+      // Lifted from the preview, it lands in its slot.
+      await readTo(p, DESK.print[0] + 0.01, 1400);
+      const slot = await boxOf(p, '#clock-out [data-co-fitbox]');
+      const landed = await boxOf(p, '#clock-out [data-paper]');
+      expect(Math.abs(landed!.left - slot!.left), `${engine}: landed left`).toBeLessThanOrEqual(12);
+      expect(Math.abs(landed!.width - slot!.width), `${engine}: landed width`).toBeLessThanOrEqual(16);
+    };
+    await page.goto('/');
+    await check(page, 'chromium');
+    let browser: Awaited<ReturnType<typeof webkit.launch>> | null = null;
+    try {
+      browser = await webkit.launch();
+    } catch {
+      test.info().annotations.push({ type: 'note', description: 'WebKit is not installed: checked in Chromium only.' });
+    }
+    if (browser) {
+      try {
+        const wk = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+        await wk.goto(new URL('/', page.url()).href);
+        await check(wk, 'webkit');
+      } finally {
+        await browser.close();
+      }
+    }
+  });
+
+  test('a jump straight past the lift lands the paper in its slot, and a resize keeps it there', async ({ page, isMobile }) => {
+    test.skip(isMobile, 'desktop: the staged paper');
+    await page.goto('/');
+    await settle(page);
+    const landed = async (why: string) => {
+      await expect
+        .poll(async () => {
+          const paper = await boxOf(page, '#clock-out [data-paper]');
+          const slot = await boxOf(page, '#clock-out [data-co-fitbox]');
+          return Math.max(Math.abs(paper!.left - slot!.left), Math.abs(paper!.width - slot!.width) / 2);
+        }, { message: why, timeout: 6000 })
+        .toBeLessThanOrEqual(12);
+    };
+    // Like a chapter link: one jump from the top, no scrolling through the lift.
+    await scrollTrack(page, DESK.print[1] - 0.04, 1600);
+    await landed('after the jump');
+    await page.setViewportSize({ width: 1360, height: 860 });
+    await page.waitForTimeout(1500);
+    await landed('after a resize');
+  });
+
+  test('a quiet lock screen before the unlock: the card goes, the date and clock come back', async ({ page, isMobile }) => {
+    await page.goto('/');
+    await settle(page);
+    const B = isMobile ? MOB : DESK;
+    await readTo(page, B.quiet[1] + 0.01, 1500);
+    const answer = page.locator('[data-screen="lock-1631-answer"]');
+    await expect.poll(() => answer.evaluate((el) => getComputedStyle(el).opacity)).toBe('1');
+    await expect.poll(() => answer.locator('[data-snippet]').evaluate((el) => getComputedStyle(el).opacity)).toBe('0');
+    await expect.poll(() => answer.locator('.lock-clock[data-clock]').evaluate((el) => getComputedStyle(el).opacity)).toBe('1');
+    await expect(answer.locator('[data-la]')).toHaveCSS('opacity', '0');
+  });
+
+  test('mobile: the cards keep clear of the timer while it is underlined and dismissed; “Yes.” lights in view', async ({ page, isMobile }) => {
+    test.skip(!isMobile, 'mobile cards');
+    await page.goto('/');
+    await settle(page);
+    const mid = (w: readonly [number, number]) => (w[0] + w[1]) / 2;
+    // “Yes.” lights in view: the card's top is above 85% of the viewport while its words light.
+    await readTo(page, MOB.yes[0] + 0.02);
+    const yesCard = (await boxOf(page, '#clock-out [data-co-ex="answer"]'))!;
+    const vh = page.viewportSize()!.height;
+    expect(yesCard.top).toBeLessThanOrEqual(vh * 0.85);
+    // The timer: the answer layer's, on the section's own sticky phone.
+    for (const p of [MOB.underline[0], mid(MOB.underline), MOB.underline[1], MOB.dismiss[0], mid(MOB.dismiss), MOB.dismiss[1] - 0.004]) {
+      await readTo(page, p, 900);
+      const timer = (await boxOf(page, '#clock-out [data-screen="lock-1631-answer"] [data-timer]'))!;
+      const cards = await page.locator('#clock-out .co-beat').evaluateAll((els) =>
+        els.map((el) => {
+          const r = el.getBoundingClientRect();
+          return { left: r.left, top: r.top, right: r.right, bottom: r.bottom, width: r.width, height: r.height };
+        }),
+      );
+      for (const [i, c] of cards.entries()) expect(overlap(c, timer), `card ${i + 1} over the timer at ${p.toFixed(3)}`).toBe(false);
+    }
+  });
+
+  test('mobile: the timer holds 8:30:00 once the lapse lands, idle or not', async ({ page, isMobile }) => {
+    test.skip(!isMobile, 'mobile sticky phone (desktop shares the layers)');
+    await page.goto('/');
+    await settle(page);
+    await readTo(page, (MOB.lapse[1] + MOB.glow[0]) / 2, 2600);
+    await expect(page.locator('#clock-out [data-screen="lock-1631-activity"]')).toHaveCSS('opacity', '0');
+    const ask = page.locator('#clock-out [data-screen="lock-1631-ask"]');
+    await expect(ask).toHaveCSS('opacity', '1');
+    expect(await ask.locator('.la-timer').evaluate((el) => (el as HTMLElement).dataset.odoText)).toBe('8:30:00');
+  });
+});
+
+test.describe('clock-out on a short desktop window (960 × 580)', () => {
+  test.use({ viewport: { width: 960, height: 580 } });
+
+  test('the dusk beats never overlap', async ({ page, isMobile }) => {
+    test.skip(isMobile, 'desktop layout');
+    await page.goto('/');
+    await settle(page);
+    for (const p of [0.1, 0.2, 0.3, BEAT_AT.forgot.desk]) {
+      await readTo(page, p, 700);
+      const boxes = await page.locator('#clock-out .co-beat').evaluateAll((els) =>
+        els.map((el) => {
+          const r = el.getBoundingClientRect();
+          return { left: r.left, top: r.top, right: r.right, bottom: r.bottom, width: r.width, height: r.height };
+        }),
+      );
+      for (let i = 1; i < boxes.length; i += 1) {
+        expect(boxes[i]!.top - boxes[i - 1]!.bottom, `beats ${i} and ${i + 1} at ${p}`).toBeGreaterThanOrEqual(8);
+      }
+    }
+  });
 });
 
 test.describe('clock-out with reduced motion', () => {
@@ -185,9 +376,7 @@ test.describe('clock-out with reduced motion', () => {
     const rows = sec(page).locator('[data-paper] tr[data-day]');
     for (let i = 0; i < 5; i += 1) await expect(rows.nth(i)).toBeVisible();
     await expect(sec(page).locator('[data-totals]')).toHaveCSS('opacity', '1');
-    // Light from the band on; no GSAP ever.
-    await sec(page).locator('[data-paper]').scrollIntoViewIfNeeded();
-    await expect(sec(page)).toHaveAttribute('data-theme', 'light');
+    // No GSAP ever.
     expect(requests.filter((u) => /gsap|ScrollTrigger/i.test(u))).toEqual([]);
     expect(await overflow(page)).toBeLessThanOrEqual(0);
     expect(problems).toEqual([]);
@@ -199,6 +388,33 @@ test.describe('clock-out with reduced motion', () => {
     await page.addStyleTag({ content: '.sec { content-visibility: visible !important; }' });
     await sec(page).locator('[data-paper]').scrollIntoViewIfNeeded();
     expect(await serious(page)).toEqual([]);
+  });
+
+  test('the header stays readable over the light part (static)', async ({ page }) => {
+    await page.goto('/');
+    await page.evaluate(() => document.fonts.ready);
+    for (const sel of ['[data-co-copy]', '[data-paper]', '.co-exports']) {
+      // Far sections render lazily (content-visibility), so the page above can still change
+      // height after a jump: settle on the element, then check it is what the header is over.
+      for (let i = 0; i < 4; i += 1) {
+        await page.evaluate((sel) => {
+          const el = document.querySelector(`#clock-out ${sel}`)!;
+          window.scrollTo(0, el.getBoundingClientRect().top + scrollY - 40);
+        }, sel);
+        await page.waitForTimeout(250);
+      }
+      const under = await page.evaluate(() => {
+        const header = document.querySelector('.site-header')!;
+        const y = header.getBoundingClientRect().bottom + 4;
+        return document.elementsFromPoint(innerWidth / 2, y).some((el) => el.closest('#clock-out .after'));
+      });
+      expect(under, `the light part is under the header at ${sel}`).toBe(true);
+      // The header's colors ease over 0.3 s.
+      await page.waitForTimeout(700);
+      const c = await headerContrast(page);
+      expect(c.brand, `brand over ${sel} (${c.theme})`).toBeGreaterThanOrEqual(4.5);
+      expect(c.github, `GitHub over ${sel} (${c.theme})`).toBeGreaterThanOrEqual(4.5);
+    }
   });
 
   test('at 375px the paper is stacked day blocks with no horizontal scroll', async ({ page }) => {
