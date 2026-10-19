@@ -115,7 +115,7 @@ export const CALLOUTS: readonly Callout[] = [
   { n: 2, side: 'left', label: 'On the clock, on lunch or on break.', target: { x: LEFT, y: ROWS.pill }, place: 'above', pin: { x: 150, y: ROWS.pill } },
   { n: 3, side: 'right', label: 'Your field, your block, your trees.', target: { x: RIGHT, y: ROWS.pill }, place: 'above', pin: { x: 212, y: ROWS.pill - 6 } },
   { n: 4, side: 'left', label: 'Big buttons. One tap marks the whole row.', target: { x: LEFT, y: ROWS.buttons }, place: 'row', pin: { x: BTN0, y: BTN_BOTTOM + 4 } },
-  { n: 5, side: 'right', label: 'Wrong row? Undo is right there.', target: { x: RIGHT, y: ROWS.trees }, place: 'row', pin: { x: 205, y: ROWS.trees + 0.5 } },
+  { n: 5, side: 'right', label: 'Wrong row? Undo is right there.', target: { x: RIGHT, y: ROWS.trees }, place: 'row', pin: { x: 196, y: ROWS.trees + 1 } },
   {
     n: 6,
     side: 'right',

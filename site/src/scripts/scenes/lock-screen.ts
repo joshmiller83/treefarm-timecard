@@ -320,11 +320,14 @@ registerScene(
     set(home, { opacity: 0 }, 0.93);
 
     const controls = section.querySelector<HTMLElement>('[data-controls]');
-    // Mobile: the controls card scrolls in a little earlier, so it fills as it arrives.
-    const cAt = useCallouts ? T.collapse[0] : 0.8;
+    // Mobile: ControlsCard sits under its copy in the last card, which scrolls up from the
+    // bottom; it fades up as it comes into view.
+    const cAt = useCallouts ? T.collapse[0] : 0.9;
     fromTo(controls, { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.06, ease: 'power2.out' }, cAt);
+    // The footnote arrives with the card, so the copy never shows a hole where the card will be.
+    fromTo(section.querySelector('[data-ls-footnote]'), { opacity: 0 }, { opacity: 1, duration: 0.05, ease: 'power1.out' }, cAt + 0.02);
     fromTo(controls?.querySelector('[data-action-label]'), { opacity: 0, x: -8 }, { opacity: 1, x: 0, duration: 0.04, ease: 'power2.out' }, cAt + 0.03);
-    fromTo(controls?.querySelector('[data-action-button]'), { opacity: 0 }, { keyframes: { opacity: [0, 1, 0.2, 1, 0.2, 1] }, duration: 0.09, ease: 'none' }, cAt + 0.02);
+    fromTo(controls?.querySelector('[data-action-button]'), { opacity: 0 }, { keyframes: { opacity: [0, 1, 0.2, 1, 0.2, 1] }, duration: Math.min(0.09, 0.995 - (cAt + 0.02)), ease: 'none' }, cAt + 0.02);
 
     section.dataset.lsScene = 'built';
     return () => {
