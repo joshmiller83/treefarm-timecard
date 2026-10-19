@@ -74,10 +74,9 @@ export default defineConfig({
       display: 'swap',
       options: {
         variants: [
+          // 400 and 600 only (the brief's font budget, 120 KB): 500 renders as 400 and 700 as 600.
           { src: [fontsource('public-sans', 'public-sans-latin-400-normal.woff2')], weight: 400, style: 'normal' },
-          { src: [fontsource('public-sans', 'public-sans-latin-500-normal.woff2')], weight: 500, style: 'normal' },
           { src: [fontsource('public-sans', 'public-sans-latin-600-normal.woff2')], weight: 600, style: 'normal' },
-          { src: [fontsource('public-sans', 'public-sans-latin-700-normal.woff2')], weight: 700, style: 'normal' },
         ],
       },
     },
