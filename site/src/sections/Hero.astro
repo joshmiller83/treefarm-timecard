@@ -164,11 +164,35 @@ const label = heroPhoneLabel();
   }
 
   /* ---------- Desktop with the stage (≥900px, motion) ---------- */
+  /* The stage phone carries this figure on desktop (the motion core's 'desk' query): take it
+     out of flow from the first paint, as html.stage-on will, so the stage turning on shifts
+     nothing (CLS 0). Screen readers still read it; the 4 s .motion fallback brings back the
+     static layout. */
+  @media (min-width: 900px) and (min-height: 560px) {
+    html.motion #hero .shot[data-stage-shot] {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+    }
+  }
   @media (min-width: 900px) {
-    /* The scroll scene lifts the copy through --hero-lift (see the scene). The copy centres
-       in the view under the header at load, level with the stage phone. */
+    /* The copy holds in the view while it fades (the brief's [.15, .6] exit): sticky inside
+       the tall beats layer, its centre level with the stage phone's (the middle of the view
+       under the header). The scroll scene lifts it 60px through --hero-lift (see the scene). */
+    html.motion #hero[data-desk='sticky'][data-layout='beats'] .beats {
+      /* The head starts at the top of the layer (block containers honour align-content), and
+         the layer runs on past the track (clipped by the section) so the head holds through
+         the whole track, even in short windows. */
+      align-content: start;
+      bottom: -50svh;
+    }
     html.motion #hero[data-desk='sticky'][data-layout='beats'] .beat-head {
-      --anchor: calc(50svh - var(--chrome-h) / 2);
+      position: sticky;
+      top: calc(50svh + var(--chrome-h) / 2);
+      left: auto;
+      margin-left: var(--gutter);
       translate: 0 calc(-50% + var(--hero-lift, 0px));
     }
     /* The spoken line floats beside the stage phone, its right edge 24px left of the phone,
@@ -226,6 +250,20 @@ const label = heroPhoneLabel();
       margin-top: 14px;
     }
   }
+  /* Small, short desktop windows (920 × 700): tighter still, and the eyebrow on one line. */
+  @media (min-width: 900px) and (max-width: 1040px) and (max-height: 780px) {
+    #hero .beat-head h1 {
+      font-size: min(var(--text-xl), 12svh);
+    }
+    #hero .hero-body {
+      font-size: min(var(--text-body), 2.6svh);
+    }
+    #hero .beat-head .eyebrow {
+      font-size: 0.75rem;
+      letter-spacing: 0.1em;
+      white-space: nowrap;
+    }
+  }
 
   /* ---------- Mobile (<900px): copy first, then the figure, natural height ---------- */
   @media (max-width: 899.98px) {
@@ -266,9 +304,10 @@ const label = heroPhoneLabel();
     #hero .beat-head h1 {
       font-size: clamp(3.3rem, 2.7rem + 3.4vw, 3.5rem);
     }
+    /* Each sentence fills the measure (pretty only avoids a lone last word). */
     #hero .hero-s {
       display: block;
-      text-wrap: balance;
+      text-wrap: pretty;
     }
     /* One line on phones from 360px: a touch smaller and tighter than the desktop eyebrow. */
     #hero .beat-head .eyebrow {
@@ -318,10 +357,8 @@ const label = heroPhoneLabel();
       opacity: 0;
     }
   }
-  /* The stage phone waits too, so the final state never flashes before the sequence. */
-  html.motion .stage-slot {
-    transition: opacity 0.4s linear;
-  }
+  /* The stage phone waits too, so the final state never flashes before the sequence (the
+     scene's own fade brings the phone in, so the slot needs no transition of its own). */
   html.motion.intro-wait .stage-slot {
     opacity: 0;
   }

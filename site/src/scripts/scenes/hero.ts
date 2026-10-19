@@ -28,7 +28,7 @@
  * html.hero-intro is on while part of the sequence is playing, and html[data-hero-intro] is
  * 'playing', 'waiting' (the mobile phone's half) or 'done'; 'tf:hero-intro' fires on each change.
  */
-import { registerScene } from '../scene.ts';
+import { registerScene, type SceneContext } from '../scene.ts';
 import { PAUSE_EVENT } from '../header.ts';
 import { MOMENTS } from '../../data/ledger.ts';
 import { BANDS, INTRO, MOBILE_SCALE, SCROLL, cue, type Cue } from '../../sections/hero/hero.ts';
@@ -36,7 +36,11 @@ import { BANDS, INTRO, MOBILE_SCALE, SCROLL, cue, type Cue } from '../../section
 /** The sequence plays once per page view: a rebuilt scene (breakpoint change) shows the end state. */
 let played = false;
 
-/** The DayClock runtime's idle tick, if the motion core passes it to scenes (ctx.clock). */
+/**
+ * The DayClock runtime's real-time tick. The motion core is to pass it to scenes as ctx.clock
+ * (not in SceneContext yet): until it does, these hooks do nothing and the timer simply
+ * keeps the motion core's own post-load tick.
+ */
 interface ClockLike {
   wake(): void;
   idle(): void;
@@ -49,7 +53,8 @@ registerScene(
     const root = document.documentElement;
     const scale = isDesk ? 1 : MOBILE_SCALE;
     const k = (c: Cue) => cue(c, scale);
-    const clock = (ctx as unknown as { clock?: ClockLike }).clock;
+    const clock = (ctx as SceneContext & { clock?: ClockLike }).clock;
+    const cleanups: Array<() => void> = [];
 
     // The day holds at 7:02 through the hero.
     day.to(tl, MOMENTS.clockIn, 0, 1, MOMENTS.clockIn);
@@ -83,7 +88,8 @@ registerScene(
     const snipWords = all('[data-snippet] [data-word]');
     const lockChrome = all('[data-lock] > :is([data-date], [data-clock], [data-padlock])');
     const la = one('[data-la]');
-    const laButtons = all('[data-la] :is([data-row], [data-break-btn])');
+    // The three visible row buttons and Break (the strip's next row waits off-screen in its track).
+    const laButtons = [...all('[data-la] [data-row]').slice(0, 3), ...all('[data-la] [data-break-btn]')];
     const fieldbar = one('[data-fieldbar]');
     const fieldScale = fieldbar ? Number(/scaleX\(([\d.]+)\)/.exec(fieldbar.style.transform)?.[1] ?? 1) : 1;
 
@@ -161,8 +167,16 @@ registerScene(
         phoneTl.fromTo(rim, { opacity: 0 }, { opacity: 0.42, duration: c.dur * 0.45, ease: 'power2.out', immediateRender: false }, c.at);
         phoneTl.to(rim, { opacity: 0, duration: c.dur * 0.55, ease: 'power1.in' }, c.at + c.dur * 0.45);
       }
-      // The timer starts ticking as the card lands (0:00:00, 0:00:01, …).
-      phoneTl.call(() => clock?.idle(), undefined, c.at);
+      // The timer starts ticking from 0:00:00 as the card rises (0:00:00, 0:00:01, …): a fresh
+      // tick, whatever a scroll during the sequence has started meanwhile.
+      phoneTl.call(
+        () => {
+          clock?.wake();
+          clock?.idle();
+        },
+        undefined,
+        c.at,
+      );
     }
     if (laButtons.length) {
       const c = k(INTRO.buttons);
@@ -186,10 +200,19 @@ registerScene(
     let waiting = false;
     const start = (half: GSAPTimeline, from = 0) => {
       halves.add(half);
-      if (half === phoneTl) waiting = false;
+      if (half === phoneTl) {
+        waiting = false;
+        // The timer rests at 0:00:00 until the activity rises (its cue starts the tick).
+        clock?.wake();
+      }
       state('playing');
       half.play(from);
     };
+    // The sequence's real length (both halves run on one clock), for the tests: it must stay
+    // within INTRO_END (scaled), the constant hero.test.ts checks against the brief.
+    section.dataset.introDur = Math.max(pageTl.duration(), phoneTl.duration()).toFixed(3);
+    // Whether the timer can start with the activity (ctx.clock), so its e2e check knows to run.
+    section.dataset.introClock = clock ? 'on' : 'off';
     const ended = (half: GSAPTimeline) => {
       halves.delete(half);
       if (halves.size === 0) state(waiting ? 'waiting' : 'done');
@@ -212,7 +235,6 @@ registerScene(
       finish();
     } else {
       played = true;
-      clock?.wake();
       // On mobile the phone sits under the copy: its half plays when it comes into view.
       const r = device?.getBoundingClientRect();
       const later = !isDesk && !!r && r.top >= vh * 0.85;
@@ -248,6 +270,15 @@ registerScene(
         // Through a custom property: the shell centres beats with the CSS translate property,
         // which GSAP would fold into its own transform (and lose the -50%) if it tweened y here.
         tl.fromTo(head, { '--hero-lift': '0px', opacity: 1 }, { '--hero-lift': '-60px', opacity: 0, duration: b - a, ease: 'power1.in' }, a);
+        // The copy holds in the view (sticky, see Hero.astro) after it fades: its links stop
+        // catching the pointer, and keyboard focus scrolls back to the top, where they show.
+        tl.set(head, { pointerEvents: 'none' }, b);
+        const onFocus = () => {
+          const st = tl.scrollTrigger;
+          if (st && st.progress > a) window.scrollTo({ top: st.start, behavior: 'auto' });
+        };
+        head.addEventListener('focusin', onFocus);
+        cleanups.push(() => head.removeEventListener('focusin', onFocus));
       }
       const [a, b] = SCROLL.bands;
       for (const band of bands) {
@@ -276,9 +307,12 @@ registerScene(
     }
 
     return () => {
+      cleanups.forEach((fn) => fn());
       removeEventListener(PAUSE_EVENT, onPause);
       root.classList.remove('hero-intro');
       delete root.dataset.heroIntro;
+      delete section.dataset.introDur;
+      delete section.dataset.introClock;
     };
   },
   { dayStart: MOMENTS.clockIn },
