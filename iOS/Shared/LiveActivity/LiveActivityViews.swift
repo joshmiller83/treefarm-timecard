@@ -5,9 +5,11 @@ import TimeCardCore
 // The Live Activity's views: the lock screen and the Dynamic Island. Compiled into the
 // widget extension, which draws them, and the app, whose tests render them.
 //
-// Built for gloves and a quick glance: every button is 54 pt tall, the timer is the
-// biggest thing on screen, and there's no clock-out button, so a pocket tap can't end a
-// shift. Everything fits Apple's 160 pt lock-screen height.
+// Built for gloves and a quick glance: the row, break, back-to-work and break-time Undo
+// buttons are 54 pt tall, the whole "Row 14 marked · Undo" confirmation is one Undo button,
+// the timer is the biggest thing on screen, and there's no clock-out button, so a pocket tap
+// can't end a shift. Everything fits Apple's 160 pt lock-screen height, with text up to
+// `LiveLockScreenView.largestText`.
 
 /// The lock screen.
 struct LiveLockScreenView: View {
@@ -16,83 +18,141 @@ struct LiveLockScreenView: View {
     @Environment(\.colorScheme) private var scheme
 
     static let buttonHeight: CGFloat = 54
+    /// Text follows the person's text size up to here. Past it the card would pass 160 pt.
+    static let largestText = DynamicTypeSize.xxLarge
 
     var body: some View {
         let colors = LiveColors.lockScreen(scheme, onBreak: display.isOnBreak)
         VStack(alignment: .leading, spacing: 0) {
             LiveHeader(display: display, isStale: isStale, colors: colors)
             LiveTimerRow(display: display, colors: colors, timerSize: 40)
-                .padding(.top, 4)
+                .padding(.top, 3)
             if !display.isOnBreak {
-                LiveProgressBar(progress: display.progress, colors: colors)
-                    .accessibilityLabel(display.progressLabel)
+                LiveProgressBar(progress: display.progress, label: display.progressLabel, colors: colors)
                     .padding(.top, 6)
             }
             LiveButtonRow(display: display, colors: colors)
-                .padding(.top, display.isOnBreak ? 12 : 8)
+                .padding(.top, display.isOnBreak ? 10 : 8)
         }
         .padding(.horizontal, 14)
-        .padding(.vertical, 10)
+        .padding(.top, 8)
+        .padding(.bottom, 9)
         .foregroundStyle(colors.ink)
-        .dynamicTypeSize(...DynamicTypeSize.large)
+        .dynamicTypeSize(...Self.largestText)
     }
 }
 
 // MARK: - Parts
 
-/// Status pill and where you are (or the break's reason); the last action and Undo on the right.
+/// Status pill and where you are (or the break's reason); the last action on the right, which
+/// is also the Undo button. When it's tight the trailing part shortens first, so the block
+/// stays in view.
 struct LiveHeader: View {
     var display: LiveActivityDisplay
     var isStale: Bool
     var colors: LiveColors
 
-    static let height: CGFloat = 26
+    /// Tall enough for a gloved tap on Undo across the whole confirmation.
+    static let height: CGFloat = 30
 
     var body: some View {
         HStack(spacing: 8) {
             LiveStatusPill(title: display.statusTitle, colors: colors)
                 .fixedSize()
-            ViewThatFits(in: .horizontal) {
-                place(full: true)
-                place(full: false)
-                Color.clear.frame(width: 0, height: 0)
+            if let notice = display.lastAction.flatMap({ $0.kind == .notice ? $0.text : nil }), !isStale {
+                // A refused tap says why, ahead of where you are.
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 8) {
+                        line(.short, .short)
+                        LiveNotice(text: notice, colors: colors).fixedSize()
+                    }
+                    LiveNotice(text: notice, colors: colors)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            } else {
+                ViewThatFits(in: .horizontal) {
+                    line(.full, .full)
+                    line(.short, .full)
+                    line(.short, .short)
+                    line(.truncated, .minimal)
+                }
             }
-            .foregroundStyle(display.isOnBreak ? colors.muted : colors.ink)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            trailing
-                .fixedSize()
         }
         .frame(height: Self.height)
     }
 
+    private func line(_ place: LiveHeaderLine.Place, _ trailing: LiveHeaderLine.Trailing) -> LiveHeaderLine {
+        LiveHeaderLine(display: display, isStale: isStale, colors: colors, place: place, trailing: trailing)
+    }
+}
+
+/// One way to fill the header beside the pill: where you are, then the last action.
+struct LiveHeaderLine: View {
+    enum Place { case full, short, truncated }
+    /// "✓ Row 14 marked [Undo]", "✓ [Undo]", "[Undo]"
+    enum Trailing { case full, short, minimal }
+
+    var display: LiveActivityDisplay
+    var isStale: Bool
+    var colors: LiveColors
+    var place: Place
+    var trailing: Trailing
+
+    var body: some View {
+        HStack(spacing: 8) {
+            placeText
+            Spacer(minLength: 0)
+            trailingView.fixedSize()
+        }
+    }
+
     @ViewBuilder
-    private func place(full: Bool) -> some View {
-        Group {
+    private var placeText: some View {
+        let text = Group {
             if display.isOnBreak {
                 if let reason = display.breakDetail {
                     Text(reason)
                 } else if let start = display.breakStart {
-                    Text(full ? "since \(start, style: .time)" : "\(start, style: .time)")
+                    Text(place == .full ? "since \(start, style: .time)" : "\(start, style: .time)")
                 }
             } else {
-                Text(full ? display.place : (display.blockTitle ?? display.place))
+                Text(place == .full ? display.place : (display.blockTitle ?? display.place))
             }
         }
         .font(.subheadline.weight(.semibold))
+        .foregroundStyle(display.isOnBreak ? colors.muted : colors.ink)
         .lineLimit(1)
-        .fixedSize()
+        if place == .truncated {
+            text.minimumScaleFactor(0.8)
+        } else {
+            text.fixedSize()
+        }
     }
 
     @ViewBuilder
-    private var trailing: some View {
+    private var trailingView: some View {
         if isStale {
             Label("Open Time Card", systemImage: "arrow.clockwise")
+                .labelStyle(LiveIconLabelStyle(showsTitle: trailing == .full))
                 .font(.footnote.weight(.semibold))
                 .foregroundStyle(colors.muted)
+                .accessibilityElement(children: .ignore)
                 .accessibilityLabel("Open Time Card to keep this timer")
-        } else if let last = display.lastAction {
-            // On a break the pill already says "On lunch", so only Undo is shown.
-            LiveLastAction(last: last, colors: colors, showsText: !display.isOnBreak)
+        } else if let last = display.lastAction, last.kind != .notice, !display.isOnBreak {
+            // On a break the pill already says "On lunch", and Undo sits by Back to work.
+            LiveLastAction(last: last, colors: colors, showsText: trailing == .full, showsIcon: trailing != .minimal || !last.canUndo)
+        }
+    }
+}
+
+/// An icon, with its title when there's room.
+struct LiveIconLabelStyle: LabelStyle {
+    var showsTitle: Bool
+
+    func makeBody(configuration: Configuration) -> some View {
+        HStack(spacing: 5) {
+            configuration.icon
+            if showsTitle { configuration.title }
         }
     }
 }
@@ -108,47 +168,87 @@ struct LiveStatusPill: View {
         }
         .foregroundStyle(colors.pillInk)
         .padding(.horizontal, 9)
-        .frame(height: 24)
+        .padding(.vertical, 2)
+        .frame(minHeight: 24)
         .background(colors.pillFill, in: Capsule())
         .accessibilityElement(children: .combine)
     }
 }
 
-/// "✓ Row 14 marked  [Undo]"
+/// "✓ Row 14 marked  [Undo]". With Undo on offer the whole thing is one Undo button, so a
+/// gloved tap anywhere on it takes the mark back. "Undid row 14" has no Undo, so a second tap
+/// can't look like a redo.
 struct LiveLastAction: View {
     var last: LiveActivityDisplay.LastAction
     var colors: LiveColors
+    /// False shows only the icon (and Undo), when the header is tight.
     var showsText = true
+    /// False leaves only Undo, when it's tighter still.
+    var showsIcon = true
 
     var body: some View {
-        HStack(spacing: 6) {
-            if showsText {
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(colors.check)
-                    .accessibilityHidden(true)
-                Text(last.text)
-                    .font(.footnote.weight(.semibold))
-                    .lineLimit(1)
-            }
-            if last.canUndo {
-                Button(intent: UndoButtonIntent()) {
-                    Label("Undo", systemImage: "arrow.uturn.backward")
-                        .labelStyle(.titleOnly)
+        if last.canUndo {
+            Button(intent: UndoButtonIntent()) {
+                HStack(spacing: 6) {
+                    confirmation
+                    Text("Undo")
                         .font(.footnote.weight(.bold))
                         .foregroundStyle(colors.ink)
-                        .padding(.horizontal, 13)
-                        .frame(height: 26)
+                        .padding(.horizontal, 12)
+                        .frame(minHeight: 26)
                         .background(colors.undoFill, in: Capsule())
-                        // A taller target than it looks, for gloves; it spills into the padding around it.
-                        .padding(.vertical, 5)
-                        .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
-                .padding(.vertical, -5)
-                .accessibilityLabel("Undo: \(last.text)")
+                .frame(minHeight: LiveHeader.height)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Undo: \(last.text)")
+            .accessibilityAddTraits(.isButton)
+        } else {
+            confirmation
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(last.text)
+        }
+    }
+
+    private var confirmation: some View {
+        HStack(spacing: 5) {
+            if showsIcon {
+                Image(systemName: last.kind == .undone ? "arrow.uturn.backward.circle.fill" : "checkmark.circle.fill")
+                    .foregroundStyle(colors.check)
+            }
+            if showsText {
+                Text(last.text)
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(colors.ink)
+                    .lineLimit(1)
             }
         }
         .font(.footnote)
+    }
+}
+
+/// Why a lock-screen tap didn't go through: "Row 14 was shaped by Sam on Oct 16."
+struct LiveNotice: View {
+    var text: String
+    var colors: LiveColors
+    /// Two short lines fit the lock screen's header; the island has room for one.
+    var lines = 2
+
+    var body: some View {
+        HStack(spacing: 5) {
+            Image(systemName: "exclamationmark.circle.fill")
+                .foregroundStyle(colors.dot)
+                .accessibilityHidden(true)
+            Text(text)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(colors.ink)
+                .lineLimit(lines)
+                .minimumScaleFactor(0.75)
+                .multilineTextAlignment(.leading)
+        }
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -203,7 +303,7 @@ struct LiveTimerRow: View {
     }
 
     private func stat(_ value: String, _ caption: String) -> some View {
-        VStack(alignment: .trailing, spacing: 1) {
+        VStack(alignment: .trailing, spacing: 0) {
             Text(value)
                 .font(LiveFonts.number(21))
                 .monospacedDigit()
@@ -258,6 +358,8 @@ extension View {
 /// open-ended sizes, and a GeometryReader there brings the extension down.)
 struct LiveProgressBar: View {
     var progress: Double
+    /// "3,240 of 8,540 trees shaped in North Field"
+    var label: String
     var colors: LiveColors
 
     var body: some View {
@@ -266,6 +368,9 @@ struct LiveProgressBar: View {
             Capsule().fill(colors.progress)
         }
         .frame(height: 4)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(label)
+        .accessibilityValue("\(Int((progress * 100).rounded())) percent")
     }
 }
 
@@ -297,54 +402,67 @@ struct FractionWidth: Layout {
     }
 }
 
-/// [Row 13] [Row 14] [Row 15] [Break], or one big [Back to work] on a break.
+/// [Row 13] [Row 14] [Row 15] [Break], or [Back to work] [Undo] on a break. In the island,
+/// where there's no header for it, Undo joins the working row too.
 struct LiveButtonRow: View {
     var display: LiveActivityDisplay
     var colors: LiveColors
+    var undoInRow = false
+    /// The small words on the buttons grow with the text size; the numbers are big already.
+    @ScaledMetric(relativeTo: .caption2) private var captionSize: CGFloat = 10
+    @ScaledMetric(relativeTo: .footnote) private var labelSize: CGFloat = 13
 
     var body: some View {
-        Group {
+        HStack(spacing: 6) {
             if display.isOnBreak {
                 Button(intent: BackToWorkButtonIntent()) {
                     Label("Back to work", systemImage: "play.fill")
                         .font(.headline)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
                         .foregroundStyle(colors.onPrimary)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .background(colors.primary, in: shape)
                         .contentShape(shape)
                 }
                 .buttonStyle(.plain)
-            } else {
-                HStack(spacing: 6) {
-                    if let message = display.fieldMessage {
-                        Text(message)
-                            .font(.footnote.weight(.semibold))
-                            .foregroundStyle(colors.muted)
-                            .lineLimit(2)
-                            .minimumScaleFactor(0.8)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                    ForEach(display.rows) { row in
-                        Button(intent: MarkRowIntent(blockId: row.chip.blockId, row: row.chip.row)) {
-                            rowLabel(row)
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel(row.accessibilityLabel)
-                    }
-                    Button(intent: StartBreakButtonIntent()) {
-                        VStack(spacing: 3) {
-                            Image(systemName: "cup.and.saucer.fill")
-                                .font(.system(size: 17, weight: .semibold))
-                            Text("Break")
-                                .font(.system(size: 13, weight: .bold))
-                        }
-                        .foregroundStyle(colors.onSecondary)
-                        .frame(maxWidth: display.fieldMessage == nil ? .infinity : 84, maxHeight: .infinity)
-                        .background(colors.secondary, in: shape)
-                        .contentShape(shape)
+                if let last = display.lastAction, last.canUndo {
+                    // Room for a real button here, so a mistaken Break is one gloved tap from gone.
+                    Button(intent: UndoButtonIntent()) {
+                        iconButton("Undo", systemImage: "arrow.uturn.backward", ink: colors.ink, fill: colors.undoFill)
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel("Start a break")
+                    .accessibilityLabel("Undo: \(last.text)")
+                }
+            } else {
+                if let message = display.fieldMessage {
+                    Text(message)
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(colors.muted)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.8)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                ForEach(display.rows) { row in
+                    Button(intent: MarkRowIntent(blockId: row.chip.blockId, row: row.chip.row)) {
+                        rowLabel(row)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(row.accessibilityLabel)
+                }
+                Button(intent: StartBreakButtonIntent()) {
+                    iconButton("Break", systemImage: "cup.and.saucer.fill", ink: colors.onSecondary, fill: colors.secondary,
+                               width: display.fieldMessage == nil ? nil : 84)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Start a break")
+                if undoInRow, let last = display.lastAction, last.canUndo {
+                    Button(intent: UndoButtonIntent()) {
+                        iconButton("Undo", systemImage: "arrow.uturn.backward", ink: colors.ink, fill: colors.undoFill,
+                                   width: display.fieldMessage == nil ? nil : 84)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Undo: \(last.text)")
                 }
             }
         }
@@ -353,12 +471,30 @@ struct LiveButtonRow: View {
 
     private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: 14, style: .continuous) }
 
+    /// A cup over "Break", an arrow over "Undo".
+    private func iconButton(_ title: String, systemImage: String, ink: Color, fill: Color, width: CGFloat? = 84) -> some View {
+        VStack(spacing: 3) {
+            Image(systemName: systemImage)
+                .font(.system(size: labelSize + 4, weight: .semibold))
+            Text(title)
+                .font(.system(size: labelSize, weight: .bold))
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+        }
+        .foregroundStyle(ink)
+        .padding(.horizontal, 4)
+        .frame(maxWidth: width ?? .infinity, maxHeight: .infinity)
+        .frame(width: width)
+        .background(fill, in: shape)
+        .contentShape(shape)
+    }
+
     private func rowLabel(_ row: LiveActivityDisplay.RowButton) -> some View {
         VStack(spacing: 0) {
             Text(row.caption.uppercased())
-                .font(.system(size: 10, weight: .bold))
+                .font(.system(size: captionSize, weight: .bold))
                 .tracking(0.6)
-                .opacity(0.8)
+                .foregroundStyle(colors.onPrimaryCaption)
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
             Text(row.number)
@@ -377,7 +513,7 @@ struct LiveButtonRow: View {
 
 // MARK: - Dynamic Island
 
-/// Expanded, leading: the status and the block.
+/// Expanded, leading: the status, and the last action ("✓ Row 6 marked") or the block.
 struct LiveIslandLeading: View {
     var display: LiveActivityDisplay
 
@@ -386,7 +522,15 @@ struct LiveIslandLeading: View {
         VStack(alignment: .leading, spacing: 4) {
             LiveStatusPill(title: display.statusTitle, colors: colors)
             Group {
-                if display.isOnBreak, display.breakDetail == nil, let start = display.breakStart {
+                if let last = display.lastAction, last.kind != .notice, !display.isOnBreak {
+                    Label {
+                        Text(last.text).foregroundStyle(colors.ink)
+                    } icon: {
+                        Image(systemName: last.kind == .undone ? "arrow.uturn.backward.circle.fill" : "checkmark.circle.fill")
+                            .foregroundStyle(colors.check)
+                    }
+                    .labelStyle(LiveIconLabelStyle(showsTitle: true))
+                } else if display.isOnBreak, display.breakDetail == nil, let start = display.breakStart {
                     Text("since \(start, style: .time)")
                 } else {
                     Text(display.isOnBreak ? (display.breakDetail ?? "") : (display.blockTitle ?? display.place))
@@ -395,13 +539,14 @@ struct LiveIslandLeading: View {
             .font(.caption.weight(.semibold))
             .foregroundStyle(colors.muted)
             .lineLimit(1)
+            .minimumScaleFactor(0.8)
         }
         .padding(.leading, 4)
         .frame(maxHeight: .infinity, alignment: .center)
         .dynamicTypeSize(...LiveIslandLeading.largestText)
     }
 
-    /// The island has a fixed size, so text stops growing here, as on the lock screen.
+    /// The island has a fixed size, so text stops growing at the standard size.
     static let largestText = DynamicTypeSize.large
 }
 
@@ -412,7 +557,8 @@ struct LiveIslandTrailing: View {
     var body: some View {
         let colors = LiveColors.island(onBreak: display.isOnBreak)
         VStack(alignment: .trailing, spacing: 0) {
-            LiveTimer(start: display.timerStart, size: 26, color: colors.timer, characters: display.timerCharacters, alignment: .trailing)
+            LiveTimer(start: display.timerStart, size: Self.timerSize(characters: display.timerCharacters), color: colors.timer,
+                      characters: display.timerCharacters, alignment: .trailing)
             Text(display.isOnBreak ? (display.frozenWorked.map { "\($0) worked" } ?? "") : "\(display.trees) \(display.treesCaption)")
                 .font(.caption2.weight(.medium))
                 .foregroundStyle(colors.muted)
@@ -422,21 +568,26 @@ struct LiveIslandTrailing: View {
         .frame(maxHeight: .infinity, alignment: .center)
         .dynamicTypeSize(...LiveIslandLeading.largestText)
     }
+
+    /// Beside the camera there's room for about 112 pt of digits: smaller type for longer times.
+    static func timerSize(characters: Int) -> CGFloat {
+        min(26, (110 / (CGFloat(characters) * 0.6)).rounded(.down))
+    }
 }
 
-/// Expanded, bottom: the same buttons as the lock screen, and the last action.
+/// Expanded, bottom: the same buttons as the lock screen, with Undo among them, and why a tap
+/// was refused when one was.
 struct LiveIslandBottom: View {
     var display: LiveActivityDisplay
 
     var body: some View {
         let colors = LiveColors.island(onBreak: display.isOnBreak)
-        VStack(spacing: 6) {
-            if let last = display.lastAction {
-                LiveLastAction(last: last, colors: colors)
-                    .foregroundStyle(colors.ink)
+        VStack(spacing: 4) {
+            if let last = display.lastAction, last.kind == .notice {
+                LiveNotice(text: last.text, colors: colors, lines: 1)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
-            LiveButtonRow(display: display, colors: colors)
+            LiveButtonRow(display: display, colors: colors, undoInRow: true)
         }
         // Clear of the island's rounded bottom corners.
         .padding(.horizontal, 8)
@@ -483,6 +634,9 @@ struct LiveIslandCompactTrailing: View {
 /// on its own. A break shows its own timer ("12:30"), which does fit.
 struct LiveIslandMinimal: View {
     var display: LiveActivityDisplay
+    /// Renders and previews: draw the ring as it stands at this moment. A ticking ring can't be
+    /// drawn into an image.
+    var still: Date?
 
     static let day: TimeInterval = 8 * 3600
 
@@ -498,14 +652,18 @@ struct LiveIslandMinimal: View {
                 .frame(width: 34)
         } else {
             ZStack {
-                ProgressView(timerInterval: display.timerStart...display.timerStart.addingTimeInterval(Self.day), countsDown: false) {
-                    EmptyView()
-                } currentValueLabel: {
-                    EmptyView()
+                if let still {
+                    LiveStillRing(fraction: still.timeIntervalSince(display.timerStart) / Self.day, color: color)
+                } else {
+                    ProgressView(timerInterval: display.timerStart...display.timerStart.addingTimeInterval(Self.day), countsDown: false) {
+                        EmptyView()
+                    } currentValueLabel: {
+                        EmptyView()
+                    }
+                    .progressViewStyle(.circular)
+                    .labelsHidden()
+                    .tint(color)
                 }
-                .progressViewStyle(.circular)
-                .labelsHidden()
-                .tint(color)
                 Image(systemName: "leaf.fill")
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(color)
@@ -513,5 +671,22 @@ struct LiveIslandMinimal: View {
             .accessibilityElement(children: .ignore)
             .accessibilityLabel("Working")
         }
+    }
+}
+
+/// The minimal island's ring, drawn still, about as the system draws a circular progress view.
+struct LiveStillRing: View {
+    var fraction: Double
+    var color: Color
+
+    var body: some View {
+        let f = fraction.isFinite ? min(1, max(0, fraction)) : 0
+        ZStack {
+            Circle().stroke(color.opacity(0.3), lineWidth: 3)
+            Circle().trim(from: 0, to: f)
+                .stroke(color, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                .rotationEffect(.degrees(-90))
+        }
+        .padding(3)
     }
 }

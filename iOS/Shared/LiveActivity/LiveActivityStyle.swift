@@ -18,10 +18,13 @@ struct LiveColors: Equatable {
     /// Row buttons and Back to work.
     var primary: Color
     var onPrimary: Color
+    /// The small ROW / BLOCK 3 words on the row buttons: a little softer than the number in
+    /// the light look, full white on the dark one's lighter green so they stay readable.
+    var onPrimaryCaption: Color
     /// The Break button.
     var secondary: Color
     var onSecondary: Color
-    /// The small Undo button and the checkmark beside "Row 14 marked".
+    /// The Undo buttons and the checkmark beside "Row 14 marked".
     var undoFill: Color
     var check: Color
 
@@ -49,6 +52,7 @@ struct LiveColors: Equatable {
             progress: Color(liveHex: 0x1D5B3A),
             primary: Color(liveHex: 0x1D5B3A),
             onPrimary: .white,
+            onPrimaryCaption: Color(liveHex: 0xD2DED8),
             secondary: Color(liveHex: 0xF5E6C6),
             onSecondary: Color(liveHex: 0x573803),
             undoFill: Color(liveHex: 0xE2ECE3),
@@ -68,6 +72,7 @@ struct LiveColors: Equatable {
             progress: Color(liveHex: 0x5DBB85),
             primary: Color(liveHex: 0x2E7A4E),
             onPrimary: .white,
+            onPrimaryCaption: .white,
             secondary: Color(liveHex: 0x3A2C10),
             onSecondary: Color(liveHex: 0xF3D9A4),
             undoFill: Color(liveHex: 0x24382C),

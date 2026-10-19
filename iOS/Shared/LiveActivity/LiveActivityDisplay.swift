@@ -23,8 +23,24 @@ struct LiveActivityDisplay: Equatable {
 
     /// "Row 14 marked" and whether Undo is offered next to it.
     struct LastAction: Equatable {
+        enum Kind: Equatable {
+            /// "Row 14 marked": a check beside it, and Undo when there's something to undo.
+            case done
+            /// "Undid row 14": confirmed without another Undo, so a second tap can't look like a redo.
+            case undone
+            /// A refused lock-screen tap: "Row 14 was shaped by Sam on Oct 16." No check, no Undo.
+            case notice
+        }
+
         var text: String
+        var kind: Kind = .done
         var canUndo: Bool
+
+        init(text: String, kind: Kind = .done, canUndo: Bool) {
+            self.text = text
+            self.kind = kind
+            self.canUndo = kind == .done && canUndo
+        }
     }
 
     var tone: Tone
@@ -82,8 +98,11 @@ struct LiveActivityDisplay: Equatable {
         let onBreak = s.phase != .working
         timerStart = onBreak ? (s.breakStart ?? s.timerStart) : s.timerStart
         timerCaption = onBreak ? nil : s.workedLabel
-        // "6:42:10"; "10:00:00" once a day is within an hour of ten hours.
-        timerCharacters = !onBreak && s.workedSoFar >= 9 * 3600 ? 8 : 7
+        // The timer runs on its own until the next update, which may not come before iOS ends
+        // the activity; size it for the most it can show by then.
+        let madeAt = s.timerStart.addingTimeInterval(s.workedSoFar)
+        let counted = onBreak ? max(0, madeAt.timeIntervalSince(s.breakStart ?? madeAt)) : s.workedSoFar
+        timerCharacters = Self.timerCharacters(reaching: counted + Self.timerHorizon)
         frozenWorked = onBreak ? Fmt.hms(s.workedSoFar) : nil
         frozenWorkedCaption = onBreak ? s.workedLabel : nil
         frozenWorkedAccessibilityLabel = onBreak ? "\(Fmt.spokenDuration(s.workedSoFar)) \(s.workedLabel)" : nil
@@ -116,13 +135,39 @@ struct LiveActivityDisplay: Equatable {
         lastAction = Self.lastAction(s.lastAction, canUndo: s.canUndo)
     }
 
+    /// True when the two would draw the same card: every word matches and the timers count
+    /// from the same second. (Snapshots made moments apart differ in their running totals.)
+    static func sameOnScreen(_ a: LiveSnapshot, _ b: LiveSnapshot) -> Bool {
+        var x = LiveActivityDisplay(a), y = LiveActivityDisplay(b)
+        x.timerStart = x.timerStart.toTheSecond
+        y.timerStart = y.timerStart.toTheSecond
+        return x == y
+    }
+
+    /// Nothing updates an activity once iOS ends it, eight hours after it starts, so a running
+    /// timer shows at most this much more than its snapshot.
+    static let timerHorizon: TimeInterval = 8 * 3600
+
+    /// "6:42:10" is 7 characters, "10:00:00" 8 and "100:00:00" (a clock-in left open for days) 9.
+    static func timerCharacters(reaching seconds: TimeInterval) -> Int {
+        seconds >= 100 * 3600 ? 9 : seconds >= 10 * 3600 ? 8 : 7
+    }
+
+    // Until LiveSnapshot says what kind of action it was (see the slice notes), the kind is read
+    // from the engine's fixed short phrases: "Clocked in", "Undid row 14", "Row 14 marked".
+    // A refused tap's reason is a sentence, so it ends with a full stop.
+
     /// Clocking in or out isn't offered for undo: the undo history may still hold an earlier
-    /// shift's rows, and "Clocked in · Undo" would quietly take those back. An undo is
-    /// confirmed without another Undo button, so a second tap can't look like a redo.
+    /// shift's rows, and "Clocked in · Undo" would quietly take those back.
     static func lastAction(_ text: String?, canUndo: Bool) -> LastAction? {
         guard let text = text?.trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty else { return nil }
+        if let last = text.last, ".!?".contains(last) { return LastAction(text: text, kind: .notice, canUndo: false) }
         if text.hasPrefix("Clocked") { return nil }
-        if text.hasPrefix("Undid") { return LastAction(text: text, canUndo: false) }
+        if text.hasPrefix("Undid") { return LastAction(text: text, kind: .undone, canUndo: false) }
         return LastAction(text: text, canUndo: canUndo)
     }
+}
+
+private extension Date {
+    var toTheSecond: Date { Date(timeIntervalSinceReferenceDate: timeIntervalSinceReferenceDate.rounded()) }
 }
