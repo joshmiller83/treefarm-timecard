@@ -148,6 +148,17 @@ struct FieldEngineTests {
         #expect(r.speech == "Row 5 marked, 4 trees. Next is block 2, row 1.")
     }
 
+    @Test mutating func nextRowSaysTheBlockWhenASyncMovedYou() throws {
+        _ = FieldEngine.run(.clockIn(fieldId: nil), &f.state, &undo, at: f.monday9)
+        _ = FieldEngine.run(.markNextRow, &f.state, &undo, at: f.at(10))
+        #expect(f.state.position?.next == f.row(f.block1, 2))
+        // A sync brings Sam's rows: the rest of block 1 is shaped.
+        f.state.marks += f.samShaped(f.block1, rows: [2, 3, 4, 5], on: f.at(15))
+        let r = FieldEngine.run(.markNextRow, &f.state, &undo, at: f.at(20))
+        #expect(r.speech == "Row 1 in block 2 marked, 4 trees. Next is row 2.")
+        if case .success(let o) = r { #expect(o.lastAction == "Row 1, block 2 marked") }
+    }
+
     @Test mutating func theLastOpenRowAndThenAFinishedField() {
         f.state.marks = f.samShaped(f.block1, rows: [1, 2, 3, 4, 5], on: f.monday9) + f.samShaped(f.block2, rows: [1, 2], on: f.monday9)
         _ = FieldEngine.run(.clockIn(fieldId: nil), &f.state, &undo, at: f.monday9)

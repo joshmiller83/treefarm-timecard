@@ -49,7 +49,7 @@ Each line here has a test, written before the code it covers. The test name is i
 - Siri before the first unlock after a reboot.
 - Two voice commands back to back, faster than a sync.
 - A spoken row far from where you are ("forty" heard for "fourteen") asks before marking.
-- "Next row" when the next open row is in another block says the block out loud.
+- "Next row" when the next open row is in another block says the block out loud, including when a sync shaped the rest of your block [nextRowSaysTheBlockWhenASyncMovedYou].
 - Answering "no" to the clock-out question changes nothing.
 - Undo never crosses a shift: clocking in or out clears it, and it refuses anything changed since (deleted in the Log, fixed by an admin, refused by the server) [clockingOutForgetsWhatCouldBeUndone, undoCantReviveAShiftDeletedInTheLog, undoKeepsAnAdminFixThatArrivedBySync].
 - A dictated note over the length limit is trimmed, and Siri says so.

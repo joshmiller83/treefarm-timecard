@@ -314,10 +314,13 @@ public enum FieldEngine {
         let walker = state.walker(for: field)
         guard !walker.blocks.isEmpty else { throw FieldFailure("\(field.name) has no blocks yet. Add them in the Trees tab.") }
         let index = state.index
-        guard let row = walker.nextRows(from: FieldState.valid(state.position?.next, in: walker), count: 1, index: index).first else {
+        let from = FieldState.valid(state.position?.next, in: walker)
+        guard let row = walker.nextRows(from: from, count: 1, index: index).first else {
             throw FieldFailure("Every row in \(field.name) is shaped.")
         }
-        return markWholeRow(row, field: field, walker: walker, index: index, ctx: ctx, state: state, now: now)
+        // Rows shaped by someone else (a sync) can move you into the next block: say so.
+        return markWholeRow(row, field: field, walker: walker, index: index, ctx: ctx, state: state, now: now,
+                            sayBlock: from.map { $0.blockId != row.blockId } ?? false)
     }
 
     private static func markRow(_ row: RowRef, _ state: FieldState, _ now: Date) throws(FieldFailure) -> FieldOutcome {
@@ -369,7 +372,7 @@ public enum FieldEngine {
             undo: UndoEntry(label: "row \(row.row + 1)", restore: (undoRecords.added + undoRecords.removed).map(SyncRecord.treeMark),
                             position: state.position, after: records),
             speech: speech,
-            lastAction: "Row \(row.row + 1) marked")
+            lastAction: sayBlock ? "Row \(row.row + 1), \(Speech.blockPhrase(block)) marked" : "Row \(row.row + 1) marked")
     }
 
     private static func markTrees(_ row: RowRef, _ positions: ClosedRange<Int>, _ state: FieldState, _ now: Date) throws(FieldFailure) -> FieldOutcome {
