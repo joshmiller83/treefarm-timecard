@@ -1,0 +1,84 @@
+import Foundation
+import Testing
+import TimeCardCore
+@testable import TimeCard
+
+@Suite("Team: crew roster")
+struct CrewRosterTests {
+    @Test func countsOnlyThisWeeksShiftsPerPerson() {
+        var f = TeamFixture()
+        // Last week (Sunday) doesn't count; Monday and today do.
+        f.addShift(f.sam, from: f.at(18, 7), to: f.at(18, 15))
+        f.addShift(f.sam, from: f.at(19, 7), to: f.at(19, 15), breaks: [Break(kind: .lunch, start: f.at(19, 11), end: f.at(19, 11, 30))])
+        f.addShift(f.alex, from: f.at(21, 8), to: f.at(21, 10))
+
+        let roster = CrewRoster.build(snapshot: f.snapshot, me: f.alex.userId, now: f.now, calendar: f.calendar)
+        let sam = roster.current.first { $0.member.userId == f.sam.userId }
+        let alex = roster.current.first { $0.member.userId == f.alex.userId }
+        #expect(nearly(sam?.week, 7.5 * 3600))
+        #expect(sam?.today == 0)
+        #expect(nearly(alex?.week, 2 * 3600))
+        #expect(nearly(alex?.today, 2 * 3600))
+        #expect(nearly(roster.weekTotal, 9.5 * 3600))
+        #expect(roster.weekStart == f.at(19, 0))
+        #expect(roster.weekLabel == "Oct 19 – Oct 25, 2026")
+    }
+
+    @Test func anOpenShiftCountsUpToNowAndShowsWhoIsWorking() {
+        var f = TeamFixture()
+        f.addShift(f.sam, from: f.at(21, 9), to: nil)
+        f.addShift(f.alex, from: f.at(21, 7), to: nil, breaks: [Break(kind: .lunch, start: f.at(21, 11, 45))])
+
+        let roster = CrewRoster.build(snapshot: f.snapshot, me: f.alex.userId, now: f.now, calendar: f.calendar)
+        let sam = roster.current.first { $0.member.userId == f.sam.userId }
+        let alex = roster.current.first { $0.member.userId == f.alex.userId }
+        #expect(nearly(sam?.week, 3 * 3600))
+        #expect(sam?.status == .working(since: f.at(21, 9)))
+        #expect(alex?.status == .onBreak(.lunch, since: f.at(21, 11, 45)))
+        #expect(roster.onTheClock == 2)
+    }
+
+    @Test func listsCurrentCrewByNameAndKeepsFormerCrewApart() {
+        var f = TeamFixture()
+        f.addShift(f.jo, from: f.at(19, 7), to: f.at(19, 9))
+        let roster = CrewRoster.build(snapshot: f.snapshot, me: f.alex.userId, now: f.now, calendar: f.calendar)
+        #expect(roster.current.map(\.member.displayName) == ["Alex Rivera", "Sam Ortiz"])
+        #expect(roster.former.map(\.member.displayName) == ["Jo Banks"])
+        #expect(nearly(roster.former.first?.week, 2 * 3600))
+        // Former crew's hours still count toward the farm's week.
+        #expect(nearly(roster.weekTotal, 2 * 3600))
+        #expect(roster.current.first?.isYou == true)
+        #expect(roster.current.last?.isYou == false)
+    }
+
+    @Test func countsTreesShapedOnThisWeeksShifts() {
+        var f = TeamFixture()
+        let block = f.addBlock("1", row: 0, column: 0)
+        let old = f.addShift(f.sam, from: f.at(16, 7), to: f.at(16, 15))
+        let now = f.addShift(f.sam, from: f.at(20, 7), to: f.at(20, 15))
+        f.mark(block, row: 0, position: 0, shift: old)
+        f.mark(block, row: 0, position: 1, shift: now)
+        f.mark(block, row: 0, position: 2, shift: now)
+        let roster = CrewRoster.build(snapshot: f.snapshot, me: nil, now: f.now, calendar: f.calendar)
+        #expect(roster.current.first { $0.member.userId == f.sam.userId }?.weekTrees == 2)
+    }
+
+    @Test func recentShiftsComeNewestFirstWithTreeCounts() {
+        var f = TeamFixture()
+        let block = f.addBlock("1", row: 0, column: 0)
+        let monday = f.addShift(f.sam, from: f.at(19, 7), to: f.at(19, 15))
+        let tuesday = f.addShift(f.sam, from: f.at(20, 7), to: f.at(20, 12))
+        f.addShift(f.alex, from: f.at(20, 7), to: f.at(20, 12))
+        f.mark(block, row: 1, position: 0, shift: monday)
+        let recent = CrewRoster.recentShifts(of: f.sam.userId, snapshot: f.snapshot, now: f.now, limit: 5)
+        #expect(recent.map(\.shift.id) == [tuesday.id, monday.id])
+        #expect(recent.map(\.trees) == [0, 1])
+        #expect(nearly(recent.first?.worked, 5 * 3600))
+    }
+}
+
+/// Times built from calendar dates can be a hair off in the last bits.
+func nearly(_ a: TimeInterval?, _ b: TimeInterval) -> Bool {
+    guard let a else { return false }
+    return abs(a - b) < 0.001
+}
