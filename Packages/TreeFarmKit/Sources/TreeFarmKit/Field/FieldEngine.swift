@@ -21,7 +21,7 @@ public enum FieldCommand: Hashable, Sendable {
 }
 
 /// How to take back one action: the earlier copies of what it changed, and where you were.
-public struct UndoEntry: Equatable, Sendable {
+public struct UndoEntry: Codable, Equatable, Sendable {
     /// Fits "Undid …": "row 14", "lunch".
     public var label: String
     public var restore: [SyncRecord]
