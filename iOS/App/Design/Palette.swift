@@ -1,0 +1,47 @@
+import SwiftUI
+
+/// The time card's colors, carried over from the web artifact. Each is an asset-catalog
+/// color set with a light and a dark value (App/Resources/Assets.xcassets/Colors).
+enum Palette {
+    /// Screen background.
+    static let bg = Color("Bg")
+    /// Cards and grouped surfaces.
+    static let surface = Color("Surface")
+    /// Main text.
+    static let ink = Color("Ink")
+    /// Secondary text and captions.
+    static let muted = Color("Muted")
+    /// Hairlines and card borders.
+    static let line = Color("Line")
+    /// Fir green: primary actions, "working".
+    static let fir = Color("Fir")
+    /// Text and icons on fir.
+    static let firInk = Color("FirInk")
+    /// Soft fir fill (status pill, selected rows).
+    static let firSoft = Color("FirSoft")
+    /// Fir-colored text that stays readable in dark mode.
+    static let firText = Color("FirText")
+    /// Sap gold: breaks and lunch.
+    static let sap = Color("Sap")
+    static let sapSoft = Color("SapSoft")
+    static let sapInk = Color("SapInk")
+    /// Rust: destructive actions and errors.
+    static let rust = Color("Rust")
+    /// The printed time card stays paper-white in both modes.
+    static let paper = Color("Paper")
+    static let paperInk = Color("PaperInk")
+    /// A tree nobody has shaped yet, on the map.
+    static let treeEmpty = Color("TreeEmpty")
+    /// Alternating row stripes.
+    static let stripe = Color("Stripe")
+    /// Block outlines on the map.
+    static let blockLine = Color("BlockLine")
+
+    /// Every token by asset name, for tests and previews.
+    static let all: [(name: String, color: Color)] = [
+        ("Bg", bg), ("Surface", surface), ("Ink", ink), ("Muted", muted), ("Line", line),
+        ("Fir", fir), ("FirInk", firInk), ("FirSoft", firSoft), ("FirText", firText),
+        ("Sap", sap), ("SapSoft", sapSoft), ("SapInk", sapInk), ("Rust", rust),
+        ("Paper", paper), ("PaperInk", paperInk), ("TreeEmpty", treeEmpty), ("Stripe", stripe), ("BlockLine", blockLine),
+    ]
+}
