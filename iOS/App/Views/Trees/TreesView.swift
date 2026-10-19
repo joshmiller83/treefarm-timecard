@@ -74,13 +74,12 @@ struct TreesView: View {
     @ViewBuilder private var content: some View {
         if model.data == nil || (model.fields.isEmpty && session.snapshot.farm == nil) {
             // Nothing pulled from the server yet (a first sign-in), so "no fields" would be wrong.
-            ContentUnavailableView {
-                Label("Loading the farm", systemImage: "tree")
-            } description: {
-                Text(session.syncStatus.phase == .offline
-                     ? "This phone hasn’t downloaded the farm yet. The map shows up when it’s back online."
-                     : "The field map shows up as soon as this phone has the farm.")
-            }
+            EmptyStateCard(systemImage: "tree", title: "Loading the farm",
+                           detail: session.syncStatus.phase == .offline
+                               ? "This phone hasn’t downloaded the farm yet. The map shows up when it’s back online."
+                               : "The field map shows up as soon as this phone has the farm.")
+                .padding(16)
+                .frame(maxHeight: .infinity, alignment: .top)
         } else if model.fields.isEmpty {
             emptyFarm(title: "No fields yet",
                       detail: model.data?.isAdmin == true
@@ -185,21 +184,8 @@ struct TreesView: View {
     }
 
     private func emptyFarm(title: String, detail: String) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Image(systemName: "square.grid.3x3")
-                .font(.system(size: 26, weight: .semibold))
-                .foregroundStyle(Palette.firText)
-                .frame(width: 56, height: 56)
-                .background(Palette.firSoft, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                .accessibilityHidden(true)
-            Text(title).headingStyle(.tcTitle2)
-            Text(detail)
-                .font(.body)
-                .foregroundStyle(Palette.muted)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .card(padding: 20)
-        .padding(.horizontal, model.fields.isEmpty ? 16 : 0)
+        EmptyStateCard(systemImage: "square.grid.3x3", title: title, detail: detail)
+            .padding(.horizontal, model.fields.isEmpty ? 16 : 0)
     }
 
     // MARK: Model

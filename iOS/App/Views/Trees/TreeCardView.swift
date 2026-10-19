@@ -16,7 +16,10 @@ struct TreeCardView: View {
                 if let info = model.treeInfo(tree) {
                     content(info)
                 } else {
-                    ContentUnavailableView("This tree isn’t on the map anymore", systemImage: "tree")
+                    EmptyStateCard(systemImage: "tree", title: "This tree isn’t on the map anymore",
+                                   detail: "Its block was moved, made smaller or removed. Close this and pick another tree.")
+                        .padding(16)
+                        .frame(maxHeight: .infinity, alignment: .top)
                 }
             }
             .screenBackground()

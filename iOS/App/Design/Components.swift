@@ -86,6 +86,33 @@ extension View {
     }
 }
 
+/// The house empty or waiting state: an icon in a soft fir square, a Zilla Slab title and a
+/// line of help, on a surface card. Used wherever there's nothing to show yet.
+struct EmptyStateCard: View {
+    var systemImage: String
+    var title: String
+    var detail: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Image(systemName: systemImage)
+                .font(.system(size: 26, weight: .semibold))
+                .foregroundStyle(Palette.firText)
+                .frame(width: 56, height: 56)
+                .background(Palette.firSoft, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .accessibilityHidden(true)
+            Text(title).headingStyle(.tcTitle2)
+                .accessibilityAddTraits(.isHeader)
+            Text(detail)
+                .font(.body)
+                .foregroundStyle(Palette.muted)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .card(padding: 20)
+        .accessibilityElement(children: .combine)
+    }
+}
+
 /// A small all-caps label above a group of content.
 struct SectionLabel: View {
     var text: String
