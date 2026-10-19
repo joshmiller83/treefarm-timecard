@@ -97,8 +97,8 @@ export default defineConfig({
   ],
   vite: {
     build: {
-      // The motion bundle is split by dynamic import; keep chunk warnings meaningful for our budget.
-      chunkSizeWarningLimit: 120,
+      // The motion chunk (GSAP + plugins + core) is ~160 KB raw, ~60 KB gzipped (budget: 80 KB gz).
+      chunkSizeWarningLimit: 180,
     },
   },
 });
