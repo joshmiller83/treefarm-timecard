@@ -73,3 +73,31 @@ struct UndoButtonIntent: LiveActivityIntent {
         return .result()
     }
 }
+
+struct NextRowButtonIntent: LiveActivityIntent {
+    static let title: LocalizedStringResource = "Mark the Next Row"
+    static let isDiscoverable = false
+
+    init() {}
+
+    func perform() async throws -> some IntentResult {
+#if !WIDGET_EXTENSION
+        _ = await IntentRunner.perform(.markNextRow)
+#endif
+        return .result()
+    }
+}
+
+struct ClockInButtonIntent: LiveActivityIntent {
+    static let title: LocalizedStringResource = "Clock In"
+    static let isDiscoverable = false
+
+    init() {}
+
+    func perform() async throws -> some IntentResult {
+#if !WIDGET_EXTENSION
+        _ = await IntentRunner.perform(.clockIn(fieldId: nil))
+#endif
+        return .result()
+    }
+}
