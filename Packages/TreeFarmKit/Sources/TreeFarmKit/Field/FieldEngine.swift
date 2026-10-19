@@ -262,15 +262,20 @@ public enum FieldEngine {
         if let b = open.openBreak {
             throw FieldFailure("You’re already on \(b.kind == .lunch ? "lunch" : "a break") since \(Fmt.spokenTime(b.start, cal)). Say “back to work” when you’re done.")
         }
-        let why = Limits.clampReason(reason)
         let updated: Shift
-        do { updated = try Clock.startBreak(kind, reason: why, at: now, in: open) } catch { throw FieldFailure(error.message) }
+        do { updated = try Clock.startBreak(kind, reason: Limits.clampReason(reason), at: now, in: open) } catch { throw FieldFailure(error.message) }
+        // As stored: trimmed and held to `Limits.reason`.
+        let why = updated.openBreak?.reason ?? ""
         try check(updated, state, now)
         let at = Fmt.spokenTime(now, cal)
         let speech: String
         switch kind {
         case .lunch: speech = "Lunch started at \(at)."
-        case .break: speech = why.isEmpty ? "Break started at \(at)." : "Break for \(why) started at \(at)."
+        case .break:
+            let trimmed = reason.trimmingCharacters(in: .whitespacesAndNewlines).count > Limits.reason
+            speech = why.isEmpty ? "Break started at \(at)."
+                : trimmed ? "Break for \(why) started at \(at), but the reason was cut short to fit."
+                : "Break for \(why) started at \(at)."
         }
         let label = kind == .lunch ? "lunch" : "the break"
         return FieldOutcome(records: [.shift(updated)], position: nil,

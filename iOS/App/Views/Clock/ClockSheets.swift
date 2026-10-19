@@ -5,6 +5,7 @@ import TimeCardCore
 struct BreakReasonSheet: View {
     var onStart: (String) -> Void
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.dynamicTypeSize) private var typeSize
     @State private var reason = ""
     @FocusState private var typing: Bool
 
@@ -18,7 +19,7 @@ struct BreakReasonSheet: View {
                         Text("What’s the break for?")
                             .font(.headline)
                             .foregroundStyle(Palette.ink)
-                        TextField("Fuel run, rain, errand, sharpening…", text: $reason)
+                        TextField("Fuel run, rain…", text: $reason)
                             .textFieldStyle(.glove)
                             .focused($typing)
                             .submitLabel(.go)
@@ -70,7 +71,8 @@ struct BreakReasonSheet: View {
                 }
             }
         }
-        .presentationDetents([.medium, .large])
+        // At the largest text sizes the whole height, so Start break isn't below the fold.
+        .presentationDetents(typeSize.isAccessibilitySize ? [.large] : [.medium, .large])
         .presentationDragIndicator(.visible)
     }
 

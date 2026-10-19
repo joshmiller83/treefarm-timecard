@@ -11,6 +11,8 @@ private func demoSession() async throws -> (session: TimeCardSession, server: St
     try store.setValue(try JSONCoding.encoder().encode(demo.me), forKey: AuthService.meKey)
     let session = TimeCardSession(store: store, api: demo.server, tokens: InMemoryTokenStore(token: "t"), deviceName: "Test iPhone")
     await session.start()
+    // The launch's own /me and sync run first, so a scripted failure lands on the call under test.
+    await session.launchRefresh?.value
     _ = await session.syncNow()
     return (session, demo.server)
 }

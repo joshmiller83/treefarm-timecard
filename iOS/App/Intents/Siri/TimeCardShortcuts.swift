@@ -58,7 +58,7 @@ struct TimeCardShortcuts: AppShortcutsProvider {
                 "Take \(\.$kind) in \(.applicationName)",
                 "Start \(\.$kind) in \(.applicationName)",
                 "Start \(\.$kind) with \(.applicationName)",
-                "Go on \(\.$kind) with \(.applicationName)",
+                "Go to \(\.$kind) with \(.applicationName)",
                 "Going to \(\.$kind) in \(.applicationName)",
                 "\(\.$kind) time in \(.applicationName)",
                 // A break unless lunch is said.
@@ -66,7 +66,8 @@ struct TimeCardShortcuts: AppShortcutsProvider {
                 "Start a break in \(.applicationName)",
                 "Go on break with \(.applicationName)",
             ],
-            shortTitle: "Take a Break",
+            // The Lunch and Break tiles are the two kinds; this one asks which.
+            shortTitle: "Lunch or Break",
             systemImageName: "cup.and.saucer")
 
         AppShortcut(
@@ -153,7 +154,8 @@ struct TimeCardShortcuts: AppShortcutsProvider {
                 "\(.applicationName) status",
                 "Check \(.applicationName)",
             ],
-            shortTitle: "How's My Day",
+            // Each question has its own tile ("How am I doing", "How many trees", …); this one asks which.
+            shortTitle: "Ask Time Card",
             systemImageName: "chart.bar")
 
         AppShortcut(

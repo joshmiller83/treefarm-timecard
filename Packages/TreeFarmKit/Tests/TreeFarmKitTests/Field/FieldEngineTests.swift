@@ -109,6 +109,15 @@ struct FieldEngineTests {
         #expect(f.state.openShift?.openBreak?.reason == "fuel run")
     }
 
+    @Test mutating func aLongBreakReasonIsTrimmedAndSaysSo() throws {
+        _ = FieldEngine.run(.clockIn(fieldId: nil), &f.state, &undo, at: f.monday9)
+        let long = String(repeating: "fuel ", count: 30)
+        let r = FieldEngine.run(.startBreak(.break, reason: long), &f.state, &undo, at: f.at(60))
+        let kept = try #require(f.state.openShift?.openBreak?.reason)
+        #expect(kept.count <= Limits.reason && kept.hasPrefix("fuel fuel"))
+        #expect(r.speech == "Break for \(kept) started at \(t(f.at(60))), but the reason was cut short to fit.")
+    }
+
     // MARK: rows
 
     @Test mutating func markingNeedsAShift() {

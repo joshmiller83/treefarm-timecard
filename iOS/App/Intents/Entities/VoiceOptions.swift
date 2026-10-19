@@ -17,7 +17,8 @@ enum BreakOption: String, AppEnum {
     static var caseDisplayRepresentations: [BreakOption: DisplayRepresentation] {
         [
             .lunch: DisplayRepresentation(title: "Lunch", synonyms: ["lunch", "my lunch", "lunch break", "a lunch break", "a lunch"]),
-            .rest: DisplayRepresentation(title: "Break", synonyms: ["a break", "break", "my break", "a short break", "a rest"]),
+            // Read inside phrases ("Take a break with Time Card"), so it carries its article.
+            .rest: DisplayRepresentation(title: "a break", synonyms: ["break", "my break", "a short break", "a rest"]),
         ]
     }
 

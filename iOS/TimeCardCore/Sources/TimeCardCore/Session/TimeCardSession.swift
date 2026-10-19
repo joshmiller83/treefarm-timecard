@@ -32,6 +32,8 @@ public final class TimeCardSession {
     /// The role last checked against the one the farm was pulled under.
     @ObservationIgnored private var checkedRole: (farmId: UUID, role: Role)?
     @ObservationIgnored private var roleCatchUp: Task<Void, Never>?
+    /// The launch's fresh `/me`, which runs after `start()` returns. Tests wait for it.
+    @ObservationIgnored public private(set) var launchRefresh: Task<Void, Never>?
     /// Called on the main actor for every rejection (for spoken or banner feedback).
     @ObservationIgnored public var onNotice: (@MainActor (SyncNotice) -> Void)?
 
@@ -93,7 +95,7 @@ public final class TimeCardSession {
         await open(me: me)
         if case .signedIn = auth {
             await engine?.requestSync(.launch)
-            Task { try? await self.refreshMe() }
+            launchRefresh = Task { try? await self.refreshMe() }
         } else {
             await engine?.markSignedOut()
         }
