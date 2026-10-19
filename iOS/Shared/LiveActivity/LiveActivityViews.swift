@@ -5,9 +5,9 @@ import TimeCardCore
 // The Live Activity's views: the lock screen and the Dynamic Island. Compiled into the
 // widget extension, which draws them, and the app, whose tests render them.
 //
-// Built for gloves and a quick glance: the row, break, back-to-work and break-time Undo
-// buttons are 54 pt tall, the whole "Row 14 marked · Undo" confirmation is one Undo button,
-// the timer is the biggest thing on screen, and there's no clock-out button, so a pocket tap
+// Built for gloves and a quick glance: the row, break, back-to-work and Undo buttons are
+// 54 pt tall (on the lock screen Undo is a fifth tile beside the rows, under the header's
+// "Row 14 marked"), the timer is the biggest thing on screen, and there's no clock-out button, so a pocket tap
 // can't end a shift. Everything fits Apple's 160 pt lock-screen height, with text up to
 // `LiveLockScreenView.largestText`.
 
@@ -24,14 +24,16 @@ struct LiveLockScreenView: View {
     var body: some View {
         let colors = LiveColors.lockScreen(scheme, onBreak: display.isOnBreak)
         VStack(alignment: .leading, spacing: 0) {
-            LiveHeader(display: display, isStale: isStale, colors: colors)
+            // Undo is a glove-sized tile in the button row, not a small capsule in the header
+            // right above the row buttons; the header keeps the "Row 14 marked" confirmation.
+            LiveHeader(display: display, isStale: isStale, colors: colors, undoInRow: true)
             LiveTimerRow(display: display, colors: colors, timerSize: 40)
                 .padding(.top, 3)
             if !display.isOnBreak {
                 LiveProgressBar(progress: display.progress, label: display.progressLabel, colors: colors)
                     .padding(.top, 6)
             }
-            LiveButtonRow(display: display, colors: colors)
+            LiveButtonRow(display: display, colors: colors, undoInRow: true)
                 .padding(.top, display.isOnBreak ? 10 : 8)
         }
         .padding(.horizontal, 14)
@@ -51,6 +53,8 @@ struct LiveHeader: View {
     var display: LiveActivityDisplay
     var isStale: Bool
     var colors: LiveColors
+    /// Undo is in the button row, so the confirmation here is text only.
+    var undoInRow = false
 
     /// Tall enough for a gloved tap on Undo across the whole confirmation.
     static let height: CGFloat = 30
@@ -82,7 +86,7 @@ struct LiveHeader: View {
     }
 
     private func line(_ place: LiveHeaderLine.Place, _ trailing: LiveHeaderLine.Trailing) -> LiveHeaderLine {
-        LiveHeaderLine(display: display, isStale: isStale, colors: colors, place: place, trailing: trailing)
+        LiveHeaderLine(display: display, isStale: isStale, colors: colors, place: place, trailing: trailing, offersUndo: !undoInRow)
     }
 }
 
@@ -97,6 +101,7 @@ struct LiveHeaderLine: View {
     var colors: LiveColors
     var place: Place
     var trailing: Trailing
+    var offersUndo = true
 
     var body: some View {
         HStack(spacing: 8) {
@@ -140,7 +145,8 @@ struct LiveHeaderLine: View {
                 .accessibilityLabel("Open Time Card to keep this timer")
         } else if let last = display.lastAction, last.kind != .notice, !display.isOnBreak {
             // On a break the pill already says "On lunch", and Undo sits by Back to work.
-            LiveLastAction(last: last, colors: colors, showsText: trailing == .full, showsIcon: trailing != .minimal || !last.canUndo)
+            LiveLastAction(last: last, colors: colors, showsText: trailing == .full,
+                           showsIcon: trailing != .minimal || !last.canUndo || !offersUndo, offersUndo: offersUndo)
         }
     }
 }
@@ -185,9 +191,11 @@ struct LiveLastAction: View {
     var showsText = true
     /// False leaves only Undo, when it's tighter still.
     var showsIcon = true
+    /// False when Undo is a button elsewhere (the lock screen's button row).
+    var offersUndo = true
 
     var body: some View {
-        if last.canUndo {
+        if last.canUndo && offersUndo {
             Button(intent: UndoButtonIntent()) {
                 HStack(spacing: 6) {
                     confirmation
@@ -239,7 +247,7 @@ struct LiveNotice: View {
     var body: some View {
         HStack(spacing: 5) {
             Image(systemName: "exclamationmark.circle.fill")
-                .foregroundStyle(colors.dot)
+                .foregroundStyle(colors.warning)
                 .accessibilityHidden(true)
             Text(text)
                 .font(.caption.weight(.semibold))
@@ -418,6 +426,7 @@ struct LiveButtonRow: View {
             if display.isOnBreak {
                 Button(intent: BackToWorkButtonIntent()) {
                     Label("Back to work", systemImage: "play.fill")
+                        .accessibilityInputLabels(["Back to work"])
                         .font(.headline)
                         .lineLimit(1)
                         .minimumScaleFactor(0.8)
@@ -434,6 +443,7 @@ struct LiveButtonRow: View {
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel("Undo: \(last.text)")
+                    .accessibilityInputLabels(["Undo"])
                 }
             } else {
                 if let message = display.fieldMessage {
@@ -450,6 +460,7 @@ struct LiveButtonRow: View {
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel(row.accessibilityLabel)
+                    .accessibilityInputLabels(row.inputLabels)
                 }
                 Button(intent: StartBreakButtonIntent()) {
                     iconButton("Break", systemImage: "cup.and.saucer.fill", ink: colors.onSecondary, fill: colors.secondary,
@@ -457,6 +468,7 @@ struct LiveButtonRow: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Start a break")
+                .accessibilityInputLabels(["Break", "Start a break", "Take a break"])
                 if undoInRow, let last = display.lastAction, last.canUndo {
                     Button(intent: UndoButtonIntent()) {
                         iconButton("Undo", systemImage: "arrow.uturn.backward", ink: colors.ink, fill: colors.undoFill,
@@ -464,6 +476,7 @@ struct LiveButtonRow: View {
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel("Undo: \(last.text)")
+                    .accessibilityInputLabels(["Undo"])
                 }
             }
         }

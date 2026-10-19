@@ -27,6 +27,8 @@ struct LiveColors: Equatable {
     /// The Undo buttons and the checkmark beside "Row 14 marked".
     var undoFill: Color
     var check: Color
+    /// The "!" beside a refused tap: sap, not the all-good fir.
+    var warning: Color
 
     static func lockScreen(_ scheme: ColorScheme, onBreak: Bool) -> LiveColors {
         scheme == .dark ? dark(onBreak: onBreak) : light(onBreak: onBreak)
@@ -56,7 +58,8 @@ struct LiveColors: Equatable {
             secondary: Color(liveHex: 0xF5E6C6),
             onSecondary: Color(liveHex: 0x573803),
             undoFill: Color(liveHex: 0xE2ECE3),
-            check: Color(liveHex: 0x1D5B3A))
+            check: Color(liveHex: 0x1D5B3A),
+            warning: Color(liveHex: 0xB57A12))
     }
 
     static func dark(onBreak: Bool) -> LiveColors {
@@ -76,7 +79,8 @@ struct LiveColors: Equatable {
             secondary: Color(liveHex: 0x3A2C10),
             onSecondary: Color(liveHex: 0xF3D9A4),
             undoFill: Color(liveHex: 0x24382C),
-            check: Color(liveHex: 0x88CFA4))
+            check: Color(liveHex: 0x88CFA4),
+            warning: Color(liveHex: 0xE2A644))
     }
 }
 

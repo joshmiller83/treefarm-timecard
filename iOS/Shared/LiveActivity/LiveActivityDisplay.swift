@@ -19,6 +19,11 @@ struct LiveActivityDisplay: Equatable {
         var accessibilityLabel: String
 
         var id: String { chip.id }
+
+        /// What Voice Control users can say: the words on the tile, and "Mark row 14".
+        var inputLabels: [String] {
+            caption == "Row" ? ["Row \(number)", "Mark row \(number)"] : ["\(caption) row \(number)", "Row \(number)", "Mark row \(number)"]
+        }
     }
 
     /// "Row 14 marked" and whether Undo is offered next to it.

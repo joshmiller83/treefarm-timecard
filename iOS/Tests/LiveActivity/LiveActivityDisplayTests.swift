@@ -46,6 +46,8 @@ struct LiveActivityDisplayTests {
         let rows = [F.chip(20), F.chip(1, block: F.block3, name: "Block 3"), F.chip(2, block: F.block3, name: "Block 3")]
         let d = LiveActivityDisplay(F.working(rows: rows))
         #expect(d.rows.map(\.caption) == ["Row", "Block 3", "Block 3"])
+        // Voice Control: the words on the tile work, and so does "Mark row 1".
+        #expect(d.rows.map(\.inputLabels) == [["Row 20", "Mark row 20"], ["Block 3 row 1", "Row 1", "Mark row 1"], ["Block 3 row 2", "Row 2", "Mark row 2"]])
         #expect(d.rows.map(\.number) == ["20", "1", "2"])
         #expect(d.rows[1].accessibilityLabel == "Mark Block 3, row 1 shaped")
         #expect(d.blockTitle == "Block 2")

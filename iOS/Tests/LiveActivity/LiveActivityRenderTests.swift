@@ -143,6 +143,20 @@ struct LiveActivityRenderTests {
         #expect(Self.size(of: row).height == LiveLockScreenView.buttonHeight)
     }
 
+    /// After a row tap the lock screen's Undo is a fifth tile beside the rows and Break, about
+    /// 64 × 54 pt, not a 26 pt capsule right above them.
+    @Test func lockScreenUndoIsATileInTheButtonRow() {
+        let colors = LiveColors.light(onBreak: false)
+        let display = LiveActivityDisplay(F.working(lastAction: "Row 14 marked", canUndo: true, now: Date()))
+        let row = LiveButtonRow(display: display, colors: colors, undoInRow: true).frame(width: 342)
+        #expect(Self.size(of: row).height == LiveLockScreenView.buttonHeight)
+        let tile = (342 - 4 * 6) / 5.0
+        #expect(tile >= 60, "five tiles of about 64 pt")
+        // The header shows the confirmation as words only: one Undo, the big one.
+        let header = Self.size(of: LiveLastAction(last: .init(text: "Row 14 marked", canUndo: true), colors: colors, offersUndo: false).fixedSize())
+        #expect(header.width < 150)
+    }
+
     @Test func staleActivitySaysToOpenTheApp() throws {
         try Self.save(LockScreenBackdrop(snapshot: F.working(lastAction: "Row 14 marked", canUndo: true, now: Date()), scheme: .dark, isStale: true), "lock-stale-dark")
         try Self.save(LockScreenBackdrop(snapshot: F.working(lastAction: "Row 14 marked", canUndo: true, now: Date()), scheme: .light, isStale: true, width: 343),
