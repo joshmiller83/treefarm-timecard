@@ -27,6 +27,7 @@ const { variant = 'inline', class: cls } = Astro.props;
 
 <style>
   .ghost {
+    --ls-rust-lit: #d4502f;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -54,8 +55,10 @@ const { variant = 'inline', class: cls } = Astro.props;
   .ghost-text {
     position: relative;
   }
-  /* The strike: 2px rust (the page's stage rust, legible on the dark stage), past the
-     letters a little on both sides. */
+  /* The strike: 2px rust, past the letters a little on both sides. A lit rust: the page's
+     --rust (#a2391f) is for white text on rust and all but vanishes on the dark stage, and
+     there is no stage rust token yet, so it is this section's own (asked of the foundation
+     as --rust-lit). */
   .ghost-strike {
     position: absolute;
     left: -4px;
@@ -64,7 +67,7 @@ const { variant = 'inline', class: cls } = Astro.props;
     height: 2px;
     margin-top: -1px;
     border-radius: 1px;
-    background: #d4502f;
+    background: var(--rust-lit, var(--ls-rust-lit));
     transform-origin: 0 50%;
   }
 </style>

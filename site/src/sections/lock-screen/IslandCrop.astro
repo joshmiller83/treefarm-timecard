@@ -73,4 +73,10 @@ const { size, label, time } = Astro.props;
     border-radius: calc(100cqw * 55 / 420) calc(100cqw * 55 / 420) 0 0;
     --pt: calc(100cqw / 393);
   }
+  /* The home screen keeps its full 852 pt height and the crop clips it, as a screenshot would:
+     its bottom-anchored search pill and dock stay down where they belong, out of the crop. */
+  .crop .crop-screen :global([data-home]) {
+    inset: 0 0 auto 0;
+    height: calc(852 * var(--pt));
+  }
 </style>
