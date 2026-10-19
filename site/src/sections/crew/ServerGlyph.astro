@@ -1,0 +1,81 @@
+---
+/**
+ * The crew's server: a small rounded house with a two-unit rack inside and a gold status
+ * light (brief: "a 40px rounded house outline with a small gold light"). Decorative; the
+ * copy says what it is. The pulse ring is a separate element so a scene can scale and fade
+ * it (transform and opacity only).
+ *
+ * Hooks: [data-server-glyph], [data-server-led] (the gold light), [data-server-pulse].
+ */
+interface Props {
+  class?: string;
+}
+const { class: cls } = Astro.props;
+---
+
+<span class:list={['srv', cls]} data-server-glyph aria-hidden="true">
+  <svg viewBox="0 0 40 40" focusable="false">
+    <path
+      class="srv-house"
+      d="M7.6 16.9 18.2 8.2a2.8 2.8 0 0 1 3.6 0l10.6 8.7a2.8 2.8 0 0 1 1 2.2V32a3 3 0 0 1-3 3H9.6a3 3 0 0 1-3-3V19.1a2.8 2.8 0 0 1 1-2.2Z"
+    ></path>
+    <rect class="srv-rack" x="12.6" y="18.8" width="14.8" height="5.6" rx="1.8"></rect>
+    <rect class="srv-rack" x="12.6" y="26.4" width="14.8" height="5.6" rx="1.8"></rect>
+    <path class="srv-slot" d="M20.6 21.6h3.8M20.6 29.2h3.8"></path>
+    <circle class="srv-led2" cx="16.1" cy="29.2" r="1.15"></circle>
+    <circle class="srv-led" data-server-led cx="16.1" cy="21.6" r="1.35"></circle>
+  </svg>
+  <span class="srv-pulse" data-server-pulse></span>
+</span>
+
+<style>
+  .srv {
+    position: relative;
+    display: inline-block;
+    width: var(--srv-size, 40px);
+    height: var(--srv-size, 40px);
+    flex: none;
+  }
+  .srv svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+  }
+  .srv-house {
+    fill: #132a1f;
+    stroke: var(--on-stage-muted);
+    stroke-width: 1.6;
+    stroke-linejoin: round;
+  }
+  .srv-rack {
+    fill: rgba(242, 245, 239, 0.04);
+    stroke: rgba(168, 187, 174, 0.75);
+    stroke-width: 1.2;
+  }
+  .srv-slot {
+    stroke: rgba(168, 187, 174, 0.55);
+    stroke-width: 1.2;
+    stroke-linecap: round;
+  }
+  .srv-led {
+    fill: var(--gold-lit);
+  }
+  .srv-led2 {
+    fill: var(--fir-lit);
+    opacity: 0.55;
+  }
+  /* A gold ring on the light; scenes scale it out and fade it (rests invisible). */
+  .srv-pulse {
+    position: absolute;
+    left: calc(16.1 / 40 * 100%);
+    top: calc(21.6 / 40 * 100%);
+    width: 40%;
+    height: 40%;
+    margin: -20% 0 0 -20%;
+    border-radius: 50%;
+    border: 1.5px solid var(--gold-lit);
+    opacity: 0;
+    pointer-events: none;
+  }
+</style>
