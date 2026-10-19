@@ -41,7 +41,8 @@ interface Packet {
 
 registerScene(
   'crew',
-  (ctx) => {
+  // A generator: each beat is its own part of the build (the core runs a part per idle callback).
+  function* (ctx) {
     const { tl, day, util, gsap, section, isDesk } = ctx;
     // Mobile has its own schedule: the copy cards pass over the phone there (see AT_MOB).
     const A = isDesk ? AT : AT_MOB;
@@ -170,6 +171,8 @@ registerScene(
       });
     }
 
+    yield;
+
     // ---- Progress 0: block 3 on your phone, Sam's map on his, everything else waiting ----
     util.show(screens, 'trees-1447-block3');
     util.show(peekScreens, 'sam-1449-trees');
@@ -189,6 +192,8 @@ registerScene(
     if (srvIn) tl.fromTo(srvIn, { opacity: 0, scale: 0.86 }, { opacity: 1, scale: 1, duration: span(A.server), ease: 'power2.out' }, A.server[0]);
     util.drawLine(tl, reveal.sam, A.wires[0], span(A.wires) - 0.006);
     util.drawLine(tl, reveal.alex, A.wires[0] + 0.006, span(A.wires) - 0.006);
+
+    yield;
 
     // ================= [.08, .16] offline =================
     const sb0 = one(L0, '[data-statusbar]');
@@ -235,6 +240,8 @@ registerScene(
     tl.set(L0, { opacity: 0 }, A.offlineLayer);
     tl.set(L1, { opacity: 1 }, A.offlineLayer);
 
+    yield;
+
     // ================= [.16, .26] Sam marks row 12 first =================
     const samLab = label(S, CONFLICT.row);
     const samDots = dots(S, CONFLICT.row);
@@ -273,6 +280,8 @@ registerScene(
     travel(pkSam, A.packetSam, 0, 1);
     pulseAt(A.pulseSam);
 
+    yield;
+
     // ================= [.26, .42] you mark rows 11 and 12 with no signal =================
     util.tap(tl, lab11, A.tap.row11);
     touch(lab11, A.tap.row11, A.fill11[1]);
@@ -296,6 +305,8 @@ registerScene(
     const per = Math.max(1, WAITING_FIRST);
     tl.fromTo(n, { v: WAITING_FIRST }, { v: WAITING, duration: span(A.count), ease: 'none', immediateRender: false, onUpdate: () => setCount(Math.round(n.v / per) * per) }, A.count[0]);
     if (pkA2) tl.to(pkA2.el, { opacity: 1, duration: span(A.queue2) }, A.queue2[0]);
+
+    yield;
 
     // ================= [.42, .6] back in range: sync, first mark wins =================
     const barsSvg = bars1[0]?.ownerSVGElement ?? null;
@@ -338,6 +349,8 @@ registerScene(
       // [.6, .66] the banner goes.
       tl.to(banner, { opacity: 0, yPercent: 30, scale: 0.98, duration: span(A.bannerOut), ease: 'power2.in' }, A.bannerOut[0]);
     }
+
+    yield;
 
     // ================= [.66, .9] the owner's phone =================
     tl.to(chip('sam'), { opacity: 0, duration: span(A.relabel) * 0.5 }, A.relabel[0]);
@@ -397,6 +410,8 @@ registerScene(
     // Mobile keeps the lit server above the phone as the section scrolls away (its line is up).
     const decor = [chip('owner'), workers, isDesk ? srvIn : null].filter(Boolean);
     if (decor.length) tl.to(decor, { opacity: 0, duration: span(A.exitDecor) }, A.exitDecor[0]);
+
+    yield;
 
     // ---- Wires: drawn from the real layout, redrawn on every refresh ----
     const slot = isDesk ? (ctx.stage?.phone.parentElement ?? null) : null;
@@ -493,5 +508,5 @@ registerScene(
       giveBack();
     };
   },
-  { dayStart: DAY_FROM },
+  { dayStart: DAY_FROM, invalidate: false },
 );

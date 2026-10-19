@@ -9,6 +9,11 @@
  * crew's offline beat fades them one by one), [data-no-service] (hidden unless offline;
  * fade it in where the bars were), [data-wifi], [data-battery] (the level, 0–100, on the
  * root; [data-battery-low] marks 20% and below, where the level is drawn red as on iOS).
+ *
+ * Beside a wide Dynamic Island (`island` prop) the bar yields: [data-island-yield] on the
+ * root, and its look follows the custom property --island-yield (0 rest, 1 compact,
+ * 2 expanded; without one, the island's static size). A scene morphing the island tweens
+ * --island-yield on this bar (or on any ancestor: it inherits).
  */
 export interface Props {
   /** Shown before DayClock takes over; e.g. '7:02'. Default '7:02'. */
@@ -28,6 +33,8 @@ export interface Props {
    * instead (the hidden span keeps its data-clock so DayClock code stays simple).
    */
   showTime?: boolean;
+  /** The Dynamic Island beside this bar, when it is wider than at rest: the bar yields to it. */
+  island?: 'compact' | 'expanded';
 }
 const {
   time = '7:02',
@@ -37,6 +44,7 @@ const {
   noService = false,
   battery = 80,
   showTime = true,
+  island,
 } = Astro.props;
 
 const level = Math.max(0, Math.min(100, battery));
@@ -71,6 +79,8 @@ const wedge = (() => {
   data-statusbar
   data-battery={level}
   data-battery-low={low ? '' : undefined}
+  data-island-yield={island}
+  style={island ? `--yield-static:${island === 'compact' ? 1 : 2}` : undefined}
 >
   <span class:list={['sb-left', !showTime && 'sb-left--hidden']}>
     <span class="sb-time" data-clock={live ? '' : 'fixed'}>{time}</span>
@@ -78,7 +88,7 @@ const wedge = (() => {
   <span class="sb-right">
     <span class="sb-noservice" data-no-service style={noService ? undefined : 'opacity:0'}>No Service</span>
     <span class="sb-signal">
-      <svg class="sb-bars" viewBox="0 0 17.4 11.4" style={noService ? 'opacity:0' : undefined}>
+      <svg class="sb-bars" data-bars viewBox="0 0 17.4 11.4" style={noService ? 'opacity:0' : undefined}>
         {
           BAR_H.map((h, i) => (
             <rect
@@ -187,5 +197,21 @@ const wedge = (() => {
     display: block;
     width: calc(27.6 * var(--pt));
     height: calc(13 * var(--pt));
+  }
+
+  /* ---------- Yielding to a wide island ----------
+     Rest → compact: the time slides 30 pt left, from the left ear's centre (x 68) to the outer
+     ear's (x 38), clear of the island's left end (x 71.5), while the signal bars, Wi-Fi and
+     No Service fade, leaving the battery. Compact → expanded: the island covers the bar; it
+     fades out over the first 40%. `translate` composes with any transform GSAP sets. */
+  .sb[data-island-yield] {
+    --y: var(--island-yield, var(--yield-static));
+    opacity: calc(1 - clamp(0, (var(--y) - 1) * 2.5, 1));
+  }
+  .sb[data-island-yield] [data-clock] {
+    translate: calc(min(var(--y), 1) * -30 * var(--pt, 1px)) 0;
+  }
+  .sb[data-island-yield] :is([data-bars], [data-wifi], [data-no-service]) {
+    opacity: calc(1 - min(var(--y), 1));
   }
 </style>

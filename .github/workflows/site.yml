@@ -51,7 +51,7 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Size budgets (HTML, first-load JS; motion JS and CSS reported)
+      - name: Size budgets (HTML, first-load JS, first-paint CSS, motion JS; fails when over)
         run: npm run budgets
 
       - name: Install Playwright (Chromium)

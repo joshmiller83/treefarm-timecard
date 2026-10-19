@@ -168,8 +168,4 @@ const words = transcript ? transcript.trim().split(/\s+/) : [];
     text-wrap: balance;
   }
 
-  /* Siri's card takes the top of the lock screen (see SiriSnippet). */
-  :global([data-lock]:has([data-snippet], [data-wave]) > :is([data-date], [data-clock], [data-padlock])) {
-    opacity: 0;
-  }
 </style>

@@ -119,9 +119,15 @@ test.describe('with motion', () => {
       await page.setViewportSize({ width: w, height: h });
       await page.waitForTimeout(500);
       await toProgress(page, 0.24, 900); // between taps: no haptic shake on the stage phone
-      const [rig, ph] = await Promise.all([page.locator('[data-crew-rig]').boundingBox(), stage.boundingBox()]);
-      expect(rig && ph, `${w}`).toBeTruthy();
-      for (const k of ['x', 'y', 'width', 'height'] as const) expect(Math.abs(rig![k] - ph![k]), `${w} ${k}`).toBeLessThanOrEqual(1.5);
+      // The rig follows on ScrollTrigger's refresh after the resize (late on a busy machine).
+      await expect
+        .poll(async () => {
+          const [rig, ph] = await Promise.all([page.locator('[data-crew-rig]').boundingBox(), stage.boundingBox()]);
+          if (!rig || !ph) return Infinity;
+          return Math.max(...(['x', 'y', 'width', 'height'] as const).map((k) => Math.abs(rig[k] - ph[k])));
+        }, { message: `${w}: the rig sits on the stage phone`, timeout: 5000 })
+        .toBeLessThanOrEqual(1.5);
+      const ph = await stage.boundingBox();
       // The second phone peeks out from behind it, on screen, clear of the copy column.
       const peek = await page.locator('[data-crew-peek] [data-phone]').boundingBox();
       const copy = await page.locator('#crew .beat[data-beat="1"]').boundingBox();

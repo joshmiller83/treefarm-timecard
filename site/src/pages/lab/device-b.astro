@@ -193,7 +193,7 @@ const islandAt = fmtClock(MOMENTS.island);
               <div class="screens" data-screens>
                 <Screen stateId={`lab-island-${size}`} alt="" final>
                   <div class="home">
-                    <StatusBar time={islandAt} live={false} tone="light" />
+                    <StatusBar time={islandAt} live={false} tone="light" island={size === 'rest' ? undefined : size} />
                     <div class="home-grid">
                       {homeIcons.map((i) => (
                         <span class="home-app" style={`--h:${(i * 47) % 360}`}>
@@ -223,7 +223,7 @@ const islandAt = fmtClock(MOMENTS.island);
         <Phone label={`Trees tab at ${islandAt} with the Dynamic Island compact`} height={REAL}>
           <div class="screens" data-screens>
             <Screen stateId="lab-island-app" alt="" tone="light" final>
-              <AppChrome title="Trees" tab="trees" time={islandAt} subtitle="North field">
+              <AppChrome title="Trees" tab="trees" time={islandAt} subtitle="North field" island="compact">
                 <div class="fake-card" />
                 <div class="fake-card short" />
               </AppChrome>
@@ -266,7 +266,7 @@ const islandAt = fmtClock(MOMENTS.island);
           <div class="screens" data-screens>
             <Screen stateId="lab-scrub-island" alt="" final>
               <div class="home">
-                <StatusBar time={islandAt} live={false} tone="light" />
+                <StatusBar time={islandAt} live={false} tone="light" island="expanded" />
                 <div class="home-grid">
                   {homeIcons.map((i) => (
                     <span class="home-app" style={`--h:${(i * 47) % 360}`}>

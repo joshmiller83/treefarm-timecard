@@ -448,6 +448,6 @@ registerScene(
       rise(all(after, '[data-co-report], [data-co-note], [data-paper-band], tr[data-day], .tc-total, .co-exports'));
     }
   },
-  { dayStart: FROM },
+  { dayStart: FROM, invalidate: false },
 );
 

@@ -3,7 +3,8 @@
  * registerScene(id, build, options). The motion core imports the file lazily when the
  * section comes within 1.5 viewports, then calls build(ctx) inside the active
  * gsap.matchMedia context ('desk' or 'mob'), so everything a scene makes is reverted
- * automatically when the breakpoint changes.
+ * automatically when the breakpoint changes. A long build is a generator that yields between
+ * its beats (see SceneBuild).
  *
  * This module is type-only plus a Map: importing it never pulls in GSAP.
  */
@@ -68,14 +69,30 @@ export interface SceneOptions {
   mob?: boolean;
   /** The DayClock minute at progress 0 (day.to chains from here). Default: the chapter's minute. */
   dayStart?: Minute;
+  /**
+   * Re-record the timeline's values on every ScrollTrigger refresh. Needed only for
+   * function-based values (sizes measured from the layout); a refresh of a large scene that
+   * has none costs a long task for nothing. Default true.
+   */
+  invalidate?: boolean;
 }
 
-export type SceneBuild = (ctx: SceneContext) => void | (() => void);
+/** What a build may return: nothing, or a function that undoes what GSAP does not revert. */
+export type SceneCleanup = void | (() => void);
 
-interface Entry {
+/**
+ * A scene's build. It may be a generator function: each `yield` ends a part, and the motion
+ * core runs each later part in its own idle callback (all of them at once when the section
+ * is about to come into view), so a long build never freezes a scroll. Yield between beats;
+ * the parts share the generator's variables, and the cleanup is its return value.
+ */
+export type SceneBuild = (ctx: SceneContext) => SceneCleanup | Generator<unknown, SceneCleanup, unknown>;
+
+export interface SceneEntry {
   build: SceneBuild;
   options: SceneOptions;
 }
+type Entry = SceneEntry;
 
 const registry = new Map<ChapterId, Entry>();
 

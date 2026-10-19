@@ -312,10 +312,24 @@ test.describe('notes at 375 px, static', () => {
     await page.locator(S).scrollIntoViewIfNeeded();
     const wide = await page.evaluate(() => {
       const vw = document.documentElement.clientWidth;
+      // What shows of a box: clipped by every ancestor that clips its overflow (the Live
+      // Activity's wallpaper twin is wider than the crop it sits in, and never shows outside it).
+      const shown = (el: Element) => {
+        const r = el.getBoundingClientRect();
+        let left = r.left;
+        let right = r.right;
+        for (let a = el.parentElement; a; a = a.parentElement) {
+          if (getComputedStyle(a).overflowX === 'visible') continue;
+          const c = a.getBoundingClientRect();
+          left = Math.max(left, c.left);
+          right = Math.min(right, c.right);
+        }
+        return { left, right, width: r.width };
+      };
       return Array.from(document.querySelectorAll<HTMLElement>('#notes *'))
         .filter((el) => !el.closest('[data-phone]') && !el.closest('.sr-only'))
-        .map((el) => [el, el.getBoundingClientRect()] as const)
-        .filter(([, r]) => r.width > 0 && (r.right > vw + 0.5 || r.left < -0.5))
+        .map((el) => [el, shown(el)] as const)
+        .filter(([, r]) => r.width > 0 && r.right > r.left && (r.right > vw + 0.5 || r.left < -0.5))
         .map(([el, r]) => `${el.className || el.tagName} ${Math.round(r.left)}–${Math.round(r.right)}`);
     });
     expect(wide).toEqual([]);

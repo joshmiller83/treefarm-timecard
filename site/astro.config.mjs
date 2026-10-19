@@ -36,6 +36,110 @@ function siriLinesCheck() {
 }
 
 /**
+ * One render-blocking stylesheet for the page, and the in-app tab screens' CSS after it.
+ *
+ * Vite splits the page's CSS into a file per shared component group (the lab pages share the
+ * components), eight files in all. After the build, the page's links are merged, in their
+ * order, into one file (one request, and gzip sees all of it at once). The rules of the
+ * Trees, Clock and Report tab chunks (the last three, all far below the fold) whose components
+ * only ever draw inside a phone screen below the hero (found in the built HTML) move into a
+ * second file that loads without blocking the first paint, last in the cascade as before;
+ * their rules for anything on the page itself (the paper time card) stay in the first. Until
+ * the second file has loaded, app screens stay blank (a rule appended to the first file, so a
+ * dev server never hides them) and the motion core waits for it before it builds a scene that
+ * measures one (the tf:tabs-css event). Without JS it is a plain stylesheet (noscript). Lab
+ * pages keep Vite's files. scripts/budgets.ts measures both.
+ * @returns {import('astro').AstroIntegration}
+ */
+function pageCss() {
+  return {
+    name: 'treefarm:page-css',
+    hooks: {
+      'astro:build:done': async ({ dir, logger }) => {
+        const { readFile, writeFile } = await import('node:fs/promises');
+        const { createHash } = await import('node:crypto');
+        const { fileURLToPath } = await import('node:url');
+        const { parse, ELEMENT_NODE } = await import('ultrahtml');
+        const { transform } = await import('lightningcss');
+        const root = fileURLToPath(dir);
+        const page = `${root}index.html`;
+        let html = await readFile(page, 'utf8');
+        const links = [...html.matchAll(/<link rel="stylesheet" href="\/_astro\/([\w.-]+\.css)">/g)].map((m) => ({ tag: m[0], file: String(m[1]) }));
+        if (links.length < 2) return;
+        const tabChunk = (/** @type {string} */ f) => /^(TreesTab|ClockTab|ReportTab)\./.test(f);
+        const read = (/** @type {string} */ f) => readFile(`${root}_astro/${f}`, 'utf8');
+        const hash = (/** @type {string} */ s) => createHash('sha256').update(s).digest('base64url').slice(0, 8);
+
+        // Scopes (astro-xxxxxxxx) whose every element sits in a phone screen outside the hero.
+        /** @type {Map<string, boolean>} */
+        const inPhone = new Map();
+        /** @param {any} node @param {boolean} screen @param {boolean} hero */
+        const walk = (node, screen, hero) => {
+          if (node.type === ELEMENT_NODE) {
+            const cls = String(node.attributes?.class ?? '').split(/\s+/);
+            hero = hero || node.attributes?.id === 'hero';
+            screen = screen || cls.includes('screen');
+            for (const c of cls) if (c.startsWith('astro-')) inPhone.set(c, (inPhone.get(c) ?? true) && screen && !hero);
+          }
+          for (const child of node.children ?? []) walk(child, screen, hero);
+        };
+        walk(parse(html), false, false);
+        const later = (/** @type {string} */ c) => inPhone.get(c) === true;
+        /** @param {any} sel @returns {boolean} */
+        const hasLater = (sel) =>
+          sel.some((/** @type {any} */ c) => (c.type === 'class' && later(c.name)) || (Array.isArray(c.selectors) && c.selectors.some(hasLater)));
+        const targets = { chrome: 111 << 16, edge: 111 << 16, firefox: 114 << 16, safari: (16 << 16) | (4 << 8) };
+        /** Keep the style rules that `keep` says yes to (all other rules stay). */
+        const filter = (/** @type {string} */ code, /** @type {(rule: any) => boolean} */ keep) =>
+          transform({ filename: 'page.css', code: Buffer.from(code), minify: true, targets, visitor: { Rule: { style: (rule) => (keep(rule) ? undefined : []) } } }).code.toString();
+        const isLater = (/** @type {any} */ rule) => rule.value.selectors.every(hasLater);
+
+        const first = [];
+        const second = [];
+        for (const l of links) {
+          const css = await read(l.file);
+          if (!tabChunk(l.file)) {
+            first.push(css);
+            continue;
+          }
+          first.push(filter(css, (r) => !isLater(r)));
+          second.push(filter(css, isLater).replace(/@(font-face|keyframes)[^{]*\{(?:[^{}]|\{[^{}]*\})*\}/g, ''));
+        }
+        const blank = 'html.js:not(.tabs-css) [data-app]{visibility:hidden}';
+        let main = `${first.join('\n')}\n${blank}\n`;
+        let tabs = second.join('\n');
+        // Astro's scope classes (astro- and 8 characters, on most elements and in most selectors)
+        // become _0, _1…: 2 KB gz less HTML and 1 KB less CSS. Nothing reads them by name.
+        const ids = [...new Set((html + main + tabs).match(/\bastro-[a-z0-9]{8}\b/g) ?? [])];
+        if (!/class="[^"]*(?<![\w-])_[0-9a-z]+(?![\w-])/.test(html)) {
+          const short = new Map(ids.map((id, i) => [id, `_${i.toString(36)}`]));
+          const swap = (/** @type {string} */ s) => s.replace(/\bastro-[a-z0-9]{8}\b/g, (m) => short.get(m) ?? m);
+          html = swap(html);
+          main = swap(main);
+          tabs = swap(tabs);
+        }
+        const mainFile = `page.${hash(main)}.css`;
+        await writeFile(`${root}_astro/${mainFile}`, main);
+        // The merged file takes the place of the first link (the page's cascade order).
+        links.forEach((l, i) => (html = html.replace(l.tag, i === 0 ? `<link rel="stylesheet" href="/_astro/${mainFile}">` : '')));
+        if (tabs.trim()) {
+          const tabsFile = `tabs.${hash(tabs)}.css`;
+          await writeFile(`${root}_astro/${tabsFile}`, tabs);
+          const href = `/_astro/${tabsFile}`;
+          const onload = "this.media='all';this.onload=null;document.documentElement.classList.add('tabs-css');dispatchEvent(new Event('tf:tabs-css'))";
+          html = html.replace(
+            '</head>',
+            `<link rel="preload" href="${href}" as="style"><link rel="stylesheet" href="${href}" media="print" onload="${onload}" data-later-css><noscript><link rel="stylesheet" href="${href}"></noscript></head>`,
+          );
+        }
+        await writeFile(page, html);
+        logger.info(`index.html: ${links.length} stylesheets merged into ${mainFile}; the tab screens' rules load after the first paint`);
+      },
+    },
+  };
+}
+
+/**
  * @param {string} pkg
  * @param {string} file
  */
@@ -56,7 +160,7 @@ export default defineConfig({
     inlineStylesheets: 'auto',
     format: 'directory',
   },
-  integrations: [sitemap({ filter: (page) => !isToolRoute(page) }), siriLinesCheck()],
+  integrations: [sitemap({ filter: (page) => !isToolRoute(page) }), siriLinesCheck(), pageCss()],
   fonts: [
     {
       provider: fontProviders.local(),
@@ -103,6 +207,13 @@ export default defineConfig({
     build: {
       // The motion chunk (GSAP + plugins + core) is ~140 KB raw, ~53 KB gzipped.
       chunkSizeWarningLimit: 180,
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (/src\/(data\/(ledger|siri)|scripts\/(odometer|wave|text)|components\/system\/lockscreen\/activity)\.ts$/.test(id)) return 'shared';
+          },
+        },
+      },
     },
   },
 });

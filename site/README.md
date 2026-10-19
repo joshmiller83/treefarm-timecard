@@ -27,9 +27,9 @@ npm run dev            # http://localhost:4321 (use your team's port: npm run de
 | `npm run build` | Static build into `dist/` (prints any unverified Siri lines) |
 | `npm run preview` | Serves `dist/` on 4321 |
 | `npm run check` | `astro check` (TypeScript strict) |
-| `npm run budgets` | Size budgets of the built page, gzipped (after a build; CI runs it): HTML and first-load JS fail when over, motion JS and CSS are reported |
+| `npm run budgets` | Size budgets of the built page, gzipped (after a build; CI runs it and stops on a failure): HTML, first-load JS, first-paint CSS and motion JS fail when over |
 | `npm test` | Vitest: ledger arithmetic, Siri wording, DayClock math, odometer, and the shared components' models (Live Activity, wallpapers, captures, wave, Clock/notes/team views, field map, report) |
-| `npm run test:e2e` | Playwright against the built site: the page (`tests/e2e`: smoke, reduced motion, axe at load and at 24 scroll positions, pixel-sampled contrast, overflow, nav (with motion and without), hit testing, overlap at seams and laptop heights, long frames and scroll layout shift; `tests/sections`: one spec per chapter) and the component labs (`tests/lab`, one spec per team, projects `lab-desktop` and `lab-mobile`). Build first. `PW_PORT=4330` to change the port, `PW_ALL=1` to add WebKit and Firefox (page and labs). Just the page: `-- --project=desktop --project=mobile` |
+| `npm run test:e2e` | Playwright against the built site: the page (`tests/e2e`: smoke, reduced motion, axe at load and at 24 scroll positions, pixel-sampled contrast, overflow, nav (with motion and without), hit testing, overlap at seams and laptop heights, long frames and scroll layout shift; `tests/sections`: one spec per chapter) and the component labs (`tests/lab`, one spec per team, projects `lab-desktop` and `lab-mobile`). Build first. `PW_PORT=4330` to change the port, `PW_ALL=1` to add WebKit and Firefox (page and labs). The timing-sensitive tests (tagged `@solo`: long frames, axe at 24 positions, the paper's lift read in two engines) run in `<project>-solo`: one worker, after every other project (a failure elsewhere skips them; alone: `-- --project=desktop-solo --project=mobile-solo --no-deps`). Just the page: `-- --project=desktop --project=mobile` |
 | `npm run test:all` | check + unit + build + e2e |
 | `npm run shoot -- …` | Screenshots (below) |
 | `npm run og` | Rebuilds `public/og.png` from the hidden `/og/` route (commit the PNG) |
@@ -89,6 +89,27 @@ npx astro preview stop                           # stops this worktree's backgro
   On the first load a scene below the fold (the voice chapter) waits for the hero's load
   sequence, the first scroll or 4 s, then builds in its own idle task; `__tf.ready` resolves
   after it. Phone screens far from the viewport skip rendering (`content-visibility: auto`).
+- **Builds in parts.** A scene builds in parts (`motion.ts`, `buildScene`): each template layer
+  is placed on its own, then the build; a long scene is a generator that `yield`s between its
+  beats (notes, crew). The first part runs at once, each later one in its own idle callback,
+  one per frame within a quarter viewport, all at once when the section is on screen. Each
+  part is a `tf:chunk:<id>:<n>` measure and the whole build a `tf:scene:<id>` measure (with
+  `detail.busy`). Scenes without function-based values pass `invalidate: false`, so a
+  ScrollTrigger refresh never re-records them, and the content-change refresh waits for a
+  still, idle page.
+- **Nothing restyles a whole layer per frame.** Clocks and timers change their text node's
+  data (`setText`), odometers jump during a scroll by an inline flag (no class on a chapter),
+  and there are no `:has()` rules (the island yield and Siri's cover are attributes set at
+  render). A screen layer nobody can see (opacity 0, or slid a screen away) gets
+  `content-visibility: hidden` from a per-tick check of its inline styles, so it costs no style
+  or layout until it shows.
+- **Breakpoints and short windows.** Crossing a breakpoint (an iPad turned) scrolls back to
+  the same chapter at the same progress once the new breakpoint's scenes are in. A wide window
+  made shorter than 560px, like a reduced-motion change, reloads onto the reader's chapter,
+  where the head gate serves the static page.
+- **The current chapter** (aria-current and the chip): without motion, the section under a
+  line a few px below the scroll padding, where a chapter link lands it; with motion, the
+  section at 55%, where the motion core hands over the day.
 - **One film**: the day only runs forwards (7:02 → 2:01 → 2:14 → 2:16 → 2:30 → 2:44 → 3:00 →
   3:40 → 4:31): each scene's `dayStart` is where the chapter before it left the clock. A scene
   never renders a from-state onto the shared stage phone at build time (`immediateRender: false`),
@@ -157,11 +178,18 @@ HTML ≤ 75 KB gz, CSS ≤ 35 KB gz, first-load JS ≤ 6 KB gz, motion bundle �
 500/600, every extra weight costs about 15 KB), images: og.png and one blurred WebP only.
 Animate only transform, opacity, clip-path and stroke-dashoffset.
 
-`npm run budgets` checks the built page. On 2026-10-19: HTML 59 KB gz, first-load JS 3.5 KB gz,
-motion JS ~101 KB gz across a full scroll (core 53 KB: GSAP, ScrollTrigger, SplitText; scenes
-and their shared modules ~48 KB) and CSS ~44 KB gz in 8 files: the last two are over and are
-reported, not failed, until they are trimmed (the CSS by folding per-section duplicates into
-global.css, the scenes by sharing more helpers).
+`npm run budgets` checks the built page and fails the run (and CI, before the deploy) when a
+line is over. On 2026-10-19: HTML 58 KB gz, first-load JS 3.7 KB gz, CSS before the first paint
+34.6 KB gz and CSS after the first paint 5.5 KB gz. After the build, `astro.config.mjs` (pageCss)
+merges the page's eight Vite stylesheets, in order, into one file; moves the Trees, Clock and
+Report tabs' rules for components that only draw inside a phone below the hero (found in the built
+HTML) into a second, non-blocking file (app screens stay blank until it lands, and the motion core
+waits for it before it builds a scene that measures one); and shortens Astro's scope classes
+(`astro-xxxxxxxx` → `_0`, `_1`…) in the page and those two files. Lab pages keep Vite's files. Motion JS is 102 KB gz across a full scroll, over the
+brief's 80 KB: GSAP, ScrollTrigger and SplitText alone are 50 KB, the motion core 4 KB and the
+nine scenes with their shared modules ~48 KB. That line fails at 104 KB, so it can only shrink;
+getting to 80 KB means replacing ScrollTrigger with a small scroll driver or cutting the scenes
+by about 40%.
 
 ## Known differences from the app
 

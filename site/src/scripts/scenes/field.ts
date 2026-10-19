@@ -359,5 +359,5 @@ registerScene(
       writeCounts({ trees: COUNTS.trees, shaped: COUNTS.shaped, today: COUNTS.today });
     };
   },
-  { dayStart: MOMENTS.field },
+  { dayStart: MOMENTS.field, invalidate: false },
 );

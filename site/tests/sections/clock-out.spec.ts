@@ -61,8 +61,18 @@ async function readTo(page: Page, p: number, wait = 1300) {
   }, p);
   let y = await page.evaluate(() => scrollY);
   // Wheel like a reader; if the wheel stops moving the page (a busy engine), jump the rest.
+  // Touch engines have no wheel (mobile WebKit throws): step the scroll position instead.
+  let wheel = true;
   for (let stuck = 0; target - y > 700 && stuck < 5; ) {
-    await page.mouse.wheel(0, 600);
+    if (wheel) {
+      try {
+        await page.mouse.wheel(0, 600);
+      } catch {
+        wheel = false;
+      }
+    }
+    // A fling to just before the target, then a reader's steps.
+    if (!wheel) await page.evaluate(({ y, t }) => window.scrollTo(0, Math.max(y + 600, t - 1800)), { y, t: target });
     await page.waitForTimeout(80);
     const next = await page.evaluate(() => scrollY);
     stuck = next > y ? 0 : stuck + 1;
@@ -215,7 +225,8 @@ test.describe('clock-out', () => {
     expect(await serious(page)).toEqual([]);
   });
 
-  test('the paper lifts out of the preview for a reader scrolling down (Chromium and WebKit)', async ({ page, isMobile }) => {
+  // @solo (playwright.config.ts): it wheels through eight chapters in two engines at once.
+  test('the paper lifts out of the preview for a reader scrolling down (Chromium and WebKit)', { tag: '@solo' }, async ({ page, isMobile }) => {
     test.skip(isMobile, 'desktop: the stage phone');
     // A reader's wheel through eight chapters, twice (Chromium, then WebKit): slow on a busy machine.
     test.setTimeout(240_000);
@@ -398,9 +409,13 @@ test.describe('clock-out with reduced motion', () => {
   test('the header stays readable over the light part (static)', async ({ page }) => {
     await page.goto('/');
     await page.evaluate(() => document.fonts.ready);
+    // Far sections skip rendering (content-visibility: auto, 1100px stand-ins). WebKit reports
+    // the last layout's positions for the children of a skipped section and has no scroll
+    // anchoring, so a scrollTo computed from them lands a chapter off (on Open). The page's own
+    // jumps render every section first (html.cv-all, header.ts): jump the same way.
+    await page.evaluate(() => document.documentElement.classList.add('cv-all'));
     for (const sel of ['[data-co-copy]', '[data-paper]', '.co-exports']) {
-      // Far sections render lazily (content-visibility), so the page above can still change
-      // height after a jump: settle on the element, then check it is what the header is over.
+      // Settle on the element, then check it is what the header is over.
       for (let i = 0; i < 4; i += 1) {
         await page.evaluate((sel) => {
           const el = document.querySelector(`#clock-out ${sel}`)!;

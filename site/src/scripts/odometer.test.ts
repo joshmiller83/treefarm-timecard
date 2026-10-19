@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { digitsOf, odometerHTML, odometerShape, setOdometer } from './odometer.ts';
+import { digitsOf, odometerHTML, odometerShape, setOdometer, setOdometerInstant } from './odometer.ts';
 
 function fakeEl(text?: string) {
-  const cols: Array<{ style: { transform: string } }> = [];
+  const cols: Array<{ style: { transform: string; transition?: string } }> = [];
   const el = {
     dataset: {} as Record<string, string>,
     _html: '',
@@ -54,5 +54,16 @@ describe('odometer digits', () => {
     setOdometer(el, '10:00:00');
     expect(cols).toHaveLength(6);
     expect(el.dataset.odoText).toBe('10:00:00');
+  });
+
+  it('jumps (no transition) on the columns it moves while the page scrolls, and rolls again after', () => {
+    const { el, cols } = fakeEl('6:27:00');
+    setOdometerInstant(true);
+    setOdometer(el, '6:27:01');
+    expect(cols[4]!.style.transition).toBe('none');
+    expect(cols[0]!.style.transition).toBeUndefined();
+    setOdometerInstant(false);
+    setOdometer(el, '6:27:02');
+    expect(cols[4]!.style.transition).toBe('');
   });
 });

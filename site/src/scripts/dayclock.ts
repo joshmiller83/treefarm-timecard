@@ -16,6 +16,7 @@
 import { CHAPTERS, type ChapterId } from '../data/chapters.ts';
 import { breakAt, fmtClock, fmtHMS, fmtTime, SHIFT, workedAt, type Minute } from '../data/ledger.ts';
 import { setOdometer } from './odometer.ts';
+import { setText } from './text.ts';
 
 export const DAY_START = SHIFT.in; // 7:02 AM
 export const DAY_END = SHIFT.out; // 4:31 PM
@@ -237,15 +238,15 @@ export function startDayClock(ticker: Ticker, doc: Document = document): DayCloc
     prev = key;
     const state = { min: src.min, done: src.done, chapter: day.chapter, idle: day.idle };
     const r = readout(state);
-    for (const el of clocks) if (el.textContent !== r.clock) el.textContent = r.clock;
+    for (const el of clocks) setText(el, r.clock);
     for (const el of timers) {
       const mode = (el.dataset.timer || 'auto') as TimerMode;
       const text = timerAt(state.min, mode, state.idle).text;
       if (el.hasAttribute('data-odo')) setOdometer(el, text);
-      else if (el.textContent !== text) el.textContent = text;
+      else setText(el, text);
     }
     if (nav) nav.style.setProperty('--p', r.ribbon.toFixed(5));
-    for (const el of tagEls) if (el.textContent !== r.tag) el.textContent = r.tag;
+    for (const el of tagEls) setText(el, r.tag);
     for (const m of marks) {
       m.style.setProperty('--angle', `${r.angle}deg`);
       m.style.setProperty('--ring', r.ring.toFixed(4));

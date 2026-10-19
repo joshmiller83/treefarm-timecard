@@ -294,8 +294,9 @@ test.describe('pace', () => {
         await page.reload();
         await settle(page);
         await page.waitForTimeout(1500);
-        // The browser restored the scroll position: still mid-section.
-        expect(Math.abs((await progress(page)) - at)).toBeLessThan(0.03);
+        // The browser restored the scroll position: still mid-section. (Chromium can restore a
+        // few dozen px off while the page loads and settle back later: 0.03 of this track.)
+        expect(Math.abs((await progress(page)) - at)).toBeLessThan(0.05);
         await expectLit(page, `reload at ${at}`);
         if (at > 0.7) {
           const { bars } = await phoneScales(page);

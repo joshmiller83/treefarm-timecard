@@ -538,5 +538,5 @@ registerScene(
     cleanups.push(() => ST.removeEventListener('refresh', sync));
     return () => cleanups.forEach((f) => f());
   },
-  { dayStart: MOMENTS.clockIn },
+  { dayStart: MOMENTS.clockIn, invalidate: false },
 );

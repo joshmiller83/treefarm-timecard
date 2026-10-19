@@ -168,6 +168,10 @@ test.describe('acceptance: the Live Activity', () => {
     for (let i = 0; i < n; i += 1) {
       const la = las.nth(i);
       await expect(la).not.toContainText(/clock out/i);
+      // Far sections skip rendering (content-visibility: auto) and Firefox reports unlaid-out
+      // boxes inside them (a 208 px screen, a 1322 px card): measure it once it is on screen.
+      await la.scrollIntoViewIfNeeded();
+      await page.waitForTimeout(100);
       const scale = await pt(la);
       const box = (await la.boundingBox())!;
       expect(box.height / scale).toBeLessThanOrEqual(160.5);

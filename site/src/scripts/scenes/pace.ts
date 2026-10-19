@@ -210,6 +210,24 @@ registerScene(
       tl.fromTo(small, { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: span(BEATS.small), ease: 'power2.out', immediateRender: false }, BEATS.small[0]);
     }
 
+    // ---- Laptop heights: the intro gives way to the tiles ----
+    // The tiles sit at .4 of the track, under the intro. Where the window is short (1280 × 600,
+    // 1024 × 640) the first tile's numerals reach the intro's last line, so there the intro
+    // fades just before that tile lights; where they keep apart, it stays. Measured on every
+    // refresh: both ride the same track, so their gap is the same at any scroll.
+    if (isDesk) {
+      const head = section.querySelector<HTMLElement>('.beat-head');
+      const stats = q1<HTMLElement>('.pace-stats');
+      const crowded = () => {
+        if (!head || !stats) return false;
+        return stats.getBoundingClientRect().top - head.getBoundingClientRect().bottom < 24;
+      };
+      if (head && stats) {
+        const at = BEATS.tiles[0] - 0.1;
+        tl.fromTo(head, { opacity: 1 }, { opacity: () => (crowded() ? 0 : 1), duration: 0.04, ease: 'power1.in', immediateRender: false }, at);
+      }
+    }
+
     // ---- Desktop: the bullets come in as the copy reaches them ----
     if (isDesk) {
       q('[data-bullet]').forEach((li, i) => {

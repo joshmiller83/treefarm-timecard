@@ -26,7 +26,7 @@ const { size, label, time } = Astro.props;
     <div class="crop-glass">
       <div class="crop-screen" data-screen={`ls-crop-${size}`}>
         <HomeLayer />
-        {size === 'compact' && <StatusBar time={time} live={false} tone="light" />}
+        {size === 'compact' && <StatusBar time={time} live={false} tone="light" island="compact" />}
         <DynamicIsland size={size} />
       </div>
     </div>
@@ -38,7 +38,7 @@ const { size, label, time } = Astro.props;
   .crop--compact :global([data-island-expanded]),
   .crop--expanded :global([data-island-compact]),
   .crop :global([data-no-service]),
-  .crop--compact :global([data-statusbar] :is(:has(> [data-bar]), [data-wifi])) {
+  .crop--compact :global([data-statusbar] :is([data-bars], [data-wifi])) {
     display: none;
     opacity: 1 !important; /* nothing in a still is "faded" */
   }

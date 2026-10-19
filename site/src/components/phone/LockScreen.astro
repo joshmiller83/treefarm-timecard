@@ -32,9 +32,14 @@ export interface Props {
   noService?: boolean;
 }
 const { date = DAY.date, time, live = true, wallpaper = 'dawn-rows', dim = false, signal = 4, noService = false } = Astro.props;
+// Siri's card (a snippet or the dictation wave) in the top slot takes the top of the lock
+// screen: the date, the big clock and the padlock give way. Known here, so it is an attribute
+// rather than a :has() rule (which re-checked the whole layer on every clock tick).
+const top = Astro.slots.has('top') ? await Astro.slots.render('top') : '';
+const siri = /data-(snippet|wave)[\s=>]/.test(top);
 ---
 
-<div class:list={['lock', `lock--${wallpaper}`]} data-lock data-wallpaper-id={wallpaper}>
+<div class:list={['lock', `lock--${wallpaper}`]} data-lock data-wallpaper-id={wallpaper} data-siri={siri ? '' : undefined}>
   <div class="lock-wp" data-wallpaper></div>
 
   <div class="lock-sb">
@@ -73,11 +78,14 @@ const { date = DAY.date, time, live = true, wallpaper = 'dawn-rows', dim = false
 
   <div class="lock-dim" data-dim style={dim ? 'opacity:.45' : undefined}></div>
   <div class="lock-activity" data-activity-slot><slot /></div>
-  <div class="lock-top"><slot name="top" /></div>
+  <div class="lock-top"><Fragment set:html={top} /></div>
   <div class="lock-overlay"><slot name="overlay" /></div>
 </div>
 
 <style>
+  .lock[data-siri] > :is([data-date], [data-clock], [data-padlock]) {
+    opacity: 0;
+  }
   .lock {
     position: absolute;
     inset: 0;
