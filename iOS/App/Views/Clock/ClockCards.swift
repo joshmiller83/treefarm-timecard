@@ -32,16 +32,19 @@ struct TreesCardView: View {
                 .font(.subheadline)
                 .foregroundStyle(Palette.muted)
                 .fixedSize(horizontal: false, vertical: true)
+                // Read with the count (below), so the button stays its own element.
+                .accessibilityHidden(true)
             if total > 0 {
                 FieldProgressBar(fraction: Double(shaped) / Double(total))
                     .padding(.top, 2)
             }
         }
         .card()
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("trees-card")
     }
 
+    /// The count, the line and the progress bar read as one element; the map button is its own.
     private var count: some View {
         VStack(alignment: .leading, spacing: 2) {
             SectionLabel(label)
@@ -51,6 +54,9 @@ struct TreesCardView: View {
                 .foregroundStyle(Palette.ink)
                 .contentTransition(.numericText())
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(label), \(big). \(line)")
+        .accessibilityIdentifier("trees-card-summary")
     }
 
     @ViewBuilder
@@ -60,6 +66,7 @@ struct TreesCardView: View {
                 Label(buttonTitle, systemImage: "map")
             }
             .buttonStyle(GloveButtonStyle(kind: isShift ? .primary : .secondary))
+            .accessibilityIdentifier("trees-card-map")
         }
     }
 

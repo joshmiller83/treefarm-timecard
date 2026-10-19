@@ -193,7 +193,7 @@ final class ClockFlowUITests: XCTestCase {
         XCTAssertEqual(first.label, "Mark row 5")
         first.tap()
         waitFor(element("toast", in: app), labelBeginsWith: "Row 5 marked")
-        waitFor(element("trees-card", in: app), labelContains: "60 of 960")
+        waitFor(element("trees-card-summary", in: app), labelContains: "60 of 960")
         waitFor(element("now-place", in: app), label: "Block 1, row 6")
         waitFor(element("last-action", in: app), label: "Row 5 marked")
         shot(app, "Row 5 marked")
@@ -269,6 +269,17 @@ final class ClockFlowUITests: XCTestCase {
         fix.tap()
         XCTAssertTrue(element("shift-editor-sheet", in: app).waitForExistence(timeout: 5))
         shot(app, "Clock-out filled in")
+    }
+
+    /// VoiceOver and Voice Control reach the Trees card's button by its name.
+    func testMarkTreesIsAButtonOnItsOwn() {
+        let app = launch(["-UITestClock", "working", "-UITestScrollTo", "trees"])
+        let button = app.buttons["Mark trees"]
+        XCTAssertTrue(button.waitForExistence(timeout: 10))
+        XCTAssertEqual(button.identifier, "trees-card-map")
+        let deadline = Date().addingTimeInterval(5)
+        while !button.isHittable && Date() < deadline { Thread.sleep(forTimeInterval: 0.2) }
+        XCTAssertTrue(button.isHittable)
     }
 
     func testHidingPayIsRememberedNextTime() {
