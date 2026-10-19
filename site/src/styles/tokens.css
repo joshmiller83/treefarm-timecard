@@ -156,6 +156,12 @@
     --chrome-h: 59px;
   }
 }
+/* Tablets in portrait: a larger phone (the cards are capped at 34rem and centred in shell.css). */
+@media (min-width: 600px) and (max-width: 899.98px) and (orientation: portrait) {
+  :root {
+    --phone-h-mob: min(56svh, 600px);
+  }
+}
 /* Landscape phones (the static page: too short for motion): one phone size for every
    chapter, large enough to read (52svh alone is a 180px phone with 3px text). */
 @media (orientation: landscape) and (max-height: 559.98px) {

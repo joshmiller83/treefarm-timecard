@@ -371,6 +371,32 @@ html.motion .shot figcaption {
   }
 }
 
+/* ---------- Tablets (600–899px): a centred 34rem column, not stretched phone cards ---------- */
+@media (min-width: 600px) and (max-width: 899.98px) {
+  .sec .track > .beats {
+    width: 100%;
+    max-width: 34rem;
+    margin-inline: auto;
+  }
+  html.motion .sec[data-mob='sticky'] .beats {
+    max-width: calc(34rem + 2 * var(--gutter));
+  }
+  html.motion .sec[data-mob='sticky'][data-layout='beats'] .beat:not(.beat-head) {
+    max-width: 34rem;
+    margin-inline: auto;
+  }
+  html.motion .sec[data-mob='sticky'][data-layout='flow'] .beat:not(.beat-head) {
+    max-width: 34rem;
+    margin-inline: auto;
+    width: calc(100% - 2 * var(--gutter));
+  }
+  html.motion .sec[data-mob='sticky'][data-layout='flow'] .beat-head {
+    width: 100%;
+    max-width: calc(34rem + 2 * var(--gutter));
+    margin-inline: auto;
+  }
+}
+
 /* ---------- Fixed layers behind and above the sections (motion only) ---------- */
 html.motion body {
   background: transparent;
