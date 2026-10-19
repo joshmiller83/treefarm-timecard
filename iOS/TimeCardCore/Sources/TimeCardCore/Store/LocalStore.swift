@@ -265,14 +265,19 @@ public final class LocalStore: Sendable {
 
     /// Applies the server's answer to a push. Applied changes leave the outbox. A rejected
     /// change leaves it too, and then:
-    /// - with the server's copy (`current`), that copy is stored. If it's a different record
-    ///   (the mark that won a tree), the refused local record is dropped.
-    /// - without one, the record is queued for refetch and the next pull starts from 0.
+    /// - with the server's copy of the same record (`current`), that copy is stored.
+    /// - with a different record: for a tree mark (the mark that won the tree) that record is
+    ///   stored and the refused local mark is dropped. For anything else (the shift already on
+    ///   the clock) that record is stored, the local one stays, and both are settled by a pull
+    ///   from 0, which drops the local one if the server doesn't have it. Trees marked on a
+    ///   refused new shift move to the open shift and are queued again, so they aren't lost.
+    /// - without a copy, the record is queued for refetch and the next pull starts from 0.
     /// Answers about mutations no longer in the outbox (replaced by a newer edit) are ignored.
     public func applyPushResults(_ results: [MutationResult], farmId: UUID) throws -> [Rejection] {
         let encoder = JSONCoding.encoder()
         let farm = farmId.uuidString
         var rejections: [Rejection] = []
+        let now = Date().roundedToMillisecond
         let pending = try writer.writeWithoutTransaction { db -> Int in
             var snapshotChanges: [(SyncRecord?, EntityKey?)] = []
             try db.inTransaction {
@@ -283,23 +288,30 @@ public final class LocalStore: Sendable {
                     try db.execute(sql: "DELETE FROM outbox WHERE mutationId = ?", arguments: [result.mutationId.uuidString])
                     guard result.status == .rejected else { continue }
 
+                    var message = result.message ?? "The server didn’t accept a change."
                     if let current = result.current {
                         try Self.upsert(db, farmId: farm, record: current, json: try encoder.encode(current))
                         var dropped: EntityKey?
                         if EntityKey(current.kind, current.entityId) != key {
-                            try db.execute(sql: "DELETE FROM records WHERE farmId = ? AND kind = ? AND id = ?",
-                                           arguments: [farm, key.kind.rawValue, key.id.uuidString])
-                            dropped = key
+                            if key.kind == .treeMark {
+                                try db.execute(sql: "DELETE FROM records WHERE farmId = ? AND kind = ? AND id = ?",
+                                               arguments: [farm, key.kind.rawValue, key.id.uuidString])
+                                dropped = key
+                            } else {
+                                try Self.refetch(db, farmId: farm, key)
+                            }
+                            if key.kind == .shift, case .shift(let open) = current, open.isOpen {
+                                let moved = try moveMarks(db, farmId: farmId, from: key.id, to: open, now: now, encoder: encoder)
+                                snapshotChanges += moved.map { (.treeMark($0), nil) }
+                                if !moved.isEmpty { message += " " + Self.movedTrees(moved.count) }
+                            }
                         }
                         snapshotChanges.append((current, dropped))
                     } else {
-                        try db.execute(sql: "INSERT OR IGNORE INTO refetch (farmId, kind, id) VALUES (?, ?, ?)",
-                                       arguments: [farm, key.kind.rawValue, key.id.uuidString])
-                        try Self.setCursor(db, farmId: farm, 0)
+                        try Self.refetch(db, farmId: farm, key)
                     }
                     rejections.append(Rejection(mutationId: result.mutationId, kind: key.kind, entityId: key.id, reason: result.reason,
-                                                message: result.message ?? "The server didn't accept a change.",
-                                                restoredFromServer: result.current != nil))
+                                                message: message, restoredFromServer: result.current != nil))
                 }
                 return .commit
             }
@@ -313,6 +325,37 @@ public final class LocalStore: Sendable {
         }
         notify(.sync, pending)
         return rejections
+    }
+
+    /// "The 3 trees you marked moved to that shift."
+    static func movedTrees(_ n: Int) -> String {
+        n == 1 ? "The tree you marked moved to that shift." : "The \(n) trees you marked moved to that shift."
+    }
+
+    /// Moves the live marks of a refused shift onto `open` and queues them again at the back
+    /// of the outbox (new mutation ids), so this pass pushes them after the answer.
+    private func moveMarks(_ db: Database, farmId: UUID, from shiftId: UUID, to open: Shift, now: Date, encoder: JSONEncoder) throws -> [TreeMark] {
+        let marks = state.withLock { state -> [TreeMark] in
+            guard let snapshot = state.snapshot, snapshot.farmId == farmId else { return [] }
+            return snapshot.marks.values.filter { $0.shiftId == shiftId }
+        }
+        let farm = farmId.uuidString
+        let stamp = Self.ms(now)
+        return try marks.sorted { ($0.blockId.uuidString, $0.row, $0.position) < ($1.blockId.uuidString, $1.row, $1.position) }.map { mark in
+            var moved = mark
+            moved.shiftId = open.id
+            moved.userId = open.userId
+            moved.updatedAt = max(now, mark.updatedAt.addingTimeInterval(0.001)).roundedToMillisecond
+            let record = SyncRecord.treeMark(moved)
+            let json = try encoder.encode(record)
+            try Self.upsert(db, farmId: farm, record: record, json: json)
+            try db.execute(sql: "DELETE FROM outbox WHERE farmId = ? AND kind = ? AND entityId = ?",
+                           arguments: [farm, RecordKind.treeMark.rawValue, mark.id.uuidString])
+            try db.execute(sql: """
+                INSERT INTO outbox (mutationId, farmId, kind, entityId, json, createdAt) VALUES (?, ?, ?, ?, ?, ?)
+                """, arguments: [UUID().uuidString, farm, RecordKind.treeMark.rawValue, mark.id.uuidString, json, stamp])
+            return moved
+        }
     }
 
     // MARK: Small values
@@ -391,6 +434,13 @@ public final class LocalStore: Sendable {
         try db.execute(sql: """
             INSERT OR REPLACE INTO records (kind, id, farmId, json, updatedAt, deletedAt) VALUES (?, ?, ?, ?, ?, ?)
             """, arguments: [record.kind.rawValue, record.entityId.uuidString, farmId, json, ms(record.updatedAt), record.deletedAt.map(ms)])
+    }
+
+    /// Asks the next pull to start from 0 and settle this record.
+    private static func refetch(_ db: Database, farmId: String, _ key: EntityKey) throws {
+        try db.execute(sql: "INSERT OR IGNORE INTO refetch (farmId, kind, id) VALUES (?, ?, ?)",
+                       arguments: [farmId, key.kind.rawValue, key.id.uuidString])
+        try setCursor(db, farmId: farmId, 0)
     }
 
     private static func setCursor(_ db: Database, farmId: String, _ cursor: Int64) throws {

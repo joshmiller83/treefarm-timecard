@@ -150,6 +150,32 @@ struct SyncEngineTests {
         #expect(await iterator.next()?.message == "Only admins can change blocks.")
     }
 
+    @Test func anOfflineClockInRefusedForAnOpenShiftKeepsItsTrees() async throws {
+        let rig = try await makeRig()
+        let open = Shift(userId: f.userId, farmId: f.farmId, start: Fixtures.t0 - 3600, rateCents: 1800, updatedAt: Fixtures.t0 - 3600)
+        await rig.stub.seed(farmId: f.farmId, [.shift(open)])
+        let offline = f.shift()
+        let marks = (0..<3).map { f.mark(row: 4, position: $0) }
+        try rig.store.save([.shift(offline)] + marks.map(SyncRecord.treeMark))
+        let notices = await rig.engine.notices()
+
+        _ = await rig.engine.syncNow()
+
+        #expect(rig.store.snapshot.shifts.keys.sorted() == [open.id])
+        #expect(rig.store.snapshot.marks.count == 3)
+        for mark in marks {
+            guard case .treeMark(let stored)? = await rig.stub.record(kind: .treeMark, id: mark.id) else {
+                Issue.record("mark \(mark.id) didn’t reach the server"); continue
+            }
+            #expect(stored.shiftId == open.id)
+        }
+        #expect(try rig.store.pendingCount() == 0)
+        var iterator = notices.makeAsyncIterator()
+        let notice = await iterator.next()
+        #expect(notice?.reason == .openShiftExists)
+        #expect(notice?.message.hasSuffix("The 3 trees you marked moved to that shift.") == true)
+    }
+
     @Test func anEditMadeDuringAPushSurvivesThePull() async throws {
         let rig = try await makeRig()
         try rig.store.save([.shift(f.shift(notes: "first"))])

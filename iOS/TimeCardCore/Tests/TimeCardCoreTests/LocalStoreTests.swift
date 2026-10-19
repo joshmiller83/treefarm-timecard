@@ -193,6 +193,53 @@ struct LocalStoreTests {
         #expect(store.snapshot.marks[winner.id] == winner)
     }
 
+    @Test func aRefusedClockInKeepsItsCopyAndMovesItsTreesToTheOpenShift() throws {
+        let store = try makeStore()
+        try store.applyRemote(f.changes(f.layout), farmId: f.farmId, cursor: 40)
+        // The server already has an open shift for this person (left open on another phone).
+        let open = Shift(userId: f.userId, farmId: f.farmId, start: Fixtures.t0 - 3600, rateCents: 1800, updatedAt: Fixtures.t0 - 3600)
+        let offline = f.shift()
+        let marks = [f.mark(row: 0, position: 0), f.mark(row: 0, position: 1)]
+        let mutations = try store.save([.shift(offline)] + marks.map(SyncRecord.treeMark))
+        let rejections = try store.applyPushResults([
+            .rejected(mutations[0].id, .openShiftExists, "You’re already clocked in (since Mon, Oct 6 at 3:53 AM).", current: .shift(open)),
+            .rejected(mutations[1].id, .notFound, "That shift isn’t on this farm."),
+            .rejected(mutations[2].id, .notFound, "That shift isn’t on this farm."),
+        ], farmId: f.farmId)
+
+        // One notice, about the shift; the marks' own refusals are about the old copies.
+        #expect(rejections.count == 1)
+        #expect(rejections.first?.message == "You’re already clocked in (since Mon, Oct 6 at 3:53 AM). The 2 trees you marked moved to that shift.")
+        #expect(store.snapshot.shifts[open.id] == open)
+        #expect(store.snapshot.shifts[offline.id] != nil)
+        #expect(store.snapshot.marks.values.allSatisfy { $0.shiftId == open.id })
+        let queued = try store.outbox(farmId: f.farmId, limit: 10)
+        #expect(Set(queued.map(\.entityId)) == Set(marks.map(\.id)))
+        #expect(queued.allSatisfy { if case .treeMark(let m) = $0.record { m.shiftId == open.id } else { false } })
+        #expect(try store.cursor(farmId: f.farmId) == 0)
+        #expect(try store.refetchCount(farmId: f.farmId) == 1)
+
+        // The pull from 0 doesn't bring the refused shift back, so it goes; the trees stay.
+        try store.applyRemote(f.changes(f.layout + [.shift(open)]), farmId: f.farmId, cursor: 41)
+        try store.finishPull(farmId: f.farmId)
+        #expect(store.snapshot.shifts.keys.sorted() == [open.id])
+        #expect(store.snapshot.marks.count == 2)
+    }
+
+    @Test func aRefusedShiftTheServerHasComesBackOnThePull() throws {
+        let store = try makeStore()
+        try store.applyRemote(f.changes(f.layout + [.shift(f.shift(notes: "synced"))]), farmId: f.farmId, cursor: 40)
+        let other = Shift(userId: f.userId, farmId: f.farmId, start: Fixtures.t0 - 7200, rateCents: 1800, updatedAt: Fixtures.t0)
+        let mutations = try store.save([.shift(f.shift(notes: "synced, then edited", updatedAt: Fixtures.t0 + 10))])
+        _ = try store.applyPushResults([.rejected(mutations[0].id, .openShiftExists, "Already clocked in.", current: .shift(other))],
+                                       farmId: f.farmId)
+        #expect(store.snapshot.shifts[f.shiftId] != nil)
+        try store.applyRemote(f.changes(f.layout + [.shift(f.shift(notes: "synced")), .shift(other)]), farmId: f.farmId, cursor: 41)
+        try store.finishPull(farmId: f.farmId)
+        #expect(store.snapshot.shifts[f.shiftId]?.notes == "synced")
+        #expect(store.snapshot.shifts[other.id] == other)
+    }
+
     @Test func aRejectionWithoutACopyRefetchesFromTheStart() throws {
         let store = try makeStore()
         try store.applyRemote(f.changes(f.layout), farmId: f.farmId, cursor: 40)
