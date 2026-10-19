@@ -6,7 +6,9 @@ import WidgetKit
 // timer and the next row are the biggest things, the phase has a glyph and a word as well as a
 // color, and nothing needs a tap but opening the app. Timers and glyphs are `.widgetAccentable()`,
 // so a tinted face colors them and leaves the words plain. Every timer has a set width, one
-// line and room to shrink, since Always On may write "3:41" as "3 hr".
+// line and room to shrink, since Always On may write "3:41" as "3 hr". VoiceOver hears one
+// element per complication: the phase in a word (never a symbol's name), the row, and the
+// running timer as the system reads it.
 
 /// Picks the family's layout.
 struct ShiftComplicationView: View {
@@ -14,7 +16,7 @@ struct ShiftComplicationView: View {
     @Environment(\.widgetFamily) private var family
 
     var body: some View {
-        let face = ComplicationFace(entry)
+        let face = entry.face
         Group {
             switch family {
             case .accessoryCircular: CircularComplication(face: face)
@@ -45,17 +47,24 @@ struct CircularComplication: View {
                     .font(.system(size: 10, weight: .bold))
                     .foregroundStyle(ComplicationStyle.tint(face.tone))
                     .widgetAccentable()
+                    .accessibilityLabel(face.word)
                 centre
             }
             // Clear of the ring's stroke on the smallest (40 mm) face.
             .padding(.horizontal, 8)
             .padding(.vertical, 6)
         }
+        // "Working, next row 14"; "Lunch, 12:40"; "Off the clock, 6.5 h today".
         .accessibilityElement(children: .combine)
     }
 
-    @ViewBuilder
+    /// Drawn only: its percentage means nothing read aloud.
     private var ring: some View {
+        ringShape.accessibilityHidden(true)
+    }
+
+    @ViewBuilder
+    private var ringShape: some View {
         switch face.tone {
         case .working:
             if let start = face.timerStart {
@@ -89,9 +98,11 @@ struct CircularComplication: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.6)
                     .trimmedLineBox(19)
+                    .accessibilityLabel(face.rowAccessibility ?? row)
             } else if let glyph = face.noRowGlyph {
                 Image(systemName: glyph)
                     .font(.system(size: 14, weight: .bold))
+                    .accessibilityLabel(face.rowAccessibility ?? "")
             }
         case .onBreak:
             if let start = face.breakStart {
@@ -110,10 +121,12 @@ struct CircularComplication: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
                 .trimmedLineBox(16)
+                .accessibilityLabel(face.hoursLine)
         case .none:
             Text(WatchDisplay.noDataMark)
                 .font(.system(size: 16, weight: .bold, design: .rounded))
                 .trimmedLineBox(16)
+                .accessibilityLabel(WatchDisplay.openOnPhone)
         }
     }
 }
@@ -158,9 +171,11 @@ struct RectangularLines: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 4) {
+                // Line 1 already says the phase in words.
                 Image(systemName: face.glyph)
                     .foregroundStyle(ComplicationStyle.tint(face.tone))
                     .widgetAccentable()
+                    .accessibilityHidden(true)
                 ViewThatFits(in: .horizontal) {
                     Text(face.title)
                     Text(face.shortTitle)
@@ -183,8 +198,10 @@ struct RectangularLines: View {
                     if face.detailIsWaiting {
                         Image(systemName: WatchDisplay.queueGlyph)
                             .foregroundStyle(ComplicationStyle.sap)
+                            .accessibilityHidden(true)
                     }
                     Text(detail)
+                        .accessibilityLabel(face.detailAccessibility ?? detail)
                 }
                 .font(.system(size: metrics.detail, weight: .medium))
                 .foregroundStyle(.secondary)
@@ -230,6 +247,7 @@ struct CornerComplication: View {
             .font(.system(size: 20, weight: .semibold))
             .foregroundStyle(ComplicationStyle.tint(face.tone))
             .widgetAccentable()
+            .accessibilityLabel(face.word)
             .widgetCurvesContent()
             .widgetLabel {
                 label

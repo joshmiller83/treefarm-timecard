@@ -7,8 +7,9 @@ import WidgetKit
 ///
 /// Its only data is what the watch app writes to the App Group (`WatchStateFile`): the
 /// **displayed** state, with taps that still wait for the phone already applied, and the
-/// waiting count. The extension never touches WCSession. The timeline is one entry that never
-/// expires: every timer and ring ticks by itself, and the app reloads it when
+/// waiting count. The extension never touches WCSession. The timeline never expires: every
+/// timer and ring ticks by itself, off the clock a second entry turns "6.5 h today" back to
+/// "IN" at the farm's midnight (`ComplicationDay`), and the app reloads it when
 /// `ComplicationReload.needsReload` says something shown changed. Tapping it opens the app,
 /// the glove-friendly way back in.
 struct ShiftComplication: Widget {
@@ -25,23 +26,12 @@ struct ShiftComplication: Widget {
 }
 
 struct ShiftComplicationEntry: TimelineEntry {
-    let state: WatchState?
-    /// Taps waiting for the phone (not in flight).
-    let waitingCount: Int
-    /// A watch clock-out waits for the phone: "Clock-out waiting for iPhone".
-    let clockOutWaiting: Bool
+    /// What the watch app last wrote.
+    let contents: WatchStateFile.Contents
     let date: Date
 
-    init(state: WatchState?, waitingCount: Int, date: Date, clockOutWaiting: Bool = false) {
-        self.state = state
-        self.waitingCount = waitingCount
-        self.clockOutWaiting = clockOutWaiting
-        self.date = date
-    }
-
-    init(_ contents: WatchStateFile.Contents, date: Date) {
-        self.init(state: contents.displayed, waitingCount: contents.waitingCount, date: date, clockOutWaiting: contents.clockOutWaiting)
-    }
+    /// What it shows at this entry's moment.
+    var face: ComplicationFace { ComplicationFace(contents, at: date) }
 
     /// What the face editor and the widget gallery show: a shift under way.
     static func sample(at now: Date) -> ShiftComplicationEntry {
@@ -54,7 +44,7 @@ struct ShiftComplicationEntry: TimelineEntry {
         let state = WatchState(signedIn: true, farmName: "", fieldName: "North", snapshot: snapshot, nextRows: rows,
                                todayWorked: worked, todayTrees: 38, canUndo: false, recordWorkouts: true, updatedAt: now,
                                shiftStart: now.addingTimeInterval(-worked))
-        return ShiftComplicationEntry(state: state, waitingCount: 0, date: now)
+        return ShiftComplicationEntry(contents: WatchStateFile.Contents(displayed: state), date: now)
     }
 }
 
@@ -67,11 +57,15 @@ struct ShiftComplicationProvider: TimelineProvider {
     }
 
     func getSnapshot(in context: Context, completion: @escaping @Sendable (ShiftComplicationEntry) -> Void) {
-        completion(context.isPreview ? .sample(at: Date()) : ShiftComplicationEntry(read(), date: Date()))
+        completion(context.isPreview ? .sample(at: Date()) : ShiftComplicationEntry(contents: read(), date: Date()))
     }
 
+    /// Now, and the farm's midnight when hours today are showing; never expires, so the
+    /// midnight entry spends no reload.
     func getTimeline(in context: Context, completion: @escaping @Sendable (Timeline<ShiftComplicationEntry>) -> Void) {
-        completion(Timeline(entries: [ShiftComplicationEntry(read(), date: Date())], policy: .never))
+        let contents = read()
+        let dates = ComplicationDay.entryDates(for: contents.displayed, now: Date())
+        completion(Timeline(entries: dates.map { ShiftComplicationEntry(contents: contents, date: $0) }, policy: .never))
     }
 
     /// The Smart Stack raises the widget all shift long, and around the usual clock-in time.

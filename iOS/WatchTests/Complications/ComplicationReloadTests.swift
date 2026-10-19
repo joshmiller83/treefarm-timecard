@@ -205,6 +205,19 @@ struct ComplicationReloadTests {
         #expect(reloads(F.offClock(todayWorked: 0), F.offClock(todayWorked: 2 * 3600)))
     }
 
+    @Test func theSameHoursOnALaterDayReload() {
+        // Monday's timeline turned back to "IN" at midnight; Tuesday's own 6.5 h must show.
+        let monday = F.offClock(todayWorked: 6.5 * 3600)
+        var tuesday = monday
+        tuesday.updatedAt = F.at(18, 0, day: 20)
+        #expect(reloads(monday, tuesday))
+        // With nothing worked, the day doesn't show.
+        let mondayIdle = F.offClock(todayWorked: 0)
+        var tuesdayIdle = mondayIdle
+        tuesdayIdle.updatedAt = F.at(6, 50, day: 20)
+        #expect(!reloads(mondayIdle, tuesdayIdle))
+    }
+
     @Test func theFarmsTimeZoneReloads() {
         // "Lunch since 12:01" and the morning window read in it.
         let old = F.onBreak(.lunch)
