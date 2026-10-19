@@ -97,6 +97,38 @@ test.describe('reduced motion (the static page)', () => {
     }
   });
 
+  /** What the header says is the current chapter: aria-current and the chip's words. */
+  const indicator = (page: import('@playwright/test').Page) =>
+    page.evaluate(() => ({
+      current: Array.from(document.querySelectorAll('a[data-chapter-link][aria-current]')).map((a) => (a as HTMLElement).dataset.chapterLink),
+      chip: (document.querySelector('[data-shift-tag]')?.textContent ?? '').trim(),
+    }));
+  const tagOf = (page: import('@playwright/test').Page, id: string) =>
+    page.evaluate((id) => document.getElementById(id)!.dataset.ribbonTag ?? '', id);
+
+  test('after every chapter link the header names that chapter (no lag)', async ({ page, isMobile }) => {
+    await page.goto('/');
+    await page.evaluate(() => document.fonts.ready);
+    const toggle = page.locator('.shift-toggle');
+    for (const id of [...SECTION_IDS.slice(1), 'voice', 'crew', 'hero']) {
+      if (isMobile) await toggle.click();
+      await page.locator(`a[data-chapter-link="${id}"]`).click();
+      await expect(page).toHaveURL(new RegExp(`#${id}$`));
+      const want = await tagOf(page, id);
+      await expect.poll(() => indicator(page), { message: id, timeout: 3000 }).toEqual({ current: [id], chip: want });
+    }
+  });
+
+  test('a deep link opens with the header naming its chapter', async ({ page }) => {
+    for (const id of ['crew', 'field', 'open', 'notes', 'clock-out']) {
+      await page.goto(`/#${id}`);
+      await page.evaluate(() => document.fonts.ready);
+      await page.waitForLoadState('load');
+      const want = await tagOf(page, id);
+      await expect.poll(() => indicator(page), { message: id, timeout: 3000 }).toEqual({ current: [id], chip: want });
+    }
+  });
+
   test('the hero’s walk-through link lands on the first chapter', async ({ page }) => {
     await page.goto('/');
     await page.getByRole('link', { name: 'Walk through a shift' }).click();

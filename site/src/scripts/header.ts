@@ -105,19 +105,26 @@ export function initHeader(): void {
   );
   const tags = Array.from(nav.querySelectorAll<HTMLElement>('[data-shift-tag]'));
   let current: HTMLElement | null = null;
-  // The section under the header's bottom edge, from an IntersectionObserver on a 1px band
-  // there: no layout reads while the page scrolls (DayClock writes text every frame, so a
-  // getBoundingClientRect here forced a full layout of the page each time).
+  // Two 1px lines, each watched by an IntersectionObserver (no layout reads while the page
+  // scrolls: DayClock writes text every frame, so a getBoundingClientRect here forced a full
+  // layout of the page each time):
+  //  - the band under the header's bottom edge: which section the header sits over (its theme);
+  //  - the chapter line: which chapter is current. Without motion it lies a few px below the
+  //    scroll padding, where a chapter link or a deep link lands its chapter (at the header's
+  //    edge it named the chapter above, one behind); with motion it is the 55% line where the
+  //    motion core hands the day to the next chapter, so the chip and aria-current agree.
   const inBand = new Set<Element>();
-  let line = -1;
+  const onLine = new Set<Element>();
+  let line = '';
 
   const update = () => {
-    const found = sections.find((s) => inBand.has(s)) ?? null;
-    const theme = found?.dataset.theme === 'light' ? 'light' : 'dark';
+    const under = sections.find((s) => inBand.has(s)) ?? null;
+    const theme = under?.dataset.theme === 'light' ? 'light' : 'dark';
     if (header.dataset.theme !== theme) header.dataset.theme = theme;
-    if (found === current) return;
+    const found = sections.find((s) => onLine.has(s)) ?? null;
+    if (!found || found === current) return;
     current = found;
-    const idx = found ? sections.indexOf(found) : -1;
+    const idx = sections.indexOf(found);
     sections.forEach((s, i) => {
       const a = links.get(s.id);
       if (!a) return;
@@ -127,9 +134,9 @@ export function initHeader(): void {
     });
     // Without motion, the tag names the chapter; with motion DayClock writes the live time.
     if (!root.classList.contains('motion')) {
-      const tag = sections[Math.max(0, idx)]?.dataset.ribbonTag ?? '';
-      for (const t of tags) t.textContent = tag;
-      nav.style.setProperty('--p', String(Math.max(0, idx) / Math.max(1, sections.length - 1)));
+      const tag = found.dataset.ribbonTag ?? '';
+      for (const t of tags) if (t.textContent !== tag) t.textContent = tag;
+      nav.style.setProperty('--p', String(idx / Math.max(1, sections.length - 1)));
     }
   };
 
@@ -138,30 +145,43 @@ export function initHeader(): void {
     if (!raf) raf = requestAnimationFrame(() => ((raf = 0), update()));
   };
   let band: IntersectionObserver | null = null;
-  const watchBand = () => {
-    // The header's own height in the flow (its band hangs below it, over the page), from the
-    // tokens: a style read, never a layout one (this runs while the page first loads).
-    const cs = getComputedStyle(root);
-    const top = Math.round((parseFloat(cs.getPropertyValue('--header-h')) || 56) + (parseFloat(cs.getPropertyValue('--ribbon-h')) || 3)) + 1;
-    const key = top * 100000 + innerHeight;
-    if (key === line) return;
-    line = key;
-    band?.disconnect();
-    inBand.clear();
-    band = new IntersectionObserver(
+  let chapterLine: IntersectionObserver | null = null;
+  /** An observer of the 1px line `y` px from the top of the viewport. */
+  const watchLine = (y: number, into: Set<Element>) => {
+    into.clear();
+    const io = new IntersectionObserver(
       (entries) => {
         for (const e of entries) {
-          if (e.isIntersecting) inBand.add(e.target);
-          else inBand.delete(e.target);
+          if (e.isIntersecting) into.add(e.target);
+          else into.delete(e.target);
         }
         schedule();
       },
-      { rootMargin: `-${top}px 0px -${Math.max(0, innerHeight - top - 1)}px 0px` },
+      { rootMargin: `-${y}px 0px -${Math.max(0, innerHeight - y - 1)}px 0px` },
     );
-    sections.forEach((s) => band!.observe(s));
+    sections.forEach((s) => io.observe(s));
+    return io;
+  };
+  const watchBand = () => {
+    // Style reads only, never a layout one (this runs while the page first loads): the
+    // header's own height in the flow (its band hangs below it, over the page) from the
+    // tokens, and the scroll padding a jump lands at.
+    const cs = getComputedStyle(root);
+    const top = Math.round((parseFloat(cs.getPropertyValue('--header-h')) || 56) + (parseFloat(cs.getPropertyValue('--ribbon-h')) || 3)) + 1;
+    const motion = root.classList.contains('motion');
+    const at = motion ? Math.round(innerHeight * 0.55) : Math.round((parseFloat(cs.scrollPaddingTop) || top) + 8);
+    const key = `${top}|${at}|${innerHeight}`;
+    if (key === line) return;
+    line = key;
+    band?.disconnect();
+    chapterLine?.disconnect();
+    band = watchLine(top, inBand);
+    chapterLine = watchLine(Math.min(at, innerHeight - 2), onLine);
   };
   watchBand();
   addEventListener('resize', () => (watchBand(), schedule()), { passive: true });
   new MutationObserver(schedule).observe(document.body, { subtree: true, attributes: true, attributeFilter: ['data-theme'] });
+  // Motion can come off after load (the 4 s gate, a failed motion bundle): move the chapter line.
+  new MutationObserver(() => watchBand()).observe(root, { attributes: true, attributeFilter: ['class'] });
   update();
 }
