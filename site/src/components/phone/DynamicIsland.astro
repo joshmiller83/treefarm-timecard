@@ -3,21 +3,38 @@
  * DynamicIsland (device-b): Time Card's Live Activity in the Dynamic Island.
  *
  *   rest      126 × 37 pt, radius 18.5 (the bare island)
- *   compact   250 × 37 pt: fir + 'Row 37' left of the camera, '6:29' (Plex Mono) right
- *   expanded  371 × 160 pt, radius 44: place, big timer, [Row 37] [Row 38] [Break] at 40 pt
+ *   compact   250 × 37 pt (x 71.5–321.5): 'Row 37' in the left ear (x 71.5–129.5), the fir
+ *             and '6:29' (Plex Mono) in the right ear (x 263.5–321.5); nothing over the
+ *             camera cutout (the rest island, x 133.5–259.5). The left ear fits 'Row 37' at
+ *             13.5 pt with room to spare but not the fir as well, so the fir rides with the time.
+ *   expanded  371 × 160 pt, radius 44: badge and 'On the clock' on the camera's centre line
+ *             (y 29.5) clear of the cutout, place, big timer, [Row 37] [Row 38] [Break] at 40 pt
  *
  * Hooks
  *   [data-island]            the one black element; scenes tween width, height and
  *                            border-radius between the sizes above (data-size is the static one)
  *   [data-island-compact]    compact content: fades in at 70% of the morph
  *   [data-island-expanded]   expanded content: fades in at 70% of the morph
+ *   [data-island-time]       the compact time (H:MM). With `live` it is a DayClock timer
+ *                            (data-timer="worked") clipped to H:MM, so it agrees with the
+ *                            expanded [data-timer]; otherwise data-timer="fixed"
  *   [data-timer]             the expanded timer (data-timer="fixed" unless live)
  *   [data-island-row="37"]…, [data-island-break]   the expanded buttons (util.tap targets)
+ *   [data-island-lens]       the front camera, drawn at x 241, y 29.5 pt whatever the size
+ *
+ * The status bar yields to a wide island. In the same <Screen> layer as a compact (or
+ * expanded) island, the status-bar time moves from the left ear's centre (x 68 pt) to the
+ * outer ear's (x 38 pt) and the cellular, Wi-Fi and No Service glyphs fade, leaving the
+ * battery; expanded, the whole status bar fades (the island covers it). All of it follows
+ * `--island-yield` on the layer: 0 rest, 1 compact, 2 expanded (the static value follows
+ * data-size), so a scene morphing the island tweens `--island-yield` with the width.
  *
  * Positioning: y 11 pt from the screen's top, horizontally centred with left/right 0 and
  * auto margins (no transform), so a width tween stays centred and transforms stay free.
- * `inline` renders it in normal flow for crops outside a phone: it uses --pt from a wrapper
- * when one is set, else fits its container (up to 1 px per pt).
+ * z-index 8, above every screen layer; Phone's rest island (the hardware, outside .screen)
+ * paints over its middle, black on black with the same lens. `inline` renders it in normal
+ * flow for crops outside a phone: it uses --pt from a wrapper when one is set, else fits its
+ * container (up to 1 px per pt).
  */
 import { FIELD, MOMENTS, fmtHMS, positionAt, treesAt, workedAt } from '../../data/ledger';
 
@@ -35,7 +52,7 @@ export interface Props {
   rows?: [number, number];
   /** Optional: trees this shift, shown under the place in the expanded view. Default 230. */
   trees?: number;
-  /** Optional: let DayClock drive the expanded timer (data-timer="worked"). Default false (fixed). */
+  /** Optional: let DayClock drive both timers (data-timer="worked"). Default false (fixed). */
   live?: boolean;
   /** Optional: render in normal flow (a crop outside a phone) instead of at y 11 pt. */
   inline?: boolean;
@@ -56,18 +73,22 @@ const {
   live = false,
   inline = false,
 } = Astro.props;
+// Live, DayClock writes H:MM:SS into the compact time; it is clipped to the H:MM width.
+const compactText = live ? `${time}:${timer.slice(-2)}` : time;
 ---
 
 <div class:list={['island', inline && 'island--inline']} data-island data-size={size}>
   <div class="isl-compact" data-island-compact>
     <span class="isl-lead">
+      <span class="isl-row">Row {row}</span>
+    </span>
+    <span class="isl-trail">
       <svg class="isl-fir" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
         <path d="M12 2.6 7.4 8.7h2.4l-3.9 5.1h2.7l-3.9 5.3h14.6l-3.9-5.3h2.7l-3.9-5.1h2.4Z" fill="currentColor" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"></path>
         <rect x="10.9" y="18.4" width="2.2" height="3.6" rx="0.9" fill="currentColor"></rect>
       </svg>
-      <span class="isl-row">Row {row}</span>
+      <span class="isl-time isl-mono" data-island-time data-timer={live ? 'worked' : 'fixed'} style={`--chars:${time.length}`}>{compactText}</span>
     </span>
-    <span class="isl-trail isl-mono" data-island-time>{time}</span>
   </div>
 
   <div class="isl-expanded" data-island-expanded>
@@ -93,6 +114,8 @@ const {
       <span class="isl-btn isl-btn--break" data-island-break>Break</span>
     </div>
   </div>
+
+  <i class="isl-lens" data-island-lens></i>
 </div>
 
 <style>
@@ -136,6 +159,22 @@ const {
     font-variant-numeric: tabular-nums;
   }
 
+  /* The front camera: fixed hardware, so it sits at x 241, y 29.5 pt (44.5 pt right of the
+     centre line, 18.5 pt under the island's top) at every size, over the content. */
+  .isl-lens {
+    position: absolute;
+    left: 50%;
+    top: calc(13 * var(--isl-pt));
+    width: calc(11 * var(--isl-pt));
+    height: calc(11 * var(--isl-pt));
+    margin-left: calc(39 * var(--isl-pt));
+    border-radius: 50%;
+    background:
+      radial-gradient(circle at 36% 34%, rgba(120, 140, 190, 0.35), transparent 26%),
+      radial-gradient(circle, #0b0f1c 40%, #141826 62%, #07080b 72%);
+    pointer-events: none;
+  }
+
   /* Content keeps its final size and is anchored to the island's corners, so it never
      reflows while the island morphs; it only fades. */
   .isl-compact,
@@ -151,26 +190,24 @@ const {
     opacity: 1;
   }
 
-  /* ---------- Compact: 250 × 37, the camera in the middle 126 pt ---------- */
+  /* ---------- Compact: 250 × 37. The camera cutout is the middle 126 pt, so the leading
+     content lives in x 71.5–129.5 and the trailing in x 263.5–321.5. ---------- */
   .isl-compact {
     width: calc(250 * var(--isl-pt));
     height: calc(37 * var(--isl-pt));
     margin-left: calc(-125 * var(--isl-pt));
+  }
+  .isl-lead,
+  .isl-trail {
+    position: absolute;
+    top: 0;
+    height: 100%;
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    padding: 0 calc(13 * var(--isl-pt)) 0 calc(11 * var(--isl-pt));
   }
+  /* 'Row 37' starts 7 pt in from the island's left end (x 78.5) and ends near x 126. */
   .isl-lead {
-    display: flex;
-    align-items: center;
-    gap: calc(3.5 * var(--isl-pt));
-  }
-  .isl-fir {
-    width: calc(14 * var(--isl-pt));
-    height: calc(14 * var(--isl-pt));
-    color: var(--fir-lit);
-    flex: none;
+    left: calc(7 * var(--isl-pt));
   }
   .isl-row {
     font-size: calc(13.5 * var(--isl-pt));
@@ -178,10 +215,25 @@ const {
     letter-spacing: -0.015em;
     white-space: nowrap;
   }
+  /* The fir and the time end 10.5 pt in from the right end; they start near x 265. */
   .isl-trail {
-    font-size: calc(14.5 * var(--isl-pt));
-    font-weight: 600;
+    right: calc(10.5 * var(--isl-pt));
+    gap: calc(2.5 * var(--isl-pt));
     color: var(--fir-lit);
+  }
+  .isl-fir {
+    width: calc(11 * var(--isl-pt));
+    height: calc(11 * var(--isl-pt));
+    flex: none;
+  }
+  /* H:MM in Plex Mono (every glyph 1ch wide). Clipped to the H:MM width, so a live DayClock
+     timer ("6:29:10") reads 6:29. */
+  .isl-time {
+    width: calc(var(--chars, 4) * (1ch - 0.02em));
+    overflow: hidden;
+    white-space: nowrap;
+    font-size: calc(14 * var(--isl-pt));
+    font-weight: 600;
     letter-spacing: -0.02em;
   }
 
@@ -194,12 +246,13 @@ const {
     display: grid;
     grid-template-rows: calc(37 * var(--isl-pt)) 1fr auto;
   }
-  /* Leading and trailing sit beside the camera (y 0–37). */
+  /* Leading and trailing sit beside the camera, centred on its line (y 0–37 of the island,
+     y 29.5 pt on the screen). The pill ends 18 pt in, so it starts right of the cutout. */
   .isl-top {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding-top: calc(4 * var(--isl-pt));
+    margin-right: calc(-2 * var(--isl-pt));
   }
   .isl-badge {
     display: grid;
@@ -214,26 +267,19 @@ const {
     width: calc(16 * var(--isl-pt));
     height: calc(16 * var(--isl-pt));
   }
+  /* The same pill as the Live Activity's: solid #2E7A4E, white text. */
   .isl-pill {
     display: inline-flex;
     align-items: center;
-    gap: calc(5 * var(--isl-pt));
     height: calc(22 * var(--isl-pt));
-    padding: 0 calc(9 * var(--isl-pt)) 0 calc(8 * var(--isl-pt));
+    padding: 0 calc(9 * var(--isl-pt));
     border-radius: calc(11 * var(--isl-pt));
-    background: rgba(136, 207, 164, 0.16);
-    color: var(--fir-lit);
-    font-size: calc(12 * var(--isl-pt));
+    background: #2e7a4e;
+    color: #fff;
+    font-size: calc(12.5 * var(--isl-pt));
     font-weight: 600;
     letter-spacing: -0.005em;
     white-space: nowrap;
-  }
-  .isl-pill::before {
-    content: '';
-    width: calc(6 * var(--isl-pt));
-    height: calc(6 * var(--isl-pt));
-    border-radius: 50%;
-    background: currentColor;
   }
   .isl-mid {
     display: flex;
@@ -292,5 +338,32 @@ const {
   .isl-btn--break {
     box-shadow: inset 0 0 0 calc(1.5 * var(--isl-pt)) rgba(255, 255, 255, 0.4);
     color: #fff;
+  }
+
+  /* ---------- The status bar yields to a wide island (same <Screen> layer) ----------
+     --island-yield: 0 rest, 1 compact, 2 expanded (the static value follows data-size; scenes
+     tween it on the layer with the morph). Rest → compact: the time slides 30 pt left, from
+     the left ear's centre (x 68) to the outer ear's (x 38), clear of the island's left end
+     (x 71.5), while the signal bars' holder, Wi-Fi and No Service fade, leaving the battery.
+     Compact → expanded: the island covers the bar; it fades out over the first 40%.
+     `translate` composes with any transform the status bar or GSAP sets. */
+  :global([data-screen]:has([data-island][data-size='compact'])) {
+    --island-yield: 1;
+  }
+  :global([data-screen]:has([data-island][data-size='expanded'])) {
+    --island-yield: 2;
+  }
+  :global([data-screen]:has([data-island]:not([data-size='rest'])) [data-statusbar]) {
+    opacity: calc(1 - clamp(0, (var(--island-yield, 1) - 1) * 2.5, 1));
+  }
+  :global([data-screen]:has([data-island]:not([data-size='rest'])) [data-statusbar] [data-clock]) {
+    translate: calc(min(var(--island-yield, 1), 1) * -30 * var(--pt, 1px)) 0;
+  }
+  :global(
+      [data-screen]:has([data-island]:not([data-size='rest']))
+        [data-statusbar]
+        :is(:has(> [data-bar]), [data-wifi], [data-no-service])
+    ) {
+    opacity: calc(1 - min(var(--island-yield, 1), 1));
   }
 </style>
