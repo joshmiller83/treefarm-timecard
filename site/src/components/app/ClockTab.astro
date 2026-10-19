@@ -1,26 +1,69 @@
 ---
-/** STUB (screens): replace the content, keep the Props and hooks in CONTRACT.md. */
+/**
+ * CLOCK TAB (screens team): the app's Clock tab at a ledger minute, recreated from the real
+ * SwiftUI view (iOS/App/Views/Clock on the app-clock branch) with the brief's strings:
+ *
+ *   status card · Now working (three rows + Break) · Trees this shift · Pace ·
+ *   Shift notes · Hours & pay (week chart, pay hidden)
+ *
+ * The whole content scrolls inside AppChrome's [data-scroll-layer] (about 1,850 pt tall);
+ * scenes translate it. Every value comes from the ledger via ./screens/clock/clock.ts.
+ * Hooks are listed in CONTRACT.md and on each card component.
+ */
 import AppChrome from './AppChrome.astro';
-import Stub from '../dev/Stub.astro';
-import { MOMENTS, fmtClock, fmtHMS, fmtPerTree, hoursLeftAt, paceAt, perTreeAt, treesAt, workedAt } from '../../data/ledger';
+import AppKit from '../screens/AppKit.astro';
+import StatusCard from '../screens/clock/StatusCard.astro';
+import NowWorkingCard from '../screens/clock/NowWorkingCard.astro';
+import TreesCard from '../screens/clock/TreesCard.astro';
+import PaceCard, { type PaceRow } from '../screens/clock/PaceCard.astro';
+import ShiftNotesCard from '../screens/clock/ShiftNotesCard.astro';
+import HoursPayCard from '../screens/clock/HoursPayCard.astro';
+import { clockTab } from '../screens/clock/clock';
+import { MOMENTS, fmtClock } from '../../data/ledger';
 
 export interface Props {
+  /** Ledger minute for every value. Default MOMENTS.pace (3:40 PM). */
   at?: number;
+  /** Pace card segment. Default 'today'. */
   range?: 'today' | 'week' | 'season';
+  /** Pace rows whose gold left rule shows statically (reduced-motion figures). Default none. */
+  highlight?: readonly PaceRow[];
+  /** false freezes the status card timer (data-timer="fixed") for static crops. Default true. */
+  live?: boolean;
 }
-const { at = MOMENTS.pace, range = 'today' } = Astro.props;
+const { at = MOMENTS.pace, range = 'today', highlight = [], live = true } = Astro.props;
+const m = clockTab(at, range);
 ---
 
-<AppChrome time={fmtClock(at)} title="Clock" tab="clock" trailing={[{ icon: 'gear', id: 'settings' }]}>
-  <div data-status-card data-range={range}>
-    On the clock <span data-timer="worked">{fmtHMS(workedAt(at))}</span>
+<AppKit />
+<AppChrome class="sc sc-clock" time={fmtClock(at)} title="Clock" tab="clock" trailing={[{ icon: 'gear', id: 'settings' }]}>
+  <div class="sc-stack" data-clock-tab data-at={at}>
+    <StatusCard status={m.status} live={live} />
+    {m.now && <NowWorkingCard now={m.now} />}
+    <TreesCard trees={m.trees} />
+    <PaceCard pace={m.pace} highlight={highlight} />
+    {m.status.phase !== 'off' && <ShiftNotesCard notes={m.notes} />}
+    <HoursPayCard hours={m.hours} />
   </div>
-  <div data-trees>{treesAt(at)}</div>
-  <div data-pace-card>
-    <span data-pace-row="trees-hour">{paceAt(at)} trees an hour</span>
-    <span data-pace-row="per-tree">{fmtPerTree(perTreeAt(at))} a tree</span>
-    <span data-pace-row="pay">Pay per tree <span data-pay>•••</span></span>
-    <span data-pace-row="left">About {hoursLeftAt(at)} hours left</span>
-  </div>
-  <Stub name="ClockTab" owner="screens" tone="light" note="status, now working, pace, hours & pay" box="height:calc(420*var(--pt));margin-top:calc(12*var(--pt));" />
+  <div slot="overlay" class="ct-edge" aria-hidden="true"></div>
 </AppChrome>
+
+<style>
+  /*
+   * iOS 26's scroll edge effect: as the Clock tab scrolls, content fades out under the status
+   * bar and the floating toolbar instead of running into them. Surface-on-surface, so it is
+   * invisible at rest. z-index auto: it paints after the scroll content but stays under the
+   * chrome's status bar and toolbar (z 4) and under the phone's Dynamic Island.
+   */
+  .ct-edge {
+    position: absolute;
+    inset: 0 0 auto;
+    height: calc(108 * var(--pt));
+    background: linear-gradient(
+      var(--surface) calc(50 * var(--pt)),
+      rgba(250, 252, 249, 0.82) calc(72 * var(--pt)),
+      rgba(250, 252, 249, 0) 100%
+    );
+    pointer-events: none;
+  }
+</style>

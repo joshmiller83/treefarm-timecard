@@ -1,0 +1,274 @@
+---
+/**
+ * The big status card at the top of the Clock tab (StatusCardView): fir while working, sap
+ * on a break or lunch, surface off the clock. Pill with a pulse light, the running h:mm:ss in
+ * Plex Mono (an odometer DayClock rolls), 'worked today', the clocked-in line, and the
+ * two glove buttons. Hooks: [data-status-card], [data-timer], [data-break-line].
+ */
+import { odometerHTML } from '../../../scripts/odometer';
+import Glyph from '../Glyph.astro';
+import Icon from '../../app/Icon.astro';
+import type { StatusModel } from './clock';
+
+interface Props {
+  status: StatusModel;
+  /** false freezes the timer (data-timer="fixed"). */
+  live?: boolean;
+}
+const { status: s, live = true } = Astro.props;
+const timerMode = live ? 'worked' : 'fixed';
+---
+
+<div class="st-status" data-status-card data-phase={s.phase}>
+  <div class="st-top">
+    <span class="st-pill">
+      <span class="st-dot"></span>
+      {s.pill}
+    </span>
+    <span class="st-date">{s.date}</span>
+  </div>
+
+  <div class="st-timer sc-num">
+    <span class="odo" data-timer={timerMode} data-odo data-odo-text={s.timer} set:html={odometerHTML(s.timer)} />
+  </div>
+  <div class="st-worked">{s.workedLabel}</div>
+
+  {
+    s.breakLine && (
+      <div class="st-break-line" data-break-line>
+        <span class="st-break-what">{s.breakLine}</span>
+        <span class="st-break-so-far">
+          <span class="sc-num">{s.breakSoFar}</span> so far
+        </span>
+      </div>
+    )
+  }
+  <div class="st-meta">{s.meta}</div>
+
+  <div class:list={['st-actions', s.phase !== 'working' && 'st-actions--stack']}>
+    {
+      s.phase === 'working' && (
+        <>
+          <span class="st-cbtn st-cbtn--on" data-status-btn="break">
+            <Glyph name="cup" />
+            Break
+          </span>
+          <span class="st-cbtn st-cbtn--outline" data-status-btn="clock-out">
+            <Glyph name="stop.fill" />
+            Clock out
+          </span>
+        </>
+      )
+    }
+    {
+      (s.phase === 'break' || s.phase === 'lunch') && (
+        <>
+          <span class="st-cbtn st-cbtn--back" data-status-btn="back">
+            <Icon name="undo" size="calc(19 * var(--pt))" weight={2.2} />
+            Back to work
+          </span>
+          <span class="st-cbtn st-cbtn--outline-sap" data-status-btn="clock-out">
+            <Glyph name="stop.fill" />
+            Clock out
+          </span>
+        </>
+      )
+    }
+    {
+      s.phase === 'off' && (
+        <span class="st-cbtn st-cbtn--in" data-status-btn="clock-in">
+          <Icon name="play" size="calc(17 * var(--pt))" />
+          Clock in
+        </span>
+      )
+    }
+  </div>
+</div>
+
+<style>
+  .st-status {
+    --ink-on: #fff;
+    position: relative;
+    padding: calc(18 * var(--pt));
+    border-radius: calc(20 * var(--pt));
+    background: var(--fir);
+    color: var(--ink-on);
+    box-shadow: 0 calc(6 * var(--pt)) calc(18 * var(--pt)) rgba(20, 60, 38, 0.18);
+    overflow: hidden;
+  }
+  /* A soft top light, like the app's card under the status bar glass. */
+  .st-status::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: radial-gradient(120% 80% at 100% 0%, rgba(255, 255, 255, 0.12), transparent 60%);
+    pointer-events: none;
+  }
+  .st-status[data-phase='break'],
+  .st-status[data-phase='lunch'] {
+    --ink-on: var(--sap-ink);
+    background: var(--sap-soft);
+    box-shadow: inset 0 0 0 calc(1 * var(--pt)) var(--gold);
+  }
+  .st-status[data-phase='off'] {
+    --ink-on: var(--ink);
+    background: var(--sc-card);
+    box-shadow: inset 0 0 0 calc(1 * var(--pt)) var(--line);
+  }
+  .st-status[data-phase='break']::before,
+  .st-status[data-phase='lunch']::before,
+  .st-status[data-phase='off']::before {
+    display: none;
+  }
+
+  .st-top {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: calc(10 * var(--pt));
+  }
+  .st-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: calc(8 * var(--pt));
+    height: calc(28 * var(--pt));
+    padding: 0 calc(12 * var(--pt));
+    border-radius: 999px;
+    box-shadow: inset 0 0 0 calc(1.5 * var(--pt)) rgba(255, 255, 255, 0.35);
+    font-size: calc(12 * var(--pt));
+    font-weight: 700;
+    letter-spacing: 0.083em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .st-dot {
+    width: calc(9 * var(--pt));
+    height: calc(9 * var(--pt));
+    border-radius: 50%;
+    background: var(--sc-pulse);
+    box-shadow: 0 0 0 calc(3.5 * var(--pt)) rgba(168, 235, 192, 0.22);
+  }
+  [data-phase='break'] .st-pill,
+  [data-phase='lunch'] .st-pill {
+    box-shadow: inset 0 0 0 calc(1.5 * var(--pt)) var(--gold);
+  }
+  [data-phase='break'] .st-dot,
+  [data-phase='lunch'] .st-dot {
+    background: var(--gold);
+    box-shadow: none;
+  }
+  [data-phase='off'] .st-pill {
+    color: var(--muted);
+    box-shadow: inset 0 0 0 calc(1.5 * var(--pt)) var(--line);
+  }
+  [data-phase='off'] .st-dot {
+    background: var(--muted);
+    box-shadow: none;
+  }
+  .st-date {
+    font-size: calc(15 * var(--pt));
+    letter-spacing: -0.015em;
+    opacity: 0.88;
+    white-space: nowrap;
+  }
+
+  .st-timer {
+    position: relative;
+    margin-top: calc(12 * var(--pt));
+    font-size: calc(50 * var(--pt));
+    line-height: 1.04;
+    letter-spacing: -0.045em;
+  }
+  .st-timer :global(.odo) {
+    font-weight: 600;
+  }
+  /* Plex Mono's colons are a full cell wide; pull them in like the app's -1 pt tracking. */
+  .st-timer :global(.odo-s) {
+    margin: 0 -0.07em;
+  }
+  .st-worked {
+    margin-top: calc(2 * var(--pt));
+    font-size: calc(15 * var(--pt));
+    font-weight: 500;
+    letter-spacing: -0.015em;
+    opacity: 0.88;
+  }
+  /* ViewThatFits falls back to stacking when the reason is long; on a phone it always is. */
+  .st-break-line {
+    display: flex;
+    flex-direction: column;
+    gap: calc(2 * var(--pt));
+    margin-top: calc(12 * var(--pt));
+    font-size: calc(16 * var(--pt));
+    letter-spacing: -0.02em;
+  }
+  .st-break-what {
+    font-weight: 600;
+  }
+  .st-break-so-far {
+    white-space: nowrap;
+  }
+  .st-break-so-far .sc-num {
+    font-size: calc(16 * var(--pt));
+  }
+  .st-meta {
+    margin-top: calc(10 * var(--pt));
+    font-size: calc(16 * var(--pt));
+    letter-spacing: -0.02em;
+  }
+  .st-break-line + .st-meta {
+    margin-top: calc(2 * var(--pt));
+  }
+
+  .st-actions {
+    position: relative;
+    display: flex;
+    gap: calc(10 * var(--pt));
+    margin-top: calc(16 * var(--pt));
+  }
+  .st-actions--stack {
+    flex-direction: column;
+  }
+  .st-cbtn {
+    flex: 1 1 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: calc(7 * var(--pt));
+    min-height: calc(54 * var(--pt));
+    padding: 0 calc(14 * var(--pt));
+    border-radius: calc(14 * var(--pt));
+    font-size: calc(17 * var(--pt));
+    font-weight: 600;
+    letter-spacing: -0.025em;
+    white-space: nowrap;
+  }
+  .st-cbtn :global(.sc-glyph) {
+    width: calc(19 * var(--pt));
+    height: calc(19 * var(--pt));
+  }
+  /* CardButtonStyle .onFir: translucent white. */
+  .st-cbtn--on {
+    background: rgba(255, 255, 255, 0.14);
+    box-shadow: inset 0 0 0 calc(1.5 * var(--pt)) rgba(255, 255, 255, 0.3);
+  }
+  /* .outlineOnFir */
+  .st-cbtn--outline {
+    box-shadow: inset 0 0 0 calc(1.5 * var(--pt)) rgba(255, 255, 255, 0.55);
+  }
+  /* .glovePrimary on the break card */
+  .st-cbtn--back {
+    background: var(--fir);
+    color: #fff;
+  }
+  /* .outlineOnSap */
+  .st-cbtn--outline-sap {
+    box-shadow: inset 0 0 0 calc(1.5 * var(--pt)) var(--gold);
+  }
+  .st-cbtn--in {
+    background: var(--fir);
+    color: #fff;
+  }
+</style>

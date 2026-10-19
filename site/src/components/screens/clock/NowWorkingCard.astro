@@ -1,0 +1,128 @@
+---
+/**
+ * "Now working" (NowWorkingCardView): where you are and the lock screen's three next-row
+ * buttons plus Break, as tiles. On a break the tiles rest and a line says what's next.
+ * Hooks: [data-now-working], [data-now-row="39"], [data-now-break] (not data-row, which the
+ * Live Activity's strip uses in the same screens container).
+ */
+import Icon from '../../app/Icon.astro';
+import Glyph from '../Glyph.astro';
+import type { NowModel } from './clock';
+
+interface Props {
+  now: NowModel;
+}
+const { now } = Astro.props;
+---
+
+<div class="sc-card nw-now" data-now-working>
+  <div class="nw-head">
+    <span class="sc-label">Now working</span>
+    <span class="nw-field sc-sub">
+      <Icon name="tree" size="calc(15 * var(--pt))" weight={2} />
+      {now.field}
+    </span>
+  </div>
+  <div class="nw-place">{now.place}</div>
+
+  {
+    now.waiting ? (
+      <div class="nw-waiting sc-sub">
+        <Glyph name="pause.circle" />
+        {now.waiting}
+      </div>
+    ) : (
+      <div class="nw-tiles">
+        {now.rows.map((r) => (
+          <span class="nw-tile" data-now-row={r}>
+            <span class="nw-tile-k">Row</span>
+            <span class="nw-tile-n sc-num">{r}</span>
+          </span>
+        ))}
+        <span class="nw-tile nw-tile--sap" data-now-break>
+          <Glyph name="cup.fill" />
+          <span class="nw-tile-b">Break</span>
+        </span>
+      </div>
+    )
+  }
+</div>
+
+<style>
+  .nw-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: calc(8 * var(--pt));
+  }
+  .nw-field {
+    display: inline-flex;
+    align-items: center;
+    gap: calc(4 * var(--pt));
+    white-space: nowrap;
+  }
+  .nw-field :global(.icon) {
+    align-self: center;
+  }
+  .nw-place {
+    margin-top: calc(6 * var(--pt));
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: calc(28 * var(--pt));
+    line-height: 1.12;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+  }
+  .nw-tiles {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: calc(8 * var(--pt));
+    margin-top: calc(14 * var(--pt));
+  }
+  /* TileButtonStyle: soft, at least 72 pt tall, 14 pt corners. */
+  .nw-tile {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: calc(1 * var(--pt));
+    min-height: calc(76 * var(--pt));
+    border-radius: calc(14 * var(--pt));
+    background: var(--sc-fir-soft);
+    color: var(--fir);
+    box-shadow: inset 0 0 0 calc(1 * var(--pt)) rgba(29, 91, 58, 0.35);
+  }
+  .nw-tile-k {
+    font-size: calc(11 * var(--pt));
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: #2f6b4b;
+  }
+  .nw-tile-n {
+    font-size: calc(26 * var(--pt));
+    line-height: 1.1;
+  }
+  .nw-tile--sap {
+    gap: calc(4 * var(--pt));
+    background: var(--sap-soft);
+    color: var(--sap-ink);
+    box-shadow: inset 0 0 0 calc(1 * var(--pt)) rgba(181, 122, 18, 0.35);
+  }
+  .nw-tile--sap :global(.sc-glyph) {
+    width: calc(22 * var(--pt));
+    height: calc(22 * var(--pt));
+  }
+  .nw-tile-b {
+    font-size: calc(15 * var(--pt));
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+  .nw-waiting {
+    display: flex;
+    align-items: center;
+    gap: calc(6 * var(--pt));
+    margin-top: calc(10 * var(--pt));
+    font-size: calc(16 * var(--pt));
+  }
+</style>
