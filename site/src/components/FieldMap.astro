@@ -4,8 +4,9 @@
  * Spec: brief sharedComponents "FieldMap" and sections.field; renderer in src/scripts/fieldmap.ts.
  *
  * - The box takes the width it is given; its aspect ratio comes from the layout: portrait
- *   below 900px (blocks 1–7 across), landscape from 900px (the field transposed, ~1.7:1).
- *   view='zoom' is the close-up of block 2 rows 28–40 with row numbers.
+ *   below 900px (blocks 1–7 across, like the app), landscape from 900px (the field turned a
+ *   quarter turn anticlockwise, ~1.58:1; the scene's zoom turns it back upright).
+ *   view='zoom' is the upright close-up of block 2 rows 28–40 with row numbers on the left.
  * - First paint and no-JS: an inline SVG of the same state (a few KB of patterned runs).
  * - The canvas (role="img", the ledger summary as its label) loads its renderer when it comes
  *   within one viewport, draws the static final state, and hides the SVG.
@@ -16,7 +17,7 @@
  * first frame), event 'fieldmap:ready' on the canvas.
  */
 import { MOMENTS } from '../data/ledger';
-import { FIELD_SUMMARY, ZOOM_TARGET, fieldSVG, frameRect, targetRect, zoomSummary } from '../scripts/fieldmap';
+import { ZOOM_TARGET, fieldSVG, fieldSummary, frameRect, targetRect, zoomSummary } from '../scripts/fieldstate';
 import { nextId } from './app/trees/markup';
 
 export interface Props {
@@ -25,24 +26,24 @@ export interface Props {
   view?: 'overview' | 'zoom';
   /** Zoomed view: block 2 rows 28–40. */
   zoom?: { block: number; from: number; to: number };
-  /** Accessible summary (defaults to the ledger sentence in the brief, or the close-up's). */
+  /** Accessible summary (default: built from the ledger at `at`; at 2:15 PM the brief's sentence, or the close-up's). */
   label?: string;
   class?: string;
   /** Draw the field scene's choreography statically at this progress (labs, tests). */
   progress?: number;
-  /** Force an orientation instead of following the box's shape. */
+  /** Force the overview's orientation instead of following the box's shape (the close-up is always upright). */
   orientation?: 'portrait' | 'landscape';
 }
 
 const { at = MOMENTS.field, view = 'overview', zoom = ZOOM_TARGET, label, class: cls, progress, orientation } = Astro.props;
 
-const summary = label ?? (view === 'zoom' ? zoomSummary(zoom, at) : FIELD_SUMMARY);
+const summary = label ?? (view === 'zoom' ? zoomSummary(zoom, at) : fieldSummary(at));
 const ratio = (r: { w: number; h: number }) => (r.w / r.h).toFixed(4);
-const port = view === 'zoom' ? targetRect(zoom, 'portrait') : frameRect('portrait');
-const land = view === 'zoom' ? targetRect(zoom, 'landscape') : frameRect('landscape');
+const port = view === 'zoom' ? targetRect(zoom) : frameRect('portrait');
+const land = frameRect('landscape');
 const id = nextId('fm');
-// The close-up stays portrait (row numbers on the left) unless asked otherwise.
-const orients = view === 'zoom' ? [orientation ?? 'portrait'] : orientation ? [orientation] : ['portrait', 'landscape'];
+// The close-up is always upright (row numbers on the left, like the app).
+const orients = view === 'zoom' ? ['portrait'] : orientation ? [orientation] : ['portrait', 'landscape'];
 const svgs = orients.map((o) =>
   fieldSVG({
     orientation: o as 'portrait' | 'landscape',
@@ -70,7 +71,7 @@ const style = fixed ? `--fm-ratio:${ratio(fixed)}` : `--fm-port:${ratio(port)};-
     data-at={at}
     data-zoom={`${zoom.block}:${zoom.from}:${zoom.to}`}
     data-progress={progress}
-    data-orientation={orientation ?? (view === 'zoom' ? 'portrait' : 'auto')}></canvas>
+    data-orientation={view === 'zoom' ? 'portrait' : (orientation ?? 'auto')}></canvas>
 </div>
 
 <script>

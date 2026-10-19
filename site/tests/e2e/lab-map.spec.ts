@@ -1,11 +1,11 @@
 /**
- * The map lab (/lab/map/): every Trees tab state follows the ledger, the field canvas draws,
- * the static fallbacks hold up, and the page is accessible at 375 and 1440.
+ * The map lab (/lab/map/): every Trees tab state follows the ledger, the field canvas draws
+ * (and draws fast), the static fallbacks hold up, and the page is accessible at 375 and 1440.
  */
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { CONFLICT_MESSAGE } from '../../src/data/ledger';
-import { watch } from '../e2e/helpers';
+import { watch } from './helpers';
 
 const URL = '/lab/map/';
 
@@ -135,6 +135,41 @@ test('crew: offline marks, first mark wins after sync, and Sam’s own phone', a
   await expect(sam.locator('[data-tab="team"]')).toHaveCount(0);
 });
 
+test('crew states share one map geometry, and the banner is a toast clear of the bars', async ({ page }) => {
+  await page.goto(URL);
+  const ys = [];
+  for (const id of ['trees-1447-block3', 'trees-1456-offline', 'trees-1500-synced']) {
+    const s = state(page, id);
+    await s.scrollIntoViewIfNeeded();
+    const screen = (await s.locator('.screen').boundingBox())!;
+    const dot = (await s.locator('[data-tree="3-6-1"]').boundingBox())!;
+    ys.push(Math.round((dot.y - screen.y) * 10) / 10);
+  }
+  expect(new Set(ys).size).toBe(1);
+  await expect(state(page, 'trees-1447-block3').locator('[data-sync-line]')).toBeHidden();
+  const synced = state(page, 'trees-1500-synced');
+  const [banner, legend, undo, more] = await Promise.all([
+    synced.locator('[data-banner]').boundingBox(),
+    synced.locator('[data-legend]').boundingBox(),
+    synced.locator('[data-undo-btn]').boundingBox(),
+    synced.locator('[data-tool="more"]').boundingBox(),
+  ]);
+  expect(banner!.y + banner!.height).toBeLessThan(legend!.y);
+  expect(banner!.y).toBeGreaterThan(undo!.y + undo!.height);
+  if (more) expect(banner!.y).toBeGreaterThan(more.y + more.height);
+});
+
+test('a note badge sits mostly inside its own row', async ({ page }) => {
+  await page.goto(URL);
+  for (const scope of ['[data-lab-state="trees-1415-block2"]', '[data-lab-zoom="XS"]', '[data-lab-zoom="S"]', '[data-lab-zoom="M"]']) {
+    const row = page.locator(`${scope} [data-block-row="2-31"]`);
+    await row.scrollIntoViewIfNeeded();
+    const [r, b] = await Promise.all([row.boundingBox(), page.locator(`${scope} [data-note-marker="2-31-4"]`).boundingBox()]);
+    const inside = Math.min(r!.y + r!.height, b!.y + b!.height) - Math.max(r!.y, b!.y);
+    expect(inside / b!.height, scope).toBeGreaterThanOrEqual(0.6);
+  }
+});
+
 test('one block fills the screen at L and stays inside it', async ({ page }) => {
   await page.goto(URL);
   const s = state(page, 'trees-1415-block2');
@@ -181,6 +216,110 @@ test('the scrubber plays the scene: zoomed demo, then next season’s rings', as
   expect(px.any).toBeGreaterThan(0);
   await input.fill('1');
   await expect.poll(async () => (await read()).camera).toBe(0);
+});
+
+type Handle = {
+  setProgress(p: number): void;
+  draw(s: Record<string, number>): void;
+  render(): void;
+  pointAt(b: number, r: number, t: number): { x: number; y: number };
+  frames: number;
+  state: Record<string, number>;
+};
+
+test('the close-up is upright with the target lit and the rest dimmed', async ({ page }) => {
+  await page.goto(URL);
+  const canvas = page.locator('.scrub-map canvas[data-fieldmap]');
+  await canvas.scrollIntoViewIfNeeded();
+  await expect(canvas.locator('xpath=..')).toHaveAttribute('data-ready', '');
+  const r = await canvas.evaluate((el: HTMLCanvasElement) => {
+    const map = (el as HTMLCanvasElement & { fieldMap: Handle }).fieldMap;
+    map.setProgress(0.62);
+    map.render();
+    const g = el.getContext('2d')!;
+    const k = el.width / el.clientWidth;
+    const alphaAt = (p: { x: number; y: number }) => g.getImageData(Math.round(p.x * k), Math.round(p.y * k), 1, 1).data[3]!;
+    const a28 = map.pointAt(2, 28, 1);
+    return {
+      down: map.pointAt(2, 40, 1).y - a28.y,
+      across: map.pointAt(2, 28, 10).x - a28.x,
+      lit: alphaAt(map.pointAt(2, 33, 5)),
+      dim: alphaAt(map.pointAt(1, 33, 5)),
+      dimRow: alphaAt(map.pointAt(2, 20, 5)),
+    };
+  });
+  expect(r.down).toBeGreaterThan(200); // rows run down the screen
+  expect(r.across).toBeGreaterThan(150); // tree 1 on the left
+  expect(r.lit).toBeGreaterThan(240);
+  expect(r.dim).toBeLessThan(80);
+  expect(r.dimRow).toBeLessThan(80);
+});
+
+test('the season fade never dims the empty rings (no flicker as the camera pulls out)', async ({ page }) => {
+  await page.goto(URL);
+  const canvas = page.locator('.scrub-map canvas[data-fieldmap]');
+  await canvas.scrollIntoViewIfNeeded();
+  await expect(canvas.locator('xpath=..')).toHaveAttribute('data-ready', '');
+  const [plain, fading] = await canvas.evaluate((el: HTMLCanvasElement) => {
+    const map = (el as HTMLCanvasElement & { fieldMap: Handle }).fieldMap;
+    const g = el.getContext('2d')!;
+    // The brightest pure ring pixel (#6F8F7A) on the canvas.
+    const ringMax = () => {
+      const d = g.getImageData(0, 0, el.width, el.height).data;
+      let max = 0;
+      for (let i = 0; i < d.length; i += 4)
+        if (Math.abs(d[i]! - 111) < 10 && Math.abs(d[i + 1]! - 143) < 10 && Math.abs(d[i + 2]! - 122) < 10) max = Math.max(max, d[i + 3]!);
+      return max;
+    };
+    const out: number[] = [];
+    for (const season of [0, 0.425]) {
+      map.draw({ reveal: 23, camera: 0.97, labels: 0, demo: 0, season, pulse: 0, touch: 0 });
+      map.render();
+      out.push(ringMax());
+    }
+    return out as [number, number];
+  });
+  expect(plain).toBeGreaterThan(200);
+  expect(Math.abs(fading - plain)).toBeLessThanOrEqual(2);
+});
+
+test('redraws once per change, and every frame is cheap', async ({ page }) => {
+  await page.goto(URL);
+  const canvas = page.locator('.scrub-map canvas[data-fieldmap]');
+  await canvas.scrollIntoViewIfNeeded();
+  await expect(canvas.locator('xpath=..')).toHaveAttribute('data-ready', '');
+  const r = await canvas.evaluate(async (el: HTMLCanvasElement) => {
+    const map = (el as HTMLCanvasElement & { fieldMap: Handle }).fieldMap;
+    const frame = () => new Promise((res) => requestAnimationFrame(() => requestAnimationFrame(res)));
+    // Same progress three times: one frame. Again: none.
+    await frame();
+    const f0 = map.frames;
+    map.setProgress(0.61);
+    map.setProgress(0.61);
+    map.setProgress(0.61);
+    await frame();
+    const once = map.frames - f0;
+    map.setProgress(0.61);
+    await frame();
+    const again = map.frames - f0 - once;
+    // Warm up, then time a uniform sweep of synchronous renders.
+    for (let i = 0; i <= 100; i += 1) {
+      map.setProgress(i / 100);
+      map.render();
+    }
+    const times: number[] = [];
+    for (let i = 0; i <= 500; i += 1) {
+      map.setProgress(i / 500);
+      const t0 = performance.now();
+      map.render();
+      times.push(performance.now() - t0);
+    }
+    return { once, again, max: Math.max(...times), avg: times.reduce((a, b) => a + b, 0) / times.length };
+  });
+  expect(r.once).toBe(1);
+  expect(r.again).toBe(0);
+  expect(r.max).toBeLessThan(50);
+  expect(r.avg).toBeLessThanOrEqual(4);
 });
 
 test.describe('without JavaScript', () => {

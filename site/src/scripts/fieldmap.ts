@@ -1,21 +1,17 @@
 /**
- * THE FIELD MAP: 8,540 trees as dots.
+ * THE FIELD MAP: 8,540 trees as dots on Canvas 2D (the lazy half; the pure half is fieldstate.ts).
  *
- * One module for everything the map needs, in four layers:
- *
- *   1. Geometry (pure). North field is 14 blocks in 2 strips of 7; a block is 10 trees wide
- *      and 61 rows tall. Units are dot pitches. Gutters are 1.5 pitches between blocks and
- *      3 between the strips. 'portrait' is the app's layout (blocks 1–7 across the top);
- *      'landscape' is the same field transposed, so the desktop overview is wide
- *      (rows run down the screen, 125 × 79 pitches, about 1.58:1).
- *   2. State from the ledger (pure). treeStatus({ at, who }) gives every tree's state at a
- *      minute: gold = this person's current shift, green = shaped earlier by anyone,
- *      ring = not yet (decisions.md #4), with offline marks and first-mark-wins.
- *   3. The field scene's choreography (pure). sceneState(p) maps section progress 0–1 to
- *      what the canvas shows (brief: field.animation), so a scene only calls setProgress.
- *   4. The Canvas 2D renderer (DOM). Sprites are pre-rendered per dot size, the overview is
- *      cached in one offscreen bitmap and only changed rows are redrawn into it, zoomed views
- *      cull to the viewport, and nothing redraws unless the state changes.
+ *   1. Camera (pure). A View is the world point at the canvas centre, a scale (CSS px per pitch)
+ *      and a turn. The landscape overview is the field turned a quarter turn anticlockwise; the
+ *      close-up is always upright (row numbers on the left, like the app). lerpView moves between
+ *      two views as one spiral similarity: scale and turn together about the one point that stays
+ *      put, so the zoom swings the field upright onto block 2 rows 28–40.
+ *   2. The renderer (DOM). Trees are drawn as runs (rectangles of same-state trees, about 40 for
+ *      the whole field) filled with one-cell pattern tiles, so a frame costs a few dozen fills
+ *      whatever the zoom: no per-dot loops, no cached bitmaps to rebuild, no sharpen pass. At rest
+ *      the pitch is a whole number of device pixels and every block lands on the pixel grid, so
+ *      the dots are as crisp as 1:1 sprites. Only overlays (popping rows, the demo row, labels,
+ *      row numbers, flags, rings) are drawn one by one. Nothing redraws unless the state changes.
  *
  * FieldMap.astro loads this module lazily (IntersectionObserver, rootMargin 100%) and calls
  * ensureFieldMap(canvas). A scene drives the same instance:
@@ -23,677 +19,230 @@
  *   import { ensureFieldMap } from '../fieldmap.ts';
  *   const map = ensureFieldMap(q1<HTMLCanvasElement>('canvas[data-fieldmap]')!);
  *   tl.eventCallback('onUpdate', () => map.setProgress(tl.progress()));   // or draw({...})
+ *   map.pointAt(2, 37, 1);   // where row 37's first tree is now (CSS px in the canvas), for DOM overlays
  *
- * Pure parts are unit-tested in tests/unit/fieldmap.test.ts; nothing touches the DOM at import.
+ * Pure parts are unit-tested in src/scripts/fieldmap.test.ts; nothing touches the DOM at import.
  */
+import { FIELD, MOMENTS, type Minute, type Person, type TreeNote } from '../data/ledger.ts';
 import {
-  CREW_MARKS,
-  EARLIER,
-  FIELD,
-  FIELD_TREES,
-  MARKS,
-  MOMENTS,
-  OFFLINE,
-  OLD_NOTE,
-  TREE_NOTE,
-  WORKER,
-  fmtTime,
-  type Mark,
-  type Minute,
-  type Person,
-  type TreeNote,
-} from '../data/ledger.ts';
+  DEMO_ROW,
+  DOT_R,
+  EMPTY,
+  FLAG_FOOT,
+  FLAG_PATH,
+  GRID_H,
+  GRID_W,
+  STAGE_THEME,
+  TODAY,
+  TODAY_SCALE,
+  ZOOM_TARGET,
+  blockRect,
+  blockRuns,
+  clamp01,
+  dimAt,
+  dotCenter,
+  finalState,
+  fromFrame,
+  goldRows,
+  notesAt,
+  rectToFrame,
+  runPieces,
+  sceneState,
+  statusOf,
+  targetRect,
+  treeIndex,
+  treeStatus,
+  type MapState,
+  type Orientation,
+  type Rect,
+  type Run,
+  type Theme,
+  type ZoomTarget,
+} from './fieldstate.ts';
 
-/** The canvas's accessible summary, from the ledger (brief: FieldMap ACCESSIBILITY). */
-export const FIELD_SUMMARY =
-  'Map of North field: 14 blocks of 61 rows, 10 trees a row, 8,540 trees. Rows 14 to 36 of block 2 shaped today in gold. Block 1, blocks 8 and 9, and the first rows of blocks 2, 3 and 4 shaped earlier in green. The rest not yet shaped.';
+// The pure API, re-exported so existing imports from fieldmap.ts keep working.
+export {
+  BEATS,
+  DEMO_ROW,
+  DIM_FLOOR,
+  DOT_R,
+  EARLIER_S,
+  EMPTY,
+  FLAG_PATH,
+  GRID_H,
+  GRID_W,
+  GUTTER,
+  STAGE_THEME,
+  STRIP_GAP,
+  TODAY,
+  TODAY_SCALE,
+  ZOOM_TARGET,
+  blockOrigin,
+  blockRect,
+  blockRuns,
+  countStatus,
+  createTryIt,
+  dimAt,
+  dotCenter,
+  fieldLayout,
+  fieldRuns,
+  fieldSummary,
+  finalState,
+  frameRect,
+  fromFrame,
+  goldRows,
+  notesAt,
+  rectToFrame,
+  revealCount,
+  runPieces,
+  sceneState,
+  statusOf,
+  targetRect,
+  toFrame,
+  treeIndex,
+  treeStatus,
+  zoomSummary,
+} from './fieldstate.ts';
+export type { Dot, MapState, Orientation, Point, Rect, Run, StatusOptions, TapMode, Theme, TreeState, TryIt, ZoomTarget } from './fieldstate.ts';
 
-/** The zoomed close-up: block 2, rows 28–40 (brief: field visuals). */
-export const ZOOM_TARGET = { block: 2, from: 28, to: 40 } as const;
-/** The row the demo taps and undoes in the zoomed view (still to do at 2:15). */
-export const DEMO_ROW = { block: 2, row: 37 } as const;
-
-export interface ZoomTarget {
-  block: number;
-  from: number;
-  to: number;
-}
-
-// ---------------------------------------------------------------------------
-// 1. Geometry
-
-export type Orientation = 'portrait' | 'landscape';
-
-const ACROSS = FIELD.treesPerRow; // 10
-const DOWN = FIELD.rowsPerBlock; // 61
-const PER_STRIP = FIELD.blocksPerGridRow; // 7
-/** Between blocks in a strip, in pitches. */
-export const GUTTER = 1.5;
-/** Between the two strips, in pitches. */
-export const STRIP_GAP = 3;
-/** Grid size in portrait: 79 × 125 pitches. */
-const GRID_W = PER_STRIP * ACROSS + (PER_STRIP - 1) * GUTTER;
-const GRID_H = FIELD.gridRows * DOWN + (FIELD.gridRows - 1) * STRIP_GAP;
-
-/** Dot radius (green and ring) as a fraction of the pitch; today's gold dot is 20% larger. */
-export const DOT_R = 0.3;
-export const TODAY_SCALE = 1.2;
-
-export interface Dot {
-  /** Cell origin (top-left), in pitches. */
-  x: number;
-  y: number;
-  block: number;
-  row: number;
-  tree: number;
-}
-
-export interface Rect {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-}
-
-/** 0-based index of a tree in every per-tree array: block by block, row by row. */
-export const treeIndex = (block: number, row: number, tree: number) => ((block - 1) * DOWN + (row - 1)) * ACROSS + (tree - 1);
-
-/** Top-left of a block's dot grid, in pitches. */
-export function blockOrigin(block: number, orientation: Orientation = 'portrait'): { x: number; y: number } {
-  const b = block - 1;
-  const across = (b % PER_STRIP) * (ACROSS + GUTTER);
-  const down = Math.floor(b / PER_STRIP) * (DOWN + STRIP_GAP);
-  return orientation === 'portrait' ? { x: across, y: down } : { x: down, y: across };
-}
-
-/** A block's dot grid as a rect, in pitches. */
-export function blockRect(block: number, orientation: Orientation = 'portrait'): Rect {
-  const o = blockOrigin(block, orientation);
-  return orientation === 'portrait' ? { x: o.x, y: o.y, w: ACROSS, h: DOWN } : { x: o.x, y: o.y, w: DOWN, h: ACROSS };
-}
-
-/** Centre of one tree's cell, in pitches. */
-export function dotCenter(block: number, row: number, tree: number, orientation: Orientation = 'portrait') {
-  const o = blockOrigin(block, orientation);
-  return orientation === 'portrait'
-    ? { x: o.x + tree - 0.5, y: o.y + row - 0.5 }
-    : { x: o.x + row - 0.5, y: o.y + tree - 0.5 };
-}
-
-/** Every dot's cell, in pitches: blocks 10 wide × 61 tall, 1.5-pitch gutters, 3 between grid rows. */
-export function fieldLayout(orientation: Orientation = 'portrait'): { width: number; height: number; dots: Dot[] } {
-  const dots: Dot[] = [];
-  for (let block = 1; block <= FIELD.blocks; block += 1) {
-    const o = blockOrigin(block, orientation);
-    for (let row = 1; row <= DOWN; row += 1)
-      for (let tree = 1; tree <= ACROSS; tree += 1)
-        dots.push(
-          orientation === 'portrait'
-            ? { x: o.x + tree - 1, y: o.y + row - 1, block, row, tree }
-            : { x: o.x + row - 1, y: o.y + tree - 1, block, row, tree },
-        );
-  }
-  if (dots.length !== FIELD_TREES) throw new Error('field layout does not add up');
-  const [width, height] = orientation === 'portrait' ? [GRID_W, GRID_H] : [GRID_H, GRID_W];
-  return { width, height, dots };
-}
-
-/**
- * The whole map with room for the 'Block n' labels, in pitches: above each strip in portrait,
- * beside the outer blocks in landscape. Sets the CSS aspect ratio and the SVG fallback's viewBox.
- */
-export function frameRect(orientation: Orientation): Rect {
-  return orientation === 'portrait'
-    ? { x: -0.5, y: -STRIP_GAP, w: GRID_W + 1, h: GRID_H + STRIP_GAP + 0.5 }
-    : { x: -7.5, y: -1, w: GRID_H + 15, h: GRID_W + 2 };
-}
-
-/** The zoomed close-up's rect: the rows plus a gutter for their numbers (left in portrait, above in landscape). */
-export function targetRect(t: ZoomTarget, orientation: Orientation): Rect {
-  const o = blockOrigin(t.block, orientation);
-  const n = t.to - t.from + 1;
-  return orientation === 'portrait'
-    ? { x: o.x - 3, y: o.y + t.from - 1 - 0.75, w: ACROSS + 3.75, h: n + 1.5 }
-    : { x: o.x + t.from - 1 - 0.75, y: o.y - 2.5, w: n + 1.5, h: ACROSS + 3.25 };
-}
+const ACROSS = FIELD.treesPerRow;
+const DOWN = FIELD.rowsPerBlock;
+const PER_STRIP = FIELD.blocksPerGridRow;
 
 // ---------------------------------------------------------------------------
-// 2. Tree states from the ledger
+// 1. Camera
 
-export const EMPTY = 0;
-export const EARLIER_S = 1;
-export const TODAY = 2;
-export type TreeState = typeof EMPTY | typeof EARLIER_S | typeof TODAY;
-
-export interface StatusOptions {
-  /** Ledger minute. Default MOMENTS.field (2:15 PM). */
-  at?: Minute;
-  /** Whose phone: their own current shift is gold, everyone else's marks are green. Default 'Alex'. */
-  who?: Person;
-  /** Rows forced gold (offline marks shown before sync). */
-  pending?: ReadonlyArray<{ block: number; row: number }>;
-}
-
-/**
- * Every tree's state at a minute, as seen on `who`'s phone (Uint8Array of EMPTY | EARLIER_S | TODAY).
- *
- * - EARLIER rows are green. Marks fill a row from tree 1 in the order they were made.
- * - Your own marks are gold, including offline ones before they sync. A rejected mark (someone
- *   marked the tree first) stays gold until the sync at OFFLINE.back, then shows the winner's.
- * - Other people's marks are green once this phone has them: not while it is offline, and not
- *   an offline mark before it syncs.
- */
-export function treeStatus(opts: StatusOptions = {}): Uint8Array {
-  const at = opts.at ?? MOMENTS.field;
-  const who = opts.who ?? WORKER;
-  const s = new Uint8Array(FIELD_TREES);
-  for (const r of EARLIER)
-    for (let row = r.from; row <= r.to; row += 1) s.fill(EARLIER_S, treeIndex(r.block, row, 1), treeIndex(r.block, row, ACROSS) + 1);
-
-  const viewerOffline = who === WORKER && at >= OFFLINE.lost && at < OFFLINE.back;
-  const synced = at >= OFFLINE.back;
-  const cursor = new Map<string, number>();
-  const marks: Mark[] = [...MARKS, ...CREW_MARKS].filter((m) => m.at <= at).sort((a, b) => a.at - b.at);
-  for (const m of marks) {
-    const key = `${m.block}-${m.row}`;
-    let from = 1;
-    if (!m.rejected) {
-      from = (cursor.get(key) ?? 0) + 1;
-      cursor.set(key, Math.min(ACROSS, from + m.trees - 1));
-    }
-    const to = Math.min(ACROSS, from + m.trees - 1);
-    const mine = m.by === who;
-    let state: TreeState | null = null;
-    if (mine) state = m.rejected && synced ? null : TODAY;
-    else if (!m.rejected && !(m.offline && !synced) && !(viewerOffline && m.at >= OFFLINE.lost)) state = EARLIER_S;
-    if (state === null) continue;
-    for (let tree = from; tree <= to; tree += 1) {
-      const i = treeIndex(m.block, m.row, tree);
-      if (state === TODAY || s[i] !== TODAY) s[i] = state;
-    }
-  }
-  for (const p of opts.pending ?? []) s.fill(TODAY, treeIndex(p.block, p.row, 1), treeIndex(p.block, p.row, ACROSS) + 1);
-  return s;
-}
-
-export const statusOf = (s: Uint8Array, block: number, row: number, tree: number) => (s[treeIndex(block, row, tree)] ?? EMPTY) as TreeState;
-
-export function countStatus(s: Uint8Array): { empty: number; earlier: number; today: number } {
-  const c = { empty: 0, earlier: 0, today: 0 };
-  for (const v of s) {
-    if (v === TODAY) c.today += 1;
-    else if (v === EARLIER_S) c.earlier += 1;
-    else c.empty += 1;
-  }
-  return c;
-}
-
-/** Tree notes that exist at a minute (the old Replant note always; Alex's from 2:33 PM). */
-export function notesAt(at: Minute): TreeNote[] {
-  return at >= MOMENTS.treeNote ? [OLD_NOTE, TREE_NOTE] : [OLD_NOTE];
-}
-
-/** Rows with any gold tree, in the order they were first marked (the reveal order). */
-export function goldRows(s: Uint8Array): Array<{ block: number; row: number }> {
-  const first = new Map<string, number>();
-  for (const m of [...MARKS, ...CREW_MARKS]) {
-    const key = `${m.block}-${m.row}`;
-    first.set(key, Math.min(first.get(key) ?? Infinity, m.at));
-  }
-  const rows: Array<{ block: number; row: number; t: number }> = [];
-  for (let block = 1; block <= FIELD.blocks; block += 1)
-    for (let row = 1; row <= DOWN; row += 1) {
-      const i = treeIndex(block, row, 1);
-      if (s.subarray(i, i + ACROSS).includes(TODAY)) rows.push({ block, row, t: first.get(`${block}-${row}`) ?? Infinity });
-    }
-  rows.sort((a, b) => a.t - b.t || a.block - b.block || a.row - b.row);
-  return rows.map(({ block, row }) => ({ block, row }));
-}
-
-export interface Run {
-  block: number;
-  row0: number;
-  row1: number;
-  tree0: number;
-  tree1: number;
-  state: TreeState;
-}
-
-/** The map as rectangles of same-state trees: consecutive rows with the same pattern merge. */
-export function fieldRuns(s: Uint8Array): Run[] {
-  const runs: Run[] = [];
-  for (let block = 1; block <= FIELD.blocks; block += 1) {
-    let open: Run[] = [];
-    let openSig = '';
-    for (let row = 1; row <= DOWN; row += 1) {
-      const segs: Array<[number, number, TreeState]> = [];
-      for (let tree = 1; tree <= ACROSS; tree += 1) {
-        const v = statusOf(s, block, row, tree);
-        const last = segs[segs.length - 1];
-        if (last && last[2] === v) last[1] = tree;
-        else segs.push([tree, tree, v]);
-      }
-      const sig = segs.map((g) => g.join(':')).join('|');
-      if (sig === openSig) {
-        for (const r of open) r.row1 = row;
-      } else {
-        open = segs.map(([tree0, tree1, state]) => ({ block, row0: row, row1: row, tree0, tree1, state }));
-        runs.push(...open);
-        openSig = sig;
-      }
-    }
-  }
-  return runs;
-}
-
-/** The close-up in words, from the ledger: the zoomed canvas's aria-label. */
-export function zoomSummary(t: ZoomTarget = ZOOM_TARGET, at: Minute = MOMENTS.field, notes: readonly TreeNote[] = notesAt(at)): string {
-  const s = treeStatus({ at });
-  const kind = (row: number) => {
-    const i = treeIndex(t.block, row, 1);
-    const r = s.subarray(i, i + ACROSS);
-    if (r.every((v) => v === TODAY)) return 'shaped today in gold';
-    if (r.every((v) => v === EARLIER_S)) return 'shaped earlier in green';
-    if (r.every((v) => v === EMPTY)) return 'not yet shaped';
-    return 'partly shaped';
-  };
-  const parts: string[] = [];
-  let from = t.from;
-  for (let row = t.from; row <= t.to; row += 1) {
-    if (row < t.to && kind(row + 1) === kind(row)) continue;
-    parts.push(`${from === row ? `row ${row}` : `rows ${from} to ${row}`} ${kind(row)}`);
-    from = row + 1;
-  }
-  const flags = notes
-    .filter((n) => n.block === t.block && n.row >= t.from && n.row <= t.to)
-    .map((n) => ` A flag marks a tree note on row ${n.row}, tree ${n.tree}: ${n.flag}.`)
-    .join('');
-  const text = parts.join(', ');
-  return `Close-up of block ${t.block}, rows ${t.from} to ${t.to}, 10 trees a row: ${text.charAt(0).toUpperCase()}${text.slice(1)}.${flags}`;
-}
-
-// ---------------------------------------------------------------------------
-// Static SVG (server-rendered first paint, no-JS fallback)
-
-/** The rust flag (the app's flag.fill glyph, 24 × 24). The pole's foot is at (5.6, 21.2). */
-export const FLAG_PATH =
-  'M5.6 2.8c.5 0 .9.4.9.9v.1h10.9c.7 0 1.1.7.8 1.3l-2.4 3.9 2.4 3.9c.4.6 0 1.3-.8 1.3H6.5v7c0 .5-.4.9-.9.9s-.9-.4-.9-.9V3.7c0-.5.4-.9.9-.9Z';
-const FLAG_FOOT = { x: 5.6, y: 21.2 };
-
-export interface Theme {
-  ring: string;
-  earlier: string;
-  today: string;
-  note: string;
-  noteEdge: string;
-  label: string;
-  labelHot: string;
-  pulse: string;
-}
-
-/** Page map colours on the dark stage (brief: designSystem, PAGE MAP DOTS). */
-export const STAGE_THEME: Theme = {
-  ring: '#6F8F7A',
-  earlier: '#2E7A4E',
-  today: '#E2A644',
-  note: '#C2462A',
-  noteEdge: '#F2F5EF',
-  label: '#A8BBAE',
-  labelHot: '#E2A644',
-  pulse: '#E2A644',
-};
-
-const n2 = (v: number) => String(Math.round(v * 1000) / 1000);
-
-export interface SvgOptions {
-  orientation: Orientation;
-  at?: Minute;
-  who?: Person;
-  /** Draw the close-up of these rows (with row numbers) instead of the whole field. */
-  zoom?: ZoomTarget;
-  notes?: readonly TreeNote[];
-  /** Unique per page: pattern ids must not collide between instances. */
-  id?: string;
-  theme?: Theme;
-  class?: string;
-}
-
-/**
- * The map as an inline SVG string: one patterned rect per run, so the whole field is a few KB.
- * Rendered by FieldMap.astro under the canvas for first paint and for visitors without JS.
- */
-export function fieldSVG(o: SvgOptions): string {
-  const t = o.theme ?? STAGE_THEME;
-  const id = o.id ?? 'fm';
-  const at = o.at ?? MOMENTS.field;
-  const s = treeStatus({ at, who: o.who });
-  const notes = o.notes ?? notesAt(at);
-  const vb = o.zoom ? targetRect(o.zoom, o.orientation) : frameRect(o.orientation);
-  const fills = [`url(#${id}-r)`, `url(#${id}-e)`, `url(#${id}-t)`];
-  const out: string[] = [];
-  out.push(
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${n2(vb.x)} ${n2(vb.y)} ${n2(vb.w)} ${n2(vb.h)}" preserveAspectRatio="xMidYMid meet" aria-hidden="true" focusable="false"${o.class ? ` class="${o.class}"` : ''}>`,
-    '<defs>',
-    `<pattern id="${id}-r" width="1" height="1" patternUnits="userSpaceOnUse"><circle cx=".5" cy=".5" r="${n2(DOT_R - 0.07)}" fill="none" stroke="${t.ring}" stroke-width=".14"/></pattern>`,
-    `<pattern id="${id}-e" width="1" height="1" patternUnits="userSpaceOnUse"><circle cx=".5" cy=".5" r="${DOT_R}" fill="${t.earlier}"/></pattern>`,
-    `<pattern id="${id}-t" width="1" height="1" patternUnits="userSpaceOnUse"><circle cx=".5" cy=".5" r="${n2(DOT_R * TODAY_SCALE)}" fill="${t.today}"/></pattern>`,
-    '</defs>',
-  );
-  const z = o.zoom;
-  const runs = z
-    ? fieldRuns(s)
-        .filter((r) => r.block === z.block && r.row1 >= z.from && r.row0 <= z.to)
-        .map((r) => ({ ...r, row0: Math.max(r.row0, z.from), row1: Math.min(r.row1, z.to) }))
-    : fieldRuns(s);
-  let block = 0;
-  for (const r of runs) {
-    if (r.block !== block) {
-      if (block) out.push('</g>');
-      block = r.block;
-      const og = blockOrigin(block, o.orientation);
-      out.push(`<g transform="translate(${n2(og.x)} ${n2(og.y)})">`);
-    }
-    const [x, y, w, h] =
-      o.orientation === 'portrait'
-        ? [r.tree0 - 1, r.row0 - 1, r.tree1 - r.tree0 + 1, r.row1 - r.row0 + 1]
-        : [r.row0 - 1, r.tree0 - 1, r.row1 - r.row0 + 1, r.tree1 - r.tree0 + 1];
-    out.push(`<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${fills[r.state]}"/>`);
-  }
-  if (block) out.push('</g>');
-
-  // Block labels.
-  const fs = o.orientation === 'portrait' ? 1.7 : 1.35;
-  out.push(`<g fill="${t.label}" font-size="${fs}" class="fm-svg-label">`);
-  for (let b = 1; b <= FIELD.blocks && !o.zoom; b += 1) {
-    const r = blockRect(b, o.orientation);
-    if (o.orientation === 'portrait') out.push(`<text x="${n2(r.x)}" y="${n2(r.y - 0.8)}">Block ${b}</text>`);
-    else if (b <= PER_STRIP) out.push(`<text x="${n2(r.x - 0.9)}" y="${n2(r.y + r.h / 2 + fs * 0.35)}" text-anchor="end">Block ${b}</text>`);
-    else out.push(`<text x="${n2(r.x + r.w + 0.9)}" y="${n2(r.y + r.h / 2 + fs * 0.35)}">Block ${b}</text>`);
-  }
-  out.push('</g>');
-
-  // Row numbers in the close-up.
-  if (o.zoom) {
-    const og = blockOrigin(o.zoom.block, o.orientation);
-    out.push(`<g fill="${t.label}" font-size=".62" class="fm-svg-label">`);
-    for (let row = o.zoom.from; row <= o.zoom.to; row += 1) {
-      if (o.orientation === 'portrait') out.push(`<text x="${n2(og.x - 0.7)}" y="${n2(og.y + row - 0.5 + 0.22)}" text-anchor="end">${row}</text>`);
-      else out.push(`<text x="${n2(og.x + row - 0.5)}" y="${n2(og.y - 0.55)}" text-anchor="middle">${row}</text>`);
-    }
-    out.push('</g>');
-  }
-
-  // Note flags: the pole's foot on the tree, the flag up and to the right.
-  const fsz = o.zoom ? 0.9 : 1.7;
-  for (const n of notes) {
-    const c = dotCenter(n.block, n.row, n.tree, o.orientation);
-    const k = fsz / 24;
-    out.push(
-      `<path data-note="${n.block}-${n.row}-${n.tree}" d="${FLAG_PATH}" transform="translate(${n2(c.x - FLAG_FOOT.x * k)} ${n2(c.y - FLAG_FOOT.y * k)}) scale(${n2(k)})" fill="${t.note}" stroke="${t.noteEdge}" stroke-width="1.6" stroke-linejoin="round" paint-order="stroke"/>`,
-    );
-  }
-  out.push('</svg>');
-  return out.join('');
-}
-
-// ---------------------------------------------------------------------------
-// 3. The field scene's choreography (brief: sections.field.animation)
-
-/** Progress windows of the field section's scrubbed timeline. */
-export const BEATS = {
-  /** Block 2 rows 14→36 flip ring → gold, one row per 1/23 of the window, each with a pop. */
-  reveal: [0.3, 0.52],
-  /** The camera zooms to block 2 rows 28–40. */
-  zoomIn: [0.52, 0.58],
-  labelsIn: [0.55, 0.59],
-  /** Row 37's number pulses with a touch ring. */
-  touch: [0.59, 0.625],
-  /** Row 37 fills gold… */
-  demoIn: [0.61, 0.64],
-  /** …the Undo chip pulses (a DOM overlay the scene owns)… */
-  undo: [0.64, 0.67],
-  /** …and row 37 goes back to rings: the ledger still has it to do at 2:15. */
-  demoOut: [0.67, 0.7],
-  /** Season flip: gold and green fade to rings; the note stays. */
-  seasonOut: [0.73, 0.81],
-  pulse: [0.79, 0.87],
-  /** Back to this season, then out to the overview. */
-  seasonIn: [0.88, 0.92],
-  labelsOut: [0.88, 0.9],
-  zoomOut: [0.9, 0.98],
-} as const satisfies Record<string, readonly [number, number]>;
-
-export interface MapState {
-  /** Ledger minute for every tree's state. */
-  at: Minute;
-  /** Gold rows revealed so far, in mark order (fractional = the next row popping); null = all. */
-  reveal: number | null;
-  /** 0 = overview, 1 = zoomed to the target. */
-  camera: number;
-  /** Row-number alpha in the zoomed view. */
-  labels: number;
-  /** Alpha of the demo row's gold fill. */
-  demo: number;
-  /** 0 = this season, 1 = next season (every fill faded to rings; notes stay). */
-  season: number;
-  /** 0–1 progress of the note markers' pulse ring (0 and 1 draw nothing). */
-  pulse: number;
-  /** 0–1 progress of the touch ring on the demo row's number. */
-  touch: number;
-  /** 0–1 progress of the Undo chip's pulse (for the scene's DOM chip; the canvas ignores it). */
-  undo: number;
-}
-
-const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
-const ramp = (p: number, w: readonly [number, number]) => clamp01((p - w[0]) / (w[1] - w[0]));
-const easeInOut = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
-/** Lingers on a value until `w2` starts, then returns: in over w1, out over w2. */
-const inOut = (p: number, w1: readonly [number, number], w2: readonly [number, number], ease = (t: number) => t) =>
-  p < w2[0] ? ease(ramp(p, w1)) : 1 - ease(ramp(p, w2));
-
-let revealRows: number | null = null;
-/** How many gold rows the reveal walks through at 2:15 PM (23). */
-export function revealCount(): number {
-  revealRows ??= goldRows(treeStatus({ at: MOMENTS.field })).length;
-  return revealRows;
-}
-
-/** What the field canvas shows at section progress p (0–1). Pure. */
-export function sceneState(p: number): MapState {
-  const q = clamp01(p);
-  return {
-    at: MOMENTS.field,
-    reveal: revealCount() * ramp(q, BEATS.reveal),
-    camera: inOut(q, BEATS.zoomIn, BEATS.zoomOut, easeInOut),
-    labels: inOut(q, BEATS.labelsIn, BEATS.labelsOut),
-    demo: inOut(q, BEATS.demoIn, BEATS.demoOut),
-    season: inOut(q, BEATS.seasonOut, BEATS.seasonIn),
-    pulse: ramp(q, BEATS.pulse),
-    touch: ramp(q, BEATS.touch),
-    undo: ramp(q, BEATS.undo),
-  };
-}
-
-/** The static final state (reduced motion, no scene yet). */
-export function finalState(view: 'overview' | 'zoom' = 'overview', at: Minute = MOMENTS.field): MapState {
-  const z = view === 'zoom' ? 1 : 0;
-  return { at, reveal: null, camera: z, labels: z, demo: 0, season: 0, pulse: 0, touch: 0, undo: 0 };
-}
-
-// ---------------------------------------------------------------------------
-// Try it (pure): the page's small interactive copy of block 2 rows 28–40
-
-export type TapMode = 'one' | 'fill' | 'erase';
-
-export interface TryIt {
-  /** The rows shown, inclusive. */
-  readonly rows: [number, number];
-  /** Fill mode's first tree, waiting for the second tap. */
-  readonly anchor: { row: number; tree: number } | null;
-  readonly canUndo: boolean;
-  get(row: number, tree: number): TreeState;
-  /** A row number: marks the row's free trees, or clears yours when none are free (always in erase). */
-  rowTap(row: number, mode?: TapMode): string;
-  treeTap(row: number, tree: number, mode: TapMode): string;
-  undo(): string;
-  /** Back to the ledger state. */
-  reset(): string;
-}
-
-/**
- * The Try it strip's model: starts from the ledger at `at`, never changes trees someone else
- * shaped (green), and returns the sentence for the polite live region after every action.
- * Nothing is saved anywhere.
- */
-export function createTryIt(target: ZoomTarget = ZOOM_TARGET, at: Minute = MOMENTS.field): TryIt {
-  const n = target.to - target.from + 1;
-  const start = new Uint8Array(n * ACROSS);
-  const ledger = treeStatus({ at });
-  for (let r = 0; r < n; r += 1)
-    for (let t = 0; t < ACROSS; t += 1) start[r * ACROSS + t] = statusOf(ledger, target.block, target.from + r, t + 1);
-  let cells: Uint8Array = start.slice();
-  const history: Uint8Array[] = [];
-  let anchor: { row: number; tree: number } | null = null;
-  const at0 = (row: number, tree: number) => (row - target.from) * ACROSS + tree - 1;
-  const trees = (k: number) => `${k} tree${k === 1 ? '' : 's'}`;
-  const spot = (row: number, tree: number) => `row ${row}, tree ${tree}`;
-  const Spot = (row: number, tree: number) => `Row ${row}, tree ${tree}`;
-  const commit = (next: Uint8Array) => {
-    history.push(cells);
-    cells = next;
-  };
-  return {
-    rows: [target.from, target.to],
-    get anchor() {
-      return anchor;
-    },
-    get canUndo() {
-      return history.length > 0;
-    },
-    get: (row, tree) => (cells[at0(row, tree)] ?? EMPTY) as TreeState,
-    rowTap(row, mode = 'one') {
-      anchor = null;
-      const idx = Array.from({ length: ACROSS }, (_, t) => at0(row, t + 1));
-      const free = idx.filter((i) => cells[i] === EMPTY);
-      const mine = idx.filter((i) => cells[i] === TODAY);
-      const next = cells.slice();
-      if (mode === 'erase' || (free.length === 0 && mine.length > 0)) {
-        if (mine.length === 0) return `Nothing in row ${row} is marked`;
-        for (const i of mine) next[i] = EMPTY;
-        commit(next);
-        return `Row ${row} cleared, ${trees(mine.length)}`;
-      }
-      if (free.length === 0) return `Every tree in row ${row} was shaped earlier`;
-      for (const i of free) next[i] = TODAY;
-      commit(next);
-      return `Row ${row} marked, ${trees(free.length)}`;
-    },
-    treeTap(row, tree, mode) {
-      const i = at0(row, tree);
-      const v = cells[i];
-      if (v === EARLIER_S) return `${Spot(row, tree)} was shaped earlier`;
-      const next = cells.slice();
-      if (mode === 'fill') {
-        if (!anchor) {
-          anchor = { row, tree };
-          return `${Spot(row, tree)}. Now tap the last tree`;
-        }
-        if (anchor.row === row && anchor.tree === tree) {
-          anchor = null;
-          return 'Start over: tap the first tree';
-        }
-        const [a, b] = [at0(anchor.row, anchor.tree), i].sort((x, y) => x - y) as [number, number];
-        anchor = null;
-        let k = 0;
-        for (let j = a; j <= b; j += 1)
-          if (next[j] === EMPTY) {
-            next[j] = TODAY;
-            k += 1;
-          }
-        const from = { row: target.from + Math.floor(a / ACROSS), tree: (a % ACROSS) + 1 };
-        const to = { row: target.from + Math.floor(b / ACROSS), tree: (b % ACROSS) + 1 };
-        if (k === 0) return 'Nothing new to mark there';
-        commit(next);
-        return `Marked ${trees(k)}, from ${spot(from.row, from.tree)} to ${spot(to.row, to.tree)}`;
-      }
-      anchor = null;
-      if (mode === 'erase' && v !== TODAY) return `${Spot(row, tree)} isn’t marked`;
-      next[i] = v === TODAY ? EMPTY : TODAY;
-      commit(next);
-      return `${Spot(row, tree)} ${v === TODAY ? 'unmarked' : 'marked'}`;
-    },
-    undo() {
-      anchor = null;
-      const prev = history.pop();
-      if (!prev) return 'Nothing to undo';
-      cells = prev;
-      return 'Undid your last change';
-    },
-    reset() {
-      anchor = null;
-      cells = start.slice();
-      history.length = 0;
-      return `Back to the map at ${fmtTime(at)}`;
-    },
-  };
-}
-
-// ---------------------------------------------------------------------------
-// Camera
-
-/** Content point at the canvas centre and the scale (CSS px per pitch). */
+/** The world (portrait) point at the canvas centre, the scale (CSS px per pitch) and the turn (radians, clockwise). */
 export interface View {
   cx: number;
   cy: number;
   s: number;
+  /** 0 = upright (portrait world), -π/2 = the landscape overview. */
+  r?: number;
 }
 
-/** Fits `r` into W × H minus padding (px), centred in the padded box. */
-export function fitView(r: Rect, W: number, H: number, pad: { l?: number; r?: number; t?: number; b?: number } = {}): View {
+/** The landscape overview's turn: a quarter turn anticlockwise. */
+export const LANDSCAPE_TURN = -Math.PI / 2;
+const turnOf = (o: Orientation) => (o === 'landscape' ? LANDSCAPE_TURN : 0);
+
+export interface Pad {
+  l?: number;
+  r?: number;
+  t?: number;
+  b?: number;
+}
+
+/**
+ * Fits `r` (in screen-aligned frame units) into W × H minus padding (px), centred in the padded
+ * box. `cap` limits the scale; with `dpr` the scale snaps down to whole device pixels per pitch.
+ */
+export function fitView(r: Rect, W: number, H: number, pad: Pad = {}, cap = Infinity, dpr = 0): View {
   const l = pad.l ?? 0;
   const rr = pad.r ?? 0;
   const tp = pad.t ?? 0;
   const b = pad.b ?? 0;
-  const s = Math.max(0.0001, Math.min((W - l - rr) / r.w, (H - tp - b) / r.h));
-  return { cx: r.x + r.w / 2 - (l - rr) / 2 / s, cy: r.y + r.h / 2 - (tp - b) / 2 / s, s };
+  let s = Math.max(0.0001, Math.min(cap, (W - l - rr) / r.w, (H - tp - b) / r.h));
+  if (dpr > 0) s = Math.max(1, Math.floor(s * dpr + 1e-6)) / dpr;
+  return { cx: r.x + r.w / 2 - (l - rr) / 2 / s, cy: r.y + r.h / 2 - (tp - b) / 2 / s, s, r: 0 };
 }
 
-/** Zoom between two views: scale geometrically, about the one point that stays put on screen. */
+/** Fits a frame rect for an orientation and returns the view in world terms (centre and turn). */
+function fitFrame(frame: Rect, o: Orientation, W: number, H: number, pad: Pad = {}, cap = Infinity, dpr = 0): View {
+  const f = fitView(frame, W, H, pad, cap, dpr);
+  const c = fromFrame({ x: f.cx, y: f.cy }, o);
+  return { cx: c.x, cy: c.y, s: f.s, r: turnOf(o) };
+}
+
+// Complex numbers for the spiral interpolation: [re, im].
+type C = [number, number];
+const cmul = (a: C, b: C): C => [a[0] * b[0] - a[1] * b[1], a[0] * b[1] + a[1] * b[0]];
+const cdiv = (a: C, b: C): C => {
+  const d = b[0] * b[0] + b[1] * b[1];
+  return [(a[0] * b[0] + a[1] * b[1]) / d, (a[1] * b[0] - a[0] * b[1]) / d];
+};
+const cpolar = (k: number, phi: number): C => [k * Math.cos(phi), k * Math.sin(phi)];
+
+/**
+ * Moves between two views as one spiral similarity: the scale changes geometrically and the turn
+ * linearly, about the one screen point that stays put (a plain zoom keeps its anchor still).
+ */
 export function lerpView(a: View, b: View, t: number): View {
-  if (t <= 0) return { ...a };
-  if (t >= 1) return { ...b };
-  const s = Math.pow(a.s, 1 - t) * Math.pow(b.s, t);
-  const k = a.s === b.s ? t : (1 / a.s - 1 / s) / (1 / a.s - 1 / b.s);
-  return { cx: a.cx + (b.cx - a.cx) * k, cy: a.cy + (b.cy - a.cy) * k, s };
+  const ra = a.r ?? 0;
+  const rb = b.r ?? 0;
+  if (t <= 0) return { ...a, r: ra };
+  if (t >= 1) return { ...b, r: rb };
+  // Screen positions relative to the canvas centre: z = s·e^{iθ}·(w − c). B∘A⁻¹ is z ↦ m·z + n.
+  const k = b.s / a.s;
+  const phi = rb - ra;
+  const m = cpolar(k, phi);
+  const n = cmul(cpolar(b.s, rb), [a.cx - b.cx, a.cy - b.cy]);
+  const s = a.s * Math.pow(k, t);
+  const r = ra + phi * t;
+  const sa = cpolar(a.s, ra);
+  if (Math.hypot(m[0] - 1, m[1]) < 1e-9) {
+    // A pure pan.
+    const d = cdiv([n[0] * t, n[1] * t], sa);
+    return { cx: a.cx - d[0], cy: a.cy - d[1], s, r };
+  }
+  const F = cdiv(n, [1 - m[0], -m[1]]);
+  const mt = cpolar(Math.pow(k, t), phi * t);
+  const d = cdiv(cmul(F, [1 - mt[0], -mt[1]]), cpolar(s, r));
+  return { cx: a.cx - d[0], cy: a.cy - d[1], s, r };
 }
 
 /** Labels need this much room in CSS px around the dot grid. */
 const LABEL_PX = { side: 64, sideShort: 22, top: 16, edge: 4 };
 /** Below this width the landscape overview labels blocks by number only ('7', not 'Block 7'). */
 const SHORT_LABELS_BELOW = 640;
-/** Whether the block labels are numbers only at this size. */
+/**
+ * The block labels' text and size. Landscape: 'Block 7' at 11px beside each band, or '7' on a
+ * narrow canvas. Portrait (over each block): 'Block 14' as large as fits its block and gutter with
+ * a 5px gap, down to 8px; then 'B14'. Plex Mono's advance is 0.6em.
+ */
+export function blockLabelPx(orientation: Orientation, W: number, H = Infinity, dpr = 0): { px: number; short: boolean; text: (b: number) => string } {
+  if (orientation === 'landscape') {
+    const short = W < SHORT_LABELS_BELOW;
+    return { px: 11, short, text: (b) => (short ? String(b) : `Block ${b}`) };
+  }
+  const s = overviewView('portrait', W, H, dpr).s;
+  const room = (ACROSS + 1.5) * s - 5;
+  const px = Math.min(11, room / (8 * 0.6));
+  if (px >= 8) return { px, short: false, text: (b) => `Block ${b}` };
+  return { px: Math.max(7, Math.min(11, room / (3 * 0.6))), short: true, text: (b) => `B${b}` };
+}
+/** Whether the block labels are abbreviated at this size. */
 export const shortLabels = (orientation: Orientation, W: number) =>
-  orientation === 'landscape' ? W < SHORT_LABELS_BELOW : (W - 2 * LABEL_PX.edge) / (GRID_W + 1) * ACROSS < 56;
-/** The close-up never gets bigger than this pitch (≈ 7 px dots, brief: zoomed view). */
+  orientation === 'landscape' ? W < SHORT_LABELS_BELOW : blockLabelPx(orientation, W).short;
+/** The close-up never gets bigger than this pitch (dots of radius ≈ 7px, brief: zoomed view). */
 export const MAX_ZOOM_PITCH = 24;
 
 /** The overview's view: the whole field, labels included. */
-export function overviewView(orientation: Orientation, W: number, H: number): View {
+export function overviewView(orientation: Orientation, W: number, H: number, dpr = 0): View {
+  const grid = rectToFrame({ x: -0.5, y: -0.5, w: GRID_W + 1, h: GRID_H + 1 }, orientation);
   if (orientation === 'portrait')
-    return fitView({ x: -0.5, y: -0.5, w: GRID_W + 1, h: GRID_H + 1 }, W, H, { l: LABEL_PX.edge, r: LABEL_PX.edge, t: LABEL_PX.top, b: LABEL_PX.edge });
-  const side = shortLabels('landscape', W) ? LABEL_PX.sideShort : LABEL_PX.side;
-  return fitView({ x: -0.5, y: -0.5, w: GRID_H + 1, h: GRID_W + 1 }, W, H, { l: side, r: side, t: LABEL_PX.edge, b: LABEL_PX.edge });
+    return fitFrame(grid, orientation, W, H, { l: LABEL_PX.edge, r: LABEL_PX.edge, t: LABEL_PX.top, b: LABEL_PX.edge }, Infinity, dpr);
+  const side = W < SHORT_LABELS_BELOW ? LABEL_PX.sideShort : LABEL_PX.side;
+  return fitFrame(grid, orientation, W, H, { l: side, r: side, t: LABEL_PX.edge, b: LABEL_PX.edge }, Infinity, dpr);
 }
 
-/** The close-up's view: the target rows centred, at most MAX_ZOOM_PITCH. */
-export function zoomView(target: ZoomTarget, orientation: Orientation, W: number, H: number): View {
-  const v = fitView(targetRect(target, orientation), W, H);
-  return { ...v, s: Math.min(v.s, MAX_ZOOM_PITCH) };
+/** The close-up's view: the target rows upright and centred, at most MAX_ZOOM_PITCH. */
+export function zoomView(target: ZoomTarget, W: number, H: number, dpr = 0): View {
+  return fitFrame(targetRect(target), 'portrait', W, H, {}, MAX_ZOOM_PITCH, dpr);
 }
 
 /** The camera at zoom progress t (0 overview → 1 close-up). */
-export function cameraAt(t: number, orientation: Orientation, W: number, H: number, target: ZoomTarget = ZOOM_TARGET): View {
-  return lerpView(overviewView(orientation, W, H), zoomView(target, orientation, W, H), t);
+export function cameraAt(t: number, orientation: Orientation, W: number, H: number, target: ZoomTarget = ZOOM_TARGET, dpr = 0): View {
+  return lerpView(overviewView(orientation, W, H, dpr), zoomView(target, W, H, dpr), t);
+}
+
+/** A world point on screen (CSS px from the canvas's top-left). */
+export function toScreen(v: View, W: number, H: number, x: number, y: number): { x: number; y: number } {
+  const r = v.r ?? 0;
+  const c = Math.cos(r);
+  const s = Math.sin(r);
+  const dx = (x - v.cx) * v.s;
+  const dy = (y - v.cy) * v.s;
+  return { x: c * dx - s * dy + W / 2, y: s * dx + c * dy + H / 2 };
 }
 
 export interface CellRange {
@@ -704,33 +253,48 @@ export interface CellRange {
   tree1: number;
 }
 
-/** The trees inside the viewport, per block (culling for the zoomed views). */
-export function visibleCells(v: View, orientation: Orientation, W: number, H: number, margin = 1): CellRange[] {
-  const x0 = v.cx - W / 2 / v.s - margin;
-  const x1 = v.cx + W / 2 / v.s + margin;
-  const y0 = v.cy - H / 2 / v.s - margin;
-  const y1 = v.cy + H / 2 / v.s + margin;
+/** The trees inside the viewport, per block (the world box around the turned screen). */
+export function visibleCells(v: View, W: number, H: number, margin = 1): CellRange[] {
+  const r = v.r ?? 0;
+  const c = Math.cos(r);
+  const s = Math.sin(r);
+  let x0 = Infinity;
+  let x1 = -Infinity;
+  let y0 = Infinity;
+  let y1 = -Infinity;
+  for (const [px, py] of [
+    [-W / 2, -H / 2],
+    [W / 2, -H / 2],
+    [-W / 2, H / 2],
+    [W / 2, H / 2],
+  ] as const) {
+    // Inverse turn: world = c + R(−θ)·z / s.
+    const wx = v.cx + (c * px + s * py) / v.s;
+    const wy = v.cy + (-s * px + c * py) / v.s;
+    x0 = Math.min(x0, wx);
+    x1 = Math.max(x1, wx);
+    y0 = Math.min(y0, wy);
+    y1 = Math.max(y1, wy);
+  }
+  x0 -= margin;
+  x1 += margin;
+  y0 -= margin;
+  y1 += margin;
   const out: CellRange[] = [];
   for (let block = 1; block <= FIELD.blocks; block += 1) {
-    const r = blockRect(block, orientation);
-    const ix0 = Math.max(0, Math.floor(x0 - r.x));
-    const ix1 = Math.min(r.w - 1, Math.ceil(x1 - r.x) - 1);
-    const iy0 = Math.max(0, Math.floor(y0 - r.y));
-    const iy1 = Math.min(r.h - 1, Math.ceil(y1 - r.y) - 1);
-    if (ix0 > ix1 || iy0 > iy1) continue;
-    out.push(
-      orientation === 'portrait'
-        ? { block, tree0: ix0 + 1, tree1: ix1 + 1, row0: iy0 + 1, row1: iy1 + 1 }
-        : { block, row0: ix0 + 1, row1: ix1 + 1, tree0: iy0 + 1, tree1: iy1 + 1 },
-    );
+    const b = blockRect(block);
+    const t0 = Math.max(0, Math.floor(x0 - b.x));
+    const t1 = Math.min(ACROSS - 1, Math.ceil(x1 - b.x) - 1);
+    const r0 = Math.max(0, Math.floor(y0 - b.y));
+    const r1 = Math.min(DOWN - 1, Math.ceil(y1 - b.y) - 1);
+    if (t0 > t1 || r0 > r1) continue;
+    out.push({ block, tree0: t0 + 1, tree1: t1 + 1, row0: r0 + 1, row1: r1 + 1 });
   }
   return out;
 }
 
-const cellCount = (cells: CellRange[]) => cells.reduce((n, c) => n + (c.row1 - c.row0 + 1) * (c.tree1 - c.tree0 + 1), 0);
-
 // ---------------------------------------------------------------------------
-// 4. The Canvas 2D renderer
+// 2. The Canvas 2D renderer
 
 export interface FieldMapOptions {
   view?: 'overview' | 'zoom';
@@ -739,7 +303,7 @@ export interface FieldMapOptions {
   /** Ledger minute. Default MOMENTS.field. */
   at?: Minute;
   who?: Person;
-  /** 'auto' (default): landscape when the box is wider than tall. The close-up defaults to portrait. */
+  /** The overview's orientation. 'auto' (default): landscape when the box is wider than tall. The close-up is always upright. */
   orientation?: Orientation | 'auto';
   notes?: readonly TreeNote[];
   theme?: Partial<Theme>;
@@ -754,29 +318,43 @@ export interface FieldMapHandle {
   setProgress(p: number): void;
   /** Merge a state and redraw on the next frame (no-op when nothing changed). */
   draw(state: Partial<MapState>): void;
-  /** Draw now (tests, labs). `crisp` false allows the fast scaled-overview path a moving camera uses. */
-  render(crisp?: boolean): void;
+  /** Draw now, synchronously (tests, labs), as a frame would; `sharp` keeps full resolution while the camera moves. */
+  render(sharp?: boolean): void;
   /** Re-measure the box (also automatic through a ResizeObserver). */
   resize(): void;
+  /** Where a tree's centre is drawn at the current state, in CSS px from the canvas's top-left. */
+  pointAt(block: number, row: number, tree: number): { x: number; y: number };
   readonly state: Readonly<MapState>;
   readonly orientation: Orientation;
+  /** Frames drawn so far (each state change draws exactly one). */
+  readonly frames: number;
   destroy(): void;
 }
 
 /** Popping lasts this many reveal rows: gold grows in to 1.3×, then settles to 1. */
 const POP = 1.5;
-/** Above this many visible dots a moving camera blits the cached overview instead. */
-const BLIT_LIMIT = 2600;
+/**
+ * While the camera is visibly moving (between these zoom amounts) a large canvas draws at 1×
+ * backing resolution: a turned, scaled fill costs per pixel, and on a software rasterizer a 2×
+ * desktop canvas would take ~35 ms a frame. Rest frames are always full resolution, and a paused
+ * camera is sharpened after SHARPEN_MS.
+ */
+const LOW_RES_CAMERA: readonly [number, number] = [0.02, 0.98];
+const LOW_RES_ABOVE = 1.5e6;
+const SHARPEN_MS = 160;
 
 interface Sprites {
   key: number;
   /** Device-pixel size of every sprite (square and even, so a snapped centre lands on whole pixels). */
   size: number;
-  ring: HTMLCanvasElement;
-  earlier: HTMLCanvasElement;
-  today: HTMLCanvasElement;
   /** Gold at 1.3× for the pop; drawn scaled while it settles. */
   pop: HTMLCanvasElement;
+}
+
+interface Tiles {
+  ring: CanvasPattern;
+  earlier: CanvasPattern;
+  today: CanvasPattern;
 }
 
 function makeCanvas(w: number, h: number): HTMLCanvasElement {
@@ -786,15 +364,9 @@ function makeCanvas(w: number, h: number): HTMLCanvasElement {
   return c;
 }
 
-/**
- * The renderer. Every frame is one of:
- *  - camera at rest (0 or 1): one or two cached bitmaps (fills, and rings for the season fade)
- *    plus overlays. The overview cache redraws only the rows whose state changed.
- *  - camera moving over most of the field: the overview bitmap scaled, sharpened 140 ms after
- *    the camera stops.
- *  - camera moving close in: only the visible dots, as 1:1 device-pixel sprites.
- * Overlays (popping rows, the demo row, labels, row numbers, flags, rings) draw on top.
- */
+/** The ring's stroke in CSS px for a dot of radius r (CSS px): 1.5px at the close-up, never under .75px. */
+const ringWidth = (r: number) => Math.min(1.5, Math.max(0.75, r * 0.5));
+
 export function createFieldMap(canvas: HTMLCanvasElement, opts: FieldMapOptions = {}): FieldMapHandle {
   const ctx = canvas.getContext('2d');
   const box = canvas.parentElement ?? canvas;
@@ -804,9 +376,6 @@ export function createFieldMap(canvas: HTMLCanvasElement, opts: FieldMapOptions 
   const at = opts.at ?? MOMENTS.field;
   const status = treeStatus({ at, who: opts.who });
   const gold = goldRows(status);
-  /** Gold-row index of each block-row (-1: none), so the hot loop builds no strings. */
-  const goldOf = new Int16Array(FIELD.blocks * DOWN).fill(-1);
-  gold.forEach((g, k) => (goldOf[(g.block - 1) * DOWN + g.row - 1] = k));
   const notes = opts.notes ?? notesAt(at);
   const flag = typeof Path2D === 'function' ? new Path2D(FLAG_PATH) : null;
 
@@ -814,22 +383,28 @@ export function createFieldMap(canvas: HTMLCanvasElement, opts: FieldMapOptions 
   let lastProgress = NaN;
   let W = 0;
   let H = 0;
+  /** The device pixel ratio (capped at 2) and the backing store's current one (1 while moving on a big canvas). */
+  let full = 1;
   let dpr = 1;
+  let settle = 0;
   let orientation: Orientation = 'landscape';
-  let v0: View = { cx: 0, cy: 0, s: 1 };
-  let v1: View = { cx: 0, cy: 0, s: 1 };
+  let v0: View = { cx: 0, cy: 0, s: 1, r: 0 };
+  let v1: View = { cx: 0, cy: 0, s: 1, r: 0 };
+  let current: View = v0;
   let font = "'IBM Plex Mono', ui-monospace, monospace";
   let raf = 0;
-  let settle = 0;
+  let frames = 0;
   let destroyed = false;
   let sprites: Sprites | null = null;
-  /** 1 where gold row k is settled this frame (drawn gold), 0 while it is still a ring or popping. */
+  const tiles = new Map<number, Tiles>();
+
+  // What the dots show: the ledger, minus gold rows that have not settled yet (they draw as rings
+  // under their popping overlay). Runs are rebuilt per block only when one of its rows changes.
+  const shown = status.slice();
+  const shownGold = new Uint8Array(gold.length).fill(1);
   const settled = new Uint8Array(gold.length);
-  // Cached bitmaps (CSS px drawn at dpr). The overview fills update row by row.
-  let base: HTMLCanvasElement | null = null;
-  let baseOk = false;
-  const baseRows = new Int8Array(gold.length).fill(-1);
-  const caches = new Map<string, { c: HTMLCanvasElement; sig: string }>();
+  const runs: Array<Run[] | null> = new Array(FIELD.blocks + 1).fill(null);
+  const runsOf = (block: number) => (runs[block] ??= blockRuns(shown, block));
 
   /** Where gold row k starts flipping, in reveal units (row 0 at 0, the last ends at the total). */
   const startOf = (k: number) => (gold.length > 1 ? (k * (gold.length - POP)) / (gold.length - 1) : 0);
@@ -839,26 +414,32 @@ export function createFieldMap(canvas: HTMLCanvasElement, opts: FieldMapOptions 
     const x = state.reveal - startOf(k);
     return x <= 0 ? -1 : x >= POP ? 2 : x / POP;
   };
-  const settledSig = () => {
-    let sig = '';
-    for (let k = 0; k < gold.length; k += 1) sig += settled[k];
-    return sig;
-  };
 
-  const spritesFor = (r: number): Sprites => {
-    const key = Math.round(r * dpr * 8);
-    if (sprites && sprites.key === key) return sprites;
-    const rt = r * TODAY_SCALE;
-    let size = Math.ceil((rt * 1.3 * 2 + 3) * dpr);
-    size += size % 2;
-    const mk = (draw: (c: CanvasRenderingContext2D) => void) => {
-      const c = makeCanvas(size, size);
+  function syncShown() {
+    for (let k = 0; k < gold.length; k += 1) {
+      settled[k] = phaseOf(k) === 2 ? 1 : 0;
+      if (shownGold[k] === settled[k]) continue;
+      shownGold[k] = settled[k]!;
+      const g = gold[k]!;
+      const i = treeIndex(g.block, g.row, 1);
+      for (let t = 0; t < ACROSS; t += 1) shown[i + t] = settled[k] || status[i + t] !== TODAY ? status[i + t]! : EMPTY;
+      runs[g.block] = null;
+    }
+  }
+
+  /** One-cell pattern tiles at N device px per pitch (a dot centred in each). */
+  function tilesFor(N: number): Tiles | null {
+    const hit = tiles.get(N);
+    if (hit) return hit;
+    if (!ctx) return null;
+    const mk = (draw: (g: CanvasRenderingContext2D) => void) => {
+      const c = makeCanvas(N, N);
       const g = c.getContext('2d');
       if (g) {
-        g.setTransform(dpr, 0, 0, dpr, size / 2, size / 2);
+        g.translate(N / 2, N / 2);
         draw(g);
       }
-      return c;
+      return ctx.createPattern(c, 'repeat');
     };
     const disc = (radius: number, colour: string) => (g: CanvasRenderingContext2D) => {
       g.beginPath();
@@ -866,192 +447,200 @@ export function createFieldMap(canvas: HTMLCanvasElement, opts: FieldMapOptions 
       g.fillStyle = colour;
       g.fill();
     };
-    const lw = Math.min(1.5, Math.max(0.75, r * 0.5));
-    sprites = {
-      key,
-      size,
-      ring: mk((g) => {
-        g.beginPath();
-        g.arc(0, 0, Math.max(0.3, r - lw / 2), 0, Math.PI * 2);
-        g.lineWidth = lw;
-        g.strokeStyle = theme.ring;
-        g.stroke();
-      }),
-      earlier: mk(disc(r, theme.earlier)),
-      today: mk(disc(rt, theme.today)),
-      pop: mk(disc(rt * 1.3, theme.today)),
-    };
+    const r = DOT_R * N;
+    const lw = ringWidth(r / dpr) * dpr;
+    const ring = mk((g) => {
+      g.beginPath();
+      g.arc(0, 0, Math.max(0.3 * dpr, r - lw / 2), 0, Math.PI * 2);
+      g.lineWidth = lw;
+      g.strokeStyle = theme.ring;
+      g.stroke();
+    });
+    const earlier = mk(disc(r, theme.earlier));
+    const today = mk(disc(r * TODAY_SCALE, theme.today));
+    if (!ring || !earlier || !today) return null;
+    const t = { ring, earlier, today };
+    tiles.set(N, t);
+    return t;
+  }
+
+  /** The gold pop sprite for the reveal and the demo row (1:1 device pixels). */
+  const spritesFor = (r: number): Sprites => {
+    const key = Math.round(r * dpr * 8);
+    if (sprites && sprites.key === key) return sprites;
+    let size = Math.ceil((r * TODAY_SCALE * 1.3 * 2 + 3) * dpr);
+    size += size % 2;
+    const pop = makeCanvas(size, size);
+    const g = pop.getContext('2d');
+    if (g) {
+      g.setTransform(dpr, 0, 0, dpr, size / 2, size / 2);
+      g.beginPath();
+      g.arc(0, 0, r * TODAY_SCALE * 1.3, 0, Math.PI * 2);
+      g.fillStyle = theme.today;
+      g.fill();
+    }
+    sprites = { key, size, pop };
     return sprites;
   };
 
-  const toScreen = (v: View, x: number, y: number) => ({ x: (x - v.cx) * v.s + W / 2, y: (y - v.cy) * v.s + H / 2 });
+  const screenOf = (v: View, x: number, y: number) => toScreen(v, W, H, x, y);
 
-  /** Draws dots 1:1 in device pixels: their state, or every one as a ring ('rings'). */
-  function drawDots(c: CanvasRenderingContext2D, v: View, cells: CellRange[], mode: 'state' | 'rings', season = 0) {
-    const sp = spritesFor(v.s * DOT_R);
-    const d = sp.size / dpr;
-    const h = d / 2;
-    const s = v.s;
-    const ox = W / 2 - v.cx * s;
-    const oy = H / 2 - v.cy * s;
-    const portrait = orientation === 'portrait';
-    for (const cr of cells) {
-      const o = blockOrigin(cr.block, orientation);
-      for (let row = cr.row0; row <= cr.row1; row += 1) {
-        const g = goldOf[(cr.block - 1) * DOWN + row - 1]!;
-        const hideGold = g >= 0 && settled[g] === 0;
-        const at0 = treeIndex(cr.block, row, 1) - 1;
-        for (let tree = cr.tree0; tree <= cr.tree1; tree += 1) {
-          let st = mode === 'rings' ? EMPTY : status[at0 + tree]!;
-          if (st === TODAY && hideGold) st = EMPTY;
-          const x = Math.round(((portrait ? o.x + tree : o.x + row) - 0.5) * s * dpr + ox * dpr) / dpr - h;
-          const y = Math.round(((portrait ? o.y + row : o.y + tree) - 0.5) * s * dpr + oy * dpr) / dpr - h;
-          if (st === EMPTY) {
-            c.drawImage(sp.ring, x, y, d, d);
-            continue;
+  /** Every tree, as runs filled with pattern tiles: rings, fills fading for the season, the outside dimmed. */
+  function paintDots(c: CanvasRenderingContext2D, v: View, season: number, dim: number) {
+    const N = Math.max(3, Math.round(v.s * dpr));
+    const t = tilesFor(N);
+    if (!t) return;
+    const k = (v.s * dpr) / N;
+    const r = v.r ?? 0;
+    let cos = Math.cos(r);
+    let sin = Math.sin(r);
+    // At rest (1:1 and a whole quarter turn) every block lands on whole device pixels and the
+    // fills stay translate-only: the rects are turned instead of the pattern (a dot is symmetric),
+    // which keeps the rasterizer on its fast, unfiltered path.
+    const crisp = Math.abs(k - 1) < 1e-6 && Math.abs(sin * cos) < 1e-9;
+    if (crisp) {
+      cos = Math.round(cos);
+      sin = Math.round(sin);
+    }
+    const fill = (x: number, y: number, w: number, h: number) => {
+      if (!crisp) return c.fillRect(x, y, w, h);
+      // (x, y) → (cos·x − sin·y, sin·x + cos·y), exact for a quarter turn.
+      const ax = cos * x - sin * y;
+      const ay = sin * x + cos * y;
+      const bx = cos * (x + w) - sin * (y + h);
+      const by = sin * (x + w) + cos * (y + h);
+      c.fillRect(Math.min(ax, bx), Math.min(ay, by), Math.abs(bx - ax), Math.abs(by - ay));
+    };
+    for (let block = 1; block <= FIELD.blocks; block += 1) {
+      const b = blockRect(block);
+      // Cull blocks wholly off screen.
+      let minX = Infinity;
+      let maxX = -Infinity;
+      let minY = Infinity;
+      let maxY = -Infinity;
+      for (const [x, y] of [
+        [b.x, b.y],
+        [b.x + b.w, b.y],
+        [b.x, b.y + b.h],
+        [b.x + b.w, b.y + b.h],
+      ] as const) {
+        const p = screenOf(v, x, y);
+        minX = Math.min(minX, p.x);
+        maxX = Math.max(maxX, p.x);
+        minY = Math.min(minY, p.y);
+        maxY = Math.max(maxY, p.y);
+      }
+      if (maxX < 0 || minX > W || maxY < 0 || minY > H) continue;
+      const o = screenOf(v, b.x, b.y);
+      if (crisp) c.setTransform(1, 0, 0, 1, Math.round(o.x * dpr), Math.round(o.y * dpr));
+      else c.setTransform(k * cos, k * sin, -k * sin, k * cos, o.x * dpr, o.y * dpr);
+      for (const run of runsOf(block)) {
+        const x = (run.tree0 - 1) * N;
+        const w = (run.tree1 - run.tree0 + 1) * N;
+        for (const p of runPieces(run, target, dim)) {
+          const y = (p.row0 - 1) * N;
+          const h = (p.row1 - p.row0 + 1) * N;
+          if (run.state === EMPTY || season > 0) {
+            c.globalAlpha = p.alpha;
+            c.fillStyle = t.ring;
+            fill(x, y, w, h);
           }
-          if (season > 0) {
-            c.globalAlpha = 1;
-            c.drawImage(sp.ring, x, y, d, d);
-            c.globalAlpha = 1 - season;
+          if (run.state !== EMPTY && season < 1) {
+            c.globalAlpha = p.alpha * (1 - season);
+            c.fillStyle = run.state === TODAY ? t.today : t.earlier;
+            fill(x, y, w, h);
           }
-          if (season < 1) c.drawImage(st === TODAY ? sp.today : sp.earlier, x, y, d, d);
         }
       }
     }
     c.globalAlpha = 1;
+    c.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
 
-  function rowBand(block: number, row: number, v: View): [number, number, number, number] {
-    const p = dotCenter(block, row, 1, orientation);
-    const q = dotCenter(block, row, ACROSS, orientation);
-    const a = toScreen(v, p.x, p.y);
-    const b = toScreen(v, q.x, q.y);
-    const h = v.s * 0.5;
-    return [Math.min(a.x, b.x) - h, Math.min(a.y, b.y) - h, Math.abs(b.x - a.x) + 2 * h, Math.abs(b.y - a.y) + 2 * h];
-  }
+  const inTarget = (block: number, row: number) => block === target.block && row >= target.from && row <= target.to;
 
-  const fresh = () => {
-    const c = makeCanvas(W * dpr, H * dpr);
-    c.getContext('2d')?.setTransform(dpr, 0, 0, dpr, 0, 0);
-    return c;
-  };
-
-  /** The overview's fills, kept in step with the reveal one row at a time. */
-  function ensureBase(): HTMLCanvasElement | null {
-    if (!base || !baseOk) {
-      base = fresh();
-      const b = base.getContext('2d');
-      if (b) drawDots(b, v0, visibleCells(v0, orientation, W, H), 'state');
-      baseRows.set(settled);
-      baseOk = true;
-      return base;
-    }
-    const b = base.getContext('2d');
-    if (!b) return base;
-    gold.forEach((g, k) => {
-      if (baseRows[k] === settled[k]) return;
-      baseRows[k] = settled[k]!;
-      b.clearRect(...rowBand(g.block, g.row, v0));
-      drawDots(b, v0, [{ block: g.block, row0: g.row, row1: g.row, tree0: 1, tree1: ACROSS }], 'state');
-    });
-    return base;
-  }
-
-  /** A whole-view bitmap through `v` (fills or rings), rebuilt when the gold rows change. */
-  function cached(name: string, v: View, mode: 'state' | 'rings'): HTMLCanvasElement | null {
-    if (name === 'fills-0' && view === 'overview') return ensureBase();
-    const sig = mode === 'rings' ? 'r' : settledSig();
-    const hit = caches.get(name);
-    if (hit && hit.sig === sig) return hit.c;
-    const c = hit?.c ?? fresh();
-    const g = c.getContext('2d');
-    if (!g) return null;
-    g.clearRect(0, 0, W, H);
-    const cells =
-      view === 'zoom'
-        ? [{ block: target.block, row0: target.from, row1: target.to, tree0: 1, tree1: ACROSS }]
-        : visibleCells(v, orientation, W, H);
-    drawDots(g, v, cells, mode);
-    caches.set(name, { c, sig });
-    return c;
-  }
-
-  function drawOverlays(c: CanvasRenderingContext2D, v: View) {
+  function drawOverlays(c: CanvasRenderingContext2D, v: View, cam: number, dim: number) {
     const sp = spritesFor(v.s * DOT_R);
     const d = sp.size / dpr;
+    const snap = (q: number) => Math.round(q * dpr) / dpr;
     // Rows popping in (gold grows to 1.3× over its ring, then settles).
     if (state.season < 1)
       gold.forEach((g, k) => {
         const ph = phaseOf(k);
         if (ph < 0 || ph >= 2) return;
         const scale = ph < 0.25 ? 0.6 + (0.7 * ph) / 0.25 : 1.3 - 0.3 * (1 - Math.pow(1 - (ph - 0.25) / 0.75, 2));
-        c.globalAlpha = Math.min(1, ph / 0.12) * (1 - state.season);
+        c.globalAlpha = Math.min(1, ph / 0.12) * (1 - state.season) * (inTarget(g.block, g.row) ? 1 : dim);
         const dd = (d * scale) / 1.3;
         for (let tree = 1; tree <= ACROSS; tree += 1) {
           if (statusOf(status, g.block, g.row, tree) !== TODAY) continue;
-          const p = dotCenter(g.block, g.row, tree, orientation);
-          const q = toScreen(v, p.x, p.y);
-          c.drawImage(sp.pop, q.x - dd / 2, q.y - dd / 2, dd, dd);
+          const p = dotCenter(g.block, g.row, tree);
+          const q = screenOf(v, p.x, p.y);
+          c.drawImage(sp.pop, snap(q.x) - dd / 2, snap(q.y) - dd / 2, dd, dd);
         }
-        c.globalAlpha = 1;
       });
+    c.globalAlpha = 1;
     // The demo row (row 37 tapped, then undone).
     if (state.demo > 0) {
       c.globalAlpha = clamp01(state.demo);
       const dd = (d * (1 + 0.15 * Math.sin(Math.PI * clamp01(state.demo)))) / 1.3;
       for (let tree = 1; tree <= ACROSS; tree += 1) {
-        const p = dotCenter(DEMO_ROW.block, DEMO_ROW.row, tree, orientation);
-        const q = toScreen(v, p.x, p.y);
-        c.drawImage(sp.pop, q.x - dd / 2, q.y - dd / 2, dd, dd);
+        const p = dotCenter(DEMO_ROW.block, DEMO_ROW.row, tree);
+        const q = screenOf(v, p.x, p.y);
+        c.drawImage(sp.pop, snap(q.x) - dd / 2, snap(q.y) - dd / 2, dd, dd);
       }
       c.globalAlpha = 1;
     }
-    // Block labels ('Block 7'; just '7' where there is no room for the name).
-    c.font = `500 11px ${font}`;
-    c.fillStyle = theme.label;
-    c.textBaseline = 'alphabetic';
-    const short = shortLabels(orientation, W);
-    for (let b = 1; b <= FIELD.blocks && view !== 'zoom'; b += 1) {
-      const r = blockRect(b, orientation);
-      if (orientation === 'portrait') {
-        const p = toScreen(v, r.x, r.y);
-        c.textAlign = 'left';
-        c.fillText(short ? String(b) : `Block ${b}`, p.x, p.y - Math.max(4, v.s * 0.8));
-      } else {
-        const left = b <= PER_STRIP;
-        const p = toScreen(v, left ? r.x : r.x + r.w, r.y + r.h / 2);
-        c.textAlign = left ? 'right' : 'left';
-        c.textBaseline = 'middle';
-        c.fillText(short ? String(b) : `Block ${b}`, p.x + (left ? -1 : 1) * Math.max(8, v.s * 0.9), p.y);
-        c.textBaseline = 'alphabetic';
+    // Block labels ('Block 7'; just '7' where there is no room), fading as the camera moves in.
+    const labelAlpha = view === 'zoom' ? 0 : clamp01(1 - cam * 2.5);
+    if (labelAlpha > 0) {
+      const lp = blockLabelPx(orientation, W, H, full);
+      c.globalAlpha = labelAlpha;
+      c.font = `500 ${lp.px.toFixed(1)}px ${font}`;
+      c.fillStyle = theme.label;
+      for (let b = 1; b <= FIELD.blocks; b += 1) {
+        const text = lp.text(b);
+        const r = blockRect(b);
+        if (orientation === 'portrait') {
+          const p = screenOf(v, r.x, r.y);
+          c.textAlign = 'left';
+          c.textBaseline = 'alphabetic';
+          c.fillText(text, p.x, p.y - Math.max(4, v.s * 0.8));
+        } else {
+          // Landscape: blocks 1–7 labelled on the left of their band, 8–14 on the right.
+          const left = b <= PER_STRIP;
+          const p = screenOf(v, r.x + r.w / 2, left ? r.y : r.y + r.h);
+          c.textAlign = left ? 'right' : 'left';
+          c.textBaseline = 'middle';
+          c.fillText(text, p.x + (left ? -1 : 1) * Math.max(8, v.s * 0.9), p.y);
+        }
       }
+      c.globalAlpha = 1;
+      c.textBaseline = 'alphabetic';
     }
-    // Row numbers of the close-up, and the touch ring on the demo row's number. They shrink
-    // with the zoom so they never crowd (13px at full zoom, hidden below 7px).
-    const numPx = Math.min(13, v.s * 0.62);
-    if (state.labels > 0 && numPx >= 7) {
+    // Row numbers of the close-up, on the left, and the touch ring on the demo row's number. They
+    // shrink with the zoom so they never crowd (13px at full zoom, hidden below 7px), and on a
+    // landscape canvas they wait until the field has nearly turned upright.
+    const numPx = Math.min(13, v.s * 0.54);
+    const upright = orientation === 'landscape' && view !== 'zoom' ? clamp01((cam - 0.6) / 0.35) : 1;
+    const numAlpha = clamp01(state.labels) * upright;
+    if (numAlpha > 0 && numPx >= 7) {
       c.font = `500 ${numPx.toFixed(1)}px ${font}`;
       c.textBaseline = 'middle';
-      const og = blockOrigin(target.block, orientation);
+      c.textAlign = 'right';
+      const og = blockRect(target.block);
       for (let row = target.from; row <= target.to; row += 1) {
-        const p =
-          orientation === 'portrait'
-            ? toScreen(v, og.x - 0.7, og.y + row - 0.5)
-            : toScreen(v, og.x + row - 0.5, og.y - 0.75);
-        c.textAlign = orientation === 'portrait' ? 'right' : 'center';
+        const p = screenOf(v, og.x - 0.7, og.y + row - 0.5);
         const touching = state.touch > 0 && state.touch < 1;
         const hot = target.block === DEMO_ROW.block && row === DEMO_ROW.row && (touching || state.demo > 0);
-        c.globalAlpha = clamp01(state.labels);
+        c.globalAlpha = numAlpha;
         c.fillStyle = hot ? theme.labelHot : theme.label;
         c.fillText(String(row), p.x, p.y);
         if (hot && touching) {
           const u = state.touch;
-          const cx = orientation === 'portrait' ? p.x - numPx * 0.6 : p.x;
-          c.globalAlpha = 0.35 * (1 - u);
+          c.globalAlpha = 0.35 * (1 - u) * upright;
           c.fillStyle = '#FFFFFF';
           c.beginPath();
-          c.arc(cx, p.y, Math.min(22, v.s * 0.92) * (0.6 + 0.8 * u), 0, Math.PI * 2);
+          c.arc(p.x - numPx * 0.6, p.y, Math.min(22, v.s * 0.92) * (0.6 + 0.8 * u), 0, Math.PI * 2);
           c.fill();
         }
       }
@@ -1061,20 +650,22 @@ export function createFieldMap(canvas: HTMLCanvasElement, opts: FieldMapOptions 
     // Note flags (they survive the season reset) and their pulse.
     if (flag)
       for (const n of notes) {
-        const p = dotCenter(n.block, n.row, n.tree, orientation);
-        const q = toScreen(v, p.x, p.y);
+        const p = dotCenter(n.block, n.row, n.tree);
+        const q = screenOf(v, p.x, p.y);
+        if (q.x < -40 || q.x > W + 40 || q.y < -40 || q.y > H + 40) continue;
+        const a = inTarget(n.block, n.row) ? 1 : dim;
         const size = Math.max(13, v.s * 0.95);
         const k = size / 24;
         if (state.pulse > 0 && state.pulse < 1) {
           const u = state.pulse;
-          c.globalAlpha = 0.9 * (1 - u);
+          c.globalAlpha = 0.9 * (1 - u) * a;
           c.strokeStyle = theme.pulse;
           c.lineWidth = 1.5;
           c.beginPath();
           c.arc(q.x, q.y, size * (0.5 + 1.6 * u), 0, Math.PI * 2);
           c.stroke();
-          c.globalAlpha = 1;
         }
+        c.globalAlpha = a;
         c.save();
         c.translate(q.x - FLAG_FOOT.x * k, q.y - FLAG_FOOT.y * k);
         c.scale(k, k);
@@ -1085,51 +676,38 @@ export function createFieldMap(canvas: HTMLCanvasElement, opts: FieldMapOptions 
         c.fillStyle = theme.note;
         c.fill(flag);
         c.restore();
+        c.globalAlpha = 1;
       }
   }
 
-  function render(crisp = false) {
+  function setBacking(d: number) {
+    if (d === dpr && canvas.width === Math.max(1, Math.round(W * d))) return;
+    dpr = d;
+    canvas.width = Math.max(1, Math.round(W * dpr));
+    canvas.height = Math.max(1, Math.round(H * dpr));
+    sprites = null;
+    tiles.clear();
+  }
+
+  /** Draws the current state now. `sharp` keeps full resolution even while the camera moves. */
+  function render(sharp = false) {
+    if (raf) cancelAnimationFrame(raf);
     raf = 0;
+    clearTimeout(settle);
     if (destroyed || !ctx || W === 0 || H === 0) return;
-    for (let k = 0; k < gold.length; k += 1) settled[k] = phaseOf(k) === 2 ? 1 : 0;
+    syncShown();
     const cam = view === 'zoom' ? 1 : clamp01(state.camera);
+    const low = !sharp && full > 1 && cam > LOW_RES_CAMERA[0] && cam < LOW_RES_CAMERA[1] && W * H * full * full > LOW_RES_ABOVE;
+    setBacking(low ? 1 : full);
+    if (low) settle = window.setTimeout(() => render(true), SHARPEN_MS);
     const v = view === 'zoom' ? v1 : lerpView(v0, v1, cam);
-    const season = clamp01(state.season);
+    current = v;
+    const dim = dimAt(cam);
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    if (cam === 0 || cam === 1) {
-      // At rest: rings under, fills fading over them for the season flip.
-      const end = cam === 0 ? '0' : '1';
-      if (season > 0) {
-        const rings = cached(`rings-${end}`, v, 'rings');
-        if (rings) ctx.drawImage(rings, 0, 0, W, H);
-      }
-      if (season < 1) {
-        const fills = cached(`fills-${end}`, v, 'state');
-        ctx.globalAlpha = 1 - season;
-        if (fills) ctx.drawImage(fills, 0, 0, W, H);
-        ctx.globalAlpha = 1;
-      }
-    } else {
-      const cells = visibleCells(v, orientation, W, H);
-      if (!crisp && season === 0 && cellCount(cells) > BLIT_LIMIT) {
-        // A moving camera over most of the field: scale the cached overview, sharpen when it stops.
-        const b = ensureBase();
-        const k = v.s / v0.s;
-        ctx.save();
-        ctx.translate(W / 2 + (v0.cx - v.cx) * v.s, H / 2 + (v0.cy - v.cy) * v.s);
-        ctx.scale(k, k);
-        ctx.translate(-W / 2, -H / 2);
-        if (b) ctx.drawImage(b, 0, 0, W, H);
-        ctx.restore();
-        clearTimeout(settle);
-        settle = window.setTimeout(() => render(true), 140);
-      } else {
-        drawDots(ctx, v, cells, 'state', season);
-      }
-    }
-    drawOverlays(ctx, v);
+    paintDots(ctx, v, clamp01(state.season), dim);
+    drawOverlays(ctx, v, cam, dim);
+    frames += 1;
     opts.onDraw?.();
   }
 
@@ -1141,19 +719,17 @@ export function createFieldMap(canvas: HTMLCanvasElement, opts: FieldMapOptions 
     const w = box.clientWidth;
     const h = box.clientHeight;
     const d = Math.min(2, window.devicePixelRatio || 1);
-    if (w === W && h === H && d === dpr) return false;
+    if (w === W && h === H && d === full) return false;
     W = w;
     H = h;
-    dpr = d;
-    canvas.width = Math.max(1, Math.round(W * dpr));
-    canvas.height = Math.max(1, Math.round(H * dpr));
+    full = d;
+    setBacking(full);
     const o = opts.orientation ?? 'auto';
-    orientation = o !== 'auto' ? o : view === 'zoom' ? 'portrait' : W >= H ? 'landscape' : 'portrait';
-    v0 = view === 'zoom' ? fitView(targetRect(target, orientation), W, H) : overviewView(orientation, W, H);
-    v1 = view === 'zoom' ? v0 : zoomView(target, orientation, W, H);
-    sprites = null;
-    baseOk = false;
-    caches.clear();
+    orientation = view === 'zoom' ? 'portrait' : o !== 'auto' ? o : W >= H ? 'landscape' : 'portrait';
+    // Rest views snap to whole device pixels per pitch at full resolution.
+    v0 = view === 'zoom' ? zoomView(target, W, H, full) : overviewView(orientation, W, H, full);
+    v1 = view === 'zoom' ? v0 : zoomView(target, W, H, full);
+    current = v0;
     return true;
   }
 
@@ -1180,9 +756,13 @@ export function createFieldMap(canvas: HTMLCanvasElement, opts: FieldMapOptions 
       draw(sceneState(p));
     },
     draw,
-    render: (crisp = true) => render(crisp),
+    render,
     resize: () => {
       if (measure()) render(true);
+    },
+    pointAt(block, row, tree) {
+      const p = dotCenter(block, row, tree);
+      return screenOf(current, p.x, p.y);
     },
     get state() {
       return state;
@@ -1190,13 +770,15 @@ export function createFieldMap(canvas: HTMLCanvasElement, opts: FieldMapOptions 
     get orientation() {
       return orientation;
     },
+    get frames() {
+      return frames;
+    },
     destroy() {
       destroyed = true;
       cancelAnimationFrame(raf);
       clearTimeout(settle);
       ro?.disconnect();
-      caches.clear();
-      base = null;
+      tiles.clear();
     },
   };
 }
@@ -1222,8 +804,8 @@ function optionsFrom(canvas: HTMLCanvasElement): FieldMapOptions {
 
 /**
  * The one renderer for a FieldMap canvas, created on first call (FieldMap.astro calls this
- * when the canvas comes within a viewport; a scene may call it earlier). Marks the box
- * `data-ready` after the first frame, which hides the SVG fallback.
+ * when the canvas comes within a viewport; a scene may call it earlier with its own options,
+ * onDraw included). Marks the box `data-ready` after the first frame, which hides the SVG fallback.
  */
 export function ensureFieldMap(canvas: HTMLCanvasElement, opts?: FieldMapOptions): FieldMapHandle {
   let h = instances.get(canvas);
@@ -1234,6 +816,7 @@ export function ensureFieldMap(canvas: HTMLCanvasElement, opts?: FieldMapOptions
     ...optionsFrom(canvas),
     ...opts,
     onDraw: () => {
+      opts?.onDraw?.();
       if (!first) return;
       first = false;
       box?.setAttribute('data-ready', '');

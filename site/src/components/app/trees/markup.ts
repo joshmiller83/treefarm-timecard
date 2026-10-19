@@ -16,7 +16,7 @@
  * and crossfades gold → green with { '--g': 0, '--e': 1 }. Pops are transforms on the dot.
  */
 import { FIELD, type TreeNote } from '../../../data/ledger.ts';
-import { fieldRuns, statusOf, type TreeState } from '../../../scripts/fieldmap.ts';
+import { fieldRuns, statusOf, type TreeState } from '../../../scripts/fieldstate.ts';
 
 export type AppZoom = 'XS' | 'S' | 'M' | 'L';
 
