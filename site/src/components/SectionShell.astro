@@ -1,0 +1,126 @@
+---
+/**
+ * SECTION SHELL: the wrapper every chapter uses, so section teams write only content and a
+ * scene. Layout rules: src/styles/shell.css. Contract: src/components/CONTRACT.md.
+ *
+ *   <SectionShell id="voice">
+ *     <Fragment slot="intro"><p>Body copy under the headline…</p></Fragment>
+ *     <div class="beat" data-beat="1" style="--at:.3">…</div>      (default slot: beats)
+ *     <figure class="shot" data-stage-shot slot="figure">…</figure>  (the phone + figcaption)
+ *     <div slot="extras">…</div>                                      (callouts, second phone)
+ *     <div slot="after">…</div>                                       (normal flow after the track)
+ *   </SectionShell>
+ *
+ * Every prop except `id` defaults to src/data/chapters.ts.
+ */
+import { chapter, type ChapterId, type TintKey, type Track } from '../data/chapters.ts';
+
+interface Props {
+  id: ChapterId;
+  navLabel?: string;
+  ribbonTag?: string;
+  eyebrow?: string;
+  /** The H2 (H1 when headingLevel is 1). */
+  headline?: string;
+  tint?: TintKey;
+  track?: Track;
+  theme?: 'dark' | 'light';
+  /** 'beats' (default): beats sit at progress --at. 'flow': beats stay in normal flow beside a sticky figure. */
+  layout?: 'beats' | 'flow';
+  /** Progress (0–1) where the heading beat sits in 'beats' layout. Default 0. */
+  headAt?: number;
+  /** 1 only for the hero. */
+  headingLevel?: 1 | 2;
+  /** Extra classes on the heading (e.g. 'display-xl'). */
+  headingClass?: string;
+  /** 'off' hides the desktop stage phone while this section is active. */
+  stage?: 'on' | 'off';
+  class?: string;
+}
+
+const c = chapter(Astro.props.id);
+const {
+  id,
+  navLabel = c.navLabel,
+  ribbonTag = c.ribbonTag,
+  eyebrow = c.eyebrow,
+  headline = c.headline,
+  tint = c.tint,
+  track = c.track,
+  theme = c.theme,
+  layout = 'beats',
+  headAt = 0,
+  headingLevel = 2,
+  headingClass,
+  stage = c.stage ?? 'on',
+  class: cls,
+} = Astro.props;
+
+const H = headingLevel === 1 ? 'h1' : 'h2';
+const headClass = headingClass ?? (headingLevel === 1 ? 'display-xl' : 'display-l');
+const style = [
+  track.desk !== 'auto' ? `--track-desk:${track.desk}` : '',
+  track.mob !== 'auto' ? `--track-mob:${track.mob}` : '',
+]
+  .filter(Boolean)
+  .join(';');
+const hasIntro = Astro.slots.has('intro');
+// '7:18 AM · Voice first': with motion the time lives in the header's riding chip (one clock
+// on screen, never two that disagree), so the eyebrow's time is for screen readers only there.
+const eyebrowTime = eyebrow?.match(/^(\d{1,2}:\d\d\s?[AP]M) · (.+)$/);
+---
+
+<section
+  id={id}
+  class:list={['sec', `sec-${id}`, cls]}
+  aria-labelledby={`${id}-h`}
+  data-section={id}
+  data-tint={tint}
+  data-theme={theme}
+  data-layout={layout}
+  data-desk={track.desk === 'auto' ? 'auto' : 'sticky'}
+  data-mob={track.mob === 'auto' ? 'auto' : 'sticky'}
+  data-nav-label={navLabel}
+  data-ribbon-tag={ribbonTag}
+  data-stage-mode={stage}
+  style={style || undefined}
+>
+  <div class="track">
+    <div class="beats">
+      <div class="beat beat-head beat-bare" data-beat="0" style={`--at:${headAt}`}>
+        {
+          eyebrow && (
+            <p class="eyebrow">
+              {eyebrowTime ? (
+                <>
+                  <span class="eb-time">{eyebrowTime[1]} · </span>
+                  {eyebrowTime[2]}
+                </>
+              ) : (
+                eyebrow
+              )}
+            </p>
+          )
+        }
+        <H id={`${id}-h`} class={headClass}>{headline}</H>
+        {
+          hasIntro && (
+            <div class="beat-intro">
+              <slot name="intro" />
+            </div>
+          )
+        }
+      </div>
+      <slot />
+    </div>
+    <div class="frame">
+      <div class="frame-grid">
+        <div class="figure-slot">
+          <slot name="figure" />
+        </div>
+      </div>
+      <div class="extras"><slot name="extras" /></div>
+    </div>
+  </div>
+  <div class="after"><slot name="after" /></div>
+</section>

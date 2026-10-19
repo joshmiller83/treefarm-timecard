@@ -1,0 +1,61 @@
+---
+/** The lab: one workbench page per shared-component team. noindex; excluded from the sitemap. */
+import Lab from '../../layouts/Lab.astro';
+
+const pages = [
+  { href: '/lab/device-a/', team: 'device-a', what: 'Phone, StatusBar, Screen, LockScreen, LiveActivity' },
+  { href: '/lab/device-b/', team: 'device-b', what: 'DynamicIsland, SiriSnippet, SiriGlow, DictationWave, ControlsCard' },
+  { href: '/lab/screens/', team: 'screens', what: 'ClockTab, TeamTab, TreeNoteSheet (in AppChrome)' },
+  { href: '/lab/map/', team: 'map', what: 'TreesTab, FieldMap' },
+  { href: '/lab/report/', team: 'report', what: 'ReportTab, PaperTimeCard' },
+  { href: '/lab/foundation/', team: 'foundation', what: 'AppChrome, Icon glyphs, AppIcon, DayMark, type and color tokens' },
+];
+---
+
+<Lab title="Lab" owner="foundation">
+  <ul class="lab-list">
+    {
+      pages.map((p) => (
+        <li>
+          <a href={p.href}>
+            <span class="team">{p.team}</span>
+            <span class="what">{p.what}</span>
+          </a>
+        </li>
+      ))
+    }
+  </ul>
+  <p class="muted small">The page itself: <a href="/">/</a> · with the static fallback: <a href="/?motion=off">/?motion=off</a></p>
+</Lab>
+
+<style>
+  .lab-list {
+    list-style: none;
+    padding: 0;
+    display: grid;
+    gap: 12px;
+    max-width: 44rem;
+  }
+  .lab-list a {
+    display: grid;
+    gap: 4px;
+    padding: 16px 20px;
+    border-radius: 16px;
+    background: var(--card-dark);
+    border: 1px solid var(--stage-line);
+    text-decoration: none;
+  }
+  .lab-list a:hover {
+    border-color: var(--gold-lit);
+  }
+  .team {
+    font-family: var(--font-mono);
+    color: var(--gold-lit);
+  }
+  .what {
+    color: var(--on-stage-muted);
+  }
+  a {
+    color: var(--fir-lit);
+  }
+</style>

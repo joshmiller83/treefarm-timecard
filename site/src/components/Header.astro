@@ -1,0 +1,615 @@
+---
+/**
+ * HEADER: skip link, DayMark + wordmark, the honest status pill, GitHub, Pause motion,
+ * and under it <nav aria-label="The shift">: the 3px shift ribbon, its riding time tag and
+ * the nine chapter links (ticks on desktop with motion, a plain list without, a disclosure
+ * panel on mobile). Behaviour: src/scripts/header.ts. DayClock drives --p and the tag.
+ */
+import { CHAPTERS } from '../data/chapters.ts';
+import DayMark from './DayMark.astro';
+import Icon from './app/Icon.astro';
+
+const REPO = 'https://github.com/joshmiller83/treefarm-timecard';
+const n = CHAPTERS.length - 1;
+---
+
+<a class="skip-link" href="#content">Skip to content</a>
+<header class="site-header" data-header data-theme="dark">
+  <div class="bar">
+    <a class="brand" href="/" aria-label="Time Card home">
+      <DayMark />
+      <span class="wordmark" aria-hidden="true">Time Card</span>
+    </a>
+    <div class="right">
+      <span class="pill-status hdr-pill">
+        <span class="hp"
+          >In development<span class="hp-long"> · TestFlight beta coming</span><span class="hp-short"><span class="hp-dot"> · </span>Beta coming</span></span
+        >
+      </span>
+      <a class="gh" href={REPO} rel="noopener">GitHub</a>
+      <button class="pause" type="button" aria-pressed="false" aria-label="Pause motion" data-pause-toggle>
+        <Icon name="pause" size="18px" class="i-pause" />
+        <Icon name="play" size="18px" class="i-play" />
+        <span class="pause-tip" aria-hidden="true"
+          ><span class="tip-off">Pause motion</span><span class="tip-on">Motion paused · Resume</span></span
+        >
+      </button>
+    </div>
+  </div>
+
+  <nav class="shift" aria-label="The shift" style="--p:0">
+    <div class="ribbon" aria-hidden="true">
+      <span class="ribbon-fill"></span>
+    </div>
+    <span class="shift-tag tag-ride" aria-hidden="true" data-shift-tag>{CHAPTERS[0]!.ribbonTag}</span>
+    <button class="shift-toggle" type="button" aria-expanded="false" aria-controls="shift-list">
+      <span class="sr-only">Chapters: </span><span data-shift-tag>{CHAPTERS[0]!.ribbonTag}</span>
+      <Icon name="chevron.down" size="14px" class="chev" weight={2.2} />
+    </button>
+    <ol class="shift-list" id="shift-list">
+      {
+        CHAPTERS.map((c, i) => (
+          <li style={`--i:${i / n}`}>
+            <a href={`#${c.id}`} data-chapter-link={c.id}>
+              <span class="tick" aria-hidden="true" />
+              <span class="lbl">{c.navLabel}</span>
+            </a>
+          </li>
+        ))
+      }
+    </ol>
+  </nav>
+</header>
+
+<script>
+  import { initHeader } from '../scripts/header.ts';
+  initHeader();
+</script>
+
+<style>
+  /* The bar and its band are opaque (no live backdrop blur: it re-composites the full width
+     on every scroll frame, and without it any translucency only ghosts the copy behind). */
+  .site-header {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    /* In the flow: the bar and the ribbon. The band (below) hangs over the page. */
+    height: calc(var(--header-h) + var(--ribbon-h));
+    color: var(--on-stage);
+    --hdr-bg: #08140d;
+    --hdr-line: var(--stage-line);
+    background: var(--hdr-bg);
+    transition:
+      background-color 0.3s linear,
+      color 0.3s linear;
+    --ribbon-pad: 28px;
+  }
+  .site-header[data-theme='light'] {
+    --hdr-bg: #ecf1ec;
+    --hdr-line: var(--line);
+    color: var(--ink);
+    --focus: var(--fir);
+  }
+  .bar {
+    height: var(--header-h);
+    max-width: calc(var(--maxw) + 2 * var(--gutter));
+    margin-inline: auto;
+    padding-inline: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    min-height: 44px;
+    text-decoration: none;
+    color: inherit;
+    flex: none;
+  }
+  .wordmark {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 1.125rem;
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+  }
+  .right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+  .hdr-pill {
+    font-size: 0.6875rem;
+    padding: 4px 8px;
+    min-height: 26px;
+    letter-spacing: 0;
+  }
+  .hdr-pill::before {
+    display: none;
+  }
+  /* The honest status at every width (truth rule 1): the full line from 600px; below it,
+     'In development' over 'Beta coming' (no date word). */
+  .hp-long {
+    display: none;
+  }
+  .hp {
+    display: block;
+    line-height: 1.15;
+  }
+  .hdr-pill {
+    white-space: normal;
+  }
+  .hp-short {
+    display: block;
+  }
+  .hp-dot {
+    display: none;
+  }
+  .gh {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding-inline: 6px;
+    font-weight: 600;
+    font-size: 0.9375rem;
+    color: inherit;
+    text-decoration: underline;
+    text-decoration-color: transparent;
+    text-underline-offset: 5px;
+    text-decoration-thickness: 1.5px;
+  }
+  .gh:hover {
+    text-decoration-color: currentColor;
+  }
+  .pause {
+    position: relative;
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 44px;
+    height: 44px;
+    border: 0;
+    border-radius: 12px;
+    background: transparent;
+    color: inherit;
+  }
+  .pause:hover {
+    background: rgba(242, 245, 239, 0.08);
+  }
+  [data-theme='light'] .pause:hover {
+    background: rgba(20, 34, 26, 0.06);
+  }
+  .pause :global(.i-play),
+  .pause[aria-pressed='true'] :global(.i-pause) {
+    display: none;
+  }
+  .pause[aria-pressed='true'] :global(.i-play) {
+    display: block;
+  }
+  .pause-tip {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    padding: 6px 10px;
+    border-radius: 8px;
+    background: var(--on-stage);
+    color: var(--ink);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    white-space: nowrap;
+    opacity: 0;
+    transform: translateY(-4px);
+    pointer-events: none;
+    transition:
+      opacity 0.15s linear,
+      transform 0.15s var(--ease-out);
+  }
+  .tip-on,
+  .pause[aria-pressed='true'] .tip-off {
+    display: none;
+  }
+  .pause[aria-pressed='true'] .tip-on {
+    display: inline;
+  }
+  .pause:hover .pause-tip,
+  .pause:focus-visible .pause-tip {
+    opacity: 1;
+    transform: none;
+  }
+
+  /* ---------- The shift nav ---------- */
+  .shift {
+    position: relative;
+    height: var(--ribbon-h);
+    /* The riding tag and chip move by transform along the ribbon's width (100cqw): DayClock
+       writes --p every frame, and a transform never relayouts the header. */
+    container-type: inline-size;
+  }
+  /* The band: a solid strip under the ribbon that carries the riding chip or tag, with a
+     hairline at its foot, so the chip never floats over copy. */
+  .shift::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 100%;
+    height: var(--band-h);
+    background: var(--hdr-bg);
+    box-shadow: inset 0 -1px 0 var(--hdr-line);
+    transition: background-color 0.3s linear;
+    pointer-events: none;
+  }
+  .ribbon {
+    position: absolute;
+    inset: 0;
+    background: rgba(136, 207, 164, 0.16);
+    overflow: hidden;
+  }
+  [data-theme='light'] .ribbon {
+    background: rgba(29, 91, 58, 0.16);
+  }
+  .ribbon-fill {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, var(--fir-mid) 0%, #6faa63 55%, var(--gold-lit) 100%);
+    transform: translateX(calc((var(--p) - 1) * (100% - 2 * var(--ribbon-pad)) - var(--ribbon-pad)));
+  }
+  .tag-ride {
+    position: absolute;
+    top: 8px;
+    z-index: 1;
+    left: var(--ribbon-pad);
+    transform: translateX(calc((100cqw - 2 * var(--ribbon-pad)) * var(--p) - 100% * var(--p)));
+    padding: 3px 9px;
+    border-radius: 999px;
+    background: rgba(8, 20, 13, 0.97);
+    border: 1px solid var(--stage-line);
+    color: var(--gold-lit);
+    font-family: var(--font-mono);
+    font-weight: 500;
+    font-size: 0.6875rem;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+    pointer-events: none;
+  }
+  [data-theme='light'] .tag-ride {
+    background: rgba(250, 252, 249, 0.97);
+    border-color: var(--line);
+    color: var(--fir);
+  }
+  .shift-toggle {
+    display: none;
+  }
+  .shift-list {
+    list-style: none;
+    padding: 0;
+  }
+  .lbl {
+    font-family: var(--font-mono);
+    font-weight: 500;
+    font-size: 0.75rem;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+  }
+
+  /* Without motion the ribbon fill and riding tag are hidden; the links remain. */
+  :global(html:not(.motion)) .ribbon-fill,
+  :global(html:not(.motion)) .tag-ride {
+    display: none;
+  }
+
+  /* ---------- Mobile (<900px): a disclosure under the header ---------- */
+  @media (max-width: 899.98px) {
+    .tag-ride {
+      display: none;
+    }
+    .shift-toggle {
+      position: absolute;
+      z-index: 1;
+      /* Centred in the 44px band under the ribbon. */
+      top: calc(var(--ribbon-h) + (var(--band-h) - 32px) / 2);
+      left: var(--ribbon-pad);
+      transform: translateX(calc((100cqw - 2 * var(--ribbon-pad)) * var(--p) - 100% * var(--p)));
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 32px;
+      padding: 4px 10px 4px 12px;
+      border-radius: 999px;
+      border: 1px solid var(--stage-line);
+      background: rgba(8, 20, 13, 0.97);
+      color: var(--gold-lit);
+      font-family: var(--font-mono);
+      font-size: 0.6875rem;
+      font-weight: 500;
+      letter-spacing: 0.04em;
+      white-space: nowrap;
+    }
+    /* 44px touch target around the 32px chip */
+    .shift-toggle::after {
+      content: '';
+      position: absolute;
+      inset: -6px -2px;
+    }
+    :global(html:not(.motion)) .shift-toggle {
+      left: auto;
+      right: 12px;
+      transform: none;
+    }
+    [data-theme='light'] .shift-toggle {
+      background: rgba(250, 252, 249, 0.97);
+      border-color: var(--line);
+      color: var(--fir);
+    }
+    .shift-toggle :global(.chev) {
+      transition: transform 0.2s var(--ease-out);
+    }
+    .shift-toggle[aria-expanded='true'] :global(.chev) {
+      transform: rotate(180deg);
+    }
+    .shift-list {
+      position: absolute;
+      top: calc(var(--ribbon-h) + var(--band-h) + 4px);
+      left: 12px;
+      right: 12px;
+      display: none;
+      padding: 8px;
+      border-radius: 18px;
+      background: #0e2117;
+      border: 1px solid var(--stage-line);
+      box-shadow: 0 18px 48px rgba(0, 0, 0, 0.45);
+      /* Landscape phones: the panel never runs off the bottom of the screen. */
+      max-height: calc(100svh - var(--chrome-h) - 16px);
+      overflow-y: auto;
+      overscroll-behavior: contain;
+    }
+    [data-theme='light'] .shift-list {
+      background: var(--surface);
+      border-color: var(--line);
+      box-shadow: 0 18px 48px rgba(20, 34, 26, 0.18);
+    }
+    .shift.is-open .shift-list {
+      display: grid;
+    }
+    .shift-list a {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-height: 44px;
+      padding: 0 12px;
+      border-radius: 12px;
+      color: inherit;
+      text-decoration: none;
+    }
+    .shift-list a:hover,
+    .shift-list a[aria-current] {
+      background: rgba(136, 207, 164, 0.1);
+    }
+    .shift-list .tick {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      border: 1.5px solid var(--fir-lit);
+      flex: none;
+    }
+    .shift-list a.reached .tick {
+      background: var(--gold-lit);
+      border-color: var(--gold-lit);
+    }
+    .lbl {
+      font-size: 0.875rem;
+    }
+  }
+  /* Short screens (landscape phones): the chip sits in the bar (no band), and the panel lays
+     the chapters out in columns, so all nine fit (it scrolls on the smallest). */
+  @media (max-width: 899.98px) and (max-height: 500px) {
+    :global(html:not(.motion)) .shift-toggle,
+    :global(html.motion) .shift-toggle {
+      top: calc((var(--header-h) - 32px) / 2 - var(--header-h));
+      left: 56px;
+      right: auto;
+      transform: none;
+    }
+    /* The app icon carries the brand here; the chip takes the wordmark's place. */
+    .wordmark {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+    }
+    .shift.is-open .shift-list {
+      grid-template-columns: 1fr 1fr;
+      column-gap: 4px;
+    }
+  }
+  @media (min-width: 640px) and (max-width: 899.98px) and (max-height: 500px) {
+    .shift.is-open .shift-list {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+  @media (max-width: 599.98px) {
+    .wordmark {
+      font-size: 1.0625rem;
+    }
+  }
+  @media (max-width: 399.98px) {
+    .gh {
+      padding-inline: 2px;
+    }
+  }
+  /* Below 375px the app icon carries the brand, so the status pill keeps its two lines. */
+  @media (max-width: 374.98px) {
+    .wordmark {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+    }
+  }
+  @media (min-width: 600px) {
+    .hp {
+      display: inline;
+    }
+    .hdr-pill {
+      white-space: nowrap;
+    }
+    .hp-long {
+      display: inline;
+    }
+    .hp-short {
+      display: none;
+    }
+    .hdr-pill {
+      font-size: 0.75rem;
+      padding: 4px 12px;
+    }
+    .hdr-pill::before {
+      display: block;
+    }
+    .bar {
+      padding-inline: var(--gutter);
+      gap: 16px;
+    }
+    .right {
+      gap: 14px;
+    }
+    .wordmark {
+      font-size: 1.25rem;
+    }
+  }
+
+  /* ---------- Desktop (≥900px) ---------- */
+  @media (min-width: 900px) {
+    /* Without motion: a plain list of chapter links under the header. */
+    .shift-list {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 0 22px;
+      padding: 0 var(--gutter);
+      background: rgba(8, 20, 13, 0.97);
+      border-bottom: 1px solid var(--stage-line);
+    }
+    [data-theme='light'] .shift-list {
+      background: rgba(236, 241, 236, 0.97);
+      border-bottom-color: var(--line);
+    }
+    :global(html:not(.motion)) {
+      scroll-padding-top: calc(var(--chrome-h) + 56px);
+    }
+    .shift-list a {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 44px;
+      color: var(--on-stage-muted);
+      text-decoration: none;
+    }
+    [data-theme='light'] .shift-list a {
+      color: var(--muted);
+    }
+    .shift-list a:hover,
+    .shift-list a[aria-current] {
+      color: inherit;
+    }
+    .shift-list .tick {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: currentColor;
+      opacity: 0.6;
+    }
+
+    /* With motion: nine ticks on the ribbon; labels show on hover and focus. */
+    :global(html.motion) .shift-list {
+      top: 0;
+      height: 0;
+      display: block;
+      padding: 0;
+      border: 0;
+      background: none;
+    }
+    :global(html.motion) .shift-list li {
+      position: absolute;
+      top: calc(var(--ribbon-h) / 2);
+      left: calc(var(--ribbon-pad) + (100% - 2 * var(--ribbon-pad)) * var(--i));
+      transform: translate(-50%, -50%);
+    }
+    :global(html.motion) .shift-list a {
+      position: relative;
+      display: grid;
+      place-items: center;
+      width: 44px;
+      height: 44px;
+      min-height: 0;
+    }
+    :global(html.motion) .shift-list .tick {
+      width: 2px;
+      height: 12px;
+      border-radius: 1px;
+      background: rgba(242, 245, 239, 0.4);
+      opacity: 1;
+      transition: background-color 0.2s linear;
+    }
+    :global(html.motion) [data-theme='light'] .shift-list .tick {
+      background: rgba(20, 34, 26, 0.35);
+    }
+    :global(html.motion) .shift-list a.reached .tick {
+      background: var(--gold-lit);
+    }
+    :global(html.motion) [data-theme='light'] .shift-list a.reached .tick {
+      background: var(--fir);
+    }
+    :global(html.motion) .shift-list .lbl {
+      position: absolute;
+      top: 36px;
+      left: 50%;
+      transform: translate(-50%, -4px);
+      padding: 5px 10px;
+      border-radius: 999px;
+      background: var(--on-stage);
+      color: var(--ink);
+      opacity: 0;
+      pointer-events: none;
+      transition:
+        opacity 0.15s linear,
+        transform 0.15s var(--ease-out);
+    }
+    :global(html.motion) .shift-list li:first-child .lbl {
+      left: 0;
+      transform: translate(0, -4px);
+    }
+    :global(html.motion) .shift-list li:last-child .lbl {
+      left: auto;
+      right: 0;
+      transform: translate(0, -4px);
+    }
+    :global(html.motion) .shift-list a:hover .lbl,
+    :global(html.motion) .shift-list a:focus-visible .lbl {
+      opacity: 1;
+      transform: translate(-50%, 0);
+    }
+    :global(html.motion) .shift-list li:first-child a:is(:hover, :focus-visible) .lbl,
+    :global(html.motion) .shift-list li:last-child a:is(:hover, :focus-visible) .lbl {
+      transform: none;
+    }
+    :global(html.motion) .shift-list a:focus-visible {
+      outline-offset: -8px;
+    }
+    .tag-ride {
+      /* Centred in the 32px band under the ribbon. */
+      top: calc(var(--ribbon-h) + (var(--band-h) - 22px) / 2);
+    }
+  }
+</style>

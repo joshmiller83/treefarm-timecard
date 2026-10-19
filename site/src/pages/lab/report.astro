@@ -1,0 +1,180 @@
+---
+/**
+ * Lab: report (owner). Every state of ReportTab and PaperTimeCard, side by side.
+ * Phones render at real device size first: an 879px-tall phone has a 393px-wide screen, so one
+ * pt is one CSS px, like a 393 × 852 pt iPhone. On a narrow window they scale to fit.
+ */
+import Lab from '../../layouts/Lab.astro';
+import Phone from '../../components/phone/Phone.astro';
+import Screen from '../../components/phone/Screen.astro';
+import ReportTab from '../../components/app/ReportTab.astro';
+import PaperTimeCard from '../../components/PaperTimeCard.astro';
+
+/** 879px tall = a 393px screen in the 420 × 879 frame (pt = px); never wider than the window on a phone. */
+const REAL = 'min(879px, calc((100vw - 2 * var(--gutter)) * 879 / 420))';
+
+const states = [
+  { id: 'report-week', range: 'This week', picker: false, note: 'This week · the page’s final state (report-week)' },
+  { id: 'lab-report-pick-sheet', range: 'Pick dates', picker: true, note: 'Pick dates · the date sheet' },
+  { id: 'lab-report-pick', range: 'Pick dates', picker: false, note: 'Pick dates · Oct 12 – Oct 16 picked' },
+  { id: 'lab-report-last-week', range: 'Last week', picker: false, note: 'Last week · preview still drawing (no example data)' },
+  { id: 'lab-report-month', range: 'This month', picker: false, note: 'This month · preview still drawing (no example data)' },
+] as const;
+
+const label = (s: (typeof states)[number]) =>
+  s.picker
+    ? 'Time Card Report tab with a Pick dates sheet: From Mon, Oct 12 to Fri, Oct 16 on an October calendar.'
+    : `Time Card Report tab with ${s.range} selected, the totals, a paper time card preview, and buttons to export a PDF or a CSV.`;
+
+/** Each size, shrunk only when the window is narrower than the phone (a 760px-tall frame is 363px wide). */
+const fit = (h: string) => `min(${h}, calc((100vw - 2 * var(--gutter)) * 879 / 420))`;
+const sizes = [
+  { h: '760px', note: 'desktop stage · 760px' },
+  { h: '460px', note: 'mobile section · 460px' },
+  { h: '325px', note: 'mobile report · 40svh' },
+];
+---
+
+<Lab title="report" owner="report">
+  <section aria-labelledby="real-h">
+    <h2 id="real-h">ReportTab at real device size</h2>
+    <p class="lab-note">393 × 852 pt, one pt per CSS pixel. Range chips, the period, totals, the paper preview and the export buttons.</p>
+    <div class="lab-row phones">
+      {
+        states.map((s) => (
+          <div class="lab-cell" data-lab-state={s.id}>
+            <Phone label={label(s)} height={REAL}>
+              <div class="screens" data-screens>
+                <Screen stateId={s.id} alt={label(s)} tone="light" final>
+                  <ReportTab range={s.range} picker={s.picker} />
+                </Screen>
+              </div>
+            </Phone>
+            <p>{s.note}</p>
+          </div>
+        ))
+      }
+    </div>
+  </section>
+
+  <section aria-labelledby="sizes-h">
+    <h2 id="sizes-h">ReportTab at the page’s phone sizes</h2>
+    <div class="lab-row">
+      {
+        sizes.map((s) => (
+          <div class="lab-cell">
+            <Phone label={label(states[0])} height={fit(s.h)}>
+              <div class="screens" data-screens>
+                <Screen stateId={`lab-report-${s.h}`} alt="" tone="light" final>
+                  <ReportTab />
+                </Screen>
+              </div>
+            </Phone>
+            <p>{s.note}</p>
+          </div>
+        ))
+      }
+    </div>
+  </section>
+
+  <section class="bench" data-theme="light" aria-labelledby="paper-h">
+    <h2 id="paper-h">PaperTimeCard</h2>
+    <p class="lab-note">A real table. It lays out by its own width: the full card from 680px, tighter columns from 600px, and stacked day blocks below 600px.</p>
+    <div class="papers">
+      <figure class="paper-slot w720" data-lab-paper="720">
+        <PaperTimeCard />
+        <figcaption>720px · the desktop card</figcaption>
+      </figure>
+      <figure class="paper-slot w343" data-lab-paper="343">
+        <PaperTimeCard />
+        <figcaption>343px · stacked day blocks (375px phone)</figcaption>
+      </figure>
+      <figure class="paper-slot w640" data-lab-paper="640">
+        <PaperTimeCard />
+        <figcaption>640px · tighter columns</figcaption>
+      </figure>
+      <figure class="paper-slot w720 tilt" data-lab-paper="placed">
+        <PaperTimeCard />
+        <figcaption>As placed in clock-out: −1° with the export chips</figcaption>
+        <div class="chips">
+          <span class="lab-chip">PDF</span>
+          <span class="lab-chip">CSV</span>
+        </div>
+      </figure>
+    </div>
+  </section>
+</Lab>
+
+<style>
+  /* Lab sections are grid items: let them shrink to the window instead of to their widest card. */
+  section {
+    min-width: 0;
+  }
+  .lab-note {
+    max-width: 60ch;
+    margin: -6px 0 24px;
+    color: var(--on-stage-muted);
+    font-size: 0.9375rem;
+  }
+  .phones {
+    align-items: flex-start;
+  }
+  .phones :global(.lab-cell > p) {
+    max-width: 380px;
+    text-align: center;
+  }
+  .bench {
+    margin-inline: calc(-1 * var(--gutter));
+    padding: 48px var(--gutter) 64px;
+    background: var(--bg);
+    color: var(--ink);
+    color-scheme: light;
+  }
+  .bench .lab-note {
+    color: var(--muted);
+  }
+  .papers {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 56px 48px;
+  }
+  .paper-slot {
+    display: grid;
+    gap: 14px;
+    max-width: 100%;
+    margin: 0;
+  }
+  .w720 {
+    width: 720px;
+  }
+  .w640 {
+    width: 640px;
+  }
+  .w343 {
+    width: 343px;
+  }
+  .paper-slot figcaption {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .tilt > :global(.tc) {
+    transform: rotate(-1deg);
+  }
+  .chips {
+    display: flex;
+    gap: 10px;
+  }
+  .lab-chip {
+    display: inline-flex;
+    align-items: center;
+    height: 40px;
+    padding: 0 18px;
+    border-radius: 999px;
+    border: 1.5px solid var(--fir);
+    color: var(--fir);
+    font-weight: 600;
+    font-size: 0.9375rem;
+  }
+</style>

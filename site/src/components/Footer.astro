@@ -1,0 +1,43 @@
+---
+/** FOOTER (owned by the open section team). A <footer> landmark after <main>. No email address. */
+const REPO = 'https://github.com/joshmiller83/treefarm-timecard';
+---
+
+<footer class="site-footer" data-theme="dark">
+  <div class="wrap inner">
+    <p>Tree Farm Time Card · Open source · <a href={`${REPO}/blob/main/LICENSE`} rel="noopener">MIT License</a> · <a href={REPO} rel="noopener">Source on GitHub</a></p>
+    <p>Screens on this page are recreations of the app as it’s being built. Details may change.</p>
+    <p>This page has no trackers and no cookies.</p>
+    <p>
+      Apple, iPhone, AirPods, Siri, App Store, Dynamic Island, Live Activities and TestFlight are trademarks of Apple Inc.
+      This project isn’t affiliated with Apple.
+    </p>
+  </div>
+</footer>
+
+<style>
+  .site-footer {
+    background: #1d5b3a;
+    color: #f2f5ef;
+    font-size: 0.875rem;
+    line-height: 1.6;
+    --focus: var(--gold-lit);
+  }
+  .inner {
+    padding-block: 40px 48px;
+    display: grid;
+    gap: 6px;
+  }
+  /* #88CFA4 (the brief's link color) is 4.4:1 on fir; this lighter step clears AA at 14px. */
+  a {
+    color: #96dbb0;
+    text-underline-offset: 3px;
+    /* 44px targets without changing the lines' rhythm. */
+    display: inline-block;
+    padding-block: 11px;
+    margin-block: -11px;
+  }
+  a:hover {
+    color: #fff;
+  }
+</style>

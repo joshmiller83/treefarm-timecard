@@ -1,0 +1,405 @@
+---
+/**
+ * HERO · 7:02 AM · Clock in. Spec: jq '.sections[] | select(.id=="hero")' docs/landing/brief.json
+ *
+ * In five seconds: what it is (an iPhone time card for Christmas tree trimmers), the hook
+ * (voice and the lock screen, gloves on), the honest status (in development, beta coming)
+ * and where to go (GitHub). Then the first wow: Siri clocks you in and the Live Activity
+ * rises onto the lock screen (src/scripts/scenes/hero.ts).
+ *
+ * Static first: the markup is the final state (Siri's card and the Live Activity both on the
+ * lock screen, a faint glow border). The H1 is the LCP element: never hidden, never data-intro.
+ * Data and choreography: ./hero/hero.ts (unit-tested in hero.test.ts).
+ */
+import SectionShell from '../components/SectionShell.astro';
+import Phone from '../components/phone/Phone.astro';
+import Screen from '../components/phone/Screen.astro';
+import LockScreen from '../components/phone/LockScreen.astro';
+import LiveActivity from '../components/phone/LiveActivity.astro';
+import SiriSnippet from '../components/phone/SiriSnippet.astro';
+import SiriGlow from '../components/phone/SiriGlow.astro';
+import Icon from '../components/app/Icon.astro';
+import Said from './hero/Said.astro';
+import Sky from './hero/Sky.astro';
+import { MOMENTS, fmtClock } from '../data/ledger';
+import { SIRI } from '../data/siri';
+import { REPO, heroPhoneLabel } from './hero/copy';
+
+const label = heroPhoneLabel();
+---
+
+<SectionShell id="hero" headingLevel={1}>
+  <Fragment slot="intro">
+    {/* Sentence spans: on phones each is its own block, so no text block outweighs the H1 (the LCP). */}
+    <p class="hero-body" data-intro>
+      <span class="hero-s">Time Card is an iPhone time card for people who shape Christmas trees.</span>{' '}
+      <span class="hero-s">Clock in, mark your rows and take lunch by voice, with your phone locked in your pocket.</span>{' '}
+      <span class="hero-s">The lock screen does the rest, and the whole crew shares one map of the field.</span>
+      {/* Phones get the same promise in four short lines, so the phone below peeks over the fold.
+          Two blocks, so neither outweighs the H1 (the LCP). */}
+      <span class="hero-short">An iPhone time card for Christmas tree trimmers.</span>{' '}
+      <span class="hero-short">Clock in, mark rows and take lunch by voice, phone locked in your pocket.</span>
+    </p>
+    <p class="hero-status" data-intro><span class="pill-status">In development · TestFlight beta coming</span></p>
+    <div class="hero-cta" data-intro>
+      <a class="btn btn-gold hero-gh" href={REPO} rel="noopener">
+        Follow along on GitHub <Icon name="arrow.up.right" size="18px" weight={2.2} />
+      </a>
+      <a class="link-arrow hero-walk" href="#voice">
+        Walk through a shift <Icon name="arrow.down" size="18px" weight={2.2} class="hero-walk-arrow" />
+      </a>
+    </div>
+    <p class="hero-fine" data-intro>Open source, MIT licensed. Not on the App Store yet.</p>
+  </Fragment>
+
+  <figure class="shot hero-shot" data-stage-shot slot="figure">
+    <Said where="figure" />
+    <div class="hero-device" data-hero-device>
+      <div class="hero-float" data-hero-float>
+        <Phone label={label}>
+          <div class="screens" data-screens>
+            <Screen stateId="lock-0702-clockin" alt={label} final>
+              <LockScreen time={fmtClock(MOMENTS.clockIn)}>
+                <Fragment slot="top">
+                  <SiriGlow />
+                  <SiriSnippet text={SIRI.clockIn.reply} />
+                </Fragment>
+                <LiveActivity at={MOMENTS.clockIn} />
+              </LockScreen>
+            </Screen>
+          </div>
+        </Phone>
+      </div>
+    </div>
+    <figcaption>
+      <span class="sr-only">You say “{SIRI.clockIn.said}” </span>Siri clocks you in, and the Time Card Live Activity
+      starts on the lock screen.
+    </figcaption>
+  </figure>
+
+  <Fragment slot="extras">
+    <Sky />
+    <Said where="stage" />
+    <div class="hero-dark" data-hero-dark aria-hidden="true"></div>
+  </Fragment>
+</SectionShell>
+
+<style is:global>
+  /* ---------- Copy (columns 1–5 on desktop) ---------- */
+  #hero .beat-head .eyebrow {
+    max-width: none;
+  }
+  #hero .beat-intro {
+    margin-top: 28px;
+    gap: 0;
+  }
+  #hero .hero-body {
+    max-width: 34rem;
+    color: var(--on-stage-muted);
+    font-size: var(--text-body);
+    line-height: 1.55;
+  }
+  #hero .hero-status {
+    margin-top: 24px;
+  }
+  #hero .hero-cta {
+    margin-top: 32px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 14px 28px;
+  }
+  #hero .hero-gh {
+    padding-inline: 24px 20px;
+  }
+  #hero .hero-gh .icon {
+    width: 18px;
+    height: 18px;
+    margin-left: -2px;
+  }
+  #hero .hero-walk .hero-walk-arrow {
+    transition: transform var(--dur-2) var(--ease-out);
+  }
+  #hero .hero-walk:hover .hero-walk-arrow,
+  #hero .hero-walk:focus-visible .hero-walk-arrow {
+    transform: translateY(3px);
+  }
+  #hero .hero-fine {
+    margin-top: 20px;
+    max-width: none;
+    font-size: var(--text-small);
+    line-height: 1.5;
+    color: var(--on-stage-muted);
+  }
+
+  /* ---------- The figure: spoken line, phone, caption ---------- */
+  #hero .hero-shot {
+    position: relative;
+    z-index: 1;
+    gap: 24px;
+  }
+  #hero .hero-said--figure {
+    justify-items: center;
+    text-align: center;
+  }
+  #hero .hero-said--stage {
+    display: none;
+  }
+  @media (min-width: 900px) {
+    /* Beside a static phone the line is a caption over it, not a second headline. */
+    #hero .hero-said--figure .hero-said-line {
+      font-size: clamp(1.6rem, 0.9rem + 1.6vw, 2.25rem);
+    }
+  }
+  #hero .hero-device {
+    position: relative;
+    transition: opacity 0.4s linear;
+  }
+
+  /* ---------- Static layouts: the sky spans the whole section ---------- */
+  #hero {
+    overflow: clip;
+  }
+  html:not(.motion) #hero :is(.track, .frame, .extras) {
+    position: static;
+  }
+  html:not(.motion) #hero .beats {
+    z-index: 2;
+  }
+
+  /* ---------- Desktop with the stage (≥900px, motion) ---------- */
+  /* The stage phone carries this figure on desktop (the motion core's 'desk' query): take it
+     out of flow from the first paint, as html.stage-on will, so the stage turning on shifts
+     nothing (CLS 0). Screen readers still read it; the 4 s .motion fallback brings back the
+     static layout. */
+  @media (min-width: 900px) and (min-height: 560px) {
+    html.motion #hero .shot[data-stage-shot] {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+    }
+  }
+  @media (min-width: 900px) {
+    /* The copy holds in the view while it fades (the brief's [.15, .6] exit): sticky inside
+       the tall beats layer, its centre level with the stage phone's (the middle of the view
+       under the header). The scroll scene lifts it 60px through --hero-lift (see the scene). */
+    html.motion #hero[data-desk='sticky'][data-layout='beats'] .beats {
+      /* The head starts at the top of the layer (block containers honour align-content), and
+         the layer runs on past the track (clipped by the section) so the head holds through
+         the whole track, even in short windows. */
+      align-content: start;
+      bottom: -50svh;
+    }
+    html.motion #hero[data-desk='sticky'][data-layout='beats'] .beat-head {
+      position: sticky;
+      top: calc(50svh + var(--chrome-h) / 2);
+      left: auto;
+      margin-left: var(--gutter);
+      translate: 0 calc(-50% + var(--hero-lift, 0px));
+    }
+    /* The spoken line floats beside the stage phone, its right edge 24px left of the phone,
+       18% down. Its size follows the room between the headline and the phone (the H1's
+       longest line is about 4.65em of Display XL), so it never crowds the copy. */
+    html.stage-on #hero .hero-said--stage {
+      --copy-r: calc(max(0px, (100vw - var(--maxw)) / 2 - var(--gutter)) + var(--gutter) + 4.65 * var(--text-xl));
+      --room: calc(var(--stage-x) - 24px - 48px - var(--copy-r));
+      display: grid;
+      position: absolute;
+      top: 18%;
+      right: calc(100% - var(--stage-x) + 24px);
+      justify-items: end;
+      text-align: right;
+      width: max-content;
+      font-size: clamp(1.25rem, var(--room) / 6.1, 2.5rem);
+    }
+    html.stage-on #hero .hero-said--stage .hero-said-line {
+      font-size: 1em;
+      max-width: 8.4em;
+    }
+    /* The buttons share one row once the column can hold them. */
+    #hero .hero-cta {
+      gap: 14px 26px;
+    }
+  }
+  @media (min-width: 1000px) {
+    #hero .hero-cta {
+      flex-wrap: nowrap;
+      width: max-content;
+    }
+  }
+  /* Short desktop windows (laptops at 1280 × 640, 960 × 720): the copy tightens so it all
+     fits beside the phone. */
+  @media (min-width: 900px) and (max-height: 780px) {
+    #hero .beat-head h1 {
+      font-size: min(var(--text-xl), 13.5svh);
+    }
+    #hero .beat-head .eyebrow {
+      margin-bottom: 14px;
+    }
+    #hero .beat-intro {
+      margin-top: 20px;
+    }
+    #hero .hero-body {
+      font-size: min(var(--text-body), 2.9svh);
+    }
+    #hero .hero-status {
+      margin-top: 18px;
+    }
+    #hero .hero-cta {
+      margin-top: 22px;
+    }
+    #hero .hero-fine {
+      margin-top: 14px;
+    }
+  }
+  /* Small, short desktop windows (920 × 700): tighter still, and the eyebrow on one line. */
+  @media (min-width: 900px) and (max-width: 1040px) and (max-height: 780px) {
+    #hero .beat-head h1 {
+      font-size: min(var(--text-xl), 12svh);
+    }
+    #hero .hero-body {
+      font-size: min(var(--text-body), 2.6svh);
+    }
+    #hero .beat-head .eyebrow {
+      font-size: 0.75rem;
+      letter-spacing: 0.1em;
+      white-space: nowrap;
+    }
+  }
+
+  /* ---------- Mobile (<900px): copy first, then the figure, natural height ---------- */
+  @media (max-width: 899.98px) {
+    #hero :is(.track, .frame, .extras) {
+      position: static;
+    }
+    #hero .beats {
+      z-index: 2;
+    }
+    #hero .hero-shot {
+      --phone-h: min(60svh, 520px);
+    }
+    #hero .hero-said--figure .hero-said-line {
+      max-width: 15ch;
+    }
+    /* The rows stand behind the phone, smaller, and fade into the next chapter. */
+    #hero .hero-sky {
+      --band-scale: 0.62;
+      --zone-h: calc(min(60svh, 520px) * 0.62 + 96px);
+      --far-top: 0;
+    }
+    #hero .hero-bands {
+      --band-fade: 72px;
+    }
+    #hero .hero-band--mid {
+      top: 16%;
+    }
+    #hero .hero-band--near {
+      top: 42%;
+    }
+    #hero .hero-star {
+      left: var(--mx);
+      top: var(--my);
+    }
+  }
+  #hero .hero-short {
+    display: none;
+  }
+  /* Landscape phones: the page's one readable phone size (tokens.css). */
+  @media (max-width: 899.98px) and (orientation: landscape) and (max-height: 559.98px) {
+    #hero .hero-shot {
+      --phone-h: var(--phone-h-mob);
+    }
+  }
+  @media (max-width: 599.98px) {
+    /* Phones: the short body (one display: none or the other, so a screen reader hears one). */
+    #hero .hero-body .hero-s {
+      display: none !important;
+    }
+    #hero .hero-short {
+      display: block;
+      text-wrap: balance;
+    }
+    /* The fine print's points are in the status pill and the closing chapter; the room goes
+       to the phone, whose Dynamic Island and lock screen now peek over the fold. */
+    #hero .hero-fine {
+      display: none;
+    }
+    #hero .hero-cta {
+      margin-top: 24px;
+    }
+    #hero .hero-status {
+      margin-top: 18px;
+    }
+    #hero .beat-intro {
+      margin-top: 20px;
+    }
+    #hero.sec .track {
+      row-gap: 20px;
+      padding-top: 56px;
+    }
+    #hero .hero-shot {
+      gap: 16px;
+    }
+    #hero .hero-said {
+      gap: 8px;
+    }
+    /* A bigger headline on phones: it reads first and stays the largest block (the LCP). */
+    #hero .beat-head h1 {
+      font-size: clamp(3.3rem, 2.7rem + 3.4vw, 3.5rem);
+    }
+    /* One line on phones from 360px: a touch smaller and tighter than the desktop eyebrow. */
+    #hero .beat-head .eyebrow {
+      font-size: 0.75rem;
+      letter-spacing: 0.1em;
+      text-wrap: balance;
+    }
+    #hero .hero-cta {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 6px;
+    }
+    #hero .hero-cta .btn {
+      min-height: 48px;
+    }
+    #hero .hero-cta .link-arrow {
+      justify-content: center;
+      min-height: 48px;
+    }
+  }
+
+  /* ---------- The load sequence's from-states (motion only, until the scene takes over) ---------- */
+  .hero-dark {
+    display: none;
+  }
+  html.motion .hero-dark {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    background: #050b08;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.6s linear;
+  }
+  html.motion.intro-wait .hero-dark {
+    opacity: 1;
+    transition: none;
+  }
+  html.motion.intro-wait #hero :is(.eyebrow, [data-said-word], .hero-device, [data-band-art], [data-dawn]) {
+    opacity: 0;
+  }
+  /* The header's ribbon fill and riding tag arrive with the scroll scene on desktop (the
+     shift starts as you leave the hero): keep them back until the scene has set them. */
+  @media (min-width: 900px) {
+    html.motion.intro-wait nav.shift :is(.ribbon-fill, .tag-ride) {
+      opacity: 0;
+    }
+  }
+  /* The stage phone waits too, so the final state never flashes before the sequence (the
+     scene's own fade brings the phone in, so the slot needs no transition of its own). */
+  html.motion.intro-wait .stage-slot {
+    opacity: 0;
+  }
+</style>

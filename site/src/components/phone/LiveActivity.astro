@@ -1,0 +1,390 @@
+---
+/**
+ * LIVE ACTIVITY: the Time Card card on the lock screen (the hero feature).
+ *
+ *   [On the clock]                         North field · Block 2
+ *   6:27:00                                           ▬▬▬▭▭▭▭▭▭
+ *   220 trees this shift                    Row 36 marked · Undo
+ *   [Row 36] [Row 37] [Row 38] [Break]
+ *
+ * 361 pt wide with its bottom edge at y 760 pt, radius 24, padding 12/14, 159 pt tall.
+ * Values come from ledger.liveActivityAt(at) through activityView(); explicit props win.
+ * Never a clock-out button. The field bar (4 pt) sits beside the timer because row 3's
+ * right side belongs to 'Row 36 marked · Undo'; like the app's, it has no visible label.
+ *
+ * Static first: the server markup is the given state, set with inline styles that scenes
+ * can tween from (GSAP inline styles win). Every state renders every part, so one card can
+ * play working → lunch → working, or the Row 36 tap:
+ *   - the pill is two stacked faces: crossfade [data-pill-face="clock"] and
+ *     [data-pill-face="break"] by opacity. Never rewrite pill text to change state: each
+ *     face has its own [data-pill-text="clock"|"break"], and the gold one already reads
+ *     'On lunch' or 'On break' for the coming break (set [data-pill-text="break"] only for a
+ *     voice break with a reason, before it fades in);
+ *   - crossfade [data-la-material] / [data-la-break], and fade [data-worked-line] in
+ *     (it shares row 3's right side with [data-undo]; fade that out);
+ *   - flip [data-la]'s data-state with tl.set(la, { attr: { 'data-state': … } }) to turn the
+ *     timer gold;
+ *   - collapse the row buttons (scaleX → 0, transformOrigin '100% 50%'), fade [data-break-btn],
+ *     reveal [data-back-btn] with clip-path inset(0 100% 0 0) → inset(0). Break and lunch
+ *     layers render the rows at scaleX(0) with transform-origin 0% 50%, so tweening them back
+ *     to scaleX 1 grows them from the left (pass transformOrigin to choose otherwise);
+ *   - advance: move [data-strip-track] by one step (x: '-=' + step; see stripStep in
+ *     system/lockscreen/activity.ts; in px, measure two [data-row] buttons' offsetLeft).
+ *     In the tapped state the marked row waits off the left edge, so x: step → 0 replays the tap;
+ *   - a tap also rolls [data-trees] (util.odometer), updates [data-undo-row] and moves
+ *     [data-fieldbar]'s scaleX to the new fieldPct.
+ * Hooks: [data-la] [data-la-material] [data-la-break] [data-pill] [data-pill-face]
+ * [data-pill-text] [data-place] [data-timer] [data-field] (bar track) [data-fieldbar] (fill)
+ * [data-trees-line] [data-trees] [data-undo] [data-undo-row] [data-worked-line] [data-strip]
+ * [data-strip-track] [data-row] [data-break-btn] [data-back-btn].
+ */
+import { odometerHTML } from '../../scripts/odometer';
+import { activityView, type ActivityProps } from '../system/lockscreen/activity';
+
+export interface Props extends ActivityProps {
+  /**
+   * 'lock' (default): positioned on the lock screen (inside LockScreen's slot, in pt).
+   * 'solo': a standalone card that fills its container's width (for page-level crops).
+   */
+  placement?: 'lock' | 'solo';
+  class?: string;
+}
+
+const { placement = 'lock', class: cls, ...props } = Astro.props;
+const v = activityView(props);
+const hide = 'opacity:0';
+---
+
+<div class:list={['la-wrap', placement === 'solo' && 'la-wrap--solo', cls]}>
+  <div class:list={['la', `la--${placement}`]} data-la data-state={v.state}>
+    <div class="la-twin" aria-hidden="true"></div>
+    <div class="la-mat" data-la-material></div>
+    <div class="la-mat la-mat--break" data-la-break style={v.onBreak ? undefined : hide}></div>
+
+    <div class="la-r1">
+      <span class="la-pill" data-pill>
+        <span class="la-face la-face--clock" data-pill-face="clock" style={v.onBreak ? hide : undefined}>
+          <span data-pill-text="clock">{v.pillClock}</span>
+        </span>
+        <span class="la-face la-face--break" data-pill-face="break" style={v.onBreak ? undefined : hide}>
+          <span data-pill-text="break">{v.pillBreak}</span>
+        </span>
+      </span>
+      <span class="la-place" data-place><span class="la-place-field">{v.field} · </span>{v.block}</span>
+    </div>
+
+    <div class="la-r2">
+      <span
+        class="odo la-timer"
+        data-timer={v.timerMode}
+        data-odo
+        data-odo-text={v.timer}
+        set:html={odometerHTML(v.timer)}
+      />
+      <span class="la-bar" data-field><i data-fieldbar style={`transform:scaleX(${v.fieldPct.toFixed(4)})`}></i></span>
+    </div>
+
+    <div class="la-r3">
+      <span class="la-trees" data-trees-line>
+        <span class="odo" data-trees data-odo data-odo-text={v.treesText} set:html={odometerHTML(v.treesText)} />
+        <span class="la-words">trees this shift</span>
+      </span>
+      <span class="la-note">
+        <span class="la-undo" data-undo style={v.tapped ? undefined : hide}>
+          Row <span data-undo-row>{v.undoRow ?? v.rows[0]}</span> marked · <span class="la-undo-link">Undo</span>
+        </span>
+        <span class="la-worked" data-worked-line style={v.onBreak ? undefined : hide}>
+          <span class="la-num" data-timer={v.workedMode}>{v.worked}</span> worked
+        </span>
+      </span>
+    </div>
+
+    <div class="la-r4">
+      <span class="la-strip" data-strip>
+        <span class:list={['la-track', v.lead && 'la-track--lead']} data-strip-track>
+          {
+            v.track.map((r) => (
+              <span class="la-btn la-row" data-row={r} style={v.onBreak ? 'transform:scaleX(0);transform-origin:0% 50%' : undefined}>
+                Row {r}
+              </span>
+            ))
+          }
+        </span>
+      </span>
+      <span class="la-btn la-break" data-break-btn style={v.onBreak ? hide : undefined}>Break</span>
+      <span class="la-btn la-back" data-back-btn style={v.onBreak ? undefined : 'clip-path:inset(0 100% 0 0)'}>Back to work</span>
+    </div>
+  </div>
+</div>
+
+<style>
+  /* In the lock screen the wrapper is invisible to layout; solo, it supplies the pt scale. */
+  .la-wrap {
+    display: contents;
+  }
+  .la-wrap--solo {
+    display: block;
+    width: 100%;
+    container-type: inline-size;
+    --pt: calc(100cqw / 361);
+  }
+
+  .la {
+    /* Geometry: system/lockscreen/activity.ts (LA). */
+    --btn-w: calc((333 - 24) / 4 * var(--pt));
+    --gap: calc(8 * var(--pt));
+    position: absolute;
+    left: calc(16 * var(--pt));
+    bottom: calc(92 * var(--pt));
+    width: calc(361 * var(--pt));
+    padding: calc(12 * var(--pt)) calc(14 * var(--pt));
+    display: flex;
+    flex-direction: column;
+    border-radius: calc(24 * var(--pt));
+    overflow: hidden;
+    isolation: isolate;
+    color: #f2f5ef;
+    font-family: var(--font-system);
+    font-size: calc(13 * var(--pt));
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+    -webkit-font-smoothing: antialiased;
+  }
+  .la--solo {
+    position: relative;
+    left: auto;
+    bottom: auto;
+    width: 100%;
+  }
+
+  /* Material: the blurred wallpaper twin under rgba(16,30,22,.86), and the gold break tint. */
+  .la-twin,
+  .la-mat {
+    position: absolute;
+    z-index: -1;
+    pointer-events: none;
+  }
+  .la-twin {
+    left: calc(-16 * var(--pt));
+    bottom: calc(-92 * var(--pt));
+    width: calc(393 * var(--pt));
+    height: calc(852 * var(--pt));
+    /* LockScreen provides the blurred wallpaper twin; a solo card gets its average colors. */
+    background: var(--lock-twin, linear-gradient(180deg, #24392b, #17271d 60%, #101c15)) 0 0 / 100% 100% no-repeat;
+  }
+  .la-mat {
+    inset: 0;
+    border-radius: inherit;
+    background: var(--la-material, rgba(16, 30, 22, 0.86));
+    /* The glass edge iOS draws around a Live Activity. */
+    box-shadow: inset 0 0 0 calc(0.6 * var(--pt)) rgba(242, 245, 239, 0.1);
+  }
+  .la-mat--break {
+    background: var(--la-material-break, rgba(58, 42, 12, 0.88));
+    box-shadow: inset 0 0 0 calc(0.6 * var(--pt)) rgba(226, 166, 68, 0.22);
+  }
+
+  /* Row 1: pill and place. */
+  .la-r1 {
+    height: calc(22 * var(--pt));
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: calc(8 * var(--pt));
+  }
+  .la-pill {
+    display: grid;
+    flex: none;
+  }
+  .la-face {
+    grid-area: 1 / 1;
+    justify-self: start;
+    height: calc(22 * var(--pt));
+    padding: 0 calc(9 * var(--pt));
+    display: inline-flex;
+    align-items: center;
+    border-radius: calc(11 * var(--pt));
+    font-weight: 600;
+    font-size: calc(13 * var(--pt));
+    letter-spacing: -0.005em;
+    white-space: nowrap;
+  }
+  .la-face--clock {
+    background: var(--pill-clock-bg, #2e7a4e);
+    color: var(--pill-clock-fg, #fff);
+  }
+  .la-face--break {
+    background: var(--pill-break-bg, #e2a644);
+    color: var(--pill-break-fg, #2a1c04);
+  }
+  /* On a break the pill carries the reason; the block alone keeps the row on one line. */
+  .la[data-state='break'] .la-place-field {
+    display: none;
+  }
+  .la-place {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: rgba(242, 245, 239, 0.72);
+    font-size: calc(13 * var(--pt));
+  }
+
+  /* Row 2: the timer, and the field's progress on the right. */
+  .la-r2 {
+    height: calc(34 * var(--pt));
+    margin-top: calc(4 * var(--pt));
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .la-timer {
+    font-family: var(--font-mono);
+    font-weight: 600;
+    font-size: calc(38 * var(--pt));
+    letter-spacing: -0.02em;
+    color: #fff;
+    /* Lift the digits a little: the odometer box is taller than the row, and the trees
+       line below needs the air more than the pill above. */
+    margin-top: calc(-2 * var(--pt));
+  }
+  /* Monospaced colons take a whole cell; tuck them in like a clock face does. */
+  .la-timer :global(.odo-s) {
+    margin: 0 -0.09em;
+  }
+  .la[data-state='lunch'] .la-timer,
+  .la[data-state='break'] .la-timer {
+    color: var(--pill-break-bg, #e2a644);
+  }
+  /* The field bar: everyone's shaped trees out of the field's (decisions.md #4). The brief's
+     #1C3125 track vanished on this material (1.2:1), so the track is a light veil. */
+  .la-bar {
+    display: block;
+    width: calc(128 * var(--pt));
+    height: calc(4 * var(--pt));
+    border-radius: calc(2 * var(--pt));
+    background: rgba(242, 245, 239, 0.16);
+    overflow: hidden;
+  }
+  .la[data-state='lunch'] .la-bar,
+  .la[data-state='break'] .la-bar {
+    background: rgba(242, 245, 239, 0.2);
+  }
+  .la-bar i {
+    display: block;
+    height: 100%;
+    background: #e2a644;
+    border-radius: inherit;
+    transform-origin: 0 50%;
+  }
+
+  /* Row 3: trees, and Undo or the worked line on the right. */
+  .la-r3 {
+    height: calc(17 * var(--pt));
+    margin-top: calc(4 * var(--pt));
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: calc(8 * var(--pt));
+    white-space: nowrap;
+  }
+  .la-trees {
+    display: inline-flex;
+    align-items: baseline;
+    gap: calc(4 * var(--pt));
+    font-size: calc(14 * var(--pt));
+  }
+  .la-trees .odo {
+    font-weight: 600;
+    color: #fff;
+  }
+  .la-words {
+    color: rgba(242, 245, 239, 0.8);
+  }
+  .la-note {
+    display: grid;
+    justify-items: end;
+  }
+  .la-undo,
+  .la-worked {
+    grid-area: 1 / 1;
+    font-size: calc(13 * var(--pt));
+    color: rgba(242, 245, 239, 0.72);
+  }
+  .la-undo-link {
+    color: #e2a644;
+    font-weight: 600;
+    text-decoration: underline;
+    text-decoration-thickness: calc(1.2 * var(--pt));
+    text-underline-offset: calc(2.5 * var(--pt));
+  }
+  .la-num {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-weight: 500;
+    color: #f2f5ef;
+  }
+
+  /* Row 4: the strip of row buttons, Break, and Back to work over both. */
+  .la-r4 {
+    position: relative;
+    height: calc(46 * var(--pt));
+    margin-top: calc(8 * var(--pt));
+    display: flex;
+    gap: var(--gap);
+  }
+  .la-strip {
+    flex: none;
+    display: block;
+    width: calc(var(--btn-w) * 3 + var(--gap) * 2);
+    height: 100%;
+    /* Clip sideways only, so a tap ring can still spill over the top and bottom. */
+    overflow-x: clip;
+    overflow-y: visible;
+  }
+  /* Before overflow: clip (Safari < 16), hide instead: the row waiting under Break and the
+     marked row in the card's left padding stay out of sight; only a tap ring is clipped. */
+  @supports not (overflow: clip) {
+    .la-strip {
+      overflow: hidden;
+    }
+  }
+  .la-track {
+    display: flex;
+    gap: var(--gap);
+    height: 100%;
+  }
+  /* Tapped: the marked row waits one step off the left edge (transform stays free for scenes). */
+  .la-track--lead {
+    margin-left: calc(-1 * (var(--btn-w) + var(--gap)));
+  }
+  .la-btn {
+    flex: none;
+    width: var(--btn-w);
+    height: 100%;
+    display: grid;
+    place-items: center;
+    border-radius: calc(14 * var(--pt));
+    font-weight: 600;
+    font-size: calc(16 * var(--pt));
+    letter-spacing: -0.015em;
+    white-space: nowrap;
+  }
+  .la-row {
+    background: #1d5b3a;
+    color: #fff;
+    box-shadow: inset 0 calc(0.75 * var(--pt)) 0 rgba(255, 255, 255, 0.1);
+  }
+  .la-break {
+    color: #f2f5ef;
+    box-shadow: inset 0 0 0 calc(1.5 * var(--pt)) rgba(242, 245, 239, 0.5);
+  }
+  .la-back {
+    position: absolute;
+    inset: 0;
+    width: auto;
+    background: #e2a644;
+    color: #2a1c04;
+    box-shadow: inset 0 calc(0.75 * var(--pt)) 0 rgba(255, 255, 255, 0.25);
+  }
+</style>

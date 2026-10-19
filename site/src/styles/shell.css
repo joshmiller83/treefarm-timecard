@@ -1,0 +1,551 @@
+/*
+ * SECTION SHELL LAYOUT (see src/components/SectionShell.astro and CONTRACT.md).
+ *
+ *   section.sec[data-layout][data-desk][data-mob]
+ *     .track                    tall track under motion (height = --track-desk / --track-mob)
+ *       .beats                  copy: .beat-head (eyebrow + heading) then .beat[data-beat] cards
+ *       .frame                  sticky 100svh frame under motion
+ *         .frame-grid > .figure-slot > figure.shot (Phone + figcaption)
+ *         .extras               section-local extras aligned to --stage-* (desktop)
+ *     .after                    normal-flow content after the track (Try it, footers)
+ *
+ * Modes
+ *   static   no motion, or a track of 'auto': natural height, copy then figure,
+ *            two columns from 900px. No sticky frames.
+ *   beats    (default) beats sit at progress --at inside the track: centered in the
+ *            viewport (--anchor) when the section's scroll progress equals --at.
+ *   flow     beats stay in normal flow beside a sticky figure (voice's exchanges).
+ */
+
+/* ---------- Every section ---------- */
+.sec {
+  position: relative;
+  color: var(--on-stage);
+  color-scheme: dark;
+  /* Zooms, glows and second phones never widen the page (clip keeps sticky frames working). */
+  overflow-x: clip;
+}
+.sec[data-theme='light'] {
+  color: var(--ink);
+  color-scheme: light;
+  background: var(--bg);
+}
+.sec[data-theme='light'] .muted {
+  color: var(--muted);
+}
+
+/* Without motion each section paints its own tint; with motion the fixed tint layers do.
+   A seam layer starts each chapter from the colour the one above ends on (the moving page
+   crossfades its tints), so the static page also reads as one sky from dawn to dusk. */
+html:not(.motion) .sec {
+  --seam-layer: linear-gradient(180deg, var(--seam, transparent) 0, transparent min(52vh, 460px));
+}
+html:not(.motion) .sec-voice {
+  --seam: #0a1c13; /* the hero's fir rows */
+}
+html:not(.motion) .sec-lock-screen {
+  --seam: #12281c; /* morning's foot */
+}
+html:not(.motion) .sec-field {
+  --seam: #0e2117; /* focus's foot */
+}
+html:not(.motion) .sec-notes {
+  --seam: #0c1d14; /* field's foot */
+}
+html:not(.motion) .sec-crew,
+html:not(.motion) .sec-pace {
+  --seam: #222a16; /* afternoon's foot, under its low glow */
+}
+html:not(.motion) .sec-clock-out {
+  --seam: #322813; /* pace's foot */
+}
+html:not(.motion) .sec[data-tint='dawn'] {
+  background: var(--seam-layer), var(--tint-dawn);
+}
+html:not(.motion) .sec[data-tint='morning'] {
+  background: var(--seam-layer), var(--tint-morning);
+}
+html:not(.motion) .sec[data-tint='focus'] {
+  background: var(--seam-layer), var(--tint-focus);
+}
+html:not(.motion) .sec[data-tint='field'] {
+  background: var(--seam-layer), var(--tint-field);
+}
+html:not(.motion) .sec[data-tint='afternoon'] {
+  background: var(--seam-layer), var(--tint-afternoon);
+}
+html:not(.motion) .sec[data-tint='pace'] {
+  background: var(--seam-layer), var(--tint-pace);
+}
+html:not(.motion) .sec[data-tint='dusk'] {
+  background: var(--seam-layer), var(--tint-dusk);
+}
+html:not(.motion) .sec[data-tint='lights-up'] {
+  background: var(--bg);
+}
+
+.beat-head .eyebrow {
+  margin-bottom: 18px;
+}
+/* With motion the chapter's time shows in the header chip, which runs with the story. */
+html.motion .eb-time {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.beat-head .display-l,
+.beat-head .display-xl {
+  color: inherit;
+}
+.beat-intro {
+  margin-top: 24px;
+  display: grid;
+  gap: 20px;
+}
+.beat-intro > p,
+.beat > p {
+  max-width: 38ch;
+}
+.sec[data-theme='dark'] .beat-intro > p:not([class]),
+.sec[data-theme='dark'] .beat > p:not([class]) {
+  color: var(--on-stage-muted);
+}
+.sec[data-theme='light'] .beat-intro > p:not([class]) {
+  color: var(--muted);
+}
+
+/* ---------- Figures ---------- */
+.shot {
+  margin: 0;
+  display: grid;
+  justify-items: center;
+  gap: 16px;
+  --phone-h: var(--phone-h-mob);
+}
+.shot figcaption {
+  max-width: 34ch;
+  text-align: center;
+  font-size: var(--text-small);
+  line-height: 1.5;
+  color: var(--on-stage-muted);
+}
+.sec[data-theme='light'] .shot figcaption {
+  color: var(--muted);
+}
+/* With motion the caption is for screen readers; the motion tells the story visually. */
+html.motion .shot figcaption {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.figure-slot {
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 32px;
+  min-width: 0;
+}
+.extras {
+  pointer-events: none;
+}
+.extras > * {
+  pointer-events: auto;
+}
+
+/* ---------- STATIC mode (default, and whenever motion is off) ---------- */
+.track {
+  position: relative;
+}
+.sec .track {
+  width: 100%;
+  max-width: calc(var(--maxw) + 2 * var(--gutter));
+  margin-inline: auto;
+  padding: 72px var(--gutter);
+  display: grid;
+  row-gap: 48px;
+}
+.beats {
+  position: relative;
+  z-index: 6;
+  display: grid;
+  /* The copy column never grows past its track (long words, or a reader's text spacing). */
+  grid-template-columns: minmax(0, 1fr);
+  gap: 32px;
+  align-content: center;
+  min-width: 0;
+}
+.beat {
+  position: relative;
+  min-width: 0;
+}
+.frame {
+  position: relative;
+  min-width: 0;
+}
+.extras {
+  display: grid;
+  gap: 24px;
+  justify-items: center;
+}
+.extras:empty {
+  display: none;
+}
+.after:empty {
+  display: none;
+}
+
+@media (min-width: 900px) {
+  .sec .track {
+    padding-block: 120px;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    column-gap: var(--col-gap);
+    align-items: center;
+  }
+  .beats {
+    grid-column: 1 / span 6;
+    max-width: 34rem;
+  }
+  .frame {
+    grid-column: 7 / -1;
+  }
+  .shot {
+    --phone-h: min(70svh, 640px);
+  }
+}
+
+/* ---------- MOTION, desktop (≥900px) ---------- */
+@media (min-width: 900px) {
+  html.motion .sec[data-desk='sticky'] .track {
+    display: block;
+    max-width: none;
+    padding: 0;
+    height: var(--track-desk);
+  }
+  html.motion .sec[data-desk='sticky'] .frame {
+    position: sticky;
+    top: 0;
+    height: 100svh;
+    overflow: clip;
+  }
+  html.motion .sec[data-desk='sticky'] .frame-grid {
+    height: 100%;
+    max-width: calc(var(--maxw) + 2 * var(--gutter));
+    margin-inline: auto;
+    padding: var(--chrome-h) var(--gutter) 0;
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    column-gap: var(--col-gap);
+    align-items: center;
+  }
+  html.motion .sec[data-desk='sticky'] .figure-slot {
+    grid-column: 7 / -1;
+  }
+  html.motion .sec[data-desk='sticky'] .shot {
+    --phone-h: var(--phone-h-desk);
+  }
+  html.motion .sec[data-desk='sticky'] .extras {
+    position: absolute;
+    inset: 0;
+    display: block;
+  }
+
+  /* beats: positioned at progress --at */
+  html.motion .sec[data-desk='sticky'][data-layout='beats'] .beats {
+    position: absolute;
+    inset: 0;
+    max-width: calc(var(--maxw) + 2 * var(--gutter));
+    margin-inline: auto;
+    display: block;
+    pointer-events: none;
+  }
+  html.motion .sec[data-desk='sticky'][data-layout='beats'] .beat {
+    position: absolute;
+    left: var(--gutter);
+    width: min(34rem, calc((100% - 2 * var(--gutter) - 11 * var(--col-gap)) / 12 * 5 + 4 * var(--col-gap)));
+    top: calc(var(--at, 0) * (100% - 100svh) + var(--anchor, 50svh));
+    translate: 0 -50%;
+    pointer-events: auto;
+  }
+
+  /* flow: beats in normal flow in columns 1–5 beside a sticky figure in 7–12 */
+  html.motion .sec[data-desk='sticky'][data-layout='flow'] .track {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    column-gap: var(--col-gap);
+    max-width: calc(var(--maxw) + 2 * var(--gutter));
+    margin-inline: auto;
+    padding-inline: var(--gutter);
+    height: auto;
+    min-height: var(--track-desk);
+  }
+  html.motion .sec[data-desk='sticky'][data-layout='flow'] .beats {
+    grid-column: 1 / span 5;
+    grid-row: 1;
+    display: block;
+    max-width: 34rem;
+    padding-block: 30svh;
+  }
+  html.motion .sec[data-desk='sticky'][data-layout='flow'] .frame {
+    grid-column: 7 / -1;
+    grid-row: 1;
+    align-self: start;
+  }
+  html.motion .sec[data-desk='sticky'][data-layout='flow'] .frame-grid {
+    grid-template-columns: minmax(0, 1fr);
+    padding-inline: 0;
+  }
+  html.motion .sec[data-desk='sticky'][data-layout='flow'] .figure-slot {
+    grid-column: 1 / -1;
+  }
+}
+
+/* ---------- MOTION, mobile (<900px) ---------- */
+@media (max-width: 899.98px) {
+  html.motion .sec[data-mob='sticky'] .track {
+    display: block;
+    padding: 0;
+    height: var(--track-mob);
+  }
+  html.motion .sec[data-mob='sticky'] .beats {
+    position: static;
+    display: block;
+    padding: 56px var(--gutter) 24px;
+  }
+  html.motion .sec[data-mob='sticky'] .frame {
+    position: sticky;
+    /* below the header and the riding chapter chip */
+    top: var(--sticky-top-mob);
+    padding-inline: var(--gutter);
+    z-index: 1;
+  }
+  html.motion .sec[data-mob='sticky'] .extras {
+    position: absolute;
+    inset: 0;
+    display: block;
+  }
+  html.motion .sec[data-mob='sticky'] .shot {
+    --phone-h: var(--phone-h-mob);
+  }
+  /* Copy cards scroll up over the lower part of the sticky phone. */
+  html.motion .sec[data-mob='sticky'] .beat:not(.beat-head):not(.beat-bare) {
+    background: var(--card-dark);
+    border: 1px solid var(--stage-line);
+    border-radius: var(--radius-card);
+    padding: 20px;
+    box-shadow: 0 -12px 32px rgba(4, 10, 7, 0.35);
+  }
+  html.motion .sec[data-mob='sticky'][data-layout='beats'] .beat:not(.beat-head) {
+    position: absolute;
+    left: var(--gutter);
+    right: var(--gutter);
+    z-index: 6;
+    top: calc(var(--at, 0) * (100% - 100svh) + var(--anchor-mob, 74svh));
+    translate: 0 -50%;
+  }
+  html.motion .sec[data-mob='sticky'][data-layout='flow'] .track {
+    display: flex;
+    flex-direction: column;
+    height: auto;
+    min-height: var(--track-mob);
+    padding-bottom: 40svh;
+  }
+  html.motion .sec[data-mob='sticky'][data-layout='flow'] .beats {
+    display: contents;
+  }
+  html.motion .sec[data-mob='sticky'][data-layout='flow'] .beat-head {
+    order: -2;
+    padding: 56px var(--gutter) 24px;
+  }
+  html.motion .sec[data-mob='sticky'][data-layout='flow'] .frame {
+    order: -1;
+  }
+  html.motion .sec[data-mob='sticky'][data-layout='flow'] .beat:not(.beat-head) {
+    z-index: 6;
+    margin: var(--gap-mob, 60svh) var(--gutter) 0;
+  }
+}
+
+/* ---------- Tablets (600–899px): a centred 34rem column, not stretched phone cards ---------- */
+@media (min-width: 600px) and (max-width: 899.98px) {
+  .sec .track > .beats {
+    width: 100%;
+    max-width: 34rem;
+    margin-inline: auto;
+  }
+  html.motion .sec[data-mob='sticky'] .beats {
+    max-width: calc(34rem + 2 * var(--gutter));
+  }
+  html.motion .sec[data-mob='sticky'][data-layout='beats'] .beat:not(.beat-head) {
+    max-width: 34rem;
+    margin-inline: auto;
+  }
+  html.motion .sec[data-mob='sticky'][data-layout='flow'] .beat:not(.beat-head) {
+    max-width: 34rem;
+    margin-inline: auto;
+    width: calc(100% - 2 * var(--gutter));
+  }
+  html.motion .sec[data-mob='sticky'][data-layout='flow'] .beat-head {
+    width: 100%;
+    max-width: calc(34rem + 2 * var(--gutter));
+    margin-inline: auto;
+  }
+}
+
+/* ---------- Fixed layers behind and above the sections (motion only) ---------- */
+html.motion body {
+  background: transparent;
+}
+.tints {
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  pointer-events: none;
+}
+html:not(.motion) .tints {
+  display: none;
+}
+.tint {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity var(--dur-4) linear;
+}
+.tint.is-on {
+  opacity: 1;
+}
+html.paused .tint {
+  transition: none;
+}
+.tint[data-tint='dawn'] {
+  background: var(--tint-dawn);
+}
+.tint[data-tint='morning'] {
+  background: var(--tint-morning);
+}
+.tint[data-tint='focus'] {
+  background: var(--tint-focus);
+}
+.tint[data-tint='field'] {
+  background: var(--tint-field);
+}
+.tint[data-tint='afternoon'] {
+  background: var(--tint-afternoon);
+}
+.tint[data-tint='pace'] {
+  background: var(--tint-pace);
+}
+.tint[data-tint='dusk'] {
+  background: var(--tint-dusk);
+}
+.tint[data-tint='lights-up'] {
+  background: var(--bg);
+}
+/* Scrubbed by the clock-out scene for the lights-up: the paper rises from the horizon behind
+   a warm bloom (transform only), so every frame reads as dusk above the edge and paper below
+   it, never a muddy mix of both. It waits below the screen, bloom included. */
+.tint-light {
+  position: absolute;
+  inset: 0;
+  background: var(--bg);
+  transform: translateY(140%);
+}
+.tint-light::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 100%;
+  height: 40%;
+  background: linear-gradient(
+    0deg,
+    var(--bg) 0%,
+    rgba(246, 232, 204, 0.92) 22%,
+    rgba(236, 178, 104, 0.45) 58%,
+    rgba(226, 150, 78, 0) 100%
+  );
+}
+
+/* The stage phone (desktop with motion): one fixed phone for the whole day. */
+.stage {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  display: none;
+}
+html.stage-on .stage {
+  display: block;
+}
+.stage-grid {
+  height: 100%;
+  max-width: calc(var(--maxw) + 2 * var(--gutter));
+  margin-inline: auto;
+  padding: var(--chrome-h) var(--gutter) 0;
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  column-gap: var(--col-gap);
+  align-items: center;
+}
+.stage-slot {
+  grid-column: 7 / -1;
+  justify-self: center;
+  position: relative;
+  --phone-h: var(--phone-h-desk);
+}
+/* While the stage is on, each section's own figure is visually hidden (still read by screen readers). */
+html.stage-on .sec .shot[data-stage-shot] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+/* Landscape phones (always the static page: too short for motion): every chapter's phones
+   share one readable size, from 300px up (section rules that size their own phones from the
+   viewport's height would make 140-200px phones here). */
+@media (max-width: 899.98px) and (orientation: landscape) and (max-height: 559.98px) {
+  html:not(.motion) .sec :is(.shot, .co-report, .crew-shot, .hero-shot) {
+    --phone-h: var(--phone-h-mob);
+    --crew-static-h: var(--phone-h-mob);
+  }
+}
+
+/* In reduced-motion mode far sections skip rendering until they are near. A chapter link or
+   a deep link renders them all first (header.ts adds html.cv-all), so it lands exactly. */
+html:not(.motion) .sec:not(:first-of-type) {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 1100px;
+}
+html.cv-all .sec {
+  content-visibility: visible !important;
+}
+/* A chapter that takes focus after a jump shows no ring around the whole chapter. */
+.sec[tabindex='-1']:focus {
+  outline: none;
+}
+
+/* ---------- Screen layers inside a phone (see Screen.astro) ---------- */
+.screens {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: inherit;
+}
+.layer {
+  position: absolute;
+  inset: 0;
+}
+/* Without motion only the final state shows; with motion the layers stack and scenes set opacity. */
+html:not(.motion) .layer:not([data-final]) {
+  display: none;
+}
+html.motion .layer:not([data-final]) {
+  opacity: 0;
+}

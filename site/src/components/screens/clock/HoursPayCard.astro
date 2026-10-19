@@ -1,0 +1,171 @@
+---
+/**
+ * "Hours & pay" (HoursPayCardView) with pay hidden: today and this week in Plex Mono, a bar
+ * for each day of the farm's week (today in gold), the pay row masked, and the eye-slash
+ * 'Show pay' toggle. Hooks: [data-hours-card], [data-bar="mon"…"fri"] (fill; transform-origin
+ * bottom, so scaleY grows it from the baseline), [data-pay], [data-pay-toggle].
+ * The chart is decorative; the section's phone label carries the values.
+ */
+import Icon from '../../app/Icon.astro';
+import type { HoursModel } from './clock';
+
+interface Props {
+  hours: HoursModel;
+}
+const { hours } = Astro.props;
+---
+
+<div class="sc-card hp-hours" data-hours-card>
+  <div class="sc-head-row">
+    <span class="sc-heading">Hours &amp; pay</span>
+    <span class="hp-toggle" data-pay-toggle>
+      <Icon name="eye.slash" size="calc(18 * var(--pt))" weight={2} />
+      Show pay
+    </span>
+  </div>
+
+  <div class="hp-cells">
+    <div class="hp-cell">
+      <span class="sc-label">Today</span>
+      <span class="hp-hm"><span class="sc-num">{hours.today}</span><span class="hp-unit">h</span></span>
+    </div>
+    <div class="hp-cell">
+      <span class="sc-label">This week</span>
+      <span class="hp-hm"><span class="sc-num">{hours.week}</span><span class="hp-unit">h</span></span>
+    </div>
+  </div>
+
+  <div class="hp-chart">
+    {
+      hours.days.map((d) => (
+        <div class:list={['hp-col', d.today && 'hp-is-today']} data-day={d.key}>
+          <div class="hp-track">
+            {d.fraction > 0 && <i class="hp-fill" data-bar={d.key} style={`height:${(d.fraction * 100).toFixed(2)}%`} />}
+          </div>
+          <span class="hp-d">{d.label}</span>
+          <span class="hp-h sc-num">{d.hm}</span>
+        </div>
+      ))
+    }
+  </div>
+
+  <div class="hp-pay" data-pay-row>
+    <span>Pay this week</span>
+    <span class="hp-masked sc-num" data-pay>{hours.pay}</span>
+  </div>
+  <div class="sc-foot">{hours.footnote}</div>
+</div>
+
+<style>
+  .hp-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: calc(6 * var(--pt));
+    font-size: calc(16 * var(--pt));
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    color: var(--fir);
+    white-space: nowrap;
+  }
+  .hp-toggle :global(.icon) {
+    align-self: center;
+  }
+  .hp-cells {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: calc(12 * var(--pt));
+    margin-top: calc(14 * var(--pt));
+  }
+  .hp-cell {
+    display: flex;
+    flex-direction: column;
+    gap: calc(2 * var(--pt));
+  }
+  .hp-hm {
+    display: inline-flex;
+    align-items: baseline;
+    gap: calc(3 * var(--pt));
+    color: var(--ink);
+  }
+  .hp-hm .sc-num {
+    font-size: calc(27 * var(--pt));
+    line-height: 1.15;
+  }
+  .hp-unit {
+    font-size: calc(15 * var(--pt));
+    font-weight: 600;
+    color: var(--muted);
+  }
+
+  .hp-chart {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: calc(6 * var(--pt));
+    margin-top: calc(16 * var(--pt));
+  }
+  .hp-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .hp-track {
+    position: relative;
+    width: 100%;
+    max-width: calc(30 * var(--pt));
+    height: calc(104 * var(--pt));
+    border-radius: calc(7 * var(--pt));
+    background: var(--sc-fir-soft);
+    overflow: hidden;
+  }
+  .hp-fill {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-radius: calc(7 * var(--pt));
+    background: #5f8c71;
+    transform-origin: 50% 100%;
+  }
+  .hp-is-today .hp-fill {
+    background: var(--gold);
+  }
+  .hp-d {
+    margin-top: calc(7 * var(--pt));
+    font-size: calc(12 * var(--pt));
+    font-weight: 700;
+    color: var(--muted);
+  }
+  .hp-is-today .hp-d {
+    color: var(--sap-ink);
+  }
+  .hp-h {
+    margin-top: calc(1 * var(--pt));
+    font-size: calc(12 * var(--pt));
+    font-weight: 500;
+    letter-spacing: -0.02em;
+    color: var(--muted);
+  }
+  .hp-is-today .hp-h {
+    color: var(--sap-ink);
+    font-weight: 600;
+  }
+
+  .hp-pay {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: calc(16 * var(--pt));
+    padding-top: calc(13 * var(--pt));
+    box-shadow: inset 0 calc(0.5 * var(--pt)) 0 var(--sc-hairline);
+    font-size: calc(17 * var(--pt));
+    letter-spacing: -0.025em;
+    color: var(--ink);
+  }
+  .hp-masked {
+    letter-spacing: 0.08em;
+    display: inline-block;
+  }
+  .sc-foot {
+    margin-top: calc(10 * var(--pt));
+  }
+</style>

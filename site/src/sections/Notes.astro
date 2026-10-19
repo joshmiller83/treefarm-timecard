@@ -1,0 +1,656 @@
+---
+/**
+ * NOTES · 2:30 PM, on a break. "Say what you see."
+ * Spec: jq '.sections[] | select(.id=="notes")' docs/landing/brief.json, with decisions.md #3
+ * (the "Sharpening shears" break is the voice version; the card's Break button has no reason).
+ *
+ * Copy beats sit at progress --at (desktop and mobile values come from notes/plan.ts AT).
+ * The phone holds six layers, bottom to top, so slides cover the right thing:
+ *   trees-1433-flag   the map with both flags (motion only: the flag drops, the map scrolls)
+ *   trees-1433-note   FINAL: the tree note sheet over the map (the static figure)
+ *   lock-1430-break   2:16 → 2:30: "Take a break" → the card turns gold
+ *   lock-1433-treenote  "Note a tree" → "Noted on block 2, row 36, tree 7."
+ *   lock-1436-dictation "Add a note" → "Added to today's notes."
+ *   lock-1444-back    Back to work → green again at 6:43:00
+ * Scene: src/scripts/scenes/notes.ts. Every string and number: notes/copy.ts and the ledger.
+ */
+import SectionShell from '../components/SectionShell.astro';
+import Phone from '../components/phone/Phone.astro';
+import Screen from '../components/phone/Screen.astro';
+import LockScreen from '../components/phone/LockScreen.astro';
+import LiveActivity from '../components/phone/LiveActivity.astro';
+import SiriSnippet from '../components/phone/SiriSnippet.astro';
+import SiriGlow from '../components/phone/SiriGlow.astro';
+import DictationWave from '../components/phone/DictationWave.astro';
+import TreesTab from '../components/app/TreesTab.astro';
+import Icon from '../components/app/Icon.astro';
+import { activityLabel, activityView } from '../components/system/lockscreen/activity';
+import { MOMENTS, OLD_NOTE, TREE_NOTE, fmtClock } from '../data/ledger';
+import { SIRI } from '../data/siri';
+import {
+  ALTS,
+  BODY,
+  BREAK_ON_CARD,
+  CAPTION,
+  CARD_DAY,
+  FLAG_LIST,
+  PHONE_LABEL,
+  SHIFT_NOTE_TEXT,
+  STAMPS,
+  STAMP_ISO,
+  TREE_TRANSCRIPT,
+  WORKED_ON_BREAK,
+  answerChips,
+} from './notes/copy';
+import { AT, TRACK, type BeatKey } from './notes/plan';
+
+const at = (b: BeatKey) => `--at-d:${AT.desk[b]};--at-m:${AT.mob[b]}`;
+const brk = SIRI.breakReason;
+const notes = [TREE_NOTE, OLD_NOTE];
+const cropLabel = activityLabel(activityView({ at: MOMENTS.break }));
+const chips = answerChips();
+const split = (s: string) => {
+  const [time, label] = s.split(' · ');
+  return { time, label };
+};
+---
+
+<SectionShell id="notes" track={TRACK}>
+  <Fragment slot="intro">
+    <p>{BODY}</p>
+  </Fragment>
+
+  <!-- 1 · 2:30 PM: the break, by voice. Each beat's .nb-body fades out by position on
+       desktop (the beat itself fades in by progress); speaker labels are in the text. -->
+  <div class="beat nb nb-break" data-beat="1" data-nb="break" style={at('break')}>
+    <div class="nb-body">
+      <p class="nb-stamp"><time datetime={STAMP_ISO.break}>{split(STAMPS.break).time}</time><span>{split(STAMPS.break).label}</span></p>
+      <p class="nb-lead">Or say it, and give a reason:</p>
+      <p class="spoken"><span class="sr-only">You: </span><q data-nb-said="break">{brk.said}</q></p>
+      <p class="siri-reply nb-line" data-nb-line="ask"><span class="sr-only">Siri: </span><span data-nb-reply="ask">{brk.ask}</span></p>
+      <p class="nb-you"><span class="sr-only">You: </span><q data-nb-answer="break">{brk.answer}</q></p>
+      <p class="siri-reply nb-line" data-nb-line="break"><span class="sr-only">Siri: </span><span data-nb-reply="break">{brk.reply}</span></p>
+      <p class="nb-fine">Siri asks for a reason only when “Ask for a break reason” is on in Settings.</p>
+    </div>
+  </div>
+
+  <!-- Static page only: figure 1, the Live Activity on the break (outside the beat: its
+       hidden faces and buttons are part of the card, not faded copy) -->
+  <figure class="nb-crop static-only sr-moving">
+    <div class="nb-crop-card" role="img" aria-label={cropLabel}>
+      <div aria-hidden="true"><LiveActivity at={MOMENTS.break} placement="solo" fixed /></div>
+    </div>
+    <figcaption>The Live Activity on a break: gold, with a break timer, {WORKED_ON_BREAK} worked and one big button.</figcaption>
+  </figure>
+
+  <!-- 2 · 2:33 PM: a tree note -->
+  <div class="beat nb nb-tree" data-beat="2" data-nb="tree" style={at('tree')}>
+    <div class="nb-body">
+      <p class="nb-stamp"><time datetime={STAMP_ISO.tree}>{split(STAMPS.tree).time}</time><span>{split(STAMPS.tree).label}</span></p>
+      <p class="nb-lead">Found a tree that needs help? Say</p>
+      <p class="spoken"><span class="sr-only">You: </span><q data-nb-said="tree">{SIRI.treeNote.said}</q></p>
+      <p>Give the row and the tree, say what’s wrong, and add a flag: {FLAG_LIST}.</p>
+      <ul class="nb-chips" aria-label="Your answers">
+        {
+          chips.map((c, i) => (
+            <li class:list={['nb-chip', `nb-chip--${c.kind}`]} data-nb-chip={i}>
+              {c.kind === 'flag' && <Icon name="flag.fill" size="14px" />}
+              {c.kind === 'quote' ? <q>{c.text}</q> : c.text}
+            </li>
+          ))
+        }
+      </ul>
+      <p class="siri-reply nb-line" data-nb-line="tree"><span class="sr-only">Siri: </span><span data-nb-reply="tree">{SIRI.treeNote.reply}</span></p>
+    </div>
+  </div>
+
+  <!-- 3 · 2:33 PM: the crew sees it on the map -->
+  <div class="beat nb nb-crew" data-beat="3" data-nb="crew" style={at('crew')}>
+    <div class="nb-body">
+      <p class="nb-stamp"><time datetime={STAMP_ISO.crew}>{split(STAMPS.crew).time}</time><span>{split(STAMPS.crew).label}</span></p>
+      <p class="nb-big">
+        <strong>The whole crew sees tree notes,</strong> and the tree gets a marker on the map.
+      </p>
+      <ul class="nb-flags" aria-label={`Tree notes on block ${TREE_NOTE.block}`}>
+        {
+          notes.map((n, i) => (
+            <li class="nb-flagrow" data-nb-flag={i}>
+              <span class="nb-badge" aria-hidden="true">
+                <Icon name="flag.fill" size="12px" />
+              </span>
+              <span class="nb-flagbody">
+                <span class="nb-flagname">
+                  {n.flag}
+                  <span class="nb-flagwhere">
+                    Row {n.row} · Tree {n.tree}
+                  </span>
+                </span>
+                <span class="nb-flagnote">
+                  <q>{n.text}</q> <span class="nb-flagby">{n.byline}</span>
+                </span>
+              </span>
+            </li>
+          ))
+        }
+      </ul>
+      <p>Next season the marks reset. The notes stay with the tree.</p>
+    </div>
+  </div>
+
+  <!-- 4 · 2:36 PM: a shift note, dictated -->
+  <div class="beat nb nb-shift" data-beat="4" data-nb="shift" style={at('shift')}>
+    <div class="nb-body">
+      <p class="nb-stamp"><time datetime={STAMP_ISO.shift}>{split(STAMPS.shift).time}</time><span>{split(STAMPS.shift).label}</span></p>
+      <p class="nb-lead">Got something to say about the day?</p>
+      <p class="spoken"><span class="sr-only">You: </span><q data-nb-said="shift">{SIRI.shiftNote.said}</q></p>
+      <div class="nb-chat">
+        <p class="nb-bubble nb-bubble--you" data-nb-bubble="you">
+          <span class="nb-who">You</span>
+          <q data-nb-type="shift">{SIRI.shiftNote.answer}</q>
+        </p>
+        <p class="nb-bubble nb-bubble--siri" data-nb-bubble="siri">
+          <span class="nb-who">Siri</span>
+          <span data-nb-reply="shift">{SIRI.shiftNote.reply}</span>
+        </p>
+      </div>
+      <p class="nb-lead nb-lead--strip">It goes on today’s shift and your time card:</p>
+      <div class="nb-paper" data-nb-strip>
+        <p class="nb-paper-band"><span class="nb-paper-title">Time card</span><span class="nb-paper-day">{CARD_DAY}</span></p>
+        <p class="nb-paper-row"><span class="nb-paper-k">Notes</span><span class="nb-paper-v">{SHIFT_NOTE_TEXT}</span></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5 · 2:44 PM: back to work -->
+  <div class="beat nb nb-back" data-beat="5" data-nb="back" style={at('back')}>
+    <div class="nb-body">
+      <p class="nb-stamp"><time datetime={STAMP_ISO.back}>{split(STAMPS.back).time}</time><span>{split(STAMPS.back).label}</span></p>
+      <p class="nb-big">
+        <strong>One tap on Back to work</strong> and the clock picks up where it stopped: <span class="mono">{WORKED_ON_BREAK}</span>.
+      </p>
+      <p>Your time card lists the break, <span class="nb-nowrap">{BREAK_ON_CARD}</span>, and doesn’t count it as work.</p>
+    </div>
+  </div>
+
+  <figure class="shot nb-shot" data-stage-shot slot="figure">
+    <Phone label={PHONE_LABEL}>
+      <div class="screens" data-screens>
+        <Screen stateId="trees-1433-flag" alt={ALTS.map} tone="light">
+          <TreesTab at={MOMENTS.treeNote} block={TREE_NOTE.block} rows={[30, 40]} notes={notes} />
+        </Screen>
+        <Screen stateId="trees-1433-note" alt={ALTS.note} tone="light" final>
+          <TreesTab at={MOMENTS.treeNote} block={TREE_NOTE.block} rows={[30, 40]} notes={notes} sheet={TREE_NOTE} />
+        </Screen>
+
+        <Screen stateId="lock-1430-break" alt={ALTS.break}>
+          <LockScreen time={fmtClock(MOMENTS.island)}>
+            <LiveActivity at={MOMENTS.break} />
+            <Fragment slot="top">
+              <div class="nb-siri" data-nb-card="ask"><SiriSnippet text={brk.ask ?? ''} /></div>
+              <div class="nb-siri" data-nb-card="wave"><DictationWave transcript={brk.answer} seed={11} /></div>
+              <div class="nb-siri" data-nb-card="reply"><SiriSnippet text={brk.reply} /></div>
+            </Fragment>
+          </LockScreen>
+          <SiriGlow />
+        </Screen>
+
+        <Screen stateId="lock-1433-treenote" alt={ALTS.treeNote}>
+          <LockScreen time={fmtClock(MOMENTS.treeNote)}>
+            <LiveActivity at={MOMENTS.treeNote} />
+            <Fragment slot="top">
+              <div class="nb-siri" data-nb-card="wave"><DictationWave transcript={TREE_TRANSCRIPT} seed={5} /></div>
+              <div class="nb-siri" data-nb-card="reply"><SiriSnippet text={SIRI.treeNote.reply} /></div>
+            </Fragment>
+          </LockScreen>
+          <SiriGlow />
+        </Screen>
+
+        <Screen stateId="lock-1436-dictation" alt={ALTS.dictation}>
+          <LockScreen time={fmtClock(MOMENTS.shiftNote)}>
+            <LiveActivity at={MOMENTS.shiftNote} />
+            <Fragment slot="top">
+              <div class="nb-siri" data-nb-card="wave"><DictationWave transcript={SIRI.shiftNote.answer} /></div>
+              <div class="nb-siri" data-nb-card="reply"><SiriSnippet text={SIRI.shiftNote.reply} /></div>
+            </Fragment>
+          </LockScreen>
+          <SiriGlow />
+        </Screen>
+
+        <Screen stateId="lock-1444-back" alt={ALTS.back}>
+          <LockScreen time={fmtClock(MOMENTS.backFromBreak)}>
+            <LiveActivity at={MOMENTS.backFromBreak} />
+          </LockScreen>
+        </Screen>
+      </div>
+    </Phone>
+    <figcaption>{CAPTION}</figcaption>
+  </figure>
+</SectionShell>
+
+<style>
+  /* ---------- Beat positions: desktop and mobile values from notes/plan.ts ---------- */
+  .nb {
+    --at: var(--at-d);
+    /* Desktop: a beat sits a little below the middle when the phone reaches its moment, so
+       the rest of its exchange plays out before the beat rises to the header and fades. */
+    --anchor: 56svh;
+  }
+  @media (max-width: 899.98px) {
+    .nb {
+      --at: var(--at-m);
+    }
+  }
+
+  /* ---------- Beat type (the body is what fades out on desktop) ---------- */
+  .nb-body {
+    display: grid;
+    gap: 14px;
+    justify-items: start;
+  }
+  .nb-body > p {
+    max-width: 36ch;
+  }
+  .nb-body > p:not([class]) {
+    color: var(--on-stage-muted);
+  }
+  .nb-stamp {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 2px;
+    font-family: var(--font-mono);
+    font-weight: 500;
+    font-size: 0.75rem;
+    line-height: 1.4;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--on-stage-muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .nb-stamp time {
+    color: var(--gold-lit);
+  }
+  .nb-stamp time::after {
+    content: '';
+    display: inline-block;
+    width: 18px;
+    height: 1px;
+    margin-left: 10px;
+    vertical-align: middle;
+    background: rgba(226, 166, 68, 0.5);
+  }
+  .nb-lead {
+    color: var(--on-stage-muted);
+    margin-bottom: -8px;
+  }
+  .nb-lead--strip {
+    margin: 2px 0 -4px;
+    font-size: var(--text-small);
+  }
+  .nb .spoken {
+    max-width: 15ch;
+    text-wrap: balance;
+  }
+  .nb-line {
+    margin-top: 2px;
+  }
+  /* Your answer: the spoken voice, a size down. */
+  .nb-you {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: clamp(1.3rem, 1.05rem + 1vw, 1.75rem);
+    line-height: 1.15;
+    color: var(--on-stage);
+  }
+  /* Hanging quotes only where there is room for them: into a tablet card's padding, or a
+     desktop margin wide enough (from 1320px); never into a phone's gutter or a narrow one. */
+  @media (min-width: 600px) and (max-width: 899.98px), (min-width: 1320px) {
+    .nb .spoken q::before,
+    .nb-you q::before {
+      margin-left: -0.42em;
+    }
+  }
+  .nb-fine {
+    font-size: var(--text-small);
+    line-height: 1.5;
+    color: var(--on-stage-muted);
+  }
+  .nb-big {
+    font-size: clamp(1.25rem, 1.05rem + 0.8vw, 1.625rem);
+    line-height: 1.4;
+    color: var(--on-stage-muted);
+    max-width: 26ch !important;
+  }
+  .nb-big strong {
+    color: var(--on-stage);
+    font-weight: 600;
+  }
+  .nb-big .mono {
+    color: var(--gold-lit);
+    font-weight: 600;
+  }
+  .nb-nowrap {
+    white-space: nowrap;
+    color: var(--on-stage);
+  }
+
+  /* ---------- Answer chips (Plex Mono 14px on --card-dark; the flag in rust) ---------- */
+  .nb-chips {
+    list-style: none;
+    padding: 0;
+    margin: 4px 0 2px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    max-width: 30rem;
+  }
+  .nb-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    min-height: 36px;
+    padding: 6px 14px;
+    border-radius: 999px;
+    background: var(--card-dark);
+    border: 1px solid rgba(136, 207, 164, 0.24);
+    color: var(--on-stage);
+    font-family: var(--font-mono);
+    font-weight: 500;
+    font-size: 0.875rem;
+    line-height: 1.3;
+    font-variant-numeric: tabular-nums;
+  }
+  .nb-chip--quote {
+    font-family: var(--font-body);
+    font-size: 0.9375rem;
+  }
+  .nb-chip--flag {
+    background: var(--rust);
+    border-color: var(--rust);
+    color: #fff;
+    font-family: var(--font-body);
+    font-weight: 600;
+  }
+  .nb-chip :global(.icon) {
+    flex: none;
+    fill: currentColor;
+  }
+
+  /* ---------- The crew beat: the two flags on the map, newest first ---------- */
+  .nb-flags {
+    list-style: none;
+    margin: 2px 0;
+    padding: 0;
+    display: grid;
+    gap: 10px;
+    width: min(100%, 26rem);
+  }
+  .nb-flagrow {
+    display: grid;
+    grid-template-columns: 28px 1fr;
+    gap: 12px;
+    align-items: start;
+    padding: 12px 14px;
+    border-radius: 16px;
+    background: rgba(242, 245, 239, 0.045);
+    border: 1px solid var(--stage-line);
+  }
+  .nb-badge {
+    display: grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    margin-top: 1px;
+    border-radius: 50%;
+    background: var(--rust);
+    color: #fff;
+    box-shadow: 0 0 0 2px rgba(242, 245, 239, 0.9);
+  }
+  .nb-badge :global(.icon) {
+    fill: currentColor;
+    transform: translateX(6%);
+  }
+  .nb-flagbody {
+    display: grid;
+    gap: 3px;
+    min-width: 0;
+  }
+  .nb-flagname {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    column-gap: 10px;
+    font-weight: 600;
+    font-size: 1rem;
+    line-height: 1.35;
+    color: var(--on-stage);
+  }
+  .nb-flagwhere {
+    font-family: var(--font-mono);
+    font-weight: 500;
+    font-size: 0.8125rem;
+    color: var(--on-stage-muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .nb-flagnote {
+    font-size: 0.9375rem;
+    line-height: 1.45;
+    color: var(--on-stage-muted);
+  }
+  .nb-flagby {
+    white-space: nowrap;
+    font-size: 0.8125rem;
+  }
+  .nb-flagby::before {
+    content: '— ';
+  }
+
+  /* ---------- The dictated shift note: a bubble pair ---------- */
+  .nb-chat {
+    display: grid;
+    gap: 8px;
+    width: min(100%, 26rem);
+    margin-top: 2px;
+  }
+  .nb-bubble {
+    display: grid;
+    gap: 4px;
+    text-wrap: balance;
+    padding: 12px 16px 14px;
+    border-radius: 20px;
+    max-width: 22rem;
+  }
+  .nb-who {
+    font-family: var(--font-mono);
+    font-weight: 500;
+    font-size: 0.6875rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+  .nb-bubble--you {
+    justify-self: end;
+    border-bottom-right-radius: 6px;
+    background: rgba(226, 166, 68, 0.13);
+    border: 1px solid rgba(226, 166, 68, 0.3);
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 1.25rem;
+    line-height: 1.2;
+    color: var(--on-stage);
+  }
+  .nb-bubble--you .nb-who {
+    color: var(--gold-lit);
+  }
+  .nb-bubble--siri {
+    justify-self: start;
+    border-bottom-left-radius: 6px;
+    background: rgba(242, 245, 239, 0.06);
+    border: 1px solid var(--stage-line);
+    font-size: 1.0625rem;
+    line-height: 1.4;
+    color: var(--on-stage);
+  }
+  .nb-bubble--siri .nb-who {
+    color: var(--fir-lit);
+  }
+
+  /* ---------- Where the note lands: a strip of the paper time card ---------- */
+  .nb-paper {
+    width: min(100%, 24rem);
+    border-radius: 6px;
+    background: var(--tc-paper);
+    color: var(--tc-ink);
+    overflow: hidden;
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.6) inset,
+      0 18px 40px -16px rgba(0, 0, 0, 0.55),
+      0 2px 6px rgba(0, 0, 0, 0.25);
+  }
+  .nb-paper-band {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 7px 14px;
+    background: var(--tc-band);
+    color: #fff;
+  }
+  .nb-paper-title {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 0.8125rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .nb-paper-day {
+    font-family: var(--font-mono);
+    font-weight: 500;
+    font-size: 0.75rem;
+  }
+  .nb-paper-row {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 12px;
+    align-items: baseline;
+    padding: 10px 14px 12px;
+    font-size: 0.875rem;
+    line-height: 1.4;
+  }
+  .nb-paper-k {
+    font-family: var(--font-mono);
+    font-weight: 500;
+    font-size: 0.6875rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #5b665e;
+  }
+
+  /* ---------- Reduced motion / no JS: the Live Activity crop in the break beat ---------- */
+  .nb-crop {
+    margin: 0;
+    display: grid;
+    gap: 10px;
+    width: min(100%, 22rem);
+  }
+  .nb-crop-card {
+    border-radius: 26px;
+    padding: 10px;
+    background:
+      radial-gradient(120% 90% at 50% 0%, rgba(199, 154, 94, 0.28), transparent 70%),
+      linear-gradient(180deg, #1c3a2b, #0d2418);
+    box-shadow: inset 0 0 0 1px var(--stage-line);
+  }
+  .nb-crop figcaption {
+    font-size: var(--text-small);
+    line-height: 1.5;
+    color: var(--on-stage-muted);
+  }
+
+  /* Each screen layer is its own stacking context: an app layer's floating tab bar, legend
+     and pinned header (z-indexed) must never paint through the lock screen above it. The
+     layers move into the stage phone, so they are selected by their own ids. */
+  :global(
+      .layer:is(
+          [data-screen='trees-1433-flag'],
+          [data-screen='trees-1433-note'],
+          [data-screen='lock-1430-break'],
+          [data-screen='lock-1433-treenote'],
+          [data-screen='lock-1436-dictation'],
+          [data-screen='lock-1444-back']
+        )
+    ) {
+    isolation: isolate;
+  }
+
+  /* The Siri cards share the lock screen's top slot (one shows at a time under motion). */
+  .nb-siri {
+    display: contents;
+  }
+
+  /* ---------- Tablets in portrait: cards keep a reading width, centred under the phone ---------- */
+  @media (min-width: 600px) and (max-width: 899.98px) {
+    :global(html.motion .sec[data-mob='sticky'][data-layout='beats']) .beat.nb[data-nb] {
+      left: 50%;
+      right: auto;
+      width: min(34rem, 100% - 2 * var(--gutter));
+      translate: -50% -50%;
+    }
+  }
+
+  /* ---------- Short desktop viewports: tighter beats, so neighbours never touch ---------- */
+  @media (min-width: 900px) and (max-height: 820px) {
+    :global(html.motion) .nb-body {
+      gap: 10px;
+    }
+    :global(html.motion) .nb .spoken {
+      font-size: clamp(1.6rem, 0.9rem + 1.6vw, 2.25rem);
+    }
+    :global(html.motion) .nb-bubble {
+      padding: 9px 14px 11px;
+    }
+    :global(html.motion) .nb-bubble--you {
+      font-size: 1.125rem;
+    }
+    :global(html.motion) .nb-flagrow {
+      padding: 9px 12px;
+    }
+    :global(html.motion) .nb-big {
+      font-size: 1.25rem;
+    }
+  }
+
+  /* ---------- Static page (reduced motion, no JS): a readable transcript ---------- */
+  :global(html:not(.motion)) .nb {
+    padding-top: 32px;
+    border-top: 1px solid var(--stage-line);
+  }
+  /* In one column the phone (the tree note sheet) follows the tree and crew beats it shows,
+     not the end of the section. It holds nothing focusable, so the reorder is visual only. */
+  @media (max-width: 899.98px) {
+    :global(html:not(.motion) .sec-notes .beats) {
+      display: contents;
+    }
+    :global(html:not(.motion) .sec-notes .frame) {
+      order: 1;
+    }
+    :global(html:not(.motion)) .nb-shift,
+    :global(html:not(.motion)) .nb-back {
+      order: 2;
+    }
+  }
+
+  /* ---------- Mobile cards ---------- */
+  @media (max-width: 899.98px) {
+    .nb-body {
+      gap: 12px;
+    }
+    .nb-chip {
+      min-height: 32px;
+      padding: 5px 12px;
+      font-size: 0.8125rem;
+    }
+    .nb-bubble--you {
+      font-size: 1.125rem;
+    }
+  }
+</style>

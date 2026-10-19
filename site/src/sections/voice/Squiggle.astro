@@ -1,0 +1,46 @@
+---
+/**
+ * The rust wavy underline for a misheard word (the voice scene draws it with clip-path).
+ *
+ * One long wave, scaled by the box's height ('slice') and cut at the word's width, so its
+ * wavelength (0.6em) and amplitude follow the type size, never the word's length: the waves
+ * under 'fourteen' and under the 40 Siri heard look alike. The stroke keeps its own width.
+ */
+const WAVES = 30;
+const path = `M1 4.5${' c4-3.2 8-3.2 12 0s8 3.2 12 0'.repeat(WAVES)}`;
+const width = 24 * WAVES + 2;
+---
+
+<svg
+  class="x-squiggle"
+  viewBox={`0 0 ${width} 8`}
+  preserveAspectRatio="xMinYMid slice"
+  aria-hidden="true"
+  focusable="false"
+  data-squiggle
+>
+  <path d={path}></path>
+</svg>
+
+<style>
+  /* Just under the baseline, clear of the next line's capitals. The long wave runs past the
+     box's right edge; the clip (which the scene animates) cuts it at the word, and lets the
+     stroke spill over the top and bottom. */
+  .x-squiggle {
+    position: absolute;
+    left: -2%;
+    width: 104%;
+    bottom: 0.03em;
+    height: 0.2em;
+    overflow: visible;
+    clip-path: inset(-80% 0% -80% 0%);
+    pointer-events: none;
+  }
+  .x-squiggle path {
+    fill: none;
+    stroke: #d2593a;
+    stroke-width: clamp(1.5px, 0.055em, 2.4px);
+    stroke-linecap: round;
+    vector-effect: non-scaling-stroke;
+  }
+</style>

@@ -1,0 +1,513 @@
+---
+/**
+ * VOICE · "Say it. Keep cutting." (7:18 AM – 2:01 PM)
+ *
+ * Four exchanges with Siri, phone locked in a pocket: the misheard-number check, next row,
+ * lunch (12:01 and 12:31) and asking for stats. Spec: jq '.sections[] | select(.id=="voice")'
+ * docs/landing/brief.json. Copy, layers and the clock: ./voice/model.ts. Scene:
+ * src/scripts/scenes/voice.ts.
+ *
+ * Modes
+ *   static (reduced motion, no JS)   a transcript of cards; one phone at 2:01 in its pocket,
+ *                                    and a small Live Activity at lunch
+ *   desktop with motion              four articles in normal flow (80svh, lunch 100svh) beside
+ *                                    the stage phone; the pocket rides in .extras over it
+ *   mobile with motion               cards ~100svh apart scrolling over a sticky phone
+ */
+import SectionShell from '../components/SectionShell.astro';
+import Phone from '../components/phone/Phone.astro';
+import Screen from '../components/phone/Screen.astro';
+import LockScreen from '../components/phone/LockScreen.astro';
+import LiveActivity from '../components/phone/LiveActivity.astro';
+import SiriSnippet from '../components/phone/SiriSnippet.astro';
+import SiriGlow from '../components/phone/SiriGlow.astro';
+import Pocket from './voice/Pocket.astro';
+import Glyph from './voice/Glyph.astro';
+import Squiggle from './voice/Squiggle.astro';
+import { activityLabel, activityView } from '../components/system/lockscreen/activity';
+import { MOMENTS, fmtClock, fmtTime, liveActivityAt } from '../data/ledger';
+import { MORE_TO_SAY, SIRI } from '../data/siri';
+import { EXCHANGES, LAYERS, LUNCH_MINUTES, splitWords, type Layer } from './voice/model';
+
+const finalLayer = LAYERS.find((l) => l.final)!;
+const statusLA = liveActivityAt(finalLayer.at);
+const label =
+  `A locked iPhone at ${fmtTime(finalLayer.at)}, riding in a pocket. Siri answers: “${SIRI.howMany.reply}” ` +
+  `The Time Card Live Activity below it shows ${statusLA.pill}, ${statusLA.worked} worked.`;
+
+/** Siri's line per layer (null: no snippet). */
+const snippetFor = (l: Layer) =>
+  ({
+    'lock-0718-misheard': { text: SIRI.misheard.reply, choices: SIRI.misheard.choices, chosen: 'No' },
+    'lock-0719-next': { text: SIRI.nextRow.reply },
+    'lock-1231-back': { text: SIRI.backToWork.reply },
+    'lock-1401-status': { text: SIRI.howMany.reply },
+  })[l.id] ?? null;
+
+/** Alt text for a real capture of each layer. */
+const altFor = (l: Layer) => {
+  const s = snippetFor(l);
+  return s ? `Lock screen at ${fmtClock(l.at)}. Siri says: ${s.text}` : `Lock screen at ${fmtClock(l.at)}, the Live Activity on lunch.`;
+};
+
+const lunchView = activityView({ at: MOMENTS.lunch, fixed: true });
+const lunchLabel = activityLabel(lunchView);
+
+/** Splits digits out of a word so numbers set in Plex Mono. */
+const pieces = (w: string) => w.split(/(\d+(?:,\d{3})*)/).filter(Boolean);
+---
+
+<SectionShell id="voice" layout="flow">
+  <Fragment slot="intro">
+    <p>
+      Every command has the app’s name in it, so Siri knows where it goes. It works with your phone locked in your
+      pocket, or through AirPods. The answers are short, so you’re back on the shears fast.
+    </p>
+  </Fragment>
+
+  {
+    EXCHANGES.map((x) => (
+      <article
+        class:list={['beat', 'beat-bare', 'exchange', `x-${x.id}`]}
+        data-x={x.id}
+        aria-labelledby={x.parts.map((p) => `voice-t-${p.id}`).join(' ')}
+      >
+        <div class="x-inner">
+          {x.parts.map((p, pi) => (
+            <>
+              {pi > 0 && (
+                <div class="x-between" aria-hidden="true" data-between>
+                  <span class="x-between-line">
+                    <i class="x-between-fill" data-lunch-fill />
+                  </span>
+                  <span class="x-between-label">On lunch · {LUNCH_MINUTES} min</span>
+                </div>
+              )}
+              <div class="x-part" data-part={p.id}>
+                <p class="x-time" id={`voice-t-${p.id}`}>
+                  <time datetime={p.datetime}>{p.stamp}</time>
+                </p>
+                {p.turns.map((t) =>
+                  t.who === 'you' ? (
+                    <div class:list={['x-turn', 'x-you', t.key === 'answer' && 'x-you--answer']} data-turn={t.key}>
+                      <p class="speaker x-who">
+                        <Glyph name="airpods" />
+                        You
+                      </p>
+                      <p class="spoken x-said">
+                        <q>
+                          {splitWords(t.text, t.mark).map((s, i) => (
+                            <>
+                              {i > 0 && ' '}
+                              <span class:list={['w', s.mark && 'x-heard']}>
+                                {s.w}
+                                {s.mark && <Squiggle />}
+                              </span>
+                            </>
+                          ))}
+                        </q>
+                      </p>
+                    </div>
+                  ) : (
+                    <div class="x-turn x-siri" data-turn="reply">
+                      <p class="speaker x-who">
+                        <Glyph name="wave" class="x-wave" />
+                        Siri
+                      </p>
+                      <p class="siri-reply x-reply">
+                        {splitWords(t.text).map((s, i) => (
+                          <>
+                            {i > 0 && ' '}
+                            <span class="w">
+                              {pieces(s.w).map((c) =>
+                                /^\d/.test(c) ? (
+                                  <span class:list={['num', c === t.mark && 'x-heard']}>
+                                    {c}
+                                    {c === t.mark && <Squiggle />}
+                                  </span>
+                                ) : (
+                                  c
+                                ),
+                              )}
+                            </span>
+                          </>
+                        ))}
+                      </p>
+                    </div>
+                  ),
+                )}
+                {p.caption && <p class="x-caption">{p.caption}</p>}
+                {p.note && (
+                  <p class="x-note" data-note>
+                    <Glyph name="check" />
+                    {p.note}
+                  </p>
+                )}
+                {p.id === 'lunchA' && (
+                  <figure class="x-lunch-fig static-only sr-moving">
+                    <div class="x-lunch-crop" role="img" aria-label={lunchLabel}>
+                      <div aria-hidden="true">
+                        <LiveActivity at={MOMENTS.lunch} fixed placement="solo" />
+                      </div>
+                    </div>
+                    <figcaption>On lunch: the lock screen turns gold.</figcaption>
+                  </figure>
+                )}
+              </div>
+            </>
+          ))}
+        </div>
+      </article>
+    ))
+  }
+
+  <div class="beat beat-bare x-more" data-x="more">
+    <p class="x-more-label" id="voice-more">More to say:</p>
+    <ul class="x-chips" aria-labelledby="voice-more">
+      {
+        MORE_TO_SAY.map((m) => (
+          <li class="chip">
+            <q>{m}</q>
+          </li>
+        ))
+      }
+    </ul>
+  </div>
+
+  <figure class="shot x-shot" data-stage-shot slot="figure">
+    <div class="x-device">
+      <Phone label={label}>
+        <div class="screens" data-screens>
+          {
+            LAYERS.map((l) => {
+              const s = snippetFor(l);
+              return (
+                <Screen stateId={l.id} alt={altFor(l)} final={l.final} class={s ? 'vx-layer vx-layer--siri' : 'vx-layer'}>
+                  <LockScreen time={fmtClock(l.at)}>
+                    {s && <SiriSnippet slot="top" text={s.text} choices={s.choices} chosen={s.chosen} />}
+                    <LiveActivity at={l.at} />
+                  </LockScreen>
+                  <SiriGlow />
+                </Screen>
+              );
+            })
+          }
+        </div>
+      </Phone>
+      <Pocket placement="device" />
+    </div>
+    <figcaption>
+      At {fmtTime(finalLayer.at)}, Siri answers from a locked phone in your pocket: “{SIRI.howMany.reply}”
+    </figcaption>
+  </figure>
+
+  <div class="x-stage-pocket" slot="extras" aria-hidden="true">
+    <Pocket placement="stage" />
+  </div>
+</SectionShell>
+
+<style is:global>
+  /* ---- Inside the phone (global: on desktop these nodes move into the stage phone) ---- */
+  /* Each lock screen is opaque and paints its own glow: keep that glow inside its layer. */
+  .vx-layer {
+    isolation: isolate;
+  }
+  /* While Siri's card covers the big clock, the time shows in the status bar. */
+  .vx-layer--siri [data-statusbar] [data-clock] {
+    visibility: visible;
+  }
+
+  /* ---- Static page, desktop: the phone starts beside the headline and stays in view beside
+     the whole transcript (sticky in its grid row, which the transcript makes tall) ---- */
+  @media (min-width: 900px) {
+    html:not(.motion) #voice .frame {
+      position: sticky;
+      /* Under the header and its chapter list (static pages show both). */
+      top: calc(var(--chrome-h) + 64px);
+      align-self: start;
+      margin-top: 24px;
+    }
+    /* Phone, pocket and caption fit in the viewport under the header while they stick. */
+    html:not(.motion) #voice .shot {
+      --phone-h: min(calc(100svh - 330px), 600px);
+    }
+  }
+
+  /* ---- Desktop stage: the pocket rides over the stage phone ---- */
+  /* The sticky frame holds .extras; lift it over the fixed stage (z 5) so the pocket covers it. */
+  html.stage-on #voice .frame {
+    z-index: 6;
+  }
+  .x-stage-pocket {
+    position: absolute;
+    inset: 0;
+    pointer-events: none !important;
+  }
+  html:not(.stage-on) .x-stage-pocket {
+    display: none;
+  }
+</style>
+
+<style>
+  /* ---------- Shared type ---------- */
+  .x-inner {
+    display: grid;
+  }
+  .x-part {
+    display: grid;
+    align-content: start;
+    gap: 14px;
+  }
+  .x-time {
+    font-size: var(--text-eyebrow);
+    letter-spacing: 0.14em;
+    color: var(--gold-lit);
+    line-height: 1.4;
+  }
+  .x-time time {
+    font-weight: 500;
+  }
+  .x-turn {
+    display: grid;
+    gap: 8px;
+  }
+  .x-who {
+    gap: 8px;
+  }
+  .x-you .x-who {
+    color: var(--on-stage-muted);
+  }
+  .x-siri .x-who :global(.g-wave) {
+    color: var(--gold-lit);
+  }
+  .x-said {
+    max-width: 17ch;
+    text-wrap: balance;
+  }
+  /* Hang the opening quote so the words line up with everything else. */
+  .x-said q::before {
+    margin-left: -0.4em;
+  }
+  .x-you--answer .x-said {
+    font-size: calc(var(--text-m) * 0.82);
+  }
+  .x-reply {
+    margin-top: 2px;
+  }
+  .x-reply .num {
+    font-size: 0.92em;
+    letter-spacing: -0.02em;
+  }
+  .x-caption {
+    font-size: 1rem;
+    line-height: 1.55;
+    color: var(--on-stage-muted);
+    max-width: 38ch;
+  }
+  .x-note {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    justify-self: start;
+    font-family: var(--font-mono);
+    font-weight: 500;
+    font-size: 0.8125rem;
+    letter-spacing: 0.04em;
+    color: var(--fir-lit);
+  }
+  .w {
+    display: inline;
+  }
+  /* Karaoke: words wait at .4 while their part is on screen (the scene lights them): still
+     3:1 for these large lines, so a waiting line is never unreadable. */
+  :global(html.motion) .x-near .x-said .w {
+    opacity: 0.4;
+  }
+
+  /* The misheard word: a rust wavy underline (drawn by the scene, static without motion). */
+  .x-heard {
+    position: relative;
+    display: inline-block;
+  }
+  /* Between the lunch halves: thirty minutes of lunch. */
+  .x-between {
+    display: none;
+  }
+
+  /* The lunch Live Activity, static page only. */
+  .x-lunch-fig {
+    margin: 8px 0 0;
+    display: grid;
+    gap: 10px;
+    max-width: 22rem;
+  }
+  /* The lunch card's unused parts (the green pill face, Undo, Break) leave the crop entirely,
+     so nothing in the transcript sits below full opacity. */
+  .x-lunch-crop :global(:is([data-pill-face='clock'], [data-undo], [data-break-btn])) {
+    opacity: 1 !important;
+    display: none;
+  }
+  .x-lunch-crop {
+    border-radius: 24px;
+    padding: 10px;
+    background: linear-gradient(180deg, #24392b, #17271d 60%, #101c15);
+    border: 1px solid var(--stage-line);
+  }
+  .x-lunch-fig figcaption {
+    font-size: var(--text-small);
+    color: var(--on-stage-muted);
+  }
+
+  /* More to say */
+  .x-more-label {
+    font-family: var(--font-mono);
+    font-weight: 500;
+    font-size: var(--text-eyebrow);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--on-stage-muted);
+  }
+  .x-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 0;
+    margin: 14px 0 0;
+    list-style: none;
+  }
+  .x-chips .chip {
+    min-height: 40px;
+    padding: 8px 16px;
+  }
+
+  /* The phone and its pocket (the pocket runs 16% of the phone's height past its bottom). */
+  .x-device {
+    position: relative;
+    margin-bottom: calc(var(--phone-h) * 0.16);
+  }
+
+  /* ---------- STATIC: a transcript of cards (reduced motion, no JS) ---------- */
+  :global(html:not(.motion)) .x-inner {
+    gap: 16px;
+  }
+  :global(html:not(.motion)) .x-part {
+    background: var(--card-dark);
+    border: 1px solid var(--stage-line);
+    border-radius: var(--radius-card);
+    padding: 22px 22px 24px;
+  }
+  :global(html:not(.motion)) .x-said {
+    font-size: clamp(1.375rem, 1.1rem + 1vw, 1.75rem);
+    max-width: 22ch;
+  }
+  :global(html:not(.motion)) .x-you--answer .x-said {
+    font-size: 1.25rem;
+  }
+  :global(html:not(.motion)) .x-reply {
+    font-size: 1.125rem;
+  }
+  :global(html:not(.motion)) .x-more {
+    margin-top: 8px;
+  }
+
+  /* ---------- MOTION, desktop: big type beside the stage phone ---------- */
+  @media (min-width: 900px) {
+    :global(html.motion) .exchange {
+      min-height: 80svh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+    :global(html.motion) .x-lunch {
+      min-height: 100svh;
+    }
+    :global(html.motion) .x-part {
+      gap: 18px;
+    }
+    :global(html.motion) .x-turn + .x-turn {
+      margin-top: 10px;
+    }
+    :global(html.motion) .x-between {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      height: 84px;
+      margin: 26px 0;
+    }
+    :global(html.motion) .x-between-line {
+      position: relative;
+      display: block;
+      flex: none;
+      width: 2px;
+      height: 100%;
+      margin-left: 1px;
+      background: repeating-linear-gradient(180deg, rgba(226, 166, 68, 0.28) 0 3px, transparent 3px 8px);
+    }
+    /* The lunch timer's thirty minutes fill the line (scaleY, scrubbed). */
+    :global(html.motion) .x-between-fill {
+      position: absolute;
+      inset: 0;
+      background: repeating-linear-gradient(180deg, var(--gold-lit) 0 3px, transparent 3px 8px);
+      transform-origin: 50% 0;
+    }
+    :global(html.motion) .x-between-label {
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      padding: 3px 10px;
+      border-radius: 999px;
+      background: var(--pill-break-bg);
+      color: var(--pill-break-fg);
+      font-family: var(--font-mono);
+      font-weight: 500;
+      font-size: 0.75rem;
+      letter-spacing: 0.04em;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+    :global(html.motion) .x-more {
+      padding: 12vh 0 0;
+    }
+  }
+
+  /* ---------- MOTION, mobile: cards scrolling over the sticky phone ---------- */
+  @media (max-width: 899.98px) {
+    :global(html.motion) .exchange {
+      --gap-mob: 50svh;
+    }
+    /* The lunch halves are two cards on mobile, half an hour (and 66svh) apart. */
+    :global(html.motion) .x-part[data-part='lunchB'] {
+      margin-top: 66svh;
+    }
+    :global(html.motion) .x-part {
+      background: var(--card-dark);
+      border: 1px solid var(--stage-line);
+      border-radius: var(--radius-card);
+      padding: 20px;
+      gap: 12px;
+      box-shadow: 0 -12px 32px rgba(4, 10, 7, 0.35);
+    }
+    :global(html.motion) .x-said {
+      font-size: 1.5rem;
+      max-width: 20ch;
+    }
+    :global(html.motion) .x-you--answer .x-said {
+      font-size: 1.25rem;
+    }
+    :global(html.motion) .x-reply {
+      font-size: 1.0625rem;
+      padding-left: 12px;
+    }
+    :global(html.motion) .x-caption {
+      font-size: 0.9375rem;
+    }
+    :global(html.motion) .x-more {
+      --gap-mob: 56svh;
+      background: var(--card-dark);
+      border: 1px solid var(--stage-line);
+      border-radius: var(--radius-card);
+      padding: 20px;
+      box-shadow: 0 -12px 32px rgba(4, 10, 7, 0.35);
+    }
+  }
+</style>

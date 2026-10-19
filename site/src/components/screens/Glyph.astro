@@ -1,0 +1,43 @@
+---
+/**
+ * A few SF-Symbols-like glyphs the screens need that the shared sprite (app/icons.ts) does not
+ * have yet: the break cup, the stop square, the folded map and pause in a circle. Same 24 × 24
+ * box and rounded strokes as the sprite, drawn for this site. Decorative (aria-hidden).
+ */
+interface Props {
+  name: 'cup' | 'cup.fill' | 'stop.fill' | 'map' | 'pause.circle';
+  class?: string;
+  size?: string;
+  /** Stroke weight in the 24 × 24 box (default 2, about SF Symbols semibold at text sizes). */
+  weight?: number;
+}
+const { name, class: cls, size, weight = 2 } = Astro.props;
+
+const CUP = 'M4.6 8.4h11.6v4.2a5.6 5.6 0 0 1-5.6 5.6h-.4a5.6 5.6 0 0 1-5.6-5.6Z';
+const HANDLE = 'M16.2 9.6h1.5a2.7 2.7 0 0 1 0 5.4h-1.9';
+const SAUCER = 'M3.4 21h14.4';
+const STEAM = 'M8.4 2.8c-.9 1 .9 1.8 0 3M12.4 2.8c-.9 1 .9 1.8 0 3';
+
+const bodies: Record<Props['name'], string> = {
+  cup: `<path d="${CUP}"/><path d="${HANDLE}"/><path d="${SAUCER}"/><path d="${STEAM}"/>`,
+  'cup.fill': `<path d="${CUP}" fill="currentColor"/><path d="${HANDLE}"/><path d="${SAUCER}"/><path d="${STEAM}"/>`,
+  'stop.fill': '<rect x="5.6" y="5.6" width="12.8" height="12.8" rx="2.6" fill="currentColor" stroke="none"/>',
+  map: '<path d="M3.6 6.6 9 4.4l6 2.2 5.4-2.2v13l-5.4 2.2-6-2.2-5.4 2.2Z"/><path d="M9 4.4v13M15 6.6v13"/>',
+  'pause.circle': '<circle cx="12" cy="12" r="9"/><path d="M10 9v6M14 9v6"/>',
+};
+const style = size ? `width:${size};height:${size}` : undefined;
+---
+
+<svg
+  class:list={['sc-glyph', cls]}
+  viewBox="0 0 24 24"
+  aria-hidden="true"
+  focusable="false"
+  style={style}
+  fill="none"
+  stroke="currentColor"
+  stroke-width={weight}
+  stroke-linecap="round"
+  stroke-linejoin="round"
+  set:html={bodies[name]}
+/>

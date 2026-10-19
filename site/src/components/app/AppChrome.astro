@@ -1,0 +1,254 @@
+---
+/**
+ * APP CHROME: the light-mode app frame every in-app screen shares, drawn in the phone's
+ * 393 × 852 pt space (all sizes are N * var(--pt); --pt is set by Phone's .screen).
+ *
+ *   status bar (StatusBar, ink)            fixed
+ *   toolbar: leading / trailing glass buttons   fixed
+ *   [data-app-scroll] > [data-scroll-layer]     the large title, `header` slot and content scroll together
+ *   overlay slot (sheets, banners)
+ *   floating glass tab bar: Clock · Trees · Log · Report · Team (admins only)
+ *   home indicator
+ *
+ * The mock lives inside a phone with role="img", so everything here is presentational.
+ */
+import StatusBar from '../phone/StatusBar.astro';
+import Icon from './Icon.astro';
+import type { IconName } from './icons.ts';
+
+export type AppTab = 'clock' | 'trees' | 'log' | 'report' | 'team';
+
+interface ToolButton {
+  icon: IconName;
+  /** Optional text label for a capsule button (e.g. 'Done'). */
+  text?: string;
+  /** Hook for scenes: rendered as data-tool={id}. */
+  id?: string;
+}
+
+interface Props {
+  title: string;
+  tab: AppTab;
+  /** Show the Team tab (admins only). Default true: the screens on this page are an admin's phone. */
+  admin?: boolean;
+  /** Status bar time; omit to let DayClock drive it. */
+  time?: string;
+  /** Status bar: no service (the crew's offline beat). */
+  noService?: boolean;
+  leading?: ToolButton[];
+  trailing?: ToolButton[];
+  /** A small accent line under the large title, e.g. 'North field' with a chevron. */
+  subtitle?: string;
+  class?: string;
+}
+
+const { title, tab, admin = true, time, noService = false, leading = [], trailing = [], subtitle, class: cls } = Astro.props;
+
+const TABS: Array<{ id: AppTab; label: string; icon: IconName; active: IconName }> = [
+  { id: 'clock', label: 'Clock', icon: 'clock', active: 'clock.fill' },
+  { id: 'trees', label: 'Trees', icon: 'tree', active: 'tree.fill' },
+  { id: 'log', label: 'Log', icon: 'list', active: 'list.fill' },
+  { id: 'report', label: 'Report', icon: 'doc', active: 'doc.fill' },
+  { id: 'team', label: 'Team', icon: 'people', active: 'people.fill' },
+];
+const tabs = admin ? TABS : TABS.filter((t) => t.id !== 'team');
+---
+
+<div class:list={['app', cls]} data-app={tab}>
+  <div class="app-status">
+    <StatusBar tone="dark" time={time} noService={noService} />
+  </div>
+
+  <div class="app-toolbar">
+    <div class="tools">
+      {
+        leading.map((b) => (
+          <span class:list={['tool', b.text && 'tool-text']} data-tool={b.id ?? b.icon}>
+            <Icon name={b.icon} size="calc(19 * var(--pt))" weight={2} />
+            {b.text && <span>{b.text}</span>}
+          </span>
+        ))
+      }
+    </div>
+    <div class="tools">
+      {
+        trailing.map((b) => (
+          <span class:list={['tool', b.text && 'tool-text']} data-tool={b.id ?? b.icon}>
+            <Icon name={b.icon} size="calc(19 * var(--pt))" weight={2} />
+            {b.text && <span>{b.text}</span>}
+          </span>
+        ))
+      }
+    </div>
+  </div>
+
+  <div class="app-scroll" data-app-scroll>
+    <div class="app-scroll-layer" data-scroll-layer>
+      <div class="app-title">{title}</div>
+      {
+        subtitle && (
+          <div class="app-subtitle">
+            {subtitle}
+            <Icon name="chevron.down" size="calc(13 * var(--pt))" weight={2.4} />
+          </div>
+        )
+      }
+      <slot name="header" />
+      <div class="app-content">
+        <slot />
+      </div>
+    </div>
+  </div>
+
+  <slot name="overlay" />
+
+  <div class="app-tabbar" data-tabbar>
+    {
+      tabs.map((t) => (
+        <span class:list={['tab', t.id === tab && 'is-active']} data-tab={t.id}>
+          <Icon name={t.id === tab ? t.active : t.icon} size="calc(25 * var(--pt))" />
+          <span class="tab-label">{t.label}</span>
+        </span>
+      ))
+    }
+  </div>
+  <div class="home-indicator"></div>
+</div>
+
+<style>
+  .app {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    background: var(--surface);
+    color: var(--ink);
+    font-family: var(--font-system);
+    font-size: calc(17 * var(--pt));
+    line-height: 1.29;
+    letter-spacing: -0.01em;
+  }
+  .app-status {
+    position: absolute;
+    inset: 0 0 auto;
+    z-index: 4;
+    background: linear-gradient(var(--surface) 70%, rgba(250, 252, 249, 0));
+  }
+  .app-toolbar {
+    position: absolute;
+    top: calc(54 * var(--pt));
+    left: 0;
+    right: 0;
+    z-index: 4;
+    height: calc(48 * var(--pt));
+    padding: 0 calc(16 * var(--pt));
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    pointer-events: none;
+  }
+  .tools {
+    display: flex;
+    gap: calc(8 * var(--pt));
+  }
+  /* iOS 26-style glass buttons, without live backdrop filters. */
+  .tool {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: calc(6 * var(--pt));
+    width: calc(44 * var(--pt));
+    height: calc(44 * var(--pt));
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.86);
+    color: var(--ink);
+    box-shadow:
+      0 calc(2 * var(--pt)) calc(10 * var(--pt)) rgba(20, 34, 26, 0.1),
+      inset 0 0 0 calc(0.5 * var(--pt)) rgba(20, 34, 26, 0.08),
+      inset 0 calc(1 * var(--pt)) 0 rgba(255, 255, 255, 0.9);
+  }
+  .tool-text {
+    width: auto;
+    padding: 0 calc(16 * var(--pt));
+    font-weight: 600;
+    font-size: calc(16 * var(--pt));
+  }
+  .app-scroll {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+  }
+  .app-scroll-layer {
+    padding: calc(104 * var(--pt)) 0 calc(120 * var(--pt));
+  }
+  .app-title {
+    padding: 0 calc(16 * var(--pt));
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: calc(34 * var(--pt));
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+  }
+  .app-subtitle {
+    display: inline-flex;
+    align-items: center;
+    gap: calc(4 * var(--pt));
+    margin: calc(2 * var(--pt)) calc(16 * var(--pt)) 0;
+    font-weight: 600;
+    font-size: calc(15 * var(--pt));
+    color: var(--fir);
+  }
+  .app-content {
+    padding: calc(12 * var(--pt)) calc(16 * var(--pt)) 0;
+  }
+  .app-tabbar {
+    position: absolute;
+    left: calc(20 * var(--pt));
+    right: calc(20 * var(--pt));
+    bottom: calc(26 * var(--pt));
+    z-index: 5;
+    height: calc(62 * var(--pt));
+    padding: 0 calc(4 * var(--pt));
+    display: flex;
+    align-items: center;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.9);
+    box-shadow:
+      0 calc(8 * var(--pt)) calc(24 * var(--pt)) rgba(20, 34, 26, 0.14),
+      0 calc(1 * var(--pt)) calc(3 * var(--pt)) rgba(20, 34, 26, 0.08),
+      inset 0 0 0 calc(0.5 * var(--pt)) rgba(20, 34, 26, 0.1),
+      inset 0 calc(1 * var(--pt)) 0 rgba(255, 255, 255, 0.95);
+  }
+  .tab {
+    flex: 1 1 0;
+    height: calc(54 * var(--pt));
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: calc(2 * var(--pt));
+    border-radius: 999px;
+    color: #59665d;
+  }
+  .tab.is-active {
+    color: var(--fir);
+    background: rgba(29, 91, 58, 0.1);
+  }
+  .tab-label {
+    font-size: calc(10 * var(--pt));
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    line-height: 1;
+  }
+  .home-indicator {
+    position: absolute;
+    left: 50%;
+    bottom: calc(8 * var(--pt));
+    z-index: 6;
+    width: calc(139 * var(--pt));
+    height: calc(5 * var(--pt));
+    margin-left: calc(-69.5 * var(--pt));
+    border-radius: 999px;
+    background: #111;
+  }
+</style>

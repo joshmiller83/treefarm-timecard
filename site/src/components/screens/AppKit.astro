@@ -1,0 +1,201 @@
+---
+/**
+ * APP KIT: the in-app primitives the screens team's mocks share, following the app's own
+ * design code (iOS/App/Design on the app branches): surface cards with a 1 pt line border,
+ * all-caps section labels, Zilla Slab card headings, Plex Mono numbers, 54 pt glove buttons
+ * with 14 pt corners. Renders nothing; include it once in each screen component.
+ *
+ * Everything is in the phone's 393 × 852 pt space (calc(N * var(--pt))). Classes are global
+ * and prefixed `sc-` so they survive the stage moving screens between phones.
+ */
+---
+
+<style is:global>
+  .sc {
+    /* App colors that have no page token (Assets.xcassets/Colors, light). */
+    --sc-fir-soft: #d9eadd;
+    --sc-stripe: #f0f5f0;
+    --sc-pulse: #a8ebc0;
+    --sc-card: #ffffff;
+    --sc-field: #f3f6f2;
+    --sc-hairline: rgba(20, 34, 26, 0.1);
+    --sc-fill: rgba(20, 34, 26, 0.06);
+    font-family: var(--font-system);
+    font-feature-settings: 'kern';
+  }
+
+  .sc-stack {
+    display: flex;
+    flex-direction: column;
+    gap: calc(16 * var(--pt));
+  }
+
+  .sc-card {
+    position: relative;
+    padding: calc(16 * var(--pt));
+    border-radius: calc(18 * var(--pt));
+    background: var(--sc-card);
+    box-shadow:
+      inset 0 0 0 calc(1 * var(--pt)) var(--line),
+      0 calc(1 * var(--pt)) calc(2 * var(--pt)) rgba(20, 34, 26, 0.04);
+  }
+
+  /* SectionLabel: caption, semibold, uppercase, tracked, muted. */
+  .sc-label {
+    font-size: calc(12 * var(--pt));
+    font-weight: 600;
+    line-height: calc(16 * var(--pt));
+    letter-spacing: 0.066em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  /* CardHeading: Zilla Slab SemiBold 22 pt. */
+  .sc-heading {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: calc(22 * var(--pt));
+    line-height: 1.15;
+    letter-spacing: -0.005em;
+    color: var(--ink);
+  }
+
+  .sc-head-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: calc(12 * var(--pt));
+  }
+
+  .sc-num {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+
+  .sc-foot {
+    font-size: calc(13 * var(--pt));
+    line-height: calc(18 * var(--pt));
+    letter-spacing: -0.006em;
+    color: var(--muted);
+  }
+
+  .sc-sub {
+    font-size: calc(15 * var(--pt));
+    line-height: calc(20 * var(--pt));
+    letter-spacing: -0.015em;
+    color: var(--muted);
+  }
+
+  /* GloveButtonStyle: 54 pt tall, 14 pt corners, headline text. */
+  .sc-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: calc(8 * var(--pt));
+    min-height: calc(54 * var(--pt));
+    padding: 0 calc(18 * var(--pt));
+    border-radius: calc(14 * var(--pt));
+    font-size: calc(17 * var(--pt));
+    font-weight: 600;
+    letter-spacing: -0.025em;
+    line-height: 1.2;
+    white-space: nowrap;
+  }
+  .sc-btn--primary {
+    background: var(--fir);
+    color: #fff;
+  }
+  .sc-btn--secondary {
+    background: var(--sc-card);
+    color: var(--ink);
+    box-shadow: inset 0 0 0 calc(1 * var(--pt)) var(--line);
+  }
+  .sc-btn--wide {
+    display: flex;
+    width: 100%;
+  }
+
+  .sc-glyph {
+    flex: none;
+    width: calc(20 * var(--pt));
+    height: calc(20 * var(--pt));
+  }
+
+  /* FieldProgressBar: 8 pt capsule, fir on soft fir. */
+  .sc-progress {
+    position: relative;
+    height: calc(8 * var(--pt));
+    border-radius: 999px;
+    background: var(--sc-fir-soft);
+    overflow: hidden;
+  }
+  .sc-progress > span {
+    position: absolute;
+    inset: 0 auto 0 0;
+    border-radius: inherit;
+    background: var(--fir);
+  }
+
+  /* Monogram avatar (people in the crew list and note bylines). */
+  .sc-avatar {
+    flex: none;
+    display: inline-grid;
+    place-items: center;
+    width: calc(40 * var(--pt));
+    height: calc(40 * var(--pt));
+    border-radius: 50%;
+    font-family: var(--font-rounded);
+    font-weight: 600;
+    font-size: calc(17 * var(--pt));
+    line-height: 1;
+  }
+  .sc-avatar[data-tint='fir'] {
+    background: var(--sc-fir-soft);
+    color: var(--fir);
+  }
+  .sc-avatar[data-tint='sap'] {
+    background: var(--sap-soft);
+    color: var(--sap-ink);
+  }
+  .sc-avatar[data-tint='bark'] {
+    background: #efdfd6;
+    color: #7a3520;
+  }
+  .sc-avatar[data-tint='sky'] {
+    background: #dde8ef;
+    color: #2c4a5e;
+  }
+
+  /* Flag chips: Needs attention (rust), Dead (bark), Replant (sap). */
+  .sc-flag {
+    display: inline-flex;
+    align-items: center;
+    gap: calc(5 * var(--pt));
+    height: calc(28 * var(--pt));
+    padding: 0 calc(11 * var(--pt)) 0 calc(9 * var(--pt));
+    border-radius: 999px;
+    font-size: calc(14 * var(--pt));
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+  }
+  .sc-flag .icon {
+    width: calc(14 * var(--pt));
+    height: calc(14 * var(--pt));
+  }
+  .sc-flag[data-tone='attention'] {
+    background: var(--rust);
+    color: #fff;
+  }
+  .sc-flag[data-tone='dead'] {
+    background: #3d3a36;
+    color: #fff;
+  }
+  .sc-flag[data-tone='replant'] {
+    background: var(--sap-soft);
+    color: var(--sap-ink);
+    box-shadow: inset 0 0 0 calc(1 * var(--pt)) rgba(181, 122, 18, 0.45);
+  }
+</style>

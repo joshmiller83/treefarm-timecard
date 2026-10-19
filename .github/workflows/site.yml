@@ -1,0 +1,104 @@
+name: Site
+
+# The landing page at https://treefarm.joshnliz.com (site/), separate from the Swift CI.
+on:
+  push:
+    paths:
+      - 'site/**'
+      - 'docs/landing/**'
+      - 'README.md'
+      - '.github/workflows/site.yml'
+  pull_request:
+    paths:
+      - 'site/**'
+      - 'docs/landing/**'
+      - 'README.md'
+      - '.github/workflows/site.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: site-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: site
+
+jobs:
+  build:
+    name: Test and build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+
+      - run: npm ci
+
+      - name: Type check
+        run: npm run check
+
+      - name: Unit tests (ledger, Siri lines, DayClock)
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: Size budgets (HTML, first-load JS; motion JS and CSS reported)
+        run: npm run budgets
+
+      - name: Install Playwright (Chromium)
+        run: npx playwright install --with-deps chromium
+
+      - name: Playwright (smoke, reduced motion, axe, layout, nav)
+        run: npx playwright test
+        env:
+          CI: 'true'
+
+      - name: Lighthouse CI (mobile, median of 3 runs)
+        run: npx --yes @lhci/cli@0.15.1 autorun --config=./lighthouserc.json
+        env:
+          LHCI_BUILD_CONTEXT__CURRENT_HASH: ${{ github.sha }}
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-results
+          path: site/test-results
+          retention-days: 7
+
+      # The component workbenches and the OG template are build tools, not pages: they stay
+      # out of the deploy (Playwright and Lighthouse above still use them from dist).
+      - name: Leave the tool routes out of the deploy
+        run: rm -rf dist/lab dist/og
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site/dist
+
+  deploy:
+    name: Deploy to GitHub Pages
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

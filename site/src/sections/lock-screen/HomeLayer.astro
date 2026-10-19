@@ -1,0 +1,222 @@
+---
+/**
+ * HOME LAYER: an iPhone home screen behind the Dynamic Island beat, deliberately out of focus
+ * (the island is what the reader should look at). Sixteen generic apps in a 4 × 4 grid and an
+ * iOS 26 glass dock, in the phone's 393 × 852 pt space. No real apps (truth rule 9): soft,
+ * tinted tiles with simple shapes and made-up one-word labels, all defocused, except Time Card
+ * itself, crisp in the dock. Presentational: it sits inside an aria-hidden mock.
+ *
+ * Out of focus by construction (soft gradients, blurred shadows, text drawn as its own
+ * shadow), so nothing filters at runtime.
+ */
+import AppIcon from '../../components/AppIcon.astro';
+
+/** Muted iOS-like tints (no real app's colours or marks). */
+const TINTS = [
+  ['#6fb3d9', '#3b7fb0'],
+  ['#f1c46b', '#d9922e'],
+  ['#7fd1a5', '#2f9a62'],
+  ['#e98f7a', '#c4553f'],
+  ['#b59be6', '#7656c4'],
+  ['#9fb7c9', '#5b7286'],
+  ['#f5d98b', '#c9a23c'],
+  ['#8ed3d6', '#3a9ea3'],
+] as const;
+/** Simple glyph shapes on the tiles: a dot, a bar, a ring, a leaf-ish lens. */
+const SHAPES = ['dot', 'bar', 'ring', 'lens'] as const;
+const LABELS = ['Forecast', 'Radio', 'Tasks', 'Tools', 'Truck', 'Crew', 'Seeds', 'Level', 'Scanner', 'Feed', 'Gauge', 'Shop', 'Trails', 'Torch', 'Market', 'Ledger'];
+const grid = LABELS.map((label, i) => ({ label, tint: TINTS[(i * 3) % TINTS.length]!, shape: SHAPES[(i * 5 + 1) % SHAPES.length]! }));
+const dock = [TINTS[2]!, TINTS[0]!, TINTS[5]!];
+---
+
+<div class="home" data-home>
+  <div class="home-wp"></div>
+  <div class="home-grid">
+    {
+      grid.map((a) => (
+        <span class="home-app">
+          <i class={`home-tile home-tile--${a.shape}`} style={`--a:${a.tint[0]};--b:${a.tint[1]}`} />
+          <b>{a.label}</b>
+        </span>
+      ))
+    }
+  </div>
+  <div class="home-search"><i></i><b>Search</b></div>
+  <div class="home-dock">
+    <span class="home-app home-app--ours">
+      <AppIcon size="100%" uid="home-ic" />
+    </span>
+    {
+      dock.map((t, i) => (
+        <span class="home-app">
+          <i class={`home-tile home-tile--${SHAPES[(i + 2) % SHAPES.length]}`} style={`--a:${t[0]};--b:${t[1]}`} />
+        </span>
+      ))
+    }
+  </div>
+</div>
+
+<style>
+  .home {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    background: #0a1d13;
+  }
+  /* A soft, out-of-focus fir-green field: deep at the top for the status bar, a lit
+     clearing in the middle, a little warm afternoon light low on the right. */
+  .home-wp {
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(60% 34% at 78% 88%, rgba(214, 160, 82, 0.42), transparent 70%),
+      radial-gradient(70% 40% at 18% 70%, rgba(46, 122, 78, 0.55), transparent 72%),
+      radial-gradient(90% 46% at 62% 38%, rgba(64, 140, 96, 0.5), transparent 70%),
+      radial-gradient(80% 36% at 10% 12%, rgba(29, 91, 58, 0.55), transparent 70%),
+      linear-gradient(180deg, #08170f 0%, #0f2a1c 34%, #1b4630 62%, #23432c 82%, #2c3a22 100%);
+  }
+
+  .home-grid {
+    position: absolute;
+    left: calc(27 * var(--pt));
+    right: calc(27 * var(--pt));
+    top: calc(72 * var(--pt));
+    display: grid;
+    grid-template-columns: repeat(4, calc(62 * var(--pt)));
+    justify-content: space-between;
+    row-gap: calc(22 * var(--pt));
+  }
+  .home-app {
+    position: relative;
+    display: grid;
+    justify-items: center;
+    gap: calc(6 * var(--pt));
+  }
+  /* An out-of-focus tinted tile: its edge melts into a blurred shadow of its own colour. */
+  .home-tile {
+    position: relative;
+    display: block;
+    width: calc(62 * var(--pt));
+    height: calc(62 * var(--pt));
+    border-radius: calc(15 * var(--pt));
+    /* Softened toward the wallpaper by colour, not opacity (static copy is never faded). */
+    background: linear-gradient(160deg, color-mix(in srgb, var(--a) 80%, #1b4630), color-mix(in srgb, var(--b) 80%, #1b4630));
+    box-shadow:
+      0 0 calc(5 * var(--pt)) calc(1.5 * var(--pt)) color-mix(in srgb, var(--b) 70%, transparent),
+      inset 0 0 calc(6 * var(--pt)) rgba(255, 255, 255, 0.28);
+  }
+  /* The glyph: a soft white shape, defocused like its tile. */
+  .home-tile::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    translate: -50% -50%;
+    background: rgba(255, 255, 255, 0.82);
+    box-shadow: 0 0 calc(4 * var(--pt)) calc(1 * var(--pt)) rgba(255, 255, 255, 0.55);
+  }
+  .home-tile--dot::after {
+    width: calc(22 * var(--pt));
+    height: calc(22 * var(--pt));
+    border-radius: 50%;
+  }
+  .home-tile--bar::after {
+    width: calc(30 * var(--pt));
+    height: calc(9 * var(--pt));
+    border-radius: 99px;
+  }
+  .home-tile--ring::after {
+    width: calc(26 * var(--pt));
+    height: calc(26 * var(--pt));
+    border-radius: 50%;
+    background: transparent;
+    box-shadow:
+      inset 0 0 0 calc(4 * var(--pt)) rgba(255, 255, 255, 0.82),
+      0 0 calc(4 * var(--pt)) rgba(255, 255, 255, 0.45);
+  }
+  .home-tile--lens::after {
+    width: calc(16 * var(--pt));
+    height: calc(28 * var(--pt));
+    border-radius: 50% / 60%;
+    rotate: 35deg;
+  }
+  /* Labels as out-of-focus text: the glyphs are their own blurred shadow. */
+  .home-app b {
+    display: block;
+    max-width: calc(74 * var(--pt));
+    overflow: hidden;
+    white-space: nowrap;
+    font-family: var(--font-system);
+    font-weight: 500;
+    font-size: calc(11.5 * var(--pt));
+    line-height: 1.1;
+    color: transparent;
+    text-shadow: 0 0 calc(1.6 * var(--pt)) rgba(255, 255, 255, 0.9);
+  }
+
+  .home-search {
+    position: absolute;
+    left: 50%;
+    bottom: calc(124 * var(--pt));
+    height: calc(30 * var(--pt));
+    padding: 0 calc(12 * var(--pt));
+    translate: -50% 0;
+    border-radius: 99px;
+    background: rgba(255, 255, 255, 0.16);
+    box-shadow:
+      inset 0 calc(0.6 * var(--pt)) 0 rgba(255, 255, 255, 0.2),
+      0 0 calc(4 * var(--pt)) rgba(255, 255, 255, 0.08);
+    display: flex;
+    align-items: center;
+    gap: calc(6 * var(--pt));
+  }
+  .home-search i {
+    width: calc(10 * var(--pt));
+    height: calc(10 * var(--pt));
+    border-radius: 50%;
+    box-shadow:
+      inset 0 0 0 calc(1.6 * var(--pt)) rgba(255, 255, 255, 0.7),
+      0 0 calc(2 * var(--pt)) rgba(255, 255, 255, 0.4);
+  }
+  .home-search b {
+    font-family: var(--font-system);
+    font-weight: 500;
+    font-size: calc(12 * var(--pt));
+    color: transparent;
+    text-shadow: 0 0 calc(1.4 * var(--pt)) rgba(255, 255, 255, 0.9);
+  }
+
+  /* iOS 26's glass dock: a frosted slab with a bright rim and a soft inner glow. */
+  .home-dock {
+    position: absolute;
+    left: calc(10 * var(--pt));
+    right: calc(10 * var(--pt));
+    bottom: calc(10 * var(--pt));
+    height: calc(94 * var(--pt));
+    border-radius: calc(38 * var(--pt));
+    background:
+      radial-gradient(120% 140% at 50% -20%, rgba(255, 255, 255, 0.22), transparent 60%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.08));
+    box-shadow:
+      inset 0 calc(1 * var(--pt)) 0 rgba(255, 255, 255, 0.34),
+      inset 0 calc(-1 * var(--pt)) 0 rgba(255, 255, 255, 0.08),
+      inset 0 0 0 calc(0.6 * var(--pt)) rgba(255, 255, 255, 0.12),
+      0 calc(8 * var(--pt)) calc(24 * var(--pt)) rgba(0, 0, 0, 0.25);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 calc(17 * var(--pt));
+  }
+  /* Time Card: the one app in focus. */
+  .home-app--ours {
+    width: calc(62 * var(--pt));
+    height: calc(62 * var(--pt));
+  }
+  .home-app--ours :global(.app-icon) {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border-radius: calc(15 * var(--pt));
+    box-shadow: 0 calc(2 * var(--pt)) calc(8 * var(--pt)) rgba(0, 0, 0, 0.35);
+  }
+</style>

@@ -1,0 +1,669 @@
+---
+/**
+ * TREES TAB (map team): the app's field map at a ledger minute, light mode, in the phone's
+ * 393 × 852 pt space. Spec: brief sharedComponents "App screens" (TreesTab) and CONTRACT.md.
+ *
+ *   status bar · toolbar (glass ⋯)
+ *   'Trees' · [North field ▾] [All XS S M L] · optional sync line · [One|Fill|Erase] [Undo]
+ *   the map: pinned block header, row numbers in a 26 pt gutter, striped block, dots
+ *   bottom accessory: legend chips · floating tab bar
+ *   overlays: conflict banner (a toast just above the legend), TreeNoteSheet
+ *
+ * Gold = this person's current shift, green = shaped earlier by anyone (crew included),
+ * ring = not yet (decisions.md #4). States come from treeStatus() in src/scripts/fieldstate.ts.
+ *
+ * Hooks: [data-map] (root of the map; data-at/-who/-zoom/-mode/-block), [data-map-row="37"],
+ * [data-block-row="2-37"], [data-tree="2-37-4"] (fills: --e green, --g gold, see
+ * trees/markup.ts), [data-row-label="37"], [data-note-marker="2-36-7"] > [data-note-ripple],
+ * [data-sync-line] (data-sync="offline|synced"), [data-sync-count] (odometer),
+ * [data-sync-plural], [data-banner], [data-mode] > [data-mode-thumb], [data-mode-option="one"],
+ * [data-undo-btn], [data-zoom-chip="L"], [data-legend], [data-field-picker].
+ */
+import AppChrome from './AppChrome.astro';
+import Icon from './Icon.astro';
+import TreeNoteSheet from './TreeNoteSheet.astro';
+import { FIELD, MOMENTS, fmtClock, positionAt, type TreeNote } from '../../data/ledger';
+import { notesAt, treeStatus } from '../../scripts/fieldstate';
+import { odometerHTML } from '../../scripts/odometer';
+import { APP_ZOOM, appOverviewSVG, appTreeMarkup, nextId } from './trees/markup';
+
+export interface Props {
+  /** Ledger minute for which trees are gold. Default MOMENTS.field. */
+  at?: number;
+  block: number;
+  /**
+   * The rows this screen is about. The map always runs to the bottom of the screen; when
+   * [from, to] fits in the band between the controls and the legend it is centred there,
+   * otherwise `from` is the first row shown. An open sheet overrides both (its row stays above it).
+   */
+  rows: [from: number, to: number];
+  zoom?: 'All' | 'XS' | 'S' | 'M' | 'L';
+  mode?: 'one' | 'fill' | 'erase';
+  /** Whose phone: Sam's shows his own row 12 gold (and no Team tab). Default 'Alex'. */
+  who?: 'Alex' | 'Sam';
+  /** Extra rows to show gold (offline marks before sync). */
+  pending?: Array<{ block: number; row: number }>;
+  /** Note markers (rust flags). Default: the notes that exist at `at`. */
+  notes?: TreeNote[];
+  /** 'Offline · 2 changes waiting' | 'Synced' */
+  syncLine?: string | null;
+  /**
+   * Reserve the sync line's 38 pt row even when there is no line (an empty, hidden
+   * [data-sync-line]), so states with and without one share the same map geometry and a
+   * scene can slide the line in. Default: true when there is a sync line.
+   */
+  syncSlot?: boolean;
+  /** CONFLICT_MESSAGE */
+  banner?: string | null;
+  noService?: boolean;
+  /** Open the TreeNoteSheet on this note (the map scrolls so its row stays above the sheet). */
+  sheet?: TreeNote | null;
+}
+
+const {
+  at = MOMENTS.field,
+  block,
+  rows,
+  zoom = 'L',
+  mode = 'one',
+  who = 'Alex',
+  pending = [],
+  notes,
+  syncLine = null,
+  syncSlot = !!syncLine,
+  banner = null,
+  noService = false,
+  sheet = null,
+} = Astro.props;
+
+const status = treeStatus({ at, who, pending });
+const markers = notes ?? notesAt(at);
+const pos = who === 'Alex' ? positionAt(at) : null;
+const currentRow = pos && pos.block === block ? pos.row : null;
+
+const offline = syncLine?.match(/^Offline · (\d+) change(s?) waiting$/) ?? null;
+const synced = syncLine === 'Synced';
+
+// The map runs from under the controls to the bottom of the screen (under the tab bar).
+const slot = syncSlot || !!syncLine;
+const mapTop = slot ? 282 : 244;
+const mapHeight = 852 - mapTop + 8;
+/** Top of the legend accessory (bottom 100 pt, 38 pt tall): rows above it are in clear view. */
+const LEGEND_TOP = 852 - 100 - 38;
+
+const uid = nextId('tt');
+const z = zoom === 'All' ? null : APP_ZOOM[zoom];
+
+// Which row the map starts at: [from, to] centred in the clear band when it fits, else `from`.
+let first = rows[0];
+if (z) {
+  const fit = Math.floor((LEGEND_TOP - mapTop - 40) / z.ch);
+  const span = rows[1] - rows[0] + 1;
+  if (span <= fit) first = rows[0] - Math.floor((fit - span) / 2);
+  first = Math.max(1, Math.min(first, FIELD.rowsPerBlock - fit + 1, rows[0]));
+}
+// With a sheet open (it covers the lower half), scroll so the note's row is the third one shown.
+if (sheet && sheet.block === block && zoom !== 'All' && (sheet.row < first || sheet.row > first + 2)) first = Math.max(1, sheet.row - 2);
+const mapHTML =
+  zoom === 'All'
+    ? appOverviewSVG({ status, notes: markers, target: block, id: uid })
+    : appTreeMarkup({ status, block, first, zoom, height: mapHeight, notes: markers, currentRow, selected: sheet });
+const mapVars = z
+  ? `--vh:${mapHeight};--cw:calc(${z.cw} * var(--pt));--ch:calc(${z.ch} * var(--pt));--dot:calc(${z.dot} * var(--pt));--ringw:calc(${z.ring} * var(--pt));--lfs:calc(${z.label} * var(--pt))`
+  : `--vh:${mapHeight}`;
+
+const ZOOMS = ['All', 'XS', 'S', 'M', 'L'] as const;
+const MODES = [
+  { id: 'one', label: 'One' },
+  { id: 'fill', label: 'Fill' },
+  { id: 'erase', label: 'Erase' },
+] as const;
+const modeIndex = MODES.findIndex((m) => m.id === mode);
+---
+
+<AppChrome
+  time={fmtClock(at)}
+  title="Trees"
+  tab="trees"
+  admin={who !== 'Sam'}
+  noService={noService}
+  trailing={[{ icon: 'ellipsis', id: 'more' }]}
+  class="trees"
+>
+  <div slot="header" class="tt-head">
+    <div class="tt-line">
+      <span class="tt-picker" data-field-picker>{FIELD.name}<Icon name="chevron.down" size="calc(12 * var(--pt))" weight={2.6} /></span>
+      <span class="tt-seg tt-zoom" data-zoom={zoom}>
+        {
+          ZOOMS.map((id) => (
+            <span class:list={['tt-opt', id === zoom && 'is-on']} data-zoom-chip={id}>
+              {id}
+            </span>
+          ))
+        }
+      </span>
+    </div>
+    {
+      !syncLine && slot && <div class="tt-sync tt-sync--slot" data-sync-line data-sync="none" aria-hidden="true" />
+    }
+    {
+      syncLine && (
+        <div
+          class:list={['tt-sync', offline && 'tt-sync--off', synced && 'tt-sync--ok']}
+          data-sync-line
+          data-sync={offline ? 'offline' : synced ? 'synced' : 'other'}
+        >
+          <Icon name={offline ? 'wifi.slash' : synced ? 'check.circle' : 'wifi'} size="calc(15 * var(--pt))" weight={2.2} />
+          {offline ? (
+            <span>
+              Offline · <span class="odo" data-sync-count data-odo data-odo-text={offline[1]} set:html={odometerHTML(offline[1]!)} /> change<span data-sync-plural>{offline[2]}</span> waiting
+            </span>
+          ) : (
+            <span>{syncLine}</span>
+          )}
+        </div>
+      )
+    }
+    <div class="tt-line">
+      <span class="tt-seg tt-mode" data-mode={mode} style={`--i:${modeIndex}`}>
+        <span class="tt-thumb" data-mode-thumb></span>
+        {
+          MODES.map((m) => (
+            <span class:list={['tt-opt', m.id === mode && 'is-on']} data-mode-option={m.id}>
+              {m.label}
+            </span>
+          ))
+        }
+      </span>
+      <span class="tt-undo" data-undo-btn><Icon name="undo" size="calc(17 * var(--pt))" weight={2.2} />Undo</span>
+    </div>
+  </div>
+
+  <div
+    class:list={['tt-map', zoom === 'All' && 'tt-map--all']}
+    data-map
+    data-at={at}
+    data-who={who}
+    data-zoom={zoom}
+    data-mode={mode}
+    data-block={block}
+    style={mapVars}
+    set:html={mapHTML}
+  />
+
+  <Fragment slot="overlay">
+    <div class="tt-fade" aria-hidden="true"></div>
+    <div class="tt-legend" data-legend>
+      <span class="tt-key"><i class="tt-sw tt-sw--today"></i>Today</span>
+      <span class="tt-key"><i class="tt-sw tt-sw--earlier"></i>Earlier</span>
+      <span class="tt-key"><i class="tt-sw tt-sw--ring"></i>Not yet</span>
+      <span class="tt-key"><i class="tt-sw tt-sw--note"><Icon name="flag.fill" size="calc(8 * var(--pt))" /></i>Note</span>
+    </div>
+    {
+      banner && (
+        <div class="tt-banner" data-banner>
+          <span>{banner}</span>
+        </div>
+      )
+    }
+    {
+      sheet && (
+        <TreeNoteSheet
+          note={sheet}
+          notes={[...markers.filter((n) => n !== sheet && n.block === sheet.block && n.row === sheet.row && n.tree === sheet.tree), sheet]}
+          at={at}
+          who={who}
+        />
+      )
+    }
+  </Fragment>
+</AppChrome>
+
+<style>
+  /* ---------- Controls under the title ---------- */
+  .tt-head {
+    display: grid;
+    gap: calc(10 * var(--pt));
+    padding: calc(8 * var(--pt)) calc(16 * var(--pt)) 0;
+  }
+  .tt-line {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: calc(10 * var(--pt));
+  }
+  .tt-picker {
+    display: inline-flex;
+    align-items: center;
+    gap: calc(5 * var(--pt));
+    height: calc(32 * var(--pt));
+    font-weight: 600;
+    font-size: calc(17 * var(--pt));
+    letter-spacing: -0.02em;
+    color: var(--fir);
+  }
+  /* iOS segmented control: a tinted track and a white raised thumb. */
+  .tt-seg {
+    position: relative;
+    display: inline-flex;
+    padding: calc(2 * var(--pt));
+    border-radius: 999px;
+    background: rgba(20, 34, 26, 0.065);
+  }
+  .tt-opt {
+    position: relative;
+    z-index: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    font-weight: 600;
+    color: rgba(20, 34, 26, 0.72);
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+  }
+  .tt-zoom .tt-opt {
+    height: calc(28 * var(--pt));
+    min-width: calc(30 * var(--pt));
+    padding: 0 calc(8 * var(--pt));
+    font-size: calc(13 * var(--pt));
+  }
+  .tt-zoom .tt-opt.is-on,
+  .tt-thumb {
+    background: #fff;
+    box-shadow:
+      0 calc(1 * var(--pt)) calc(3 * var(--pt)) rgba(20, 34, 26, 0.14),
+      0 0 0 calc(0.5 * var(--pt)) rgba(20, 34, 26, 0.06);
+  }
+  .tt-opt.is-on {
+    color: var(--ink);
+  }
+  .tt-mode {
+    flex: 1 1 auto;
+  }
+  .tt-mode .tt-opt {
+    flex: 1 1 0;
+    height: calc(32 * var(--pt));
+    font-size: calc(15 * var(--pt));
+  }
+  .tt-thumb {
+    position: absolute;
+    top: calc(2 * var(--pt));
+    bottom: calc(2 * var(--pt));
+    left: calc(2 * var(--pt));
+    width: calc((100% - 4 * var(--pt)) / 3);
+    border-radius: 999px;
+    transform: translateX(calc(var(--i, 0) * 100%));
+  }
+  .tt-undo {
+    display: inline-flex;
+    align-items: center;
+    gap: calc(6 * var(--pt));
+    height: calc(36 * var(--pt));
+    padding: 0 calc(14 * var(--pt)) 0 calc(12 * var(--pt));
+    border-radius: 999px;
+    background: #fff;
+    color: var(--ink);
+    font-weight: 600;
+    font-size: calc(15 * var(--pt));
+    box-shadow:
+      0 calc(2 * var(--pt)) calc(8 * var(--pt)) rgba(20, 34, 26, 0.1),
+      inset 0 0 0 calc(0.5 * var(--pt)) rgba(20, 34, 26, 0.1);
+  }
+
+  /* ---------- Sync line ---------- */
+  .tt-sync {
+    justify-self: start;
+    display: inline-flex;
+    align-items: center;
+    gap: calc(6 * var(--pt));
+    height: calc(28 * var(--pt));
+    padding: 0 calc(12 * var(--pt)) 0 calc(10 * var(--pt));
+    border-radius: 999px;
+    font-size: calc(14 * var(--pt));
+    font-weight: 600;
+    background: #e9efea;
+    color: var(--muted);
+  }
+  .tt-sync--off {
+    background: rgba(162, 57, 31, 0.11);
+    color: #8a2f19;
+  }
+  .tt-sync--ok {
+    background: #d9eadd;
+    color: var(--fir);
+  }
+  /* An empty slot keeps the map where it is when the line is not there yet. */
+  .tt-sync--slot {
+    visibility: hidden;
+    width: calc(120 * var(--pt));
+  }
+  .tt-sync :global(.odo) {
+    font-family: var(--font-mono);
+    font-weight: 600;
+  }
+
+  /* ---------- The map ---------- */
+  .tt-map {
+    position: relative;
+    height: calc(var(--vh) * var(--pt));
+    margin: 0 calc(-16 * var(--pt));
+    overflow: hidden;
+    --gut: calc(26 * var(--pt));
+    --ins: calc(6 * var(--pt));
+    --hd: calc(40 * var(--pt));
+  }
+  .tt-map--all {
+    padding: 0 calc(16 * var(--pt));
+  }
+  .tt-map :global(.tm-b) {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: calc(var(--x) * var(--pt));
+    width: calc(var(--w) * var(--pt));
+  }
+  .tt-map :global(.tm-sheet) {
+    position: absolute;
+    left: var(--gut);
+    right: 0;
+    top: calc(var(--hd) + var(--top) * var(--pt));
+    height: calc((var(--bot) - var(--top)) * var(--pt));
+    border-radius: calc(12 * var(--pt));
+    background: #fff;
+  }
+  /* The border draws over the row stripes. */
+  .tt-map :global(.tm-sheet)::after {
+    content: '';
+    position: absolute;
+    z-index: 1;
+    inset: 0;
+    border: calc(1 * var(--pt)) solid #9db5a3;
+    border-radius: inherit;
+  }
+  .tt-map :global(.tm-row) {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: calc(var(--hd) + var(--r) * var(--ch));
+    height: var(--ch);
+    display: grid;
+    grid-template-columns: calc(var(--gut) + var(--ins)) repeat(10, var(--cw));
+    align-items: center;
+  }
+  .tt-map :global(.tm-even)::before {
+    content: '';
+    position: absolute;
+    left: calc(var(--gut) + 1 * var(--pt));
+    right: calc(1 * var(--pt));
+    top: 0;
+    bottom: 0;
+    background: #f0f5f0;
+  }
+  .tt-map :global(.tm-rl) {
+    position: relative;
+    z-index: 0;
+    justify-self: start;
+    width: var(--gut);
+    padding-right: calc(5 * var(--pt));
+    text-align: right;
+    font-family: var(--font-mono);
+    font-weight: 500;
+    font-size: var(--lfs);
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+    color: var(--muted);
+  }
+  /* The row you are on: fir number in a soft capsule. */
+  .tt-map :global(.tm-cur) {
+    color: var(--fir);
+    font-weight: 600;
+  }
+  .tt-map :global(.tm-cur)::before {
+    content: '';
+    position: absolute;
+    z-index: -1;
+    right: calc(1 * var(--pt));
+    top: 50%;
+    width: calc(var(--lfs) * 1.9);
+    height: calc(var(--lfs) * 1.55);
+    transform: translateY(-50%);
+    border-radius: 999px;
+    background: #d9eadd;
+  }
+  .tt-map :global([data-tree]) {
+    position: relative;
+    justify-self: center;
+    width: var(--dot);
+    height: var(--dot);
+    border-radius: 50%;
+    box-shadow: inset 0 0 0 var(--ringw) #a9c2af;
+  }
+  .tt-map :global([data-tree])::before,
+  .tt-map :global([data-tree])::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+  }
+  .tt-map :global([data-tree])::before {
+    background: #1d5b3a;
+    opacity: var(--e, 0);
+  }
+  /* Today's gold is a touch larger than green, so the states differ by size and lightness too. */
+  .tt-map :global([data-tree])::after {
+    inset: calc(-0.08 * var(--dot));
+    background: #b57a12;
+    opacity: var(--g, 0);
+  }
+  .tt-map :global([data-s='earlier']) {
+    --e: 1;
+  }
+  .tt-map :global([data-s='today']) {
+    --g: 1;
+  }
+  .tt-map :global([data-selected]) {
+    outline: calc(2.5 * var(--pt)) solid var(--fir);
+    outline-offset: calc(3 * var(--pt));
+  }
+  /* Note marker: a rust badge with a white flag on the tree's upper right, kept (at least 60%)
+     inside its own row's band so it is clear which row has the note; never taller than a row. */
+  .tt-map :global(.tm-note) {
+    position: absolute;
+    z-index: 1;
+    --b: min(var(--ch), max(calc(10 * var(--pt)), calc(var(--dot) * 1.02)));
+    left: calc(var(--gut) + var(--ins) + (var(--t) + 0.5) * var(--cw) + var(--dot) * 0.35 - var(--b) * 0.5);
+    top: calc(50% - var(--dot) * 0.5 - var(--b) * 0.2);
+    width: var(--b);
+    height: var(--b);
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: var(--rust);
+    color: #fff;
+    box-shadow:
+      0 0 0 calc(1.5 * var(--pt)) #fff,
+      0 calc(1.5 * var(--pt)) calc(4 * var(--pt)) rgba(20, 34, 26, 0.28);
+  }
+  .tt-map :global(.tm-note svg) {
+    width: 62%;
+    height: 62%;
+    fill: currentColor;
+    transform: translateX(6%);
+  }
+  .tt-map :global(.tm-ripple) {
+    position: absolute;
+    inset: -60%;
+    border-radius: 50%;
+    border: calc(1.5 * var(--pt)) solid var(--rust);
+    opacity: 0;
+  }
+  /* Pinned block header: name, then tree numbers over their columns. */
+  .tt-map :global(.tm-h) {
+    position: absolute;
+    z-index: 2;
+    top: 0;
+    left: calc(-7 * var(--pt));
+    right: calc(-7 * var(--pt));
+    height: var(--hd);
+    padding: 0 calc(7 * var(--pt));
+    background: var(--surface);
+  }
+  .tt-map :global(.tm-h)::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 100%;
+    height: calc(4 * var(--pt));
+    background: linear-gradient(rgba(250, 252, 249, 0.9), rgba(250, 252, 249, 0));
+  }
+  .tt-map :global(.tm-name) {
+    position: absolute;
+    left: calc(7 * var(--pt) + var(--gut));
+    top: 0;
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: calc(17 * var(--pt));
+    font-variant-numeric: lining-nums;
+    line-height: 1.2;
+    color: var(--ink);
+  }
+  .tt-map :global(.tm-cols) {
+    position: absolute;
+    left: calc(7 * var(--pt) + var(--gut) + var(--ins));
+    bottom: calc(4 * var(--pt));
+    display: grid;
+    grid-template-columns: repeat(10, var(--cw));
+    font-family: var(--font-mono);
+    font-weight: 500;
+    font-size: calc(var(--nfs) * var(--pt));
+    line-height: 1;
+    color: #7b8d80;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+  }
+  /* 'All': the whole field. */
+  .tt-map :global(.tm-ov) {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+  .tt-map :global(.tm-ov-name) {
+    font-family: var(--font-system);
+    font-size: 9px;
+    font-weight: 600;
+    fill: var(--muted);
+  }
+  .tt-map :global(.tm-ov-block) {
+    fill: #fff;
+    stroke: #9db5a3;
+    stroke-width: 0.75;
+  }
+  .tt-map :global(.tm-ov-hot) {
+    fill: var(--fir);
+  }
+  .tt-map :global(rect.tm-ov-hot) {
+    fill: #fff;
+    stroke: var(--fir);
+    stroke-width: 1.5;
+  }
+
+  /* ---------- Bottom: scroll-edge fade, legend accessory ---------- */
+  /* Like iOS 26's scroll-edge effect: only behind the bottom bars, starting just above the legend. */
+  .tt-fade {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 3;
+    height: calc(150 * var(--pt));
+    background: linear-gradient(rgba(250, 252, 249, 0), rgba(250, 252, 249, 0.9) 55%, rgba(250, 252, 249, 0.97));
+    pointer-events: none;
+  }
+  .tt-legend {
+    position: absolute;
+    z-index: 4;
+    left: 50%;
+    bottom: calc(100 * var(--pt));
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: calc(14 * var(--pt));
+    height: calc(38 * var(--pt));
+    padding: 0 calc(16 * var(--pt));
+    border-radius: 999px;
+    white-space: nowrap;
+    background: rgba(255, 255, 255, 0.92);
+    box-shadow:
+      0 calc(6 * var(--pt)) calc(18 * var(--pt)) rgba(20, 34, 26, 0.12),
+      0 calc(1 * var(--pt)) calc(2 * var(--pt)) rgba(20, 34, 26, 0.06),
+      inset 0 0 0 calc(0.5 * var(--pt)) rgba(20, 34, 26, 0.09);
+    font-size: calc(13 * var(--pt));
+    font-weight: 500;
+    color: var(--ink);
+  }
+  .tt-key {
+    display: inline-flex;
+    align-items: center;
+    gap: calc(6 * var(--pt));
+  }
+  .tt-sw {
+    display: inline-grid;
+    place-items: center;
+    width: calc(10 * var(--pt));
+    height: calc(10 * var(--pt));
+    border-radius: 50%;
+  }
+  .tt-sw--today {
+    width: calc(11 * var(--pt));
+    height: calc(11 * var(--pt));
+    background: #b57a12;
+  }
+  .tt-sw--earlier {
+    background: #1d5b3a;
+  }
+  .tt-sw--ring {
+    box-shadow: inset 0 0 0 calc(1.75 * var(--pt)) #a9c2af;
+  }
+  .tt-sw--note {
+    width: calc(13 * var(--pt));
+    height: calc(13 * var(--pt));
+    background: var(--rust);
+    color: #fff;
+  }
+
+  /* ---------- Conflict banner (ink, a 4 pt rust rule, white 15 pt) ----------
+     An in-app toast just above the legend accessory, clear of the nav bar and the title; a scene
+     slides it up from below (yPercent). */
+  .tt-banner {
+    position: absolute;
+    z-index: 6;
+    bottom: calc(146 * var(--pt));
+    left: calc(16 * var(--pt));
+    right: calc(16 * var(--pt));
+    overflow: hidden;
+    padding: calc(15 * var(--pt)) calc(18 * var(--pt)) calc(15 * var(--pt)) calc(30 * var(--pt));
+    border-radius: calc(20 * var(--pt));
+    background: var(--ink);
+    color: #fff;
+    font-size: calc(15 * var(--pt));
+    font-weight: 500;
+    line-height: 1.33;
+    letter-spacing: -0.01em;
+    box-shadow:
+      0 calc(10 * var(--pt)) calc(28 * var(--pt)) rgba(8, 20, 13, 0.28),
+      0 calc(2 * var(--pt)) calc(6 * var(--pt)) rgba(8, 20, 13, 0.2);
+  }
+  .tt-banner::before {
+    content: '';
+    position: absolute;
+    left: calc(14 * var(--pt));
+    top: calc(12 * var(--pt));
+    bottom: calc(12 * var(--pt));
+    width: calc(4 * var(--pt));
+    border-radius: 999px;
+    background: var(--rust);
+  }
+</style>

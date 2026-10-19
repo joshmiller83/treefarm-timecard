@@ -1,0 +1,488 @@
+/*
+ * GLOBAL STYLES: base, type scale, buttons, pills, cards, spoken lines, odometers,
+ * and the motion gates. Section layout (SectionShell) lives in shell.css.
+ *
+ * Motion gating: an inline <head> script adds html.motion only when motion is allowed.
+ * Every from-state lives under html.motion. Without it the page is complete and static.
+ */
+
+/* ---------- Reset ---------- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+* {
+  margin: 0;
+}
+html {
+  color-scheme: dark light;
+  background: var(--stage);
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  scroll-padding-top: calc(var(--chrome-h) + 12px);
+  hanging-punctuation: first;
+}
+body {
+  min-height: 100svh;
+  background: var(--stage);
+  color: var(--on-stage);
+  font-family: var(--font-body);
+  font-size: var(--text-body);
+  line-height: 1.55;
+  overflow-x: clip;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+img,
+svg,
+video,
+canvas {
+  display: block;
+  max-width: 100%;
+}
+img {
+  height: auto;
+}
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+button {
+  cursor: pointer;
+}
+a {
+  color: inherit;
+}
+h1,
+h2,
+h3,
+h4 {
+  font-weight: 700;
+  text-wrap: balance;
+  overflow-wrap: break-word;
+}
+p {
+  text-wrap: pretty;
+}
+table {
+  border-collapse: collapse;
+}
+[hidden] {
+  display: none !important;
+}
+
+/* ---------- Accessibility ---------- */
+.sr-only {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip-path: inset(50%) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+:focus-visible {
+  outline: 3px solid var(--focus, var(--gold-lit));
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+[data-theme='light'] {
+  --focus: var(--fir);
+}
+.skip-link {
+  position: absolute;
+  left: 8px;
+  top: 8px;
+  z-index: 100;
+  padding: 12px 16px;
+  min-height: 44px;
+  border-radius: 10px;
+  background: var(--gold-lit);
+  color: var(--ink);
+  font-weight: 600;
+  text-decoration: none;
+  transform: translateY(-160%);
+}
+.skip-link:focus,
+.skip-link:focus-visible {
+  transform: none;
+  outline-color: var(--on-stage);
+}
+
+/* ---------- Layout helpers ---------- */
+.wrap {
+  width: 100%;
+  max-width: calc(var(--maxw) + 2 * var(--gutter));
+  margin-inline: auto;
+  padding-inline: var(--gutter);
+}
+.grid12 {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  column-gap: var(--col-gap);
+}
+
+/* ---------- Type ---------- */
+.display-xl {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--text-xl);
+  line-height: 0.95;
+  letter-spacing: -0.025em;
+  max-width: 9ch;
+}
+.display-l {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--text-l);
+  line-height: 1;
+  letter-spacing: -0.02em;
+  max-width: 14ch;
+  text-wrap: balance;
+}
+.display-m {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--text-m);
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+}
+.eyebrow {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: var(--text-eyebrow);
+  line-height: 1.4;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--gold-lit);
+  font-variant-numeric: tabular-nums;
+}
+[data-theme='light'] .eyebrow {
+  color: var(--fir);
+}
+.body {
+  font-size: var(--text-body);
+  line-height: 1.55;
+  max-width: 38ch;
+}
+.muted {
+  color: var(--on-stage-muted);
+}
+[data-theme='light'] .muted {
+  color: var(--muted);
+}
+.small {
+  font-size: var(--text-small);
+  line-height: 1.5;
+}
+strong,
+b {
+  font-weight: 600;
+}
+/* Every number, time, count and timer uses Plex Mono with tabular figures. */
+.num,
+time,
+.mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+.stat {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: var(--text-stat);
+  line-height: 1;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+.stat-unit {
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 1rem;
+  letter-spacing: 0;
+  color: var(--on-stage-muted);
+}
+
+/* Spoken lines: Display M with gold curly quotes. Mark them up as <q class="spoken">. */
+q,
+.spoken {
+  quotes: '“' '”' '‘' '’';
+}
+q::before,
+q::after {
+  color: var(--gold-lit);
+}
+[data-theme='light'] q::before,
+[data-theme='light'] q::after {
+  color: var(--gold);
+}
+.spoken {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--text-m);
+  line-height: 1.1;
+  color: var(--on-stage);
+}
+.spoken::before {
+  margin-left: -0.42em;
+}
+/* Siri's reply on the page: muted, with a thin gold rule on its left. */
+.siri-reply {
+  font-family: var(--font-body);
+  font-weight: 400;
+  font-size: var(--text-siri);
+  line-height: 1.45;
+  color: var(--on-stage-muted);
+  border-left: 2px solid var(--gold-lit);
+  padding-left: 14px;
+  max-width: 34ch;
+}
+.speaker {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--on-stage-muted);
+}
+
+/* ---------- Buttons and links ---------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 52px;
+  padding: 0 22px;
+  border-radius: var(--radius-btn);
+  border: 1.5px solid transparent;
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 1.0625rem;
+  line-height: 1;
+  text-decoration: none;
+  white-space: nowrap;
+  transition:
+    transform var(--dur-1) var(--ease-out),
+    background-color var(--dur-1) linear;
+}
+.btn:active {
+  transform: scale(0.97);
+}
+.btn-gold {
+  background: var(--gold-lit);
+  color: var(--ink);
+}
+.btn-gold:hover {
+  background: #ecb558;
+}
+.btn-fir {
+  background: var(--fir);
+  color: #fff;
+}
+.btn-fir:hover {
+  background: #174d31;
+}
+.btn-ghost {
+  background: transparent;
+  border-color: currentColor;
+  color: var(--fir);
+}
+.btn-ghost:hover {
+  background: rgba(29, 91, 58, 0.06);
+}
+.btn svg {
+  width: 20px;
+  height: 20px;
+  flex: none;
+}
+.link-arrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  font-weight: 600;
+  color: var(--on-stage);
+  text-decoration: underline;
+  text-decoration-color: rgba(242, 245, 239, 0.35);
+  text-underline-offset: 6px;
+  text-decoration-thickness: 1.5px;
+}
+.link-arrow:hover {
+  text-decoration-color: var(--gold-lit);
+}
+
+/* ---------- Pills, chips and cards ---------- */
+.pill-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 28px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: var(--sap-soft);
+  color: var(--sap-ink);
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 0.75rem;
+  line-height: 1.2;
+  letter-spacing: 0.02em;
+  /* Wraps rather than clips when a reader's text spacing makes it wider (WCAG 1.4.12). */
+  max-width: 100%;
+}
+.pill-status::before {
+  content: '';
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+@media (max-width: 359.98px) {
+  .pill-status {
+    white-space: normal;
+    font-size: 0.6875rem;
+    letter-spacing: 0;
+    padding-inline: 10px;
+  }
+  .pill-status::before {
+    display: none;
+  }
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--card-dark);
+  border: 1px solid var(--stage-line);
+  color: var(--on-stage);
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.3;
+}
+[data-theme='light'] .chip {
+  background: #dce8de;
+  border-color: transparent;
+  color: var(--fir);
+}
+.card-dark {
+  background: var(--card-dark);
+  border: 1px solid var(--stage-line);
+  border-radius: var(--radius-card);
+  padding: 20px;
+}
+
+/* ---------- Odometer digits (see src/scripts/odometer.ts) ---------- */
+.odo {
+  display: inline-flex;
+  align-items: baseline;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+/* A drum, not a window: a 1em cell on the glyph, and the digits fade at its edges while
+   they roll, so a still caught mid-tick never shows a hard-clipped half digit. */
+.odo-d {
+  display: inline-block;
+  height: 1em;
+  line-height: 1em;
+  overflow: hidden;
+  vertical-align: bottom;
+  -webkit-mask-image: linear-gradient(transparent, #000 14%, #000 86%, transparent);
+  mask-image: linear-gradient(transparent, #000 14%, #000 86%, transparent);
+}
+/* Ten digits in one text node, a line each. */
+.odo-col {
+  display: block;
+  white-space: pre;
+  line-height: 1em;
+  text-align: center;
+}
+.odo-s {
+  display: inline-block;
+  height: 1em;
+  line-height: 1em;
+}
+html.motion .odo-col {
+  transition: transform 0.12s var(--ease-out);
+}
+.scrubbing .odo-col,
+html.paused .odo-col {
+  transition: none;
+}
+
+/* ---------- Motion gates ---------- */
+/* Shown only with motion / only without it. */
+html:not(.motion) .motion-only {
+  display: none !important;
+}
+html.motion .static-only {
+  display: none !important;
+}
+/* Static figures the moving page tells visually (a crop, a second phone): with motion they
+   stay for screen readers (their image labels and captions), visually hidden, instead of
+   leaving the accessibility tree. */
+html.motion .static-only.sr-moving {
+  display: block !important;
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  margin: -1px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  overflow: hidden !important;
+  clip-path: inset(50%) !important;
+  white-space: nowrap !important;
+}
+/* The Pause toggle is pointless when nothing moves. */
+html:not(.motion) [data-pause-toggle] {
+  display: none !important;
+}
+/* Hero load sequence: [data-intro] elements wait (hidden) until the hero scene has set its
+   from-states. Never put data-intro on the H1 (it is the LCP element). */
+html.motion.intro-wait [data-intro] {
+  opacity: 0;
+}
+/* The touch ring util.tap() adds to a tapped element. */
+.tap-ring {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: calc(44 * var(--pt, 1px));
+  height: calc(44 * var(--pt, 1px));
+  margin: calc(-22 * var(--pt, 1px)) 0 0 calc(-22 * var(--pt, 1px));
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.9);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+/* Animated properties get will-change only while tweening (util.ts adds .is-animating). */
+.is-animating {
+  will-change: transform, opacity;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

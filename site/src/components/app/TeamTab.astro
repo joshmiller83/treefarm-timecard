@@ -1,0 +1,178 @@
+---
+/**
+ * TEAM TAB (screens team): the admin's view of the crew. 'This week' lists each member's
+ * hours and trees from the ledger (through Fri 3:00 PM, MOMENTS.synced, which the status bar
+ * shows), then Invite someone and the Fields & blocks editor. No invite code, no expiry, no pay.
+ *
+ * Hooks: [data-team-row="Alex"|"Sam"|"Rosa"] with [data-hours] (odometer markup, so util.odometer
+ * can roll it) and [data-trees] inside,
+ * [data-team-total], [data-invite], [data-fields-row].
+ */
+import AppChrome from './AppChrome.astro';
+import Icon from './Icon.astro';
+import AppKit from '../screens/AppKit.astro';
+import { teamTab } from '../screens/team/team';
+import { weekOf } from '../screens/clock/clock';
+import { odometerHTML } from '../../scripts/odometer';
+import { FIELD, MOMENTS, TEAM, fmtClock } from '../../data/ledger';
+
+export interface Props {
+  /** Default ledger TEAM (through Fri 3:00 PM). */
+  rows?: ReadonlyArray<{ name: string; hours: string; trees: number }>;
+}
+const { rows = TEAM } = Astro.props;
+const m = teamTab(rows);
+const span = weekOf();
+---
+
+<AppKit />
+<AppChrome class="sc sc-team" title="Team" tab="team" time={fmtClock(MOMENTS.synced)}>
+  <div class="tm-team">
+    <div class="tm-sec-head">
+      <span class="sc-label">This week</span>
+      <span class="sc-foot">{span}</span>
+    </div>
+    <div class="tm-list">
+      {
+        m.rows.map((r) => (
+          <div class="tm-member" data-team-row={r.name}>
+            <span class="sc-avatar" data-tint={r.tint}>
+              {r.initial}
+            </span>
+            <span class="tm-who">
+              <span class="tm-name">{r.name}</span>
+              <span class="tm-trees">
+                <span class="sc-num" data-trees>
+                  {r.trees}
+                </span>{' '}
+                trees
+              </span>
+            </span>
+            <span class="tm-hours">
+              <span class="sc-num odo" data-hours data-odo-text={r.hours} set:html={odometerHTML(r.hours)} />
+              <span class="tm-h">h</span>
+            </span>
+            <Icon name="chevron" class="tm-chev" size="calc(15 * var(--pt))" weight={2.4} />
+          </div>
+        ))
+      }
+    </div>
+    <div class="sc-foot tm-total" data-team-total>{m.total}</div>
+
+    <span class="sc-btn sc-btn--primary sc-btn--wide tm-invite" data-invite>
+      <Icon name="person.add" size="calc(21 * var(--pt))" weight={2} />
+      Invite someone
+    </span>
+
+    <div class="tm-sec-head tm-farm">
+      <span class="sc-label">Farm</span>
+    </div>
+    <div class="tm-list">
+      <div class="tm-member tm-fields" data-fields-row>
+        <span class="tm-tile-ic"><Icon name="grid" size="calc(19 * var(--pt))" weight={2} /></span>
+        <span class="tm-who">
+          <span class="tm-name">Fields &amp; blocks</span>
+          <span class="tm-trees">{FIELD.name} · {FIELD.blocks} blocks</span>
+        </span>
+        <Icon name="chevron" class="tm-chev" size="calc(15 * var(--pt))" weight={2.4} />
+      </div>
+    </div>
+  </div>
+</AppChrome>
+
+<style>
+  .tm-team {
+    padding-top: calc(4 * var(--pt));
+  }
+  .tm-sec-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    padding: 0 calc(4 * var(--pt)) calc(8 * var(--pt));
+  }
+  .tm-sec-head.tm-farm {
+    margin-top: calc(26 * var(--pt));
+  }
+  /* An inset grouped list: one rounded card, hairlines between rows inset past the avatar. */
+  .tm-list {
+    border-radius: calc(18 * var(--pt));
+    background: var(--sc-card);
+    box-shadow:
+      inset 0 0 0 calc(1 * var(--pt)) var(--line),
+      0 calc(1 * var(--pt)) calc(2 * var(--pt)) rgba(20, 34, 26, 0.04);
+    overflow: hidden;
+  }
+  .tm-member {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: calc(12 * var(--pt));
+    min-height: calc(68 * var(--pt));
+    padding: calc(12 * var(--pt)) calc(14 * var(--pt)) calc(12 * var(--pt)) calc(14 * var(--pt));
+  }
+  .tm-member + .tm-member::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    left: calc(66 * var(--pt));
+    height: calc(0.5 * var(--pt));
+    background: var(--line);
+  }
+  .tm-who {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: calc(2 * var(--pt));
+  }
+  .tm-name {
+    font-size: calc(17 * var(--pt));
+    font-weight: 600;
+    letter-spacing: -0.025em;
+    color: var(--ink);
+  }
+  .tm-trees {
+    font-size: calc(14 * var(--pt));
+    letter-spacing: -0.01em;
+    color: var(--muted);
+  }
+  .tm-trees .sc-num {
+    font-weight: 500;
+    font-size: calc(14 * var(--pt));
+  }
+  .tm-hours {
+    display: inline-flex;
+    align-items: baseline;
+    gap: calc(3 * var(--pt));
+    color: var(--ink);
+  }
+  .tm-hours .sc-num {
+    font-size: calc(20 * var(--pt));
+  }
+  .tm-h {
+    font-size: calc(14 * var(--pt));
+    font-weight: 600;
+    color: var(--muted);
+  }
+  .tm-member :global(.tm-chev) {
+    flex: none;
+    color: #a3b0a7;
+  }
+  .tm-total {
+    padding: calc(8 * var(--pt)) calc(4 * var(--pt)) 0;
+  }
+  .tm-invite {
+    margin-top: calc(18 * var(--pt));
+  }
+  .tm-tile-ic {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: calc(40 * var(--pt));
+    height: calc(40 * var(--pt));
+    border-radius: calc(11 * var(--pt));
+    background: var(--fir);
+    color: #fff;
+  }
+</style>

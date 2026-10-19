@@ -1,0 +1,72 @@
+---
+/**
+ * "Trees this shift" (TreesCardView): the shift's count in Plex Mono, a Mark trees button
+ * that opens the map, and the field's share with a fir progress bar. Off the clock it shows
+ * the field instead. Hooks: [data-trees] (the count, odometer markup for util.odometer), [data-field-bar] (the fill; its width is
+ * the share, so a scene can scaleX it from the left), [data-field-pct].
+ */
+import Glyph from '../Glyph.astro';
+import { odometerHTML } from '../../../scripts/odometer';
+import type { TreesModel } from './clock';
+
+interface Props {
+  trees: TreesModel;
+}
+const { trees } = Astro.props;
+---
+
+<div class="sc-card tr-trees" data-trees-card>
+  <div class="tr-row">
+    <div class="tr-count">
+      <span class="sc-label">{trees.label}</span>
+      <span class="tr-big sc-num"><span class="odo" data-trees data-odo-text={trees.big} set:html={odometerHTML(trees.big)} /></span>
+    </div>
+    <span class="sc-btn sc-btn--primary tr-go">
+      <Glyph name="map" />
+      {trees.button}
+    </span>
+  </div>
+  <div class="tr-line sc-sub">{trees.line}</div>
+  <div class="tr-bar">
+    <div class="sc-progress"><span data-field-bar style={`width:${(trees.fraction * 100).toFixed(2)}%`}></span></div>
+    {trees.pct && <span class="tr-pct sc-num" data-field-pct>{trees.pct}</span>}
+  </div>
+</div>
+
+<style>
+  .tr-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: calc(12 * var(--pt));
+  }
+  .tr-count {
+    display: flex;
+    flex-direction: column;
+    gap: calc(2 * var(--pt));
+  }
+  .tr-big {
+    font-size: calc(34 * var(--pt));
+    line-height: 1.12;
+    color: var(--ink);
+  }
+  .tr-go {
+    flex: none;
+  }
+  .tr-line {
+    margin-top: calc(8 * var(--pt));
+  }
+  .tr-bar {
+    display: flex;
+    align-items: center;
+    gap: calc(10 * var(--pt));
+    margin-top: calc(8 * var(--pt));
+  }
+  .tr-bar .sc-progress {
+    flex: 1 1 auto;
+  }
+  .tr-pct {
+    font-size: calc(13 * var(--pt));
+    color: var(--fir);
+  }
+</style>

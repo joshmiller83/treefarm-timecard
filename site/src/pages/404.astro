@@ -1,0 +1,69 @@
+---
+/**
+ * 404: GitHub Pages serves dist/404.html for any path it doesn't know. A short line in the
+ * page's voice and the two ways back: the page and the repo. Static (no motion gate).
+ */
+import Base from '../layouts/Base.astro';
+import AppIcon from '../components/AppIcon.astro';
+import Icon from '../components/app/Icon.astro';
+
+const REPO = 'https://github.com/joshmiller83/treefarm-timecard';
+---
+
+<Base title="Not found · Time Card" description="This page isn’t here. Time Card is an iPhone time card for Christmas tree trimmers." noindex noMotion>
+  <main class="nf" id="content">
+    <div class="nf-inner">
+    <a class="nf-brand" href="/" aria-label="Time Card home">
+      <AppIcon size="64px" uid="nf-ic" />
+    </a>
+    <p class="eyebrow">404 · Not found</p>
+    <h1 class="display-l nf-h">This row isn’t on the map.</h1>
+    <p class="nf-body">The page you’re looking for isn’t here. The shift starts back at the beginning.</p>
+    <div class="nf-cta">
+      <a class="btn btn-gold" href="/">Back to Time Card</a>
+      <a class="link-arrow" href={REPO} rel="noopener">The code on GitHub <Icon name="arrow.up.right" size="18px" weight={2.2} /></a>
+    </div>
+    </div>
+  </main>
+</Base>
+
+<style>
+  .nf {
+    min-height: 100svh;
+    display: grid;
+    align-items: center;
+    background: var(--tint-dawn);
+  }
+  .nf-inner {
+    width: 100%;
+    max-width: calc(34rem + 2 * var(--gutter));
+    margin-inline: auto;
+    padding: 64px var(--gutter);
+    display: grid;
+    justify-items: start;
+    gap: 20px;
+  }
+  .nf-brand {
+    display: block;
+    margin-bottom: 12px;
+    border-radius: 22.5%;
+  }
+  .nf-brand :global(.app-icon) {
+    border-radius: 22.5%;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  }
+  .nf-h {
+    max-width: 12ch;
+  }
+  .nf-body {
+    max-width: 38ch;
+    color: var(--on-stage-muted);
+  }
+  .nf-cta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 14px 28px;
+    margin-top: 12px;
+  }
+</style>

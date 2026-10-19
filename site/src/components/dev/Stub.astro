@@ -1,0 +1,57 @@
+---
+/**
+ * A labeled placeholder box for components another team is still building.
+ * In-phone stubs pass pt geometry in `box` (e.g. 'left:calc(16*var(--pt));…').
+ */
+interface Props {
+  name: string;
+  owner: string;
+  note?: string;
+  /** Inline style for position and size. */
+  box?: string;
+  tone?: 'dark' | 'light';
+  class?: string;
+}
+const { name, owner, note, box, tone = 'dark', class: cls } = Astro.props;
+---
+
+<div class:list={['stub', `stub--${tone}`, cls]} style={box} data-stub={name}>
+  <span class="stub-name">{name}</span>
+  <span class="stub-owner">stub · {owner}</span>
+  {note && <span class="stub-note">{note}</span>}
+  <slot />
+</div>
+
+<style>
+  .stub {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 0.25em;
+    padding: 0.6em;
+    border: 1.5px dashed rgba(226, 166, 68, 0.75);
+    border-radius: 12px;
+    background: repeating-linear-gradient(135deg, rgba(226, 166, 68, 0.07) 0 8px, rgba(226, 166, 68, 0.02) 8px 16px);
+    color: var(--on-stage);
+    text-align: center;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 1.3;
+    overflow: hidden;
+  }
+  .stub--light {
+    color: var(--ink);
+    border-color: rgba(29, 91, 58, 0.6);
+    background: repeating-linear-gradient(135deg, rgba(29, 91, 58, 0.07) 0 8px, rgba(29, 91, 58, 0.02) 8px 16px);
+  }
+  .stub-name {
+    font-weight: 600;
+    font-size: 1.1em;
+  }
+  .stub-owner,
+  .stub-note {
+    font-size: 0.85em;
+    max-width: 30ch;
+  }
+</style>

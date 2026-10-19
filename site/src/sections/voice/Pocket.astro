@@ -1,0 +1,128 @@
+---
+/**
+ * POCKET PANEL (voice): dark canvas over the phone's lower part, as if the phone rides in a
+ * work-pants pocket. #141A17 with a fine SVG noise at 5% and a twill weave, a folded hem with
+ * one dashed gold seam 10px under its top edge (1.5px #E2A644 at 70%, dash 6/5). Its sides
+ * and far end fall off into the dark stage, like fabric at the edge of a key light.
+ *
+ * The opening sits inside the Live Activity's bottom padding, under its button strip, so
+ * everything the voice beats change shows above the seam: the pill, the timer, the trees and
+ * worked lines, the row strip and [Back to work]. The flashlight, camera and home bar stay
+ * pocketed. It is derived from the card's geometry (activity.ts) and the phone's frame
+ * (Phone.astro), so it tracks the component. The clip box runs from there to 16% of the
+ * phone's height past its bottom edge; the panel inside it ([data-pocket]) slides by yPercent
+ * (100 = tucked away under the clip's bottom edge).
+ *
+ *   placement 'device'  inside .x-device, sized from the phone box (mobile, static page)
+ *   placement 'stage'   inside the section's .extras, sized from --stage-* (desktop stage)
+ */
+import { LA, SCREEN_H } from '../../components/system/lockscreen/activity';
+
+interface Props {
+  placement: 'device' | 'stage';
+}
+const { placement } = Astro.props;
+
+/** Phone.astro: the 393 × 852 pt screen sits 13.5 u inside a 420 × 879 u frame (1 u = 1 pt). */
+const BEZEL = 13.5;
+const FRAME_H = SCREEN_H + 2 * BEZEL;
+/** Halfway down the card's bottom padding, as a fraction of the phone's height (≈ .873). */
+const POCKET_OPENING = (BEZEL + LA.bottomY - LA.padY / 2) / FRAME_H;
+const opening = POCKET_OPENING.toFixed(4);
+---
+
+<div class:list={['pocket-clip', `pocket-clip--${placement}`]} style={`--opening:${opening}`} aria-hidden="true" data-pocket-clip>
+  <div class="pocket" data-pocket>
+    <i class="pocket-face"></i>
+    <i class="pocket-hem"></i>
+    <i class="pocket-seam"></i>
+  </div>
+</div>
+
+<style>
+  .pocket-clip {
+    /* Fall off only below the phone (the clip runs 16% of the phone's height past its bottom). */
+    --fall: 48%;
+    /* Room above the mouth for the lip's shadow on the phone. */
+    --lip: 22px;
+    position: absolute;
+    overflow: hidden;
+    pointer-events: none;
+    z-index: 4;
+  }
+  /* About the phone's width plus 12%: a pocket the phone rides in, not a plinth under it. */
+  .pocket-clip--device {
+    top: calc(var(--opening) * 100% - var(--lip));
+    left: -6%;
+    right: -6%;
+    height: calc((1.16 - var(--opening)) * 100% + var(--lip));
+  }
+  /* Desktop: the extras layer is the sticky frame (100svh, columns 7–12). The stage phone is
+     centered in those columns, --stage-y from the top. */
+  .pocket-clip--stage {
+    /* Runs off the bottom of the viewport: no fall-off needed. */
+    --fall: 0px;
+    top: calc(var(--stage-y) + var(--opening) * var(--stage-h) - var(--lip));
+    bottom: 0;
+    left: calc((100% - var(--stage-w)) / 2 - 0.06 * var(--stage-w));
+    width: calc(1.12 * var(--stage-w));
+  }
+
+  .pocket {
+    position: absolute;
+    inset: var(--lip) 0 0;
+    /* Sides and far end fall off into the stage. */
+    -webkit-mask-image:
+      linear-gradient(90deg, transparent, #000 5%, #000 95%, transparent),
+      linear-gradient(180deg, #000 calc(100% - var(--fall)), transparent);
+    -webkit-mask-composite: source-in;
+    mask-image:
+      linear-gradient(90deg, transparent, #000 5%, #000 95%, transparent),
+      linear-gradient(180deg, #000 calc(100% - var(--fall)), transparent);
+    mask-composite: intersect;
+  }
+  .pocket > i {
+    position: absolute;
+    display: block;
+    pointer-events: none;
+  }
+  /* Canvas: base color, light from above, fine noise (an SVG tile at 5%), a twill weave. The
+     mouth curves: its corners round away, so the fabric wraps the phone instead of ending in
+     a hard shelf. */
+  .pocket-face {
+    inset: 0;
+    border-radius: 46% 46% 0 0 / 26px 26px 0 0;
+    background-color: #141a17;
+    background-image:
+      radial-gradient(90% 70% at 50% 0%, rgba(242, 245, 239, 0.06), rgba(242, 245, 239, 0) 70%),
+      linear-gradient(90deg, rgba(0, 0, 0, 0.28), rgba(0, 0, 0, 0) 28%, rgba(0, 0, 0, 0) 72%, rgba(0, 0, 0, 0.28)),
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .05 0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E"),
+      repeating-linear-gradient(64deg, rgba(242, 245, 239, 0.03) 0 1px, rgba(242, 245, 239, 0) 1px 3px),
+      repeating-linear-gradient(-26deg, rgba(0, 0, 0, 0.18) 0 1px, rgba(0, 0, 0, 0) 1px 3.4px);
+    box-shadow:
+      inset 0 1px 0 rgba(242, 245, 239, 0.1),
+      /* The lip's shadow on the phone, just above the mouth. */
+      0 -6px 16px rgba(0, 0, 0, 0.45);
+  }
+  /* The hem: a folded band along the opening, a hair lighter, its fold line under it. */
+  .pocket-hem {
+    left: 0;
+    right: 0;
+    top: 0;
+    height: 21px;
+    border-radius: 46% 46% 0 0 / 26px 26px 0 0;
+    background: linear-gradient(180deg, rgba(242, 245, 239, 0.06), rgba(242, 245, 239, 0.02));
+    box-shadow:
+      0 1px 0 rgba(0, 0, 0, 0.5),
+      0 2px 0 rgba(242, 245, 239, 0.04);
+  }
+  /* The stitched seam follows the mouth's curve. */
+  .pocket-seam {
+    left: 12px;
+    right: 12px;
+    top: 10px;
+    height: 24px;
+    border-top: 1.5px dashed rgba(226, 166, 68, 0.7);
+    border-radius: 46% 46% 0 0 / 22px 22px 0 0;
+  }
+</style>

@@ -1,0 +1,810 @@
+---
+/**
+ * PAPER TIME CARD: the report object, as a real table (brief: sharedComponents "PaperTimeCard").
+ *
+ *   [data-paper]            root (the Flip target); a size container named `tc`
+ *     [data-paper-shadow]   the layered soft shadow, its own layer (fade its opacity)
+ *     [data-paper-band]     the fir header band: TIME CARD · job · worker · range
+ *     <table>               caption, Date | In | Out | Trees | Hours | Breaks | Notes
+ *       tr[data-day="mon"…"fri"]               one row per day (print them by clip-path)
+ *       [data-cell="mon-trees"…"fri-hours"]    each holds a [data-flash] gold layer (animate opacity;
+ *                                              it rests at 0, hugs the number and paints behind all text)
+ *       tfoot: [data-totals] '39:55 hours · 1,347 trees' over a double rule [data-totals-rule] (scaleX)
+ *     footnote 'Breaks are listed, not counted.' and 'Prepared <time>Fri, Oct 16 at 4:31 PM</time>'
+ *
+ * Under 600px of its own width (a container query, not the viewport) the rows become stacked
+ * day blocks with no horizontal scroll; scenes can tell by `tr[data-day]` computing to
+ * display: flex (a Flip from the ReportTab preview only matches the card from 680px wide).
+ * Explicit table roles keep the semantics when the CSS display changes: empty cells are
+ * visually hidden, never removed, and the generated separators and labels have empty alt text.
+ * Pay is never printed: there is no pay column, ever.
+ *
+ * `mini` renders the same card as a presentational miniature for the ReportTab preview
+ * (divs, no hooks), drawn in the phone's pt space at --tc-mini-w pt wide (default 361), so the
+ * preview is the paper at exactly the same proportions as the page card at 720px.
+ */
+import { WEEK, WEEK_RANGE, type Day } from '../data/ledger';
+import { paperRows, paperTotals, preparedAt } from './report/report';
+
+export interface Props {
+  /** Default ledger WEEK. */
+  days?: readonly Day[];
+  /** Default 'Alex'. */
+  worker?: string;
+  /** Default WEEK_RANGE 'Mon, Oct 12 – Fri, Oct 16'. */
+  range?: string;
+  /** The job in the band. Default 'Tree trimming'. */
+  job?: string;
+  /** Show the 'Prepared Fri, Oct 16 at 4:31 PM' line (the moment of clock-out). Default true. */
+  prepared?: boolean;
+  /** Presentational miniature for the in-phone preview (divs, no hooks, pt units). */
+  mini?: boolean;
+  /** Mini only: the preview is still drawing (no example data for this range). */
+  pending?: boolean;
+  class?: string;
+}
+
+const {
+  days = WEEK,
+  worker = 'Alex',
+  range = WEEK_RANGE,
+  job = 'Tree trimming',
+  prepared = true,
+  mini = false,
+  pending = false,
+  class: cls,
+} = Astro.props;
+
+const rows = paperRows(days);
+const totals = paperTotals(days);
+const page = !mini;
+/** Hooks and roles only on the page card. */
+const on = <T,>(v: T) => (page ? v : undefined);
+
+const Table = page ? 'table' : 'div';
+const Head = page ? 'thead' : 'div';
+const Body = page ? 'tbody' : 'div';
+const Tr = page ? 'tr' : 'div';
+const Th = page ? 'th' : 'div';
+const Td = page ? 'td' : 'div';
+const P = page ? 'p' : 'div';
+const Time = page ? 'time' : 'span';
+
+const COLS = [
+  { key: 'date', label: 'Date' },
+  { key: 'in', label: 'In' },
+  { key: 'out', label: 'Out' },
+  { key: 'trees', label: 'Trees' },
+  { key: 'hours', label: 'Hours' },
+  { key: 'breaks', label: 'Breaks' },
+  { key: 'notes', label: 'Notes' },
+] as const;
+
+const at = preparedAt();
+/** '7:05 AM' → ['7:05', ' AM']: the meridiem is set a size smaller. */
+const clock = (text: string) => {
+  const m = /^(.*?)(\s[AP]M)$/.exec(text);
+  return m ? [m[1], m[2]] : [text, ''];
+};
+/** Skeleton widths (fractions of each column) for a preview that is still drawing. */
+const ghost = [0.82, 0.7, 0.9, 0.76, 0.86];
+---
+
+<div
+  class:list={['tc', mini && 'tc--mini', pending && 'tc--pending', cls]}
+  data-paper={on('')}
+  data-paper-mini={mini ? '' : undefined}
+>
+  <div class="tc-shadow" data-paper-shadow={on('')} aria-hidden="true"></div>
+  <div class="tc-sheet">
+    <div class="tc-band" data-paper-band={on('')} aria-hidden="true">
+      <div class="tc-band-main">
+        <span class="tc-title">TIME CARD</span>
+        <span class="tc-who">{job} · {worker}</span>
+      </div>
+      <span class="tc-range">{range}</span>
+    </div>
+
+    <div class="tc-main">
+      <Table class="tc-table" role={on('table')}>
+        {page && <caption class="sr-only">Example time card for {worker}, {range}</caption>}
+        <Head class="tc-head" role={on('rowgroup')}>
+          <Tr class="tc-tr" role={on('row')}>
+            {
+              COLS.map((c) => (
+                <Th class:list={['tc-th', `c-${c.key}`]} scope={on('col')} role={on('columnheader')}>
+                  {c.label}
+                </Th>
+              ))
+            }
+          </Tr>
+        </Head>
+
+        <Body class="tc-body" role={on('rowgroup')}>
+          {
+            pending
+              ? ghost.map((w, i) => (
+                  <Tr class="tc-tr tc-row">
+                    {COLS.map((c) => (
+                      <Td class:list={['tc-td', `c-${c.key}`]}>
+                        <span class="tc-ghost" style={`--w:${c.key === 'notes' ? (i % 2 ? 0 : 0.6) : c.key === 'breaks' ? w * 0.8 : w}`} />
+                      </Td>
+                    ))}
+                  </Tr>
+                ))
+              : rows.map((r) => (
+                  <Tr class="tc-tr tc-row" data-day={on(r.key)} role={on('row')}>
+                    <Th class="tc-td c-date" scope={on('row')} role={on('rowheader')}>
+                      {r.date}
+                    </Th>
+                    <Td class="tc-td c-in" role={on('cell')}>
+                      <time datetime={r.in.iso}>{clock(r.in.text)[0]}<span class="tc-ampm">{clock(r.in.text)[1]}</span></time>
+                    </Td>
+                    <Td class="tc-td c-out" role={on('cell')}>
+                      <time datetime={r.out.iso}>{clock(r.out.text)[0]}<span class="tc-ampm">{clock(r.out.text)[1]}</span></time>
+                    </Td>
+                    <Td class="tc-td c-trees" role={on('cell')} data-cell={on(`${r.key}-trees`)}>
+                      <span class="tc-v">{page && <span class="tc-flash" data-flash aria-hidden="true" />}{r.trees.text}</span>
+                    </Td>
+                    <Td class="tc-td c-hours" role={on('cell')} data-cell={on(`${r.key}-hours`)}>
+                      <Time class="tc-v" datetime={on(r.hours.iso)}>{page && <span class="tc-flash" data-flash aria-hidden="true" />}{r.hours.text}</Time>
+                    </Td>
+                    <Td class:list={['tc-td c-breaks', r.breaks.length === 0 && 'tc-empty']} role={on('cell')} data-label="Breaks">
+                      {r.breaks.length === 0 ? (
+                        <>
+                          <span class="tc-none" aria-hidden="true">—</span>
+                          {page && <span class="sr-only">None</span>}
+                        </>
+                      ) : (
+                        r.breaks.map((b, i) => (
+                          <>
+                            {i > 0 && <span class="tc-sep">; </span>}
+                            <span class="tc-brk">
+                              {b.reason}{' '}
+                              <span class="tc-span">
+                                <time datetime={b.iso[0]}>{b.span.split('–')[0]}</time>–<time datetime={b.iso[1]}>{b.span.split('–')[1]}</time>
+                              </span>
+                            </span>
+                          </>
+                        ))
+                      )}
+                    </Td>
+                    <Td class:list={['tc-td c-notes', !r.note && 'tc-empty']} role={on('cell')} data-label="Note">
+                      {r.note ?? (page && <span class="sr-only">None</span>)}
+                    </Td>
+                  </Tr>
+                ))
+          }
+        </Body>
+
+        {
+          page && (
+            <tfoot class="tc-foot-group" role="rowgroup">
+              <tr class="tc-tr tc-total" role="row">
+                <th class="tc-td tc-total-h" scope="row" role="rowheader">
+                  Total <span class="tc-days">{totals.days} days</span>
+                </th>
+                <td class="tc-td tc-sum" colspan="6" role="cell" data-totals>
+                  <time class="tc-n" datetime={totals.hoursIso}>{totals.hours}</time> hours · <span class="tc-n">{totals.trees}</span> trees
+                </td>
+              </tr>
+              <tr class="tc-tr tc-rule-row" aria-hidden="true">
+                <td class="tc-td" colspan="7">
+                  <div class="tc-rule" data-totals-rule />
+                </td>
+              </tr>
+            </tfoot>
+          )
+        }
+      </Table>
+      {
+        mini && (
+          <div class="tc-mini-foot">
+            <div class="tc-total">
+              <div class="tc-total-h">
+                Total <span class="tc-days">{pending ? '' : `${totals.days} days`}</span>
+              </div>
+              <div class="tc-sum">
+                {pending ? (
+                  <span class="tc-ghost" />
+                ) : (
+                  <>
+                    <span class="tc-n">{totals.hours}</span> hours · <span class="tc-n">{totals.trees}</span> trees
+                  </>
+                )}
+              </div>
+            </div>
+            <div class="tc-rule" />
+          </div>
+        )
+      }
+    </div>
+
+    <div class="tc-foot">
+      <P class="tc-footnote">Breaks are listed, not counted.</P>
+      {
+        prepared && (
+          <P class="tc-prepared">
+            Prepared <Time datetime={on(at.iso)}>{at.date} at <span class="tc-mono">{at.time}</span></Time>
+          </P>
+        )
+      }
+    </div>
+  </div>
+</div>
+
+<style>
+  /*
+   * Every length is calc(N * var(--u)): 1px on the page, a fraction of a pt in the miniature.
+   * Colors: --tc-paper #FFF, --tc-ink #1B1F1C, --tc-band #1D5B3A, --tc-rule #DDE4DD (tokens.css).
+   */
+  .tc {
+    --u: 1px;
+    --tc-muted: #556a5c; /* 5.7:1 on white */
+    --tc-pad: 28;
+    position: relative;
+    isolation: isolate;
+    width: 100%;
+    max-width: calc(720 * var(--u));
+    container: tc / inline-size;
+    color: var(--tc-ink);
+    font-family: var(--font-body);
+    font-size: calc(14 * var(--u));
+    line-height: 1.45;
+    letter-spacing: 0;
+    text-align: left;
+  }
+  .tc--mini {
+    --u: calc(var(--tc-mini-w, 361) * var(--pt) / 720);
+    /*
+     * Rules: browsers draw a border thinner than one device pixel as one device pixel, which
+     * would make the miniature taller than the card it previews (it is 0.16–0.46px per u). Every
+     * rule in the miniature is drawn at --line (1u, or one device pixel when that is thicker)
+     * and the cell's padding gives the difference back, so its proportions stay the card's.
+     */
+    --hair: 1px;
+    --line: max(calc(1 * var(--u)), var(--hair));
+    --line-extra: calc(var(--line) - 1 * var(--u));
+    /* One device pixel of ink is heavier than 1u at this scale below 3x: soften it to match. */
+    --mini-ink: rgba(27, 31, 28, 0.62);
+    width: calc(720 * var(--u));
+    max-width: none;
+    /* The miniature never stacks: it is the full card, scaled. */
+    container-type: normal;
+  }
+  @media (min-resolution: 2dppx) {
+    .tc--mini {
+      --hair: 0.5px;
+    }
+  }
+  @media (min-resolution: 3dppx) {
+    .tc--mini {
+      --hair: 0.334px;
+      --mini-ink: var(--tc-ink);
+    }
+  }
+
+  .tc-shadow {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: calc(6 * var(--u));
+    pointer-events: none;
+    box-shadow:
+      0 calc(1 * var(--u)) calc(2 * var(--u)) rgba(20, 34, 26, 0.07),
+      0 calc(4 * var(--u)) calc(10 * var(--u)) rgba(20, 34, 26, 0.06),
+      0 calc(14 * var(--u)) calc(30 * var(--u)) rgba(20, 34, 26, 0.08),
+      0 calc(34 * var(--u)) calc(70 * var(--u)) rgba(20, 34, 26, 0.1);
+  }
+  .tc-sheet {
+    position: relative;
+    overflow: hidden;
+    border-radius: calc(6 * var(--u));
+    background: var(--tc-paper);
+    box-shadow: 0 0 0 calc(0.75 * var(--u)) rgba(20, 34, 26, 0.07);
+  }
+
+  /* ---------- Band ---------- */
+  .tc-band {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: calc(16 * var(--u));
+    padding: calc(22 * var(--u)) calc(var(--tc-pad) * var(--u)) calc(18 * var(--u));
+    background: var(--tc-band);
+    color: #fff;
+  }
+  .tc-band-main {
+    display: grid;
+    gap: calc(9 * var(--u));
+    min-width: 0;
+  }
+  .tc-title {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: calc(27 * var(--u));
+    line-height: 0.9;
+    letter-spacing: 0.06em;
+  }
+  .tc-who,
+  .tc-range {
+    font-family: var(--font-mono);
+    font-weight: 500;
+    font-size: calc(12.5 * var(--u));
+    line-height: 1.2;
+    letter-spacing: 0.01em;
+    color: rgba(255, 255, 255, 0.88);
+    white-space: nowrap;
+  }
+
+  /* ---------- Table ---------- */
+  .tc-main {
+    padding: calc(6 * var(--u)) calc(var(--tc-pad) * var(--u)) 0;
+  }
+  .tc-table {
+    display: table;
+    width: 100%;
+    border-collapse: collapse;
+    border-spacing: 0;
+  }
+  .tc-head {
+    display: table-header-group;
+  }
+  .tc-body {
+    display: table-row-group;
+  }
+  .tc-foot-group {
+    display: table-footer-group;
+  }
+  .tc-tr {
+    display: table-row;
+  }
+  .tc-th,
+  .tc-td {
+    display: table-cell;
+    padding: calc(11 * var(--u)) calc(8 * var(--u));
+    vertical-align: top;
+    text-align: left;
+    font-weight: 400;
+  }
+  .tc-tr > :first-child {
+    padding-left: 0;
+  }
+  .tc-tr > :last-child {
+    padding-right: 0;
+  }
+  .tc-th {
+    padding-top: calc(14 * var(--u));
+    padding-bottom: calc(8 * var(--u));
+    border-bottom: calc(1 * var(--u)) solid var(--tc-ink);
+    vertical-align: bottom;
+    font-family: var(--font-mono);
+    font-weight: 500;
+    font-size: calc(10.5 * var(--u));
+    line-height: 1.2;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--tc-muted);
+    white-space: nowrap;
+  }
+  .tc-row > .tc-td {
+    border-bottom: calc(1 * var(--u)) solid var(--tc-rule);
+  }
+  /* A single ink rule above the totals, a double rule below them: a ledger's way. */
+  .tc-body > .tc-row:last-child > .tc-td {
+    border-bottom-color: var(--tc-ink);
+  }
+  .c-date {
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .tc-row > .c-date {
+    font-weight: 600;
+  }
+  .c-in,
+  .c-out,
+  .c-trees,
+  .c-hours {
+    white-space: nowrap;
+  }
+  .c-trees,
+  .c-hours {
+    text-align: right;
+  }
+  .tc-th.c-trees,
+  .tc-th.c-hours {
+    text-align: right;
+  }
+  .tc-row time,
+  .tc-v {
+    font-family: var(--font-mono);
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    font-size: calc(14 * var(--u));
+    letter-spacing: -0.01em;
+  }
+  .tc-ampm {
+    font-size: 0.82em;
+    letter-spacing: 0.02em;
+    color: var(--tc-muted);
+  }
+  /*
+   * Gold flash behind a freshly printed number: scenes fade its opacity, it rests at 0.
+   * It hugs the value (.tc-v) at every width, and the cell is its own stacking context, so
+   * the flash paints behind all of the cell's text, generated separators and suffixes included.
+   */
+  .c-trees,
+  .c-hours {
+    position: relative;
+    isolation: isolate;
+  }
+  .tc-v {
+    position: relative;
+    display: inline-block;
+  }
+  .tc-flash {
+    position: absolute;
+    z-index: -1;
+    inset: calc(-5 * var(--u)) calc(-6 * var(--u));
+    border-radius: calc(4 * var(--u));
+    background: var(--sap-soft);
+    box-shadow: inset 0 0 0 calc(1 * var(--u)) rgba(181, 122, 18, 0.35);
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .tc-td.c-breaks {
+    color: var(--tc-muted);
+    font-size: calc(13 * var(--u));
+  }
+  .tc-brk {
+    display: block;
+    white-space: nowrap;
+  }
+  .tc-brk + .tc-brk,
+  .tc-sep + .tc-brk {
+    margin-top: calc(2 * var(--u));
+  }
+  /* '12:01–12:31' never splits at its dash. */
+  .tc-span,
+  .tc-span time {
+    font-family: var(--font-mono);
+    font-weight: 500;
+    font-size: calc(12.5 * var(--u));
+    letter-spacing: -0.01em;
+    font-variant-numeric: tabular-nums;
+    color: var(--tc-muted);
+    white-space: nowrap;
+  }
+  /* Separators exist for screen readers and the stacked layout; the table lists one per line. */
+  .tc-sep {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .tc-td.c-notes {
+    font-size: calc(13.5 * var(--u));
+  }
+  .tc-none {
+    color: #9aa8a0;
+  }
+
+  /* ---------- Totals ---------- */
+  .tc-total > .tc-td {
+    padding-top: calc(13 * var(--u));
+    padding-bottom: calc(9 * var(--u));
+    vertical-align: baseline;
+  }
+  .tc-total-h {
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .tc-days {
+    margin-left: calc(6 * var(--u));
+    font-weight: 400;
+    font-size: calc(13 * var(--u));
+    color: var(--tc-muted);
+  }
+  .tc-sum {
+    text-align: right;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .tc-n {
+    font-family: var(--font-mono);
+    font-weight: 600;
+    font-size: calc(17 * var(--u));
+    letter-spacing: -0.01em;
+    font-variant-numeric: tabular-nums;
+  }
+  .tc-mini-foot .tc-total {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: calc(13 * var(--u)) 0 calc(9 * var(--u));
+  }
+  .tc-rule-row > .tc-td {
+    padding: 0;
+    border: 0;
+  }
+  /* The double rule under the totals, as on a ledger. */
+  .tc-rule {
+    height: calc(4 * var(--u));
+    border-top: calc(1 * var(--u)) solid var(--tc-ink);
+    border-bottom: calc(1 * var(--u)) solid var(--tc-ink);
+    transform-origin: 0 50%;
+  }
+  /* The miniature's rules: see --line on .tc--mini. */
+  .tc--mini .tc-th {
+    border-bottom: var(--line) solid var(--mini-ink);
+    padding-bottom: calc(8 * var(--u) - var(--line-extra));
+  }
+  .tc--mini .tc-row > .tc-td {
+    border-bottom-width: var(--line);
+    padding-bottom: calc(11 * var(--u) - var(--line-extra));
+  }
+  .tc--mini .tc-body > .tc-row:last-child > .tc-td {
+    border-bottom-color: var(--mini-ink);
+  }
+  /*
+   * Two lines with at least one device pixel of paper between them, at every size, even where a
+   * browser rounds thin borders up to a whole CSS pixel (emulated high-DPI screens do). The
+   * negative margin gives any extra height back, so the proportions never change.
+   */
+  .tc--mini .tc-rule {
+    --rule-h: max(calc(4 * var(--u)), calc(2 * max(var(--line), 1px) + var(--hair)));
+    height: var(--rule-h);
+    margin-bottom: calc(4 * var(--u) - var(--rule-h));
+    border-top: var(--line) solid var(--mini-ink);
+    border-bottom: var(--line) solid var(--mini-ink);
+  }
+
+  /* ---------- Footer ---------- */
+  .tc-foot {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: calc(4 * var(--u)) calc(16 * var(--u));
+    padding: calc(14 * var(--u)) calc(var(--tc-pad) * var(--u)) calc(22 * var(--u));
+    font-size: calc(12.5 * var(--u));
+    line-height: 1.4;
+    color: var(--tc-muted);
+  }
+  /* The date reads as prose; only the clock time is set in Plex Mono (global.css sets every <time> in mono). */
+  .tc-prepared time {
+    font-family: inherit;
+    font-weight: inherit;
+    font-variant-numeric: inherit;
+  }
+  .tc-prepared .tc-mono {
+    font-family: var(--font-mono);
+    font-weight: 500;
+    font-size: calc(12 * var(--u));
+  }
+
+  /* ---------- Pending miniature (no example data for the range) ---------- */
+  .tc-ghost {
+    display: block;
+    width: calc(var(--w) * 100%);
+    height: calc(9 * var(--u));
+    margin-block: calc(3 * var(--u));
+    border-radius: 999px;
+    background: #e6ece7;
+  }
+  .tc--pending .tc-sum .tc-ghost {
+    --w: 1;
+    margin-left: auto;
+    width: calc(180 * var(--u));
+    height: calc(12 * var(--u));
+  }
+  .tc--pending .tc-td.c-in,
+  .tc--pending .tc-td.c-out {
+    width: calc(70 * var(--u));
+  }
+  .tc--pending .tc-td.c-trees,
+  .tc--pending .tc-td.c-hours {
+    width: calc(46 * var(--u));
+  }
+  .tc--pending .tc-td.c-date {
+    width: calc(86 * var(--u));
+  }
+
+  /* ---------- Narrow card (600–680px): tighter columns, breaks may wrap ---------- */
+  @container tc (max-width: 680px) {
+    .tc-band,
+    .tc-main,
+    .tc-foot {
+      --tc-pad: 22;
+    }
+    .tc-th,
+    .tc-td {
+      padding-inline: calc(6 * var(--u));
+    }
+    /* Room for 'Lunch 12:01–12:31' on one line in every engine (WebKit favors the long notes). */
+    .tc-th.c-breaks {
+      width: calc(150 * var(--u));
+    }
+    /* A wrapped entry hangs under its reason, so its time never reads as another break. */
+    .tc-brk {
+      white-space: normal;
+      padding-left: 0.9em;
+      text-indent: -0.9em;
+    }
+  }
+
+  /* ---------- Stacked day blocks under 600px: no horizontal scroll ---------- */
+  @container tc (max-width: 599.98px) {
+    .tc-band {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: calc(8 * var(--u));
+      padding: calc(20 * var(--u)) calc(20 * var(--u)) calc(16 * var(--u));
+    }
+    .tc-who,
+    .tc-range {
+      white-space: normal;
+    }
+    .tc-main {
+      padding: 0 calc(20 * var(--u));
+    }
+    .tc-table,
+    .tc-body,
+    .tc-foot-group,
+    .tc-rule-row,
+    .tc-rule-row > .tc-td {
+      display: block;
+    }
+    /* The column headers stay for screen readers only. */
+    .tc-head {
+      display: block;
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+    .tc-row,
+    .tc-total {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+    }
+    .tc-row {
+      position: relative;
+      padding: calc(14 * var(--u)) 0;
+      border-bottom: calc(1 * var(--u)) solid var(--tc-rule);
+    }
+    .tc-row > .tc-td,
+    .tc-total > .tc-td {
+      display: block;
+      padding: 0;
+      border: 0;
+    }
+    /* 'Fri, Oct 16' */
+    .tc-row > .c-date {
+      flex: 1 0 100%;
+      margin-bottom: calc(4 * var(--u));
+      font-size: calc(16 * var(--u));
+    }
+    /* '7:02 AM – 4:31 PM · 8:30 h · 290 trees' */
+    .tc-row > .c-in {
+      order: 1;
+    }
+    .tc-row > .c-out {
+      order: 2;
+    }
+    .tc-row > .c-hours {
+      order: 3;
+    }
+    .tc-row > .c-trees {
+      order: 4;
+    }
+    /* Generated text is for the eye: empty alt text keeps it out of the cells' names. */
+    .tc-row > .c-out::before {
+      content: '\00a0–\00a0';
+      content: '\00a0–\00a0' / '';
+    }
+    .tc-row > .c-hours::before,
+    .tc-row > .c-trees::before {
+      content: '\00a0·\00a0';
+      content: '\00a0·\00a0' / '';
+      color: var(--tc-muted);
+    }
+    .tc-row > .c-hours::after {
+      content: '\00a0h';
+      content: '\00a0h' / '';
+      font-size: calc(13.5 * var(--u));
+    }
+    .tc-row > .c-trees::after {
+      content: '\00a0trees';
+      content: '\00a0trees' / '';
+      font-size: calc(13.5 * var(--u));
+    }
+    .tc-row > .c-trees,
+    .tc-row > .c-hours {
+      text-align: left;
+    }
+    .tc-row time,
+    .tc-v {
+      font-size: calc(13.5 * var(--u));
+    }
+    .tc-flash {
+      inset: calc(-2 * var(--u));
+    }
+    /* 'Breaks: …' and 'Note: …' */
+    .tc-row > .c-breaks,
+    .tc-row > .c-notes {
+      flex: 1 0 100%;
+      margin-top: calc(6 * var(--u));
+      white-space: normal;
+    }
+    .tc-row > .c-breaks {
+      order: 5;
+    }
+    .tc-row > .c-notes {
+      order: 6;
+      margin-top: calc(3 * var(--u));
+    }
+    .tc-row > .c-breaks.tc-empty + .c-notes {
+      margin-top: calc(6 * var(--u));
+    }
+    /* 'Breaks:' repeats the column header, which screen readers already announce. */
+    .tc-row > .c-breaks::before,
+    .tc-row > .c-notes::before {
+      content: attr(data-label) ':\00a0';
+      content: attr(data-label) ':\00a0' / '';
+      font-weight: 600;
+      color: var(--tc-ink);
+    }
+    /* Empty cells leave the eye but stay in the table, so every row keeps all seven cells. */
+    .tc-row > .tc-empty {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+      margin: 0;
+    }
+    /* Each entry stays whole; lines break only at the '; ' between entries. */
+    .tc-brk {
+      display: inline;
+      padding-left: 0;
+      text-indent: 0;
+      white-space: nowrap;
+    }
+    .tc-sep {
+      position: static;
+      width: auto;
+      height: auto;
+      overflow: visible;
+      clip-path: none;
+      white-space: normal;
+    }
+    .tc-brk + .tc-brk,
+    .tc-sep + .tc-brk {
+      margin-top: 0;
+    }
+    .tc-total {
+      justify-content: space-between;
+      gap: calc(4 * var(--u)) calc(12 * var(--u));
+      padding: calc(14 * var(--u)) 0 calc(10 * var(--u));
+    }
+    .tc-body > .tc-row:last-child {
+      border-bottom-color: var(--tc-ink);
+    }
+    .tc-sum {
+      text-align: left;
+    }
+    .tc-foot {
+      flex-direction: column;
+      gap: calc(2 * var(--u));
+      padding: calc(14 * var(--u)) calc(20 * var(--u)) calc(20 * var(--u));
+    }
+  }
+</style>

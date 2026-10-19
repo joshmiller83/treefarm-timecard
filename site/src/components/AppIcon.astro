@@ -1,0 +1,77 @@
+---
+/**
+ * The Time Card app icon as inline SVG, drawn in separate parts so a scene can assemble it:
+ *   [data-icon-bg]     the deep-green rounded square
+ *   [data-icon-ring]   the gold ring (pathLength 1: animate stroke-dashoffset 1 → 0)
+ *   [data-icon-tick]   ten ticks (data-hour 1–11; 12 and 6 are left out, as in the app)
+ *   [data-icon-hand]   the cream fir and its trunk (transform-origin at the ring's center)
+ * Geometry is ported from tools/make_icon.swift (src/data/icon.ts).
+ */
+import { firTiers, ICON, ticks } from '../data/icon.ts';
+
+interface Props {
+  /** CSS length. Default 192px. */
+  size?: string;
+  /** Accessible name; omit for a decorative icon. */
+  label?: string;
+  class?: string;
+  /** Unique id prefix when more than one icon is on a page. */
+  uid?: string;
+}
+const { size = '192px', label, class: cls, uid = 'ai' } = Astro.props;
+const { center: c, ringR, ringW, trunk, colors } = ICON;
+const id = uid;
+---
+
+<svg
+  class:list={['app-icon', cls]}
+  viewBox="0 0 1024 1024"
+  style={`width:${size};height:${size}`}
+  role={label ? 'img' : undefined}
+  aria-label={label}
+  aria-hidden={label ? undefined : 'true'}
+  focusable="false"
+  data-app-icon
+>
+  <defs>
+    <linearGradient id={`${id}-bg`} x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color={colors.bgTop}></stop>
+      <stop offset="1" stop-color={colors.bgBottom}></stop>
+    </linearGradient>
+  </defs>
+  <rect data-icon-bg width="1024" height="1024" rx={ICON.corner} fill={`url(#${id}-bg)`}></rect>
+  <circle
+    data-icon-ring
+    cx={c.x}
+    cy={c.y}
+    r={ringR}
+    fill="none"
+    stroke={colors.ring}
+    stroke-width={ringW}
+    pathLength="1"
+    stroke-dasharray="1"
+    transform={`rotate(-90 ${c.x} ${c.y})`}></circle>
+  <g stroke={colors.ticks} stroke-opacity={colors.ticksOpacity} stroke-linecap="round">
+    {
+      ticks().map((t) => (
+        <line data-icon-tick data-hour={t.hour} x1={t.x1} y1={t.y1} x2={t.x2} y2={t.y2} stroke-width={t.w} />
+      ))
+    }
+  </g>
+  <g data-icon-hand class="app-icon-hand">
+    <rect x={trunk.x} y={trunk.y} width={trunk.w} height={trunk.h} rx={trunk.r} fill={colors.trunk}></rect>
+    {firTiers().map((t) => <path d={t.d} fill={t.fill} />)}
+  </g>
+</svg>
+
+<style>
+  .app-icon {
+    display: block;
+    flex: none;
+  }
+  .app-icon-hand,
+  [data-icon-tick] {
+    transform-box: view-box;
+    transform-origin: 512px 520px;
+  }
+</style>
