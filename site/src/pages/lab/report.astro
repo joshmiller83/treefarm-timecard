@@ -104,6 +104,10 @@ const sizes = [
 </Lab>
 
 <style>
+  /* Lab sections are grid items: let them shrink to the window instead of to their widest card. */
+  section {
+    min-width: 0;
+  }
   .lab-note {
     max-width: 60ch;
     margin: -6px 0 24px;

@@ -161,8 +161,9 @@ test('stacks into day blocks under 600px, with no horizontal scroll', async ({ p
   // Nothing in the card is wider than the card.
   const overflow = await narrow.evaluate((el) => el.scrollWidth - el.clientWidth);
   expect(overflow).toBeLessThanOrEqual(0);
-  const pageOverflow = await page.evaluate(() => document.documentElement.scrollWidth - innerWidth);
-  expect(pageOverflow).toBeLessThanOrEqual(0);
+  // Against the configured width: a phone browser zooms out to fit, which would hide overflow.
+  const pageWidth = await page.evaluate(() => document.documentElement.scrollWidth);
+  expect(pageWidth).toBeLessThanOrEqual(page.viewportSize()!.width);
 });
 
 test('the wide card keeps the table layout', async ({ page }, info) => {
