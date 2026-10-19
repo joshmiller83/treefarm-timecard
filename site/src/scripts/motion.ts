@@ -36,11 +36,14 @@ declare global {
 }
 
 let booted = false;
+/** True until the first scene batch of the page view has been scheduled. */
+let firstLoad = true;
 
 export function boot(): void {
-  if (booted) return;
-  booted = true;
   const root = document.documentElement;
+  // The 4 s safety gate already fell back to the static page: stay static, never half-animated.
+  if (booted || !root.classList.contains('motion')) return;
+  booted = true;
   root.classList.add('motion-ready');
   if (window.__tfGate) clearTimeout(window.__tfGate);
 
@@ -215,18 +218,62 @@ export function boot(): void {
       return cleanup || undefined;
     };
 
+    // On the first load, a scene that is near but not yet on screen (the voice chapter under the
+    // hero) waits until the hero's load sequence has played, the reader scrolls, or 4 s pass, and
+    // then builds in its own idle task: the intro never shares a frame with a scene's build.
+    let alive = true;
+    const later: HTMLElement[] = [];
+    let flushed = false;
+    const idle = () =>
+      new Promise<void>((r) => ('requestIdleCallback' in window ? requestIdleCallback(() => r(), { timeout: 250 }) : setTimeout(r, 16)));
+    let resolveLater: () => void = () => {};
+    const laterDone = new Promise<void>((r) => (resolveLater = r));
+    const flush = () => {
+      if (flushed) return;
+      flushed = true;
+      ScrollTrigger.removeEventListener('scrollStart', flush);
+      removeEventListener('tf:hero-intro', onIntro);
+      clearTimeout(laterTimer);
+      void (async () => {
+        for (const s of later) {
+          await idle();
+          if (!alive) return;
+          await build(s);
+        }
+      })().finally(resolveLater);
+    };
+    const onIntro = (e: Event) => {
+      if ((e as CustomEvent<{ state: string }>).detail?.state !== 'playing') flush();
+    };
+    let laterTimer = 0;
+
     const io = new IntersectionObserver(
       (entries) => {
         const jobs: Promise<void>[] = [];
         for (const e of entries) {
           if (!e.isIntersecting) continue;
           io.unobserve(e.target);
-          jobs.push(build(e.target as HTMLElement));
+          const s = e.target as HTMLElement;
+          const offscreen = s.id !== 'hero' && e.boundingClientRect.top >= innerHeight;
+          if (firstBatch && firstLoad && offscreen) later.push(s);
+          else jobs.push(build(s));
         }
         // `ready` resolves once the scenes near the first view are built (tests and screenshots wait on it).
         if (firstBatch) {
           firstBatch = false;
-          void Promise.all(jobs).then(() => resolveReady());
+          if (later.length && !paused) {
+            ScrollTrigger.addEventListener('scrollStart', flush);
+            addEventListener('tf:hero-intro', onIntro);
+            laterTimer = window.setTimeout(flush, 4000);
+          } else flush();
+          firstLoad = false;
+          void Promise.all(jobs)
+            .then(() => {
+              // The hero's sequence may already be over (opened scrolled down, or paused).
+              if (root.dataset.heroIntro !== 'playing') flush();
+              return laterDone;
+            })
+            .then(() => resolveReady());
         }
       },
       { rootMargin: '150% 0px 150% 0px' },
@@ -241,6 +288,8 @@ export function boot(): void {
     if (now) activate(now);
 
     return () => {
+      alive = false;
+      flush();
       io.disconnect();
       stage?.destroy();
       stage = null;

@@ -124,6 +124,9 @@ const hidden = decorative;
     background: #000;
     container-type: inline-size;
     --pt: calc(100cqw / 393);
+    /* Phones far from the viewport skip style, layout and paint (most of the page's DOM is in
+       these screens). The box's size comes from its inset, so nothing moves when it renders. */
+    content-visibility: auto;
   }
 
   .phone-island {
