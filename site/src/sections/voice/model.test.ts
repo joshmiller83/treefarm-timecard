@@ -19,6 +19,7 @@ import {
   voiceMinute,
   type Source,
 } from './model.ts';
+import { WATER } from './clock.ts';
 
 const all = (p: number, desk = true): Partial<Record<Source, number>> =>
   desk
@@ -176,9 +177,25 @@ describe('voiceMinute: the day as a function of every exchange’s progress', ()
     expect(place(spin.part, spin.at[1], true).p).toBeCloseTo(0.55, 2);
   });
 
-  it('chains every step from where the last one ended (desktop and mobile)', () => {
+  it('chains every step from where the last one ended, stepping over the water break (desktop and mobile)', () => {
     for (const steps of [DAY_STEPS, daySteps(false)]) {
-      for (let i = 1; i < steps.length; i += 1) expect(steps[i]!.from).toBe(steps[i - 1]!.to);
+      for (let i = 1; i < steps.length; i += 1) {
+        if (steps[i - 1]!.to === WATER.start) expect(steps[i]!.from).toBe(WATER.end);
+        else expect(steps[i]!.from).toBe(steps[i - 1]!.to);
+        // Windows follow one another on the scroll.
+        if (steps[i]!.part === steps[i - 1]!.part) expect(steps[i]!.at[0]).toBeGreaterThanOrEqual(steps[i - 1]!.at[1] - 1e-9);
+      }
+    }
+  });
+
+  it('never reads a minute inside the water break while the morning time-lapse runs', () => {
+    for (const desk of [true, false]) {
+      const b = desk ? BEATS.desk : BEATS.mob;
+      for (let u = b.morning[0]; u <= b.morning[1]; u += 0.0005) {
+        const { src, p } = place('lunchA', u, desk);
+        const min = voiceMinute({ main: 1, misheard: 1, next: 1, [src]: p }, desk);
+        expect(min > WATER.start && min < WATER.end, `${fmtTime(min)} at ${u.toFixed(4)}`).toBe(false);
+      }
     }
   });
 

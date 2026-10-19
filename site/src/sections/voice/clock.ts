@@ -19,6 +19,8 @@ export type PartId = 'misheard' | 'next' | 'lunchA' | 'lunchB' | 'status';
 const EDGE = 5e-7;
 const NUDGE = 2e-4;
 const lunch = BREAKS.find((b) => b.kind === 'lunch')!;
+/** The morning's water break (9:45–10:00): the time-lapse steps over it (see daySteps). */
+export const WATER = BREAKS.find((b) => b.kind === 'break' && b.start < lunch.start)!;
 export const BEFORE_LUNCH = lunch.start - EDGE;
 export const LUNCH_STARTED = lunch.start + NUDGE;
 export const BEFORE_BACK = lunch.end - EDGE;
@@ -83,10 +85,17 @@ const EDGE_W = 0.02;
  */
 export function daySteps(desk: boolean): readonly DayStep[] {
   const b = desk ? BEATS.desk : BEATS.mob;
+  // The morning time-lapse runs over worked minutes only: it steps over the water break
+  // (9:45 → 10:00 in one frame), so the card never reads 'On the clock' at a time Alex was
+  // on a break and its timer never stands still while the clock runs.
+  const [m0, m1] = b.morning;
+  const worked = BEFORE_LUNCH - MOMENTS.firstRow - (WATER.end - WATER.start);
+  const cut = m0 + ((WATER.start - MOMENTS.firstRow) / worked) * (m1 - m0);
   return [
     { part: 'misheard', at: [0, 0.16], from: MOMENTS.clockIn, to: MOMENTS.misheard },
     { part: 'next', at: b.nextDay, from: MOMENTS.misheard, to: MOMENTS.firstRow },
-    { part: 'lunchA', at: b.morning, from: MOMENTS.firstRow, to: BEFORE_LUNCH },
+    { part: 'lunchA', at: [m0, cut], from: MOMENTS.firstRow, to: WATER.start },
+    { part: 'lunchA', at: [cut, m1], from: WATER.end, to: BEFORE_LUNCH },
     { part: 'lunchA', at: [b.lunchAt, b.lunchAt + EDGE_W], from: BEFORE_LUNCH, to: LUNCH_STARTED },
     { part: 'lunchB', at: b.spin, from: LUNCH_STARTED, to: BEFORE_BACK },
     { part: 'lunchB', at: [b.backAt, b.backAt + EDGE_W], from: BEFORE_BACK, to: BACK },

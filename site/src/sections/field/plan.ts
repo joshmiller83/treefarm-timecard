@@ -16,7 +16,6 @@ import {
   ZOOM_TARGET,
   blockRect,
   dotCenter,
-  revealCount,
   sceneState,
   targetRect,
   type ZoomTarget,
@@ -56,8 +55,6 @@ export const WIN = {
   flatten: [0.1, 0.3],
   /** The horizon haze over the far rows lifts. */
   haze: [0.1, 0.24],
-  /** Trees 0 → 8,540 and shaped 0 → 2,190. */
-  count: [0.1, 0.3],
   /** The counter strip, season chip and legend fade in. */
   chrome: [0.15, 0.28],
   /**
@@ -185,7 +182,6 @@ export function riseAt(p: number, camera: number, dz: readonly [number, number])
 
 const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
 const ramp = (p: number, w: Win) => clamp01((p - w[0]) / (w[1] - w[0]));
-const easeOut = (t: number) => 1 - (1 - t) * (1 - t);
 
 /** 0 = this season, 1 = next season (follows the canvas: out over seasonOut, back over seasonIn). */
 export function seasonAt(p: number): number {
@@ -194,22 +190,20 @@ export function seasonAt(p: number): number {
 }
 
 /**
- * The counter strip at progress p. Trees and the earlier shaped count roll up while the field
- * flattens; today's trees count up ten at a time as each row flips to gold (in step with the
- * canvas); the row 37 demo adds its row while it is gold and Undo takes it back; next season
- * everything shaped goes back to zero, then returns.
+ * The counter strip at progress p, always the ledger's at 2:16 PM: 8,540 trees (a field
+ * doesn't grow), 2,420 shaped and 230 today, where the lock screen left them. Only the map's
+ * gold fill animates as today's rows are revealed. The row 37 demo adds its row while it is
+ * gold and Undo takes it back; next season everything shaped goes back to zero, a row of ten
+ * at a time, then returns.
  */
 export function countsAt(p: number): Counts {
   const q = clamp01(p);
-  const c = easeOut(ramp(q, WIN.count));
-  const rows = revealCount();
-  const per = COUNTS.today / rows;
-  const flipped = Math.min(rows, Math.max(0, Math.ceil(rows * ramp(q, BEATS.reveal) - 1e-9)));
   const keep = 1 - seasonAt(q);
-  const demo = sceneState(q).demo >= 0.5 ? FIELD.treesPerRow : 0;
-  const today = (Math.round(flipped * keep) * per || 0) + demo;
-  const earlier = Math.round(COUNTS.earlier * c * keep);
-  return { trees: Math.round(COUNTS.trees * c), shaped: earlier + today, today };
+  const per = FIELD.treesPerRow;
+  const demo = sceneState(q).demo >= 0.5 ? per : 0;
+  const today = Math.round((COUNTS.today / per) * keep) * per + demo;
+  const earlier = Math.round((COUNTS.earlier / per) * keep) * per;
+  return { trees: COUNTS.trees, shaped: earlier + today, today };
 }
 
 /** Which card shows at p: 1–3, or 0 for none. */

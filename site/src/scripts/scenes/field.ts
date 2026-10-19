@@ -6,8 +6,9 @@
  * progress changes; the page around it follows src/sections/field/plan.ts (pure, tested):
  *
  *   [0, .1]     the stage phone fades to 0 and .96 while the tilted field fades in under it (desktop)
- *   [.1, .3]    it flattens; trees 0 → 8,540 and shaped 0 → 2,190 roll; strip, chip and legend fade in
- *   [.3, .52]   block 2 rows 14 → 36 flip to gold, today counts up ten a row; card 1
+ *   [.1, .3]    it flattens; the strip (8,540 trees · 2,420 shaped · 230 today, the ledger at
+ *               2:16 PM, as the lock screen left it), chip and legend fade in
+ *   [.3, .52]   block 2 rows 14 → 36 flip to gold (only the fill moves; the counts hold); card 1
  *   [.52, .72]  zoom to block 2 rows 28–40; row 37 touched, filled, Undo tapped, back to rings; card 2
  *   [.72, .88]  next season: fills fade to rings and the counts to zero, the note stays and pulses; card 3
  *   [.88, 1]    this season again, the camera pulls out, the map fades and the phone comes back

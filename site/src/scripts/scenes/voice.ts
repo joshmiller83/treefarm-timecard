@@ -24,7 +24,8 @@
  *     every tween is a fromTo with immediateRender off, so invalidation never re-records them.
  */
 import { registerScene } from '../scene.ts';
-import { MOMENTS, treesAt } from '../../data/ledger.ts';
+import { FIELD_TREES, MOMENTS, fieldShapedAt, fmtCount, rowsAt, treesAt } from '../../data/ledger.ts';
+import { setOdometer } from '../odometer.ts';
 import { BEATS, place, voiceMinute, type PartId, type Source } from '../../sections/voice/clock.ts';
 
 type Win = readonly [number, number];
@@ -49,9 +50,12 @@ registerScene(
     const track = day.track(tl);
     const tls: Partial<Record<Source, GSAPTimeline>> = { main: tl };
     const progress: Partial<Record<Source, number>> = {};
+    /** Writes the ledger's numbers for the clock's minute (set once the layers are found). */
+    let ledgerAt: (min: number) => void = () => {};
     const sync = () => {
       for (const k of Object.keys(tls) as Source[]) progress[k] = tls[k]!.progress();
       track.min = voiceMinute(progress, isDesk);
+      ledgerAt(track.min);
     };
     tl.eventCallback('onUpdate', sync);
 
@@ -147,6 +151,50 @@ registerScene(
     const L3 = layerEls('lock-1201-lunch');
     const L4 = layerEls('lock-1231-back');
     const L5 = layerEls('lock-1401-status');
+
+    // ---- Numbers from the ledger at the clock's minute ----
+    // While the day time-lapses on a layer (the morning on the 12:01 card, the early
+    // afternoon on the 2:01 one), its trees, row buttons and field bar are read from the
+    // ledger at the DayClock's minute on every update: whole rows of ten, never a count in
+    // between, and the buttons step to the rows Alex is on at that minute.
+    const live = [
+      { L: L3, from: MOMENTS.firstRow, to: MOMENTS.lunch },
+      { L: L5, from: MOMENTS.back, to: MOMENTS.status },
+    ].map((x) => {
+      const bar = one<HTMLElement>(x.L.la, '[data-fieldbar]');
+      return {
+        ...x,
+        bar,
+        rows: x.L.rows.map((el) => ({ el, row: Number(el.dataset.row), text: el.textContent ?? '' })),
+        trees: x.L.trees?.dataset.odoText ?? null,
+        barTransform: bar?.style.transform ?? '',
+      };
+    });
+    ledgerAt = (min: number) => {
+      for (const x of live) {
+        const m = Math.min(x.to, Math.max(x.from, min));
+        if (x.L.trees) setOdometer(x.L.trees, fmtCount(treesAt(m)));
+        const shift = rowsAt(m)[0] - rowsAt(x.to)[0];
+        for (const r of x.rows) {
+          const row = String(r.row + shift);
+          if (r.el.dataset.row !== row) {
+            r.el.dataset.row = row;
+            r.el.textContent = `Row ${row}`;
+          }
+        }
+        if (x.bar) x.bar.style.transform = `scaleX(${(fieldShapedAt(m) / FIELD_TREES).toFixed(4)})`;
+      }
+    };
+    cleanups.push(() => {
+      for (const x of live) {
+        if (x.L.trees && x.trees) setOdometer(x.L.trees, x.trees);
+        for (const r of x.rows) {
+          r.el.dataset.row = String(r.row);
+          r.el.textContent = r.text;
+        }
+        if (x.bar) x.bar.style.transform = x.barTransform;
+      }
+    });
 
     // Layers: the first shows from the start; each later one fades in over the last.
     gsap.set(L1.el, { opacity: 1 });
@@ -340,8 +388,7 @@ registerScene(
       const k = dm(1, 0.55);
       const after = (a: number, b: number): Win => [f + a * k, f + b * k];
       enter(t, L3, [0, 0.04]);
-      // The morning passes with the clock: trees roll up with it.
-      util.odometer(t.m, L3.trees, treesAt(MOMENTS.firstRow), treesAt(MOMENTS.lunch), t.pos(B.morning[0]), t.pos(B.morning[1]) - t.pos(B.morning[0]));
+      // The morning passes with the clock: trees and rows follow it (ledgerAt, from sync).
       karaoke(t, words(p, '[data-turn="said"] .x-said'), dm([0.24, 0.44], [0.12, 0.27]));
       listen(t, L3, dm([0.24, 0.42], [0.12, 0.26]));
       think(t, L3, [f - 0.05, f]);
@@ -446,7 +493,7 @@ registerScene(
       const t = T('status');
       const p = partEl('status');
       enter(t, L5, [0, 0.04]);
-      util.odometer(t.m, L5.trees, treesAt(MOMENTS.back), treesAt(MOMENTS.status), t.pos(B.afternoon[0]), t.pos(B.afternoon[1]) - t.pos(B.afternoon[0]));
+      // The early afternoon passes with the clock: trees and rows follow it (ledgerAt).
       karaoke(t, words(p, '[data-turn="said"] .x-said'), dm([0.14, 0.3], [0.12, 0.28]));
       listen(t, L5, dm([0.12, 0.3], [0.1, 0.28]));
       think(t, L5, dm([0.3, 0.4], [0.28, 0.36]));

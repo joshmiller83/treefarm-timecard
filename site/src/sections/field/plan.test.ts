@@ -42,29 +42,16 @@ describe('the field section: numbers come from the ledger', () => {
 });
 
 describe('the counters at section progress p', () => {
-  it('start at zero while the field is still tilted', () => {
-    expect(at(0)).toEqual({ trees: 0, shaped: 0, today: 0 });
-    expect(at(WIN.count[0])).toEqual({ trees: 0, shaped: 0, today: 0 });
+  it('start on the ledger, where the lock screen left them: 8,540 trees · 2,420 shaped · 230 today', () => {
+    expect(at(0)).toEqual({ trees: FIELD_TREES, shaped: COUNTS.shaped, today: COUNTS.today });
+    expect(COUNTS.today).toBe(treesAt(MOMENTS.tapped));
   });
 
-  it('roll to 8,540 trees and 2,190 shaped as the field flattens', () => {
-    expect(at(WIN.count[1])).toEqual({ trees: FIELD_TREES, shaped: EARLIER_COUNT, today: 0 });
-    const mid = at((WIN.count[0] + WIN.count[1]) / 2);
-    expect(mid.trees).toBeGreaterThan(0);
-    expect(mid.trees).toBeLessThan(FIELD_TREES);
-    expect(mid.today).toBe(0);
-  });
-
-  it('count today’s rows ten trees at a time while they flip to gold', () => {
-    let last = -1;
-    for (let p = BEATS.reveal[0]; p <= BEATS.reveal[1] + 1e-9; p += 0.0025) {
-      const c = at(p);
-      expect(c.today % 10).toBe(0);
-      expect(c.today).toBeGreaterThanOrEqual(last);
-      expect(c.shaped).toBe(EARLIER_COUNT + c.today);
-      last = c.today;
+  it('hold the ledger while today’s rows flip to gold (only the fill animates), and the field never grows', () => {
+    for (let p = 0; p <= BEATS.reveal[1] + 1e-9; p += 0.0025) {
+      expect(at(p)).toEqual({ trees: FIELD_TREES, shaped: COUNTS.shaped, today: COUNTS.today });
     }
-    expect(at(BEATS.reveal[1])).toEqual({ trees: FIELD_TREES, shaped: COUNTS.shaped, today: COUNTS.today });
+    for (let p = 0; p <= 1; p += 0.005) expect(at(p).trees).toBe(FIELD_TREES);
   });
 
   it('reach the ledger at the end of the reveal and hold through the zoom', () => {
@@ -93,6 +80,9 @@ describe('the counters at section progress p', () => {
       const c = at(p);
       expect(Number.isInteger(c.trees) && Number.isInteger(c.shaped) && Number.isInteger(c.today)).toBe(true);
       expect(c.today).toBeLessThanOrEqual(c.shaped);
+      // Whole rows of ten, always.
+      expect(c.today % 10).toBe(0);
+      expect(c.shaped % 10).toBe(0);
     }
   });
 });
