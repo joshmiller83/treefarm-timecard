@@ -151,7 +151,8 @@ final class ClockFlowUITests: XCTestCase {
         shot(app, "Double tap only asks")
     }
 
-    /// The toast never stands between a gloved tap and the next row.
+    /// The toast never stands between a gloved tap and the next row, and a marked row doesn't
+    /// get one: the Now Working card already says "Row 5 marked".
     func testTapsGoStraightPastTheMessage() {
         let app = launch()
         let clockIn = app.buttons["clock-in"]
@@ -159,25 +160,23 @@ final class ClockFlowUITests: XCTestCase {
         clockIn.tap()
         let toast = element("toast", in: app)
         waitFor(toast, labelBeginsWith: "Clocked in at")
-
-        let first = app.buttons["next-row-0"]
-        XCTAssertTrue(first.waitForExistence(timeout: 5))
-        first.tap()
-        waitFor(toast, labelBeginsWith: "Row 5 marked")
-        waitFor(element("now-place", in: app), label: "Block 1, row 6")
-        // Straight away, with that message still up.
-        first.tap()
-        waitFor(toast, labelBeginsWith: "Row 6 marked")
         let message = toast.frame
         shot(app, "Message clear of the rows")
-        waitFor(element("now-place", in: app), label: "Block 1, row 7")
+
+        // Straight away, with that message still up.
+        let first = app.buttons["next-row-0"]
+        XCTAssertTrue(first.waitForExistence(timeout: 5))
         XCTAssertFalse(message.intersects(first.frame), "the message covers the next row")
+        first.tap()
+        waitFor(element("now-place", in: app), label: "Block 1, row 6")
+        waitFor(element("last-action", in: app), label: "Row 5 marked")
+        XCTAssertFalse(toast.exists && toast.label.hasPrefix("Row 5"), "a marked row got a toast too")
 
         // Whatever the message sits on still takes the tap: here, the gear.
+        app.buttons["start-lunch"].tap()
+        waitFor(toast, labelBeginsWith: "Lunch started")
         let gear = app.buttons["settings-button"]
-        XCTAssertTrue(message.intersects(gear.frame), "expected the message over the header")
-        first.tap()
-        waitFor(toast, labelBeginsWith: "Row 7 marked")
+        XCTAssertTrue(toast.frame.intersects(gear.frame), "expected the message over the header")
         gear.tap()
         XCTAssertTrue(app.buttons["settings-done"].waitForExistence(timeout: 5))
     }
@@ -192,7 +191,6 @@ final class ClockFlowUITests: XCTestCase {
         XCTAssertTrue(first.waitForExistence(timeout: 5))
         XCTAssertEqual(first.label, "Mark row 5")
         first.tap()
-        waitFor(element("toast", in: app), labelBeginsWith: "Row 5 marked")
         waitFor(element("trees-card-summary", in: app), labelContains: "60 of 960")
         waitFor(element("now-place", in: app), label: "Block 1, row 6")
         waitFor(element("last-action", in: app), label: "Row 5 marked")

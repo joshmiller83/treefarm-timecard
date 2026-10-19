@@ -280,8 +280,14 @@ struct ClockView: View {
         confirmingOut = false
         let reply = withAnimation(.easeInOut(duration: 0.25)) { model.performInApp(command) }
         refresh += 1
-        if reply.succeeded || toastFailures {
+        // A marked row already shows on the Now Working card ("✓ Row 10 marked · Undo"); a toast
+        // over it would say the same thing twice. Clock and break actions still get one.
+        let shownOnCard = reply.succeeded && command.marksTrees
+            && model.actions.state().flatMap { NowWorking(state: $0, live: model.actions.liveSnapshot()) } != nil
+        if (reply.succeeded || toastFailures) && !shownOnCard {
             withAnimation(.spring(duration: 0.3)) { toast = ClockToast(text: reply.speech, succeeded: reply.succeeded) }
+        }
+        if reply.succeeded || toastFailures {
             AccessibilityNotification.Announcement(reply.speech).post()
         }
         return reply
@@ -294,6 +300,16 @@ struct ClockView: View {
             guard let shift = session.snapshot.shifts[shiftId],
                   let updated = ShiftNotesEditor.updated(shift, notes: text, now: Date()) else { return }
             try session.save([.shift(updated)])
+        }
+    }
+}
+
+extension FieldCommand {
+    /// Marks rows or trees (what the Now Working card confirms on its own).
+    var marksTrees: Bool {
+        switch self {
+        case .markNextRow, .markRow, .markTrees: true
+        default: false
         }
     }
 }

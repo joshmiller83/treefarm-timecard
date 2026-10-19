@@ -230,25 +230,32 @@ struct FlowRows: Layout {
 }
 
 /// The message after a tap, what Siri would have said, floating at the top of the Clock tab.
+/// Light mode: an ink slab. Dark mode: a surface card with a hairline, so it doesn't glare as
+/// an inverted pale slab on the near-black screen.
 struct ToastView: View {
     var toast: ClockToast
+    @Environment(\.colorScheme) private var scheme
 
     var body: some View {
+        let dark = scheme == .dark
+        let shape = RoundedRectangle(cornerRadius: 14, style: .continuous)
         HStack(alignment: .top, spacing: 10) {
             Image(systemName: toast.succeeded ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
                 .font(.body.weight(.semibold))
-                .foregroundStyle(toast.succeeded ? ClockColors.toastDone : ClockColors.toastProblem)
+                .foregroundStyle(dark ? (toast.succeeded ? Palette.firText : Palette.sap)
+                                      : (toast.succeeded ? ClockColors.toastDone : ClockColors.toastProblem))
                 .accessibilityHidden(true)
             Text(toast.text)
                 .font(.callout.weight(.semibold))
-                .foregroundStyle(Palette.bg)
+                .foregroundStyle(dark ? Palette.ink : Palette.bg)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 14)
-        .background(Palette.ink, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .shadow(color: .black.opacity(0.18), radius: 14, y: 6)
+        .background(dark ? Palette.surface : Palette.ink, in: shape)
+        .overlay { if dark { shape.strokeBorder(Palette.line, lineWidth: 1) } }
+        .shadow(color: .black.opacity(dark ? 0.4 : 0.18), radius: 14, y: 6)
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier("toast")
     }
