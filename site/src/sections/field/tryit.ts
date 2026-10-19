@@ -81,7 +81,7 @@ export function rowLabel(t: TryIt, row: number): string {
   return `Row ${row}: ${done} of ${ACROSS} shaped`;
 }
 
-/** Tree notes inside the grid's rows at 2:15 PM (the older Replant note on row 31, tree 4). */
+/** Tree notes inside the grid's rows at 2:16 PM (the older Replant note on row 31, tree 4). */
 export const notesHere = () =>
   notesAt(MOMENTS.field).filter((n) => n.block === ZOOM_TARGET.block && n.row >= GRID.from && n.row <= GRID.to);
 

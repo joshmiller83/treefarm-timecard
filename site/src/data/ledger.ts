@@ -204,7 +204,7 @@ export const MOMENTS = {
   status: t(14, 1),
   lockScreen: t(14, 14),
   tapped: t(14, 14) + 0.01,
-  field: t(14, 15),
+  field: t(14, 16),
   island: t(14, 16),
   break: t(14, 30),
   treeNote: t(14, 33),

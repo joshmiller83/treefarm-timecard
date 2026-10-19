@@ -139,12 +139,12 @@ test.describe('with motion', () => {
     expect(problems).toEqual([]);
   });
 
-  test('the DayClock holds at 2:15 PM, the minute in the eyebrow and the tag', async ({ page }) => {
+  test('the DayClock holds at 2:16 PM, the minute in the eyebrow and the tag', async ({ page }) => {
     await page.goto('/');
     await settle(page);
     await goTo(page, 0.5);
-    await expect(page.locator('[data-shift-tag]').first()).toHaveText('2:15 PM · The field');
-    await expect(page.locator('#field .eyebrow')).toContainText('2:15 PM');
+    await expect(page.locator('[data-shift-tag]').first()).toHaveText('2:16 PM · The field');
+    await expect(page.locator('#field .eyebrow')).toContainText('2:16 PM');
   });
 
   test('the heading never runs under the header: its lines are masked before the field’s content', async ({ page }) => {
@@ -286,7 +286,7 @@ test.describe('reduced motion', () => {
     }
     await expect(cards.nth(2)).toContainText('Notes stay with the tree.');
     // The phone is one image with a label from the ledger.
-    await expect(page.locator('#field .fm-shot [data-phone][role="img"]')).toHaveAttribute('aria-label', /Trees tab at 2:15 PM/);
+    await expect(page.locator('#field .fm-shot [data-phone][role="img"]')).toHaveAttribute('aria-label', /Trees tab at 2:16 PM/);
     expect(problems).toEqual([]);
   });
 
@@ -354,7 +354,7 @@ test.describe('Try it', () => {
     await expect(status).toHaveText('Undid your last change');
     await expect(grid.locator('[data-try-tree="37-1"]')).toHaveAttribute('data-s', 'today');
     await page.getByRole('button', { name: 'Reset' }).click();
-    await expect(status).toHaveText('Back to the map at 2:15 PM');
+    await expect(status).toHaveText('Back to the map at 2:16 PM');
     await expect(grid.locator('[data-try-tree="37-1"]')).toHaveAttribute('data-s', 'ring');
     await expect(page.getByRole('button', { name: 'Undo' })).toHaveAttribute('aria-disabled', 'true');
   });

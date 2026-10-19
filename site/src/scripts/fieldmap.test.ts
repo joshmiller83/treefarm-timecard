@@ -135,7 +135,7 @@ describe('field layout', () => {
 });
 
 describe('tree states from the ledger', () => {
-  it('2:15 PM: 2,190 green plus 230 gold, the rest rings', () => {
+  it('2:16 PM: 2,190 green plus 230 gold, the rest rings', () => {
     const s = treeStatus({ at: MOMENTS.field });
     const c = countStatus(s);
     expect(c.earlier).toBe(2190);
@@ -146,7 +146,7 @@ describe('tree states from the ledger', () => {
     expect(c.empty).toBe(8540 - 2420);
   });
 
-  it('gold is block 2 rows 14–36; row 37 is still to do at 2:15', () => {
+  it('gold is block 2 rows 14–36; row 37 is still to do at 2:16', () => {
     const s = treeStatus({ at: MOMENTS.field });
     expect(rowStatus(s, 2, 13).every((v) => v === EARLIER_S)).toBe(true);
     for (let r = 14; r <= 36; r += 1) expect(rowStatus(s, 2, r).every((v) => v === TODAY)).toBe(true);
@@ -247,7 +247,7 @@ describe('tree states from the ledger', () => {
     expect(zoomSummary({ block: 3, from: 6, to: 16 }, MOMENTS.synced)).toContain('Rows 6 to 10 shaped earlier in green, row 11 shaped today in gold, row 12 shaped earlier in green');
   });
 
-  it('summarises the map in words from the ledger: the brief’s sentence at 2:15 PM', () => {
+  it('summarises the map in words from the ledger: the brief’s sentence at 2:16 PM', () => {
     expect(fieldSummary(MOMENTS.field)).toBe(
       'Map of North field: 14 blocks of 61 rows, 10 trees a row, 8,540 trees. Rows 14 to 36 of block 2 shaped today in gold. Block 1, blocks 8 and 9, and the first rows of blocks 2, 3 and 4 shaped earlier in green. The rest not yet shaped.',
     );
@@ -499,7 +499,7 @@ describe('the Trees tab map window', () => {
 });
 
 describe('Try it (the small interactive copy of block 2 rows 28–40)', () => {
-  it('starts from the 2:15 ledger state', () => {
+  it('starts from the 2:16 ledger state', () => {
     const t = createTryIt();
     expect(t.rows).toEqual([28, 40]);
     expect(t.get(36, 1)).toBe(TODAY);
@@ -524,7 +524,7 @@ describe('Try it (the small interactive copy of block 2 rows 28–40)', () => {
     expect(t.undo()).toBe('Undid your last change');
     expect(t.get(36, 2)).toBe(TODAY);
     t.rowTap(40);
-    expect(t.reset()).toBe('Back to the map at 2:15 PM');
+    expect(t.reset()).toBe('Back to the map at 2:16 PM');
     expect(t.get(40, 1)).toBe(EMPTY);
     expect(t.canUndo).toBe(false);
     expect(t.undo()).toBe('Nothing to undo');

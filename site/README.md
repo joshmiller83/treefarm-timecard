@@ -126,7 +126,7 @@ avifenc -q 60 -s 4 capture.png public/screens/<state-id>.avif      # smaller sti
 The next build renders the capture in place of the HTML recreation, with the same alt text.
 `npm test` fails if a file in `public/screens` is not AVIF or WebP, not exactly 1179 × 2556,
 or over 200 KB (a PNG capture is 1–3 MB). Capture first: `lock-1414-activity`,
-`trees-1415-block2`, `report-week`.
+`trees-1416-block2`, `report-week`.
 
 ## CI and deploy
 

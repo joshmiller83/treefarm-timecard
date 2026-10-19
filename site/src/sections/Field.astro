@@ -1,6 +1,6 @@
 ---
 /**
- * THE FIELD · 2:15 PM. The awe beat: 8,540 trees as dots, then what the map means and how to
+ * THE FIELD · 2:16 PM. The awe beat: 8,540 trees as dots, then what the map means and how to
  * use it, then a working copy to try.
  * Spec: jq '.sections[] | select(.id=="field")' docs/landing/brief.json (and decisions.md).
  *
@@ -27,7 +27,7 @@ import { COUNTS, stripText, zoomEdgeFade } from './field/plan';
 import { MAX_ZOOM_PITCH } from '../scripts/fieldmap';
 
 const Z = ZOOM_TARGET;
-/** The row the demo taps: the next row at 2:15 PM (37). */
+/** The row the demo taps: the next row at 2:16 PM (37). */
 const nextRow = positionAt(MOMENTS.field).row;
 const counts = [
   { key: 'trees', value: COUNTS.trees, label: 'trees' },
@@ -148,7 +148,7 @@ const zoomVars = [
     <figure class="shot fm-shot" data-stage-shot>
       <Phone label={phoneLabel}>
         <div class="screens" data-screens>
-          <Screen stateId="trees-1415-block2" alt={phoneLabel} tone="light" final>
+          <Screen stateId="trees-1416-block2" alt={phoneLabel} tone="light" final>
             <TreesTab block={Z.block} rows={[Z.from, Z.to]} />
           </Screen>
         </div>

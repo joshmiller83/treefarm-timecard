@@ -24,7 +24,7 @@ import {
 
 export type Win = readonly [number, number];
 
-/** The counter strip's final values at 2:15 PM. */
+/** The counter strip's final values at 2:16 PM. */
 export const COUNTS = {
   trees: FIELD_TREES,
   earlier: EARLIER_COUNT,

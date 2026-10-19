@@ -33,7 +33,7 @@ describe('the field section: numbers come from the ledger', () => {
     expect(stripText(COUNTS)).toBe('8,540 trees · 2,420 shaped · 230 today');
   });
 
-  it('agrees with the map: 2,190 green plus 230 gold at 2:15 PM', () => {
+  it('agrees with the map: 2,190 green plus 230 gold at 2:16 PM', () => {
     const c = countStatus(treeStatus({ at: MOMENTS.field }));
     expect(c.earlier).toBe(COUNTS.earlier);
     expect(c.today).toBe(COUNTS.today);

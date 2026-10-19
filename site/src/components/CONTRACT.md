@@ -557,12 +557,12 @@ gold to green with `{ '--g': 0, '--e': 1 }`; pops are transforms), `[data-row-la
 
 ```ts
 export interface Props {
-  /** Ledger minute for the drawn state. Default MOMENTS.field (2:15 PM). */
+  /** Ledger minute for the drawn state. Default MOMENTS.field (2:16 PM). */
   at?: number;
   view?: 'overview' | 'zoom';
   /** Zoomed view. Default block 2 rows 28–40 (ZOOM_TARGET). */
   zoom?: { block: number; from: number; to: number };
-  /** Accessible summary. Default: built from the ledger at `at` (at 2:15 PM, the brief's sentence; the close-up has its own). */
+  /** Accessible summary. Default: built from the ledger at `at` (at 2:16 PM, the brief's sentence; the close-up has its own). */
   label?: string;
   class?: string;
   /** Draw the field scene's choreography statically at this progress (labs, tests). */
@@ -603,7 +603,7 @@ labelsOut .88–.90, zoomOut .90–.98.
 Hooks: `[data-fieldmap]` (the canvas, `role="img"` with the summary as its label),
 `[data-fieldmap-box]` (`data-ready` after the first frame), the event `fieldmap:ready` on the
 canvas. Page dots: gold #E2A644 (20% larger), green #2E7A4E, ring #6F8F7A, rust #C2462A note
-flag (`STAGE_THEME`). Unit tests: 8,540 dots; 2,190 green + 230 gold at 2:15.
+flag (`STAGE_THEME`). Unit tests: 8,540 dots; 2,190 green + 230 gold at 2:16.
 
 ---
 
@@ -698,14 +698,14 @@ Drop `public/screens/<state-id>.webp` (or `.avif`), 1179 × 2556 and at most 200
 matching `<Screen>` renders it instead of the recreation. Encode simulator PNGs first
 (`cwebp -q 80 -m 6 -sharp_yuv in.png -o out.webp`; see the site README); `npm test` fails on a
 PNG, a wrong size or a heavy file. Capture these first (decisions.md #9):
-**`lock-1414-activity`**, **`trees-1415-block2`**, **`report-week`**.
+**`lock-1414-activity`**, **`trees-1416-block2`**, **`report-week`**.
 
 | Section | State ids (final in bold) |
 |---|---|
 | hero | **`lock-0702-clockin`** |
 | voice | `lock-0718-misheard`, `lock-0719-next`, `lock-1201-lunch`, `lock-1231-back`, **`lock-1401-status`** |
 | lock-screen | `lock-1414-activity`, **`lock-1414-tapped`**, `home-1416-island-compact`, `home-1416-island-expanded` |
-| field | **`trees-1415-block2`** |
+| field | **`trees-1416-block2`** |
 | notes | `lock-1430-break`, `lock-1433-treenote`, **`trees-1433-note`**, `lock-1436-dictation`, `lock-1444-back` |
 | crew | `trees-1447-block3`, `trees-1456-offline`, **`trees-1500-synced`**, `sam-1449-trees`, `team-1500` |
 | pace | `lock-1540-activity`, **`clock-1540`** |

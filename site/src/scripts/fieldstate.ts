@@ -38,7 +38,7 @@ import {
 
 /** The zoomed close-up: block 2, rows 28–40 (brief: field visuals). */
 export const ZOOM_TARGET = { block: 2, from: 28, to: 40 } as const;
-/** The row the demo taps and undoes in the zoomed view (still to do at 2:15). */
+/** The row the demo taps and undoes in the zoomed view (still to do at 2:16). */
 export const DEMO_ROW = { block: 2, row: 37 } as const;
 
 export interface ZoomTarget {
@@ -162,7 +162,7 @@ export const TODAY = 2;
 export type TreeState = typeof EMPTY | typeof EARLIER_S | typeof TODAY;
 
 export interface StatusOptions {
-  /** Ledger minute. Default MOMENTS.field (2:15 PM). */
+  /** Ledger minute. Default MOMENTS.field (2:16 PM). */
   at?: Minute;
   /** Whose phone: their own current shift is gold, everyone else's marks are green. Default 'Alex'. */
   who?: Person;
@@ -331,7 +331,7 @@ const blocksText = ([a, b]: [number, number]) => (a === b ? `block ${a}` : b ===
 
 /**
  * The whole field in words, built from the ledger at `at` (the overview canvas's aria-label). At
- * 2:15 PM it is exactly the brief's sentence.
+ * 2:16 PM it is exactly the brief's sentence.
  */
 export function fieldSummary(at: Minute = MOMENTS.field, who: Person = WORKER): string {
   const s = treeStatus({ at, who });
@@ -559,7 +559,7 @@ export const BEATS = {
   demoIn: [0.61, 0.64],
   /** …the Undo chip pulses (a DOM overlay the scene owns)… */
   undo: [0.64, 0.67],
-  /** …and row 37 goes back to rings: the ledger still has it to do at 2:15. */
+  /** …and row 37 goes back to rings: the ledger still has it to do at 2:16. */
   demoOut: [0.67, 0.7],
   /** Season flip: gold and green fade to rings; the note stays. */
   seasonOut: [0.73, 0.81],
@@ -599,7 +599,7 @@ const inOut = (p: number, w1: readonly [number, number], w2: readonly [number, n
   p < w2[0] ? ease(ramp(p, w1)) : 1 - ease(ramp(p, w2));
 
 let revealRows: number | null = null;
-/** How many gold rows the reveal walks through at 2:15 PM (23). */
+/** How many gold rows the reveal walks through at 2:16 PM (23). */
 export function revealCount(): number {
   revealRows ??= goldRows(treeStatus({ at: MOMENTS.field })).length;
   return revealRows;

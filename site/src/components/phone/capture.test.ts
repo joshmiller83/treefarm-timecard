@@ -45,8 +45,8 @@ describe('findCapture', () => {
   });
 
   it('finds a WebP capture by state id', () => {
-    writeFileSync(join(dir, 'trees-1415-block2.webp'), '');
-    expect(findCapture('trees-1415-block2', dir)).toBe('/screens/trees-1415-block2.webp');
+    writeFileSync(join(dir, 'trees-1416-block2.webp'), '');
+    expect(findCapture('trees-1416-block2', dir)).toBe('/screens/trees-1416-block2.webp');
   });
 
   it('prefers AVIF, then WebP, and never renders a PNG', () => {

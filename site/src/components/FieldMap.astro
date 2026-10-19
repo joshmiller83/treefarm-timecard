@@ -21,12 +21,12 @@ import { ZOOM_TARGET, fieldSVG, fieldSummary, frameRect, targetRect, zoomSummary
 import { nextId } from './app/trees/markup';
 
 export interface Props {
-  /** Ledger minute for the drawn state. Default MOMENTS.field (2:15 PM). */
+  /** Ledger minute for the drawn state. Default MOMENTS.field (2:16 PM). */
   at?: number;
   view?: 'overview' | 'zoom';
   /** Zoomed view: block 2 rows 28–40. */
   zoom?: { block: number; from: number; to: number };
-  /** Accessible summary (default: built from the ledger at `at`; at 2:15 PM the brief's sentence, or the close-up's). */
+  /** Accessible summary (default: built from the ledger at `at`; at 2:16 PM the brief's sentence, or the close-up's). */
   label?: string;
   class?: string;
   /** Draw the field scene's choreography statically at this progress (labs, tests). */

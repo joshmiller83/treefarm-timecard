@@ -74,10 +74,10 @@ export const CHAPTERS: readonly Chapter[] = [
   {
     id: 'field',
     navLabel: 'The field',
-    ribbonTag: '2:15 PM · The field',
+    ribbonTag: '2:16 PM · The field',
     tagLabel: 'The field',
     minute: MOMENTS.field,
-    eyebrow: '2:15 PM · The trees map',
+    eyebrow: '2:16 PM · The trees map',
     headline: 'Every tree is a dot.',
     tint: 'field',
     track: { desk: '300vh', mob: '240vh' },
