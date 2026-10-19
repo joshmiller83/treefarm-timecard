@@ -211,7 +211,10 @@ registerScene(
     const card = one(ans, '[data-la]');
     const btns = all(ans, '[data-strip] [data-row], [data-break-btn]');
     const disSpan = span(B.dismiss);
-    if (btns.length) tl.to(btns, { opacity: 0, duration: disSpan * 0.25, stagger: disSpan * 0.08, ease: 'power1.in' }, B.dismiss[0]);
+    // The row buttons go as Siri confirms (nothing is left to mark once you have clocked
+    // out), even where the card itself waits to be dismissed in view (phones).
+    const btnAt = Math.min(B.dismiss[0], B.answer[0]);
+    if (btns.length) tl.to(btns, { opacity: 0, duration: 0.012, stagger: 0.003, ease: 'power1.in' }, btnAt);
     if (card) tl.to(card, { scale: 0.98, y: 16, opacity: 0, duration: disSpan * 0.45, ease: 'power2.in' }, B.dismiss[0] + disSpan * 0.45);
 
     // ---- Quiet: Siri's card goes, the date, clock and padlock come back ----

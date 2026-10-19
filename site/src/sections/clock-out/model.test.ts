@@ -73,7 +73,8 @@ describe('scene timing', () => {
     expect(DESK.ask[1]).toBeLessThanOrEqual(0.2);
     expect(DESK.yes).toEqual([0.2, 0.24]);
     expect(DESK.answer).toEqual([0.24, 0.3]);
-    expect(DESK.dismiss).toEqual([0.3, 0.36]);
+    // The Live Activity leaves as the answer appears (the app ends it at clock-out).
+    expect(DESK.dismiss).toEqual([0.24, 0.3]);
     expect(DESK.lights).toEqual([0.36, 0.44]);
     expect(DESK.theme).toBe(0.4);
     expect(DESK.unlock).toEqual([0.44, 0.52]);
@@ -109,17 +110,20 @@ describe('scene timing', () => {
     });
 
     it(`${name}: the story plays in order`, () => {
-      const order = ['lapse', 'ask', 'yes', 'answer', 'dismiss', 'quiet'] as const;
+      const order = ['lapse', 'ask', 'yes', 'answer', 'quiet'] as const;
       for (let i = 1; i < order.length; i += 1) {
         expect(beats[order[i]!][0]).toBeGreaterThanOrEqual(beats[order[i - 1]!][1] - 1e-9);
       }
+      // The Live Activity leaves once you have said yes, by the time Siri's card goes.
+      expect(beats.dismiss[0]).toBeGreaterThanOrEqual(beats.yes[1] - 1e-9);
+      expect(beats.dismiss[1]).toBeLessThanOrEqual(beats.quiet[0] + 1e-9);
       expect(beats.theme).toBeGreaterThan(beats.lights[0]);
       expect(beats.theme).toBeLessThan(beats.lights[1]);
       expect(beats.lights[0]).toBeGreaterThanOrEqual(beats.dismiss[1]);
     });
 
-    it(`${name}: the gold rule sweeps under the stopped timer after the answer begins, before the dismiss`, () => {
-      expect(beats.underline[0]).toBeGreaterThanOrEqual(beats.answer[0]);
+    it(`${name}: the gold rule sweeps under the stopped timer after the yes, before the dismiss`, () => {
+      expect(beats.underline[0]).toBeGreaterThanOrEqual(beats.yes[0]);
       expect(beats.underline[1]).toBeLessThanOrEqual(beats.dismiss[0] + 1e-9);
     });
 

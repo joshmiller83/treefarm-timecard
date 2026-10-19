@@ -116,10 +116,14 @@ export const DESK = {
   yes: [0.2, 0.24],
   /** The answer replaces the question and types in. */
   answer: [0.24, 0.3],
-  /** A gold rule sweeps under the stopped timer (inside the answer window). */
-  underline: [0.273, 0.297],
-  /** The Live Activity dismisses; the ribbon completes. */
-  dismiss: [0.3, 0.36],
+  /** A gold rule sweeps under the stopped timer as you say yes (the timer stops there). */
+  underline: [0.226, 0.24],
+  /**
+   * The Live Activity ends as Siri confirms: it leaves as the answer appears, so the page
+   * never rests on 'Clocked out' beside a card still reading 'On the clock' with row buttons
+   * (the app ends the activity at clock-out). The ribbon completes.
+   */
+  dismiss: [0.24, 0.3],
   /** Siri's card leaves and the date, clock and padlock come back: a quiet lock screen. */
   quiet: [0.36, 0.39],
   /** The light layer fades over the stage; the rim light goes out. */
