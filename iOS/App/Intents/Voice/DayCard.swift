@@ -40,8 +40,9 @@ struct DayCard: Equatable, Sendable {
     var worked: TimeInterval
     var workedWeek: TimeInterval
     var trees: Int
-    var treesPerHour: Double
-    var seasonTreesPerHour: Double
+    /// Nil in the first minutes of marking (`Pace.minimumForRate`): the card shows "–".
+    var treesPerHour: Double?
+    var seasonTreesPerHour: Double?
     /// The row you're on, and the two after it.
     var here: Spot?
     var next: [Spot]
@@ -118,8 +119,8 @@ struct DayCard: Equatable, Sendable {
             worked: Hours.bigClock(shifts: shifts, now: now, calendar: cal),
             workedWeek: hours.week,
             trees: day.trees,
-            treesPerHour: day.treesPerHour,
-            seasonTreesPerHour: season.treesPerHour,
+            treesPerHour: day.hasRate ? day.treesPerHour : nil,
+            seasonTreesPerHour: season.hasRate ? season.treesPerHour : nil,
             here: spots.first,
             next: Array(spots.dropFirst()),
             fieldShaped: shaped,

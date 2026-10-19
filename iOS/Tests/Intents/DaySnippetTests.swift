@@ -156,4 +156,14 @@ struct DaySnippetTests {
         try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
         try? data.write(to: URL(fileURLWithPath: dir).appendingPathComponent("\(name).png"))
     }
+
+    @Test @MainActor func aFewMinutesInTheCardShowsADashForThePace() async throws {
+        let model = await Demo.model()
+        #expect(model.actions.perform(.clockIn(fieldId: nil)).succeeded)
+        #expect(model.actions.perform(.markNextRow).succeeded)
+        let state = try Demo.state(model)
+        let card = DayCard.build(state: state, now: Date().addingTimeInterval(120), topic: .trees)
+        #expect(card.trees == 12)
+        #expect(card.treesPerHour == nil)
+    }
 }

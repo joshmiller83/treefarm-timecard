@@ -43,10 +43,10 @@ struct SnippetStat: Equatable, Identifiable {
                                spoken: "\(Fmt.spokenDuration(card.workedWeek)) this week", focus: false)
         let trees = SnippetStat(value: Fmt.count(card.trees), label: (card.trees == 1 ? "tree " : "trees ") + span,
                                 spoken: "\(Fmt.plural(card.trees, "tree")) \(span)", focus: false)
-        let rate = SnippetStat(value: Speech.rate(card.treesPerHour), label: "trees an hour",
-                               spoken: "\(Speech.rate(card.treesPerHour)) trees an hour \(span)", focus: false)
-        let season = SnippetStat(value: Speech.rate(card.seasonTreesPerHour), label: "season pace",
-                                 spoken: "season pace \(Speech.rate(card.seasonTreesPerHour)) an hour", focus: false)
+        let rate = SnippetStat(value: card.treesPerHour.map(Speech.rate) ?? "–", label: "trees an hour",
+                               spoken: card.treesPerHour.map { "\(Speech.rate($0)) trees an hour \(span)" } ?? Speech.tooEarlyForPace, focus: false)
+        let season = SnippetStat(value: card.seasonTreesPerHour.map(Speech.rate) ?? "–", label: "season pace",
+                                 spoken: card.seasonTreesPerHour.map { "season pace \(Speech.rate($0)) an hour" } ?? "No season pace yet", focus: false)
         func focused(_ s: SnippetStat) -> SnippetStat {
             var s = s
             s.focus = true

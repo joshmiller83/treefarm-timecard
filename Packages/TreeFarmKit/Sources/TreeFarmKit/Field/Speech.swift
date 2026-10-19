@@ -61,6 +61,9 @@ public enum Speech {
         "\(blockTitle(block)) has \(block.treesPerRow) \(block.treesPerRow == 1 ? "tree" : "trees") in each row."
     }
 
+    /// Said instead of a rate in the first minutes of marking.
+    public static let tooEarlyForPace = "Too early for a pace."
+
     /// Trees an hour, said aloud: whole numbers from 10 up, one decimal below.
     public static func rate(_ x: Double) -> String {
         guard x.isFinite, x > 0 else { return "0" }

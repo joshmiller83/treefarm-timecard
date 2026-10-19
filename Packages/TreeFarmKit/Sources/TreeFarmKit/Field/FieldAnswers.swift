@@ -27,7 +27,9 @@ public enum FieldAnswers {
         case .trees:
             let p = Pace.stats(today, now: now, treeCount: count)
             let trees = today.reduce(0) { $0 + count($1) }
-            let head = trees > 0 ? "\(Fmt.plural(trees, "tree")) today, \(Speech.rate(p.treesPerHour)) an hour." : "No trees marked yet today."
+            let head = trees == 0 ? "No trees marked yet today."
+                : p.hasRate ? "\(Fmt.plural(trees, "tree")) today, \(Speech.rate(p.treesPerHour)) an hour."
+                : "\(Fmt.plural(trees, "tree")) today. \(Speech.tooEarlyForPace)"
             return [head, whereSentence(state, index: index, rows: 1)].compactMap { $0 }.joined(separator: " ")
 
         case .whereAmI:
@@ -36,8 +38,10 @@ public enum FieldAnswers {
         case .pace:
             let day = Pace.stats(today, now: now, treeCount: count)
             let season = Pace.stats(shifts, now: now, treeCount: count)
-            let seasonText = season.trees > 0 ? "Your season pace is \(Speech.rate(season.treesPerHour)) an hour." : nil
-            let head = day.trees > 0 ? "\(Speech.rate(day.treesPerHour)) trees an hour today." : "No trees marked yet today."
+            let seasonText = season.hasRate ? "Your season pace is \(Speech.rate(season.treesPerHour)) an hour." : nil
+            let head = day.trees == 0 ? "No trees marked yet today."
+                : day.hasRate ? "\(Speech.rate(day.treesPerHour)) trees an hour today."
+                : "\(Fmt.plural(day.trees, "tree")) today. \(Speech.tooEarlyForPace)"
             return [head, seasonText].compactMap { $0 }.joined(separator: " ")
 
         case .pay(let locked, let sayWhenLocked):

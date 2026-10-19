@@ -47,9 +47,10 @@ struct PaceCard: Equatable {
 
         func column(_ title: String, _ p: PaceStats, now isNow: Bool) -> Column {
             Column(title: title,
-                   rate: p.trees > 0 ? Pace.rateText(p.treesPerHour) : "–",
+                   // A few minutes in, a rate would read "535"; it waits for `Pace.minimumForRate`.
+                   rate: p.hasRate ? Pace.rateText(p.treesPerHour) : "–",
                    trees: Fmt.plural(p.trees, "tree"),
-                   each: p.trees > 0 ? Pace.eachText(minutes: p.minutesPerTree) + "/tree" : "–",
+                   each: p.hasRate ? Pace.eachText(minutes: p.minutesPerTree) + "/tree" : "–",
                    payEach: showPay && p.trees > 0 ? Fmt.usd(cents: p.payCentsPerTree) + "/tree" : nil,
                    isNow: isNow)
         }
