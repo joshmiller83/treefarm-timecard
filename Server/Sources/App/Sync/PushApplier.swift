@@ -55,7 +55,6 @@ struct PushApplier {
         case .block(let block): return try await applyBlock(block)
         case .treeNote(let note): return try await applyNote(note)
         case .member(let member): return try await applyMember(member)
-        default: return .rejected(.invalid, "That kind of record can’t be pushed yet.")
         }
     }
 
