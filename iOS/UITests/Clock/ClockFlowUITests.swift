@@ -105,9 +105,10 @@ final class ClockFlowUITests: XCTestCase {
         let out = app.buttons["clock-out"]
         XCTAssertTrue(out.waitForExistence(timeout: 5))
         out.tap()
-        waitFor(out, label: "Tap again to clock out")
-        waitFor(element("clock-out-question", in: app), labelBeginsWith: "You’ve worked")
+        let question = element("clock-out-question", in: app)
+        XCTAssertTrue(question.waitForExistence(timeout: 4))
         shot(app, "Tap again to clock out")
+        XCTAssertTrue(question.label.hasPrefix("You’ve worked"), question.label)
         // Left alone, it goes back after a few seconds, so a pocket bump can't finish the job later.
         waitFor(out, label: "Clock out", timeout: 8)
         waitFor(element("status-pill", in: app), label: "On the clock")
