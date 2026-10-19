@@ -122,18 +122,26 @@ registerScene(
     };
 
     // ---- The headline: lines mask-reveal once at 'top 75%' (not scrubbed); then the eyebrow and body ----
+    // Created a beat later: a tween's ScrollTrigger made in the same tick as this chapter's
+    // (still unrefreshed) timeline trigger force-refreshes it mid-refresh, and its scrub never starts.
     const heading = one(section, `#${section.id}-h`);
     if (heading) {
       const head = heading.closest('.beat-head');
       const rest = [one(head, '.eyebrow'), one(head, '.beat-intro')].filter(Boolean);
       const once = { trigger: heading, start: 'top 75%', once: true };
-      ctx.SplitText.create(heading, {
-        type: 'lines',
-        mask: 'lines',
-        autoSplit: true,
-        onSplit: (self) => gsap.from(self.lines, { yPercent: 100, duration: 0.7, stagger: 0.08, ease: 'power3.out', scrollTrigger: once }),
+      gsap.set([heading, ...rest], { autoAlpha: 0 });
+      gsap.delayedCall(0.05, () => {
+        gsap.set([heading, ...rest], { autoAlpha: 1 });
+        // Already past its start (a jump into the chapter): leave it as it is, no late reveal.
+        if (heading.getBoundingClientRect().top < innerHeight * 0.75) return;
+        ctx.SplitText.create(heading, {
+          type: 'lines',
+          mask: 'lines',
+          autoSplit: true,
+          onSplit: (self) => gsap.from(self.lines, { yPercent: 100, duration: 0.7, stagger: 0.08, ease: 'power3.out', scrollTrigger: once }),
+        });
+        if (rest.length) gsap.from(rest, { opacity: 0, y: 14, duration: 0.6, delay: 0.18, stagger: 0.08, ease: 'power2.out', scrollTrigger: once });
       });
-      if (rest.length) gsap.from(rest, { opacity: 0, y: 14, duration: 0.6, delay: 0.18, stagger: 0.08, ease: 'power2.out', scrollTrigger: once });
     }
 
     // ---- Progress 0: block 3 on your phone, Sam's map on his, everything else waiting ----
@@ -384,11 +392,34 @@ registerScene(
       packets.forEach(place);
     };
     layout();
+    /**
+     * After a global refresh, make sure the scrub caught up. ScrollTrigger queues a refresh
+     * ~200 ms after a lazily built scene creates its trigger; if that lands while this scrub is
+     * still catching up (a jump into the middle of the chapter), the scrub tween is left paused
+     * part-way and nothing moves until the next scroll. Re-sync once the refresh has settled.
+     */
+    let raf = 0;
+    const resync = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        const st = tl.scrollTrigger;
+        const tw = st?.getTween?.();
+        if (st && !(tw && tw.isActive()) && Math.abs(tl.progress() - st.progress) > 0.001) tl.progress(st.progress);
+      });
+    };
+    const onRefresh = () => {
+      layout();
+      resync();
+    };
     const ST = ctx.ScrollTrigger;
-    ST.addEventListener('refresh', layout);
+    ST.addEventListener('refresh', onRefresh);
+    // The same stall can come from another chapter's trigger made in this tick: check twice.
+    gsap.delayedCall(0.2, resync);
+    gsap.delayedCall(1, resync);
 
     return () => {
-      ST.removeEventListener('refresh', layout);
+      cancelAnimationFrame(raf);
+      ST.removeEventListener('refresh', onRefresh);
       for (const k of ['--crew-sx', '--crew-sy', '--crew-sw', '--crew-sh']) rig.style.removeProperty(k);
       // Put the static markup's values back (the DOM writes GSAP does not revert).
       setCount(WAITING);
