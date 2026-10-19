@@ -445,6 +445,34 @@ struct WorkoutPlanTests {
                                         now: at(10, 0)) == [])
     }
 
+    @Test func recordAgainOffersNothingWhileTheShiftsClockOutWaits() {
+        // A stopped workout ended from outside, or a watch clock-out after "Recording stopped":
+        // the person is clocking out, so there's nothing to record again.
+        let local = WorkoutLocal(phase: .ended, shiftId: shift, stoppedUnexpectedly: true, lastFinishedShiftId: shift)
+        let queued = WorkoutInputs(confirmed: working(), outbox: [clockOut(at: at(16, 30))])
+        #expect(WorkoutPlan.recordAgain(inputs: queued, local: local, now: at(16, 40)) == [])
+        let sending = WorkoutInputs(confirmed: working(), inFlight: [clockOut(at: at(16, 30))])
+        #expect(WorkoutPlan.recordAgain(inputs: sending, local: local, now: at(16, 40)) == [])
+        // A clock-out for another shift doesn't stand in the way.
+        let other = WorkoutInputs(confirmed: working(), outbox: [clockOut(UUID(), at: at(9, 0))])
+        #expect(WorkoutPlan.recordAgain(inputs: other, local: local, now: at(10, 0)) ==
+                [.start(at: at(10, 0), shiftId: shift, origin: .recovered)])
+    }
+
+    // MARK: - A watch clock-out still waiting
+
+    @Test func aClockOutWaitsWhileQueuedOrInFlightAndNotListedAsApplied() {
+        let queued = clockOut(at: at(16, 30))
+        let other = clockOut(UUID(), at: at(9, 0))
+        #expect(WorkoutPlan.waitingClockOuts(WorkoutInputs(confirmed: working(), outbox: [queued])) == [queued])
+        #expect(WorkoutPlan.waitingClockOuts(WorkoutInputs(confirmed: working(), inFlight: [queued])) == [queued])
+        #expect(WorkoutPlan.waitingClockOuts(WorkoutInputs(confirmed: offClock(applied: [queued.id]), outbox: [queued])).isEmpty)
+        #expect(WorkoutPlan.waitingClockOuts(WorkoutInputs(confirmed: working(), outbox: [lunch(at: at(12, 0))])).isEmpty)
+        #expect(WorkoutPlan.waitingClockOuts(WorkoutInputs(confirmed: working(), outbox: [queued, other])) == [other, queued])
+        #expect(WorkoutPlan.waitingClockOut(for: shift, WorkoutInputs(confirmed: working(), outbox: [queued, other])) == queued)
+        #expect(WorkoutPlan.waitingClockOut(for: nil, WorkoutInputs(confirmed: working(), outbox: [queued])) == nil)
+    }
+
     // MARK: - The five-minute rule
 
     @Test func startTimeBackdatesAtMostFiveMinutesAndNeverIntoTheFuture() {
@@ -484,11 +512,29 @@ struct WorkoutPlanTests {
     }
 
     @Test func aSessionRecoveryCouldntFindIsForgottenButItsShiftKept() {
-        let started = WorkoutLocal().started(at: at(7, 0), shiftId: shift, origin: .phoneLaunch, syncIdentifier: UUID())
+        let sync = UUID()
+        let started = WorkoutLocal().started(at: at(7, 0), shiftId: shift, origin: .phoneLaunch, syncIdentifier: sync)
         let lost = started.lost()
         #expect(lost.phase == .none && lost.shiftId == shift && !lost.stoppedUnexpectedly && lost.lastFinishedShiftId == nil)
+        // Recovery runs twice at a crash relaunch: the second call may still find the session.
+        #expect(lost.startedAt == at(7, 0) && lost.syncIdentifier == sync && lost.origin == .phoneLaunch)
         // A session that had already ended stays ended.
         #expect(started.ended().lost() == started.ended())
+    }
+
+    @Test func aLostStoppedRecordThatIsLaterRecoveredStillFinishesAtItsStoppedAt() {
+        // applicationDidFinishLaunching's recovery found nothing; handleActiveWorkoutRecovery's did.
+        let lost = stopped(shift, at: at(16, 30)).lost()
+        #expect(lost.phase == .none && lost.stoppedAt == at(16, 30))
+        let waiting = WorkoutInputs(confirmed: working(), outbox: [clockOut(at: at(16, 30))])
+        // Between the two calls, nothing starts over the orphaned session while its clock-out waits.
+        #expect(plan(waiting, lost, now: at(16, 41)) == [])
+
+        let recovered = lost.with(phase: .stopped)
+        #expect(plan(waiting, recovered, now: at(17, 29)) == [])
+        #expect(plan(waiting, recovered, now: at(17, 30)) == [.finish(at: at(16, 30)), .notifyStuckClockOut])
+        let answered = WorkoutInputs(confirmed: offClock(lastClosed: closed(end: at(16, 30))))
+        #expect(plan(answered, recovered, now: at(16, 50)) == [.finish(at: at(16, 30))])
     }
 
     @Test func theRecordSurvivesARoundTrip() throws {

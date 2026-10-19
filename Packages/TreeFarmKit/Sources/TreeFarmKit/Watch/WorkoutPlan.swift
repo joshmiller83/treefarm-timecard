@@ -47,12 +47,27 @@ public enum WorkoutPlan {
     }
 
     /// The "Record again" button after a session ended from outside the app: a new session for
-    /// the shift still on the clock, from now.
+    /// the shift still on the clock, from now. Nothing while that shift's watch clock-out waits:
+    /// the person already clocked out, the phone just hasn't heard yet.
     public static func recordAgain(inputs: WorkoutInputs, local: WorkoutLocal, now: Date) -> [WorkoutStep] {
         guard !local.hasSession, let state = inputs.confirmed, state.signedIn, state.recordWorkouts,
-              state.isClockedIn, let shift = state.shiftId ?? local.shiftId else { return [] }
+              state.isClockedIn, let shift = state.shiftId ?? local.shiftId,
+              waitingClockOut(for: shift, inputs) == nil, waitingClockOut(for: local.shiftId, inputs) == nil else { return [] }
         let plan = Reconciler(inputs: inputs, local: local, now: now)
         return [.start(at: now, shiftId: shift, origin: .recovered)] + plan.matchPhase(running: true, shift: shift)
+    }
+
+    /// The watch clock-outs still waiting for the phone: in the outbox or in flight and not yet
+    /// listed as applied, oldest first. The stuck clock-out reminder stands while any waits.
+    public static func waitingClockOuts(_ inputs: WorkoutInputs) -> [WatchRequest] {
+        let applied = Set(inputs.confirmed?.appliedRequestIds ?? [])
+        return inputs.pending.filter { $0.command == .clockOut && !applied.contains($0.id) }
+    }
+
+    /// The watch clock-out still waiting for this shift, if any.
+    public static func waitingClockOut(for shiftId: UUID?, _ inputs: WorkoutInputs) -> WatchRequest? {
+        guard let shiftId else { return nil }
+        return waitingClockOuts(inputs).first { $0.shiftId == shiftId }
     }
 
     /// The five-minute rule: a shift that started at most `backdateLimit` ago is recorded from its
@@ -301,12 +316,12 @@ extension WorkoutLocal {
     }
 
     /// Recovery found no session to reattach (a crash or a dead battery): forget it but keep its
-    /// shift, so the next start for that shift counts as recovered.
+    /// shift, so the next start for that shift counts as recovered. Everything else stays: at a
+    /// crash relaunch recovery runs twice (at launch and from `handleActiveWorkoutRecovery()`),
+    /// and when the second call finds the session, a stopped one still needs its `stoppedAt`.
+    /// A new start resets the record anyway.
     public func lost() -> WorkoutLocal {
         guard hasSession else { return self }
-        var local = self
-        local.phase = .none
-        local.stoppedAt = nil
-        return local
+        return with(phase: .none)
     }
 }
