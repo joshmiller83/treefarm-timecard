@@ -131,3 +131,45 @@ for (const name of ['iPhone 15 landscape', 'iPhone SE landscape'] as const) {
     await expect(page).toHaveURL(/#open$/);
   });
 }
+
+test('the chapter panel closes when keyboard focus leaves it', async ({ page, isMobile }) => {
+  test.skip(!isMobile, 'the disclosure is the mobile pattern');
+  await page.goto('/');
+  const toggle = page.locator('.shift-toggle');
+  await toggle.focus();
+  await page.keyboard.press('Enter');
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  // Tab through the nine links and out of the panel.
+  for (let i = 0; i < 10; i += 1) await page.keyboard.press('Tab');
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+});
+
+test('pause motion says what it does in each state, and is a 44px target', async ({ page }) => {
+  await page.goto('/');
+  const pause = page.locator('[data-pause-toggle]');
+  await expect(pause).toHaveAccessibleName('Pause motion');
+  const box = (await pause.boundingBox())!;
+  expect(box.width).toBeGreaterThanOrEqual(44);
+  expect(box.height).toBeGreaterThanOrEqual(44);
+  await pause.click();
+  await expect(pause).toHaveAttribute('aria-pressed', 'true');
+  await expect(pause).toHaveAccessibleName('Pause motion');
+  await expect(pause.locator('.tip-on')).toHaveText('Motion paused · Resume');
+  await expect(pause.locator('.tip-on')).toBeAttached();
+  expect(await pause.locator('.tip-off').evaluate((e) => getComputedStyle(e).display)).toBe('none');
+  await pause.click();
+});
+
+test('the header pill says a beta is coming at every width', async ({ page }) => {
+  test.setTimeout(120_000);
+  for (const width of [320, 375, 414, 600, 1440]) {
+    await page.setViewportSize({ width, height: 800 });
+    await page.goto('/');
+    const text = (await page.locator('header .pill-status').innerText()).replace(/\s+/g, ' ');
+    expect(text, `${width}px`).toMatch(/In development/);
+    expect(text, `${width}px`).toMatch(/beta coming/i);
+    // The pill fits the bar.
+    const box = (await page.locator('header .pill-status').boundingBox())!;
+    expect(box.height, `${width}px`).toBeLessThanOrEqual(48);
+  }
+});

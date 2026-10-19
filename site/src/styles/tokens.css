@@ -93,9 +93,15 @@
   --col-gap: 16px;
   --header-h: 56px;
   --ribbon-h: 3px;
-  --chrome-h: calc(var(--header-h) + var(--ribbon-h));
-  /* Mobile sticky phones sit under the header and its riding chapter chip. */
-  --sticky-top-mob: calc(var(--chrome-h) + 46px);
+  /* The solid band under the bar that carries the riding chapter chip (mobile) or time tag
+     (desktop with motion). The header takes header-h + ribbon-h in the flow; the band hangs
+     below it over the page, so the first screen keeps its layout. */
+  --band-h: 44px;
+  /* Everything the header covers: bar + ribbon + band. A plain length, because scripts read
+     it (parseFloat of the custom property). */
+  --chrome-h: 103px;
+  /* Mobile sticky phones sit just under the band. */
+  --sticky-top-mob: calc(var(--chrome-h) + 2px);
   --space-1: 8px;
   --space-2: 16px;
   --space-3: 24px;
@@ -134,5 +140,19 @@
   :root {
     --gutter: 24px;
     --col-gap: 24px;
+    /* Without motion: no riding tag (the chapter list hangs under the header instead). */
+    --band-h: 0px;
+    --chrome-h: 59px;
+  }
+  html.motion {
+    --band-h: 32px;
+    --chrome-h: 91px;
+  }
+}
+/* Landscape phones: the chapter chip moves into the bar, so the header stays one bar tall. */
+@media (max-width: 899.98px) and (max-height: 500px) {
+  :root {
+    --band-h: 0px;
+    --chrome-h: 59px;
   }
 }

@@ -65,6 +65,9 @@ const style = [
   .filter(Boolean)
   .join(';');
 const hasIntro = Astro.slots.has('intro');
+// '7:18 AM · Voice first': with motion the time lives in the header's riding chip (one clock
+// on screen, never two that disagree), so the eyebrow's time is for screen readers only there.
+const eyebrowTime = eyebrow?.match(/^(\d{1,2}:\d\d\s?[AP]M) · (.+)$/);
 ---
 
 <section
@@ -85,7 +88,20 @@ const hasIntro = Astro.slots.has('intro');
   <div class="track">
     <div class="beats">
       <div class="beat beat-head beat-bare" data-beat="0" style={`--at:${headAt}`}>
-        {eyebrow && <p class="eyebrow">{eyebrow}</p>}
+        {
+          eyebrow && (
+            <p class="eyebrow">
+              {eyebrowTime ? (
+                <>
+                  <span class="eb-time">{eyebrowTime[1]} · </span>
+                  {eyebrowTime[2]}
+                </>
+              ) : (
+                eyebrow
+              )}
+            </p>
+          )
+        }
         <H id={`${id}-h`} class={headClass}>{headline}</H>
         {
           hasIntro && (

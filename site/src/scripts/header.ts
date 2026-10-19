@@ -38,6 +38,11 @@ export function initHeader(): void {
   document.addEventListener('click', (e) => {
     if (nav.classList.contains('is-open') && !nav.contains(e.target as Node)) setOpen(false);
   });
+  // Keyboard focus leaving the panel closes it, so it never sits over the page unattended.
+  nav.addEventListener('focusout', (e) => {
+    const next = e.relatedTarget as Node | null;
+    if (nav.classList.contains('is-open') && next && !nav.contains(next)) setOpen(false);
+  });
 
   // ---- Pause motion (WCAG 2.2.2) ----
   if (pause) {
