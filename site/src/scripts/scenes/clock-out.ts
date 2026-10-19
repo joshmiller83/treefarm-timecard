@@ -239,7 +239,9 @@ registerScene(
     // y: 0 in both: the CSS rest (translateY(140%)) must not survive as a px offset under yPercent.
     if (light) tl.fromTo(light, { y: 0, yPercent: 140 }, { y: 0, yPercent: 0, duration: lightSpan, ease: 'power1.inOut', immediateRender: false }, B.lights[0]);
     if (rim) tl.to(rim, { opacity: 0, duration: lightSpan * 0.75 }, B.lights[0] + lightSpan * 0.1);
-    const duskCopy = all(section, '.co-beat');
+    // The chapter's head too: long scrolled away by now, but its text turns to ink with the
+    // theme, and must not sit on the dusk in the tree (a contrast checker reads it).
+    const duskCopy = all(section, '.co-beat, .beat-head');
     const forgot = one(section, '.co-forgot');
     const outAt = B.lights[0] - 0.02;
     if (duskCopy.length) tl.to(duskCopy, { autoAlpha: 0, duration: 0.02, ease: 'power1.in' }, outAt);

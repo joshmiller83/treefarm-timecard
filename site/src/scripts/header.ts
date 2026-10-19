@@ -105,17 +105,14 @@ export function initHeader(): void {
   );
   const tags = Array.from(nav.querySelectorAll<HTMLElement>('[data-shift-tag]'));
   let current: HTMLElement | null = null;
+  // The section under the header's bottom edge, from an IntersectionObserver on a 1px band
+  // there: no layout reads while the page scrolls (DayClock writes text every frame, so a
+  // getBoundingClientRect here forced a full layout of the page each time).
+  const inBand = new Set<Element>();
+  let line = -1;
 
   const update = () => {
-    const line = header.getBoundingClientRect().bottom + 1;
-    let found: HTMLElement | null = null;
-    for (const s of sections) {
-      const r = s.getBoundingClientRect();
-      if (r.top <= line && r.bottom > line) {
-        found = s;
-        break;
-      }
-    }
+    const found = sections.find((s) => inBand.has(s)) ?? null;
     const theme = found?.dataset.theme === 'light' ? 'light' : 'dark';
     if (header.dataset.theme !== theme) header.dataset.theme = theme;
     if (found === current) return;
@@ -140,10 +137,31 @@ export function initHeader(): void {
   const schedule = () => {
     if (!raf) raf = requestAnimationFrame(() => ((raf = 0), update()));
   };
-  const io = new IntersectionObserver(schedule, { threshold: [0, 0.01, 0.5, 0.99, 1] });
-  sections.forEach((s) => io.observe(s));
-  addEventListener('scroll', schedule, { passive: true });
-  addEventListener('resize', schedule, { passive: true });
+  let band: IntersectionObserver | null = null;
+  const watchBand = () => {
+    // The header's own height in the flow (its band hangs below it, over the page), from the
+    // tokens: a style read, never a layout one (this runs while the page first loads).
+    const cs = getComputedStyle(root);
+    const top = Math.round((parseFloat(cs.getPropertyValue('--header-h')) || 56) + (parseFloat(cs.getPropertyValue('--ribbon-h')) || 3)) + 1;
+    const key = top * 100000 + innerHeight;
+    if (key === line) return;
+    line = key;
+    band?.disconnect();
+    inBand.clear();
+    band = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (e.isIntersecting) inBand.add(e.target);
+          else inBand.delete(e.target);
+        }
+        schedule();
+      },
+      { rootMargin: `-${top}px 0px -${Math.max(0, innerHeight - top - 1)}px 0px` },
+    );
+    sections.forEach((s) => band!.observe(s));
+  };
+  watchBand();
+  addEventListener('resize', () => (watchBand(), schedule()), { passive: true });
   new MutationObserver(schedule).observe(document.body, { subtree: true, attributes: true, attributeFilter: ['data-theme'] });
   update();
 }

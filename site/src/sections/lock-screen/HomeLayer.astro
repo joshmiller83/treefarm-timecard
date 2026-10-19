@@ -99,8 +99,8 @@ const dock = [TINTS[2]!, TINTS[0]!, TINTS[5]!];
     width: calc(62 * var(--pt));
     height: calc(62 * var(--pt));
     border-radius: calc(15 * var(--pt));
-    background: linear-gradient(160deg, var(--a), var(--b));
-    opacity: 0.78;
+    /* Softened toward the wallpaper by colour, not opacity (static copy is never faded). */
+    background: linear-gradient(160deg, color-mix(in srgb, var(--a) 80%, #1b4630), color-mix(in srgb, var(--b) 80%, #1b4630));
     box-shadow:
       0 0 calc(5 * var(--pt)) calc(1.5 * var(--pt)) color-mix(in srgb, var(--b) 70%, transparent),
       inset 0 0 calc(6 * var(--pt)) rgba(255, 255, 255, 0.28);
