@@ -104,6 +104,18 @@ struct WatchShiftModelTests {
         #expect(fake.sent.isEmpty)
     }
 
+    @Test func aTapQueuedWhileThePhoneNeedsUnlockingSaysSo() async {
+        let (model, fake, _) = await connected(F.working(), reachable: false)
+        fake.setNeedsUnlock(true)
+        #expect(await eventually { model.reach == .needsUnlock })
+
+        let outcome = await model.perform(.markRow(F.row(14)), source: .button)
+
+        #expect(outcome == .queued(WatchDisplay.unlockPhone))
+        #expect(model.toast == WatchToast(text: WatchDisplay.unlockPhone, kind: .saved))
+        #expect(model.waitingCount == 1)
+    }
+
     @Test func siriHearsTheLongerSavedLine() async {
         let (model, _, _) = await connected(F.working(), reachable: false)
         let outcome = await model.perform(.startBreak(.lunch, reason: ""), source: .siri)

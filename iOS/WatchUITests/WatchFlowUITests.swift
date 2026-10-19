@@ -185,6 +185,16 @@ final class WatchFlowUITests: WatchUITestCase {
         XCTAssertEqual(app.scrollViews.count, 0, "Now must not scroll: Double Tap would scroll instead of acting")
     }
 
+    @MainActor
+    func testNowFitsAtTheLargestText() {
+        launch("-watchDemoWorking", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL")
+        XCTAssertTrue(primary.waitForExistence(timeout: 30))
+        XCTAssertTrue(primary.isHittable)
+        XCTAssertLessThanOrEqual(primary.frame.maxY, app.windows.firstMatch.frame.maxY)
+        XCTAssertEqual(app.scrollViews.count, 0)
+        snapshot("now-largest-text")
+    }
+
     private func dismissSheet() {
         let close = app.buttons["Close"].firstMatch
         if close.waitForExistence(timeout: 2) {

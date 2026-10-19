@@ -345,13 +345,12 @@ final class WatchShiftModel {
 
     // MARK: Scenes and background wakes
 
-    /// The app came forward: back to Now after 30 s away, and try the outbox.
+    /// The app came forward: back to Now after 30 s away, and try the outbox. No round trip
+    /// otherwise: the phone pushes its state when something changes (docs/watch.md 2.8).
     func sceneBecameActive() {
         pages.cameBack(at: now())
         pruneRefused()
-        Task {
-            if confirmed == nil || reach == .reachable { await refresh() } else { await flush() }
-        }
+        Task { await refreshOrFlush() }
     }
 
     func sceneWentAway() {
@@ -488,7 +487,8 @@ final class WatchShiftModel {
             return .refused(reply)
         case .queued(let count):
             directIds.remove(request.id)
-            let text = WatchDisplay.savedOnWatch(waiting: count)
+            // A phone restarted and not yet unlocked can't be reached until it is: say so.
+            let text = reach == .needsUnlock ? WatchDisplay.unlockPhone : WatchDisplay.savedOnWatch(waiting: count)
             show(WatchToast(text: text, kind: .saved))
             haptics(.queued)
             return .queued(source == .siri ? WatchDisplay.savedForSiri : text)
