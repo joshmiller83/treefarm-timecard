@@ -77,6 +77,16 @@ final class BackupScheduler: LifecycleHandler, @unchecked Sendable {
     private let lock = NSLock()
     private var task: Task<Void, Never>?
 
+    private func setTask(_ job: Task<Void, Never>) {
+        lock.lock(); defer { lock.unlock() }
+        task = job
+    }
+
+    private func currentTask() -> Task<Void, Never>? {
+        lock.lock(); defer { lock.unlock() }
+        return task
+    }
+
     static func isDue(newest: Date?, now: Date) -> Bool {
         guard let newest else { return true }
         return now.timeIntervalSince(newest) >= interval - 60
@@ -99,11 +109,11 @@ final class BackupScheduler: LifecycleHandler, @unchecked Sendable {
                 try? await Task.sleep(nanoseconds: 3600 * 1_000_000_000)
             }
         }
-        lock.withLock { task = job }
+        setTask(job)
     }
 
     func shutdownAsync(_ app: Application) async {
-        let job = lock.withLock { task }
+        let job = currentTask()
         job?.cancel()
         await job?.value
     }

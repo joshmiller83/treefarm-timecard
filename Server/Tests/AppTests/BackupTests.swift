@@ -41,7 +41,7 @@ struct BackupTests {
         let dir = try tempDir()
         defer { try? FileManager.default.removeItem(at: dir) }
         for day in 1...32 {
-            let name = String(format: "timecard-202501%02d-030000.sqlite", day)
+            let name = "timecard-202501\(day < 10 ? "0" : "")\(day)-030000.sqlite"
             FileManager.default.createFile(atPath: dir.appendingPathComponent(name).path, contents: Data("old".utf8))
         }
         FileManager.default.createFile(atPath: dir.appendingPathComponent("notes.txt").path, contents: Data())

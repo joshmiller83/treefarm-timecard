@@ -38,7 +38,9 @@ public struct AppConfig: Sendable {
         if let v = env["TIMECARD_BACKUP_DIR"], !v.isEmpty {
             c.backupDirectory = v
         } else if case .file(let path) = c.database {
-            c.backupDirectory = (path as NSString).deletingLastPathComponent + "/backups"
+            // Next to the database's folder: ./data/timecard.sqlite → ./data/backups.
+            let folder = path.range(of: "/", options: .backwards).map { String(path[..<$0.lowerBound]) } ?? "."
+            c.backupDirectory = (folder.isEmpty ? "" : folder) + "/backups"
         }
         if let v = env["TIMECARD_BCRYPT_COST"].flatMap(Int.init) { c.bcryptCost = min(max(v, 4), 31) }
         return c
