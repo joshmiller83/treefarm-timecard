@@ -120,3 +120,32 @@ extension FarmFixture {
         TreeMark(seasonId: season ?? seasonId, tree: TreeRef(blockId: block.id, row: row, position: tree), shiftId: shift.id, userId: shift.userId, markedAt: app.now)
     }
 }
+
+extension FarmFixture {
+    func seedNote(_ block: Block, row: Int, tree: Int, by person: Person, body: String = "Leaning") async throws -> TreeNote {
+        let note = TreeNote(farmId: farmId, tree: TreeRef(blockId: block.id, row: row, position: tree), authorId: person.userId, authorName: person.name, body: body, createdAt: app.now)
+        try await RecordStore(db: app.db).save(.treeNote(note), farm: farmId)
+        return note
+    }
+
+    func farmRecord() async throws -> Farm {
+        try #require(try await RecordStore(db: app.db).farm(farmId))
+    }
+}
+
+/// A copy with `updatedAt` moved forward, as an edit on a device would have.
+func edited<T>(_ value: T, by seconds: TimeInterval = 1, _ change: (inout T) -> Void) -> T where T: Any {
+    var copy = value
+    change(&copy)
+    switch copy {
+    case var b as Block: b.updatedAt = b.updatedAt.addingTimeInterval(seconds); return b as! T
+    case var f as Field: f.updatedAt = f.updatedAt.addingTimeInterval(seconds); return f as! T
+    case var f as Farm: f.updatedAt = f.updatedAt.addingTimeInterval(seconds); return f as! T
+    case var s as Season: s.updatedAt = s.updatedAt.addingTimeInterval(seconds); return s as! T
+    case var m as Member: m.updatedAt = m.updatedAt.addingTimeInterval(seconds); return m as! T
+    case var n as TreeNote: n.updatedAt = n.updatedAt.addingTimeInterval(seconds); return n as! T
+    case var m as TreeMark: m.updatedAt = m.updatedAt.addingTimeInterval(seconds); return m as! T
+    case var s as Shift: s.updatedAt = s.updatedAt.addingTimeInterval(seconds); return s as! T
+    default: return copy
+    }
+}

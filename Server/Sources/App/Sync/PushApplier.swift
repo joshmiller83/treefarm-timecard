@@ -38,6 +38,10 @@ struct PushApplier {
         switch record {
         case .shift(let shift): return try await applyShift(shift, farm: farm)
         case .treeMark(let mark): return try await applyMark(mark, farm: farm)
+        case .farm(let incoming): return try await applyFarm(incoming)
+        case .season(let season): return try await applySeason(season)
+        case .field(let field): return try await applyField(field)
+        case .block(let block): return try await applyBlock(block)
         default: return .rejected(.invalid, "That kind of record can’t be pushed yet.")
         }
     }
@@ -62,6 +66,123 @@ struct PushApplier {
     func name(of userId: UUID) async throws -> String {
         if userId == caller.userId { return caller.displayName }
         return try await store.member(userId, farm: farmId)?.displayName ?? "Someone"
+    }
+
+    // MARK: Farm, seasons, fields, blocks (admins only)
+
+    /// Trimmed, non-empty and within `Limits.name`, or a sentence saying what's wrong.
+    func checkName(_ raw: String, _ thing: String) -> (String, String?) {
+        let name = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        if name.isEmpty { return (name, "Give the \(thing) a name.") }
+        if name.count > Limits.name { return (name, "Names can be up to \(Limits.name) characters.") }
+        return (name, nil)
+    }
+
+    func applyFarm(_ incoming: Farm) async throws -> Outcome {
+        guard incoming.id == farmId else { return .rejected(.forbidden, "That isn’t the farm you’re syncing.") }
+        guard isAdmin else { return .rejected(.forbidden, "Only an admin can change the farm.") }
+        var farm = incoming
+        let (name, problem) = checkName(farm.name, "farm")
+        if let problem { return .rejected(.invalid, problem) }
+        farm.name = name
+        guard FarmTime.isValidZone(farm.timeZoneId) else {
+            return .rejected(.invalid, "\(farm.timeZoneId) isn’t a time zone.")
+        }
+        if let seasonId = farm.activeSeasonId, try await store.season(seasonId, farm: farmId) == nil {
+            return .rejected(.invalid, "That season isn’t on this farm.")
+        }
+        let stored = try await store.find(.farm, farmId, farm: farmId)
+        if let settled = try settle(.farm(farm), against: stored, noun: "farm") { return settled }
+        return try await save(.farm(farm))
+    }
+
+    func applySeason(_ incoming: Season) async throws -> Outcome {
+        guard incoming.farmId == farmId else { return .rejected(.forbidden, "That season belongs to another farm.") }
+        guard isAdmin else { return .rejected(.forbidden, "Only an admin can change seasons.") }
+        var season = incoming
+        let (name, problem) = checkName(season.name, "season")
+        if let problem { return .rejected(.invalid, problem) }
+        season.name = name
+        let stored = try await store.find(.season, season.id, farm: farmId)
+        if let settled = try settle(.season(season), against: stored, noun: "season") { return settled }
+        return try await save(.season(season))
+    }
+
+    func applyField(_ incoming: Field) async throws -> Outcome {
+        guard incoming.farmId == farmId else { return .rejected(.forbidden, "That field belongs to another farm.") }
+        guard isAdmin else { return .rejected(.forbidden, "Only an admin can change fields.") }
+        var field = incoming
+        let (name, problem) = checkName(field.name, "field")
+        if let problem, field.deletedAt == nil { return .rejected(.invalid, problem) }
+        field.name = name
+        let stored = try await store.find(.field, field.id, farm: farmId)
+        if let settled = try settle(.field(field), against: stored, noun: "field") { return settled }
+        if field.deletedAt != nil, try await !liveBlocks(inField: field.id).isEmpty {
+            return .rejected(.invalid, "Remove the blocks in \(field.name) first.")
+        }
+        return try await save(.field(field))
+    }
+
+    /// Refuses a resize, a move to another field or a removal that would strand
+    /// live marks (from any season) or notes.
+    func applyBlock(_ incoming: Block) async throws -> Outcome {
+        guard isAdmin else { return .rejected(.forbidden, "Only an admin can change blocks.") }
+        guard let field = try await store.field(incoming.fieldId, farm: farmId) else {
+            return .rejected(.notFound, "That field isn’t on this farm.")
+        }
+        var block = incoming
+        block.name = block.name.trimmingCharacters(in: .whitespacesAndNewlines)
+        if block.deletedAt == nil {
+            guard field.deletedAt == nil else { return .rejected(.invalid, "That field was deleted.") }
+            if let problem = BlockEdit.validate(name: block.name, rows: block.rowCount, treesPerRow: block.treesPerRow) {
+                return .rejected(.invalid, problem)
+            }
+            guard (0...999).contains(block.gridRow), (0...999).contains(block.gridColumn) else {
+                return .rejected(.invalid, "A block’s grid row and column go from 0 to 999.")
+            }
+        }
+        let stored = try await store.find(.block, block.id, farm: farmId)
+        if let settled = try settle(.block(block), against: stored, noun: "block") { return settled }
+
+        if case .block(let old)? = stored?.record, old.deletedAt == nil {
+            let marks = try await liveMarks(inBlock: old.id)
+            let notes = try await liveNotes(inBlock: old.id)
+            if block.deletedAt != nil {
+                if let problem = BlockEdit.checkRemove(old, marks: marks, notes: notes) {
+                    return .rejected(.blockInUse, problem)
+                }
+            } else {
+                if block.fieldId != old.fieldId, !marks.isEmpty || !notes.isEmpty {
+                    return .rejected(.blockInUse, "\(old.displayName) has shaped trees or notes, so it stays in its field. Erase them first.")
+                }
+                if block.rowCount < old.rowCount || block.treesPerRow < old.treesPerRow,
+                   let problem = BlockEdit.checkResize(old, rows: block.rowCount, treesPerRow: block.treesPerRow, marks: marks, notes: notes) {
+                    return .rejected(.blockInUse, problem)
+                }
+            }
+        }
+        return try await save(.block(block))
+    }
+
+    func liveBlocks(inField fieldId: UUID) async throws -> [Block] {
+        try await store.all(.block, farm: farmId) { $0.filter(\.$deletedAt == nil) }.compactMap {
+            if case .block(let b) = $0.record, b.fieldId == fieldId { return b }
+            return nil
+        }
+    }
+
+    func liveMarks(inBlock blockId: UUID) async throws -> [TreeMark] {
+        try await store.all(.treeMark, farm: farmId) { $0.filter(\.$blockId == blockId).filter(\.$deletedAt == nil) }.compactMap {
+            if case .treeMark(let m) = $0.record { return m }
+            return nil
+        }
+    }
+
+    func liveNotes(inBlock blockId: UUID) async throws -> [TreeNote] {
+        try await store.all(.treeNote, farm: farmId) { $0.filter(\.$blockId == blockId).filter(\.$deletedAt == nil) }.compactMap {
+            if case .treeNote(let n) = $0.record { return n }
+            return nil
+        }
     }
 
     // MARK: Tree marks
