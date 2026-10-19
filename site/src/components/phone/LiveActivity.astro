@@ -3,25 +3,40 @@
  * LIVE ACTIVITY: the Time Card card on the lock screen (the hero feature).
  *
  *   [On the clock]                         North field · Block 2
- *   6:27:00                                      28% of field ▬▬▭▭
+ *   6:27:00                                           ▬▬▬▭▭▭▭▭▭
  *   220 trees this shift                    Row 36 marked · Undo
  *   [Row 36] [Row 37] [Row 38] [Break]
  *
  * 361 pt wide with its bottom edge at y 760 pt, radius 24, padding 12/14, 159 pt tall.
  * Values come from ledger.liveActivityAt(at) through activityView(); explicit props win.
- * Never a clock-out button.
+ * Never a clock-out button. The field bar (4 pt) sits beside the timer because row 3's
+ * right side belongs to 'Row 36 marked · Undo'; like the app's, it has no visible label.
  *
  * Static first: the server markup is the given state, set with inline styles that scenes
  * can tween from (GSAP inline styles win). Every state renders every part, so one card can
  * play working → lunch → working, or the Row 36 tap:
- *   - crossfade [data-la-material] / [data-la-break], [data-pill-face="clock"|"break"],
- *     and fade [data-worked-line] in (it never overlaps anything);
- *   - flip [data-la]'s data-state (tl.set attr) to turn the timer gold;
+ *   - the pill is two stacked faces: crossfade [data-pill-face="clock"] and
+ *     [data-pill-face="break"] by opacity. Never rewrite pill text to change state: each
+ *     face has its own [data-pill-text="clock"|"break"], and the gold one already reads
+ *     'On lunch' or 'On break' for the coming break (set [data-pill-text="break"] only for a
+ *     voice break with a reason, before it fades in);
+ *   - crossfade [data-la-material] / [data-la-break], and fade [data-worked-line] in
+ *     (it shares row 3's right side with [data-undo]; fade that out);
+ *   - flip [data-la]'s data-state with tl.set(la, { attr: { 'data-state': … } }) to turn the
+ *     timer gold;
  *   - collapse the row buttons (scaleX → 0, transformOrigin '100% 50%'), fade [data-break-btn],
- *     reveal [data-back-btn] with clip-path inset(0 100% 0 0) → inset(0);
+ *     reveal [data-back-btn] with clip-path inset(0 100% 0 0) → inset(0). Break and lunch
+ *     layers render the rows at scaleX(0) with transform-origin 0% 50%, so tweening them back
+ *     to scaleX 1 grows them from the left (pass transformOrigin to choose otherwise);
  *   - advance: move [data-strip-track] by one step (x: '-=' + step; see stripStep in
  *     system/lockscreen/activity.ts; in px, measure two [data-row] buttons' offsetLeft).
- *     In the tapped state the marked row waits off the left edge, so x: step → 0 replays the tap.
+ *     In the tapped state the marked row waits off the left edge, so x: step → 0 replays the tap;
+ *   - a tap also rolls [data-trees] (util.odometer), updates [data-undo-row] and moves
+ *     [data-fieldbar]'s scaleX to the new fieldPct.
+ * Hooks: [data-la] [data-la-material] [data-la-break] [data-pill] [data-pill-face]
+ * [data-pill-text] [data-place] [data-timer] [data-field] (bar track) [data-fieldbar] (fill)
+ * [data-trees-line] [data-trees] [data-undo] [data-undo-row] [data-worked-line] [data-strip]
+ * [data-strip-track] [data-row] [data-break-btn] [data-back-btn].
  */
 import { odometerHTML } from '../../scripts/odometer';
 import { activityView, type ActivityProps } from '../system/lockscreen/activity';
@@ -66,13 +81,7 @@ const hide = 'opacity:0';
         data-odo-text={v.timer}
         set:html={odometerHTML(v.timer)}
       />
-      <span class="la-field" data-field>
-        <span class="la-field-label"
-          ><span class="odo" data-fieldpct data-odo data-odo-text={v.fieldPctText} set:html={odometerHTML(v.fieldPctText)}
-          />% of field</span
-        >
-        <span class="la-bar"><i data-fieldbar style={`transform:scaleX(${v.fieldPct.toFixed(4)})`}></i></span>
-      </span>
+      <span class="la-bar" data-field><i data-fieldbar style={`transform:scaleX(${v.fieldPct.toFixed(4)})`}></i></span>
     </div>
 
     <div class="la-r3">
@@ -95,7 +104,7 @@ const hide = 'opacity:0';
         <span class:list={['la-track', v.lead && 'la-track--lead']} data-strip-track>
           {
             v.track.map((r) => (
-              <span class="la-btn la-row" data-row={r} style={v.onBreak ? 'transform:scaleX(0)' : undefined}>
+              <span class="la-btn la-row" data-row={r} style={v.onBreak ? 'transform:scaleX(0);transform-origin:0% 50%' : undefined}>
                 Row {r}
               </span>
             ))
@@ -247,35 +256,19 @@ const hide = 'opacity:0';
   .la[data-state='break'] .la-timer {
     color: var(--pill-break-bg, #e2a644);
   }
-  .la-field {
-    align-self: flex-end;
-    display: grid;
-    justify-items: end;
-    gap: calc(5 * var(--pt));
-    padding-bottom: calc(3 * var(--pt));
-  }
-  .la-field-label {
-    display: inline-flex;
-    align-items: baseline;
-    color: rgba(242, 245, 239, 0.72);
-    font-size: calc(12 * var(--pt));
-    white-space: nowrap;
-  }
-  .la-field-label .odo {
-    font-weight: 600;
-    color: #f2f5ef;
-  }
+  /* The field bar: everyone's shaped trees out of the field's (decisions.md #4). The brief's
+     #1C3125 track vanished on this material (1.2:1), so the track is a light veil. */
   .la-bar {
     display: block;
-    width: calc(112 * var(--pt));
+    width: calc(128 * var(--pt));
     height: calc(4 * var(--pt));
     border-radius: calc(2 * var(--pt));
-    background: #1c3125;
+    background: rgba(242, 245, 239, 0.16);
     overflow: hidden;
   }
   .la[data-state='lunch'] .la-bar,
   .la[data-state='break'] .la-bar {
-    background: rgba(242, 245, 239, 0.16);
+    background: rgba(242, 245, 239, 0.2);
   }
   .la-bar i {
     display: block;
@@ -348,6 +341,13 @@ const hide = 'opacity:0';
     /* Clip sideways only, so a tap ring can still spill over the top and bottom. */
     overflow-x: clip;
     overflow-y: visible;
+  }
+  /* Before overflow: clip (Safari < 16), hide instead: the row waiting under Break and the
+     marked row in the card's left padding stay out of sight; only a tap ring is clipped. */
+  @supports not (overflow: clip) {
+    .la-strip {
+      overflow: hidden;
+    }
   }
   .la-track {
     display: flex;

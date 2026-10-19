@@ -2,9 +2,11 @@
  * device-a lab: the phone frame, status bar, screen layers, lock screen and Live Activity.
  * Geometry is checked in points: each phone's screen is 393 pt wide, so 1 pt = width / 393.
  *
- * Run against the built site (npm run build first). The project's playwright.config.ts
- * looks in tests/e2e; to run these:  npx playwright test -c .shots/pw-lab.config.ts
- * (or add tests/lab to the config's testDir).
+ * Runs against the built site, at 1440 × 900 and 375 × 812, as the lab-desktop and
+ * lab-mobile projects of playwright.config.ts:
+ *   npm run build && npm run test:e2e -- --project=lab-desktop --project=lab-mobile
+ * Those projects (testDir tests/lab) are the foundation owner's to add to the config; until
+ * they land, this suite is not part of CI.
  */
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Locator, type Page } from '@playwright/test';
@@ -164,15 +166,16 @@ test('every hook the scenes rely on is present', async ({ page }) => {
     '[data-la-material]',
     '[data-la-break]',
     '[data-pill] [data-pill-text]',
-    '[data-pill-face="clock"]',
-    '[data-pill-face="break"]',
+    '[data-pill-face="clock"] [data-pill-text="clock"]',
+    '[data-pill-face="break"] [data-pill-text="break"]',
     '[data-place]',
     '.odo[data-timer][data-odo]',
     '[data-worked-line] [data-timer]',
     '[data-trees-line] .odo[data-trees][data-odo]',
-    '[data-fieldbar]',
-    '[data-fieldpct]',
-    '[data-undo]',
+    '[data-field] > [data-fieldbar]',
+    '[data-undo] [data-undo-row]',
+    '[data-lock-quick]',
+    '[data-home-indicator]',
     '[data-strip] > [data-strip-track] > [data-row="36"]',
     '[data-row="39"]',
     '[data-break-btn]',
@@ -192,7 +195,10 @@ test('states read from the ledger', async ({ page }) => {
 
   await expect(timer('lab-a-0702')).toHaveAttribute('data-odo-text', '0:00:00');
   await expect(la('lab-a-0702').locator('[data-trees]')).toHaveAttribute('data-odo-text', '0');
-  await expect(la('lab-a-0702').locator('[data-fieldpct]')).toHaveAttribute('data-odo-text', '26');
+  // The field bar: scaleX = fieldPct (26% at clock-in), with no visible percent (the app shows none).
+  const bar = await la('lab-a-0702').locator('[data-fieldbar]').evaluate((el) => new DOMMatrix(getComputedStyle(el).transform).a);
+  expect(bar).toBeCloseTo(0.2564, 3);
+  for (const t of await page.locator('[data-la]').allInnerTexts()) expect(t).not.toContain('%');
   expect(await visibleRows(la('lab-a-0702'))).toEqual([14, 15, 16]);
   await expect(la('lab-a-0702').locator('[data-place]')).toHaveText('North field · Block 2');
 
@@ -204,6 +210,10 @@ test('states read from the ledger', async ({ page }) => {
   await expect(la('lab-a-1201').locator('[data-back-btn]')).toHaveCSS('clip-path', 'none');
   await expect(la('lab-a-1201').locator('[data-break-btn]')).toHaveCSS('opacity', '0');
   expect(await visibleRows(la('lab-a-1201'))).toEqual([]);
+  // Collapsed rows grow back from the left unless a scene picks another origin.
+  for (const r of await la('lab-a-1201').locator('[data-row]').all()) {
+    expect(await r.evaluate((el) => getComputedStyle(el).transformOrigin.split(' ')[0])).toBe('0px');
+  }
   // The timer turns gold on lunch and break.
   await expect(timer('lab-a-1201')).toHaveCSS('color', 'rgb(226, 166, 68)');
   await expect(timer('lab-a-1414')).toHaveCSS('color', 'rgb(255, 255, 255)');
@@ -270,6 +280,60 @@ test('No Service fits the right ear without touching the island', async ({ page 
     await expect(strip.locator('[data-no-service]')).toHaveCSS('opacity', '1');
     await expect(strip.locator('[data-wifi]')).toHaveCSS('opacity', '0');
   }
+});
+
+test('the field bar reads as a bar: a visible track on both materials', async ({ page }) => {
+  await open(page);
+  // Track over card, as WCAG computes it (an empty track must not vanish into the card).
+  const ratios = await page.evaluate(() => {
+    type RGBA = [number, number, number, number];
+    const rgba = (c: string): RGBA => {
+      const [r = 0, g = 0, b = 0, a = 1] = (c.match(/[\d.]+/g) ?? []).map(Number);
+      return [r, g, b, a];
+    };
+    const lum = ([r, g, b]: RGBA) => {
+      const f = (v: number) => ((v /= 255) <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
+      return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
+    };
+    const over = (top: RGBA, under: RGBA): RGBA => {
+      const mix = (t: number, u: number) => t * top[3] + u * (1 - top[3]);
+      return [mix(top[0], under[0]), mix(top[1], under[1]), mix(top[2], under[2]), 1];
+    };
+    return Array.from(document.querySelectorAll<HTMLElement>('[data-lab-state] [data-la]')).map((la) => {
+      const onBreak = la.dataset.state === 'break' || la.dataset.state === 'lunch';
+      const twin: RGBA = [23, 38, 28, 1]; // the dawn twin's darkest band behind the card
+      const mat = rgba(getComputedStyle(la.querySelector<HTMLElement>(onBreak ? '[data-la-break]' : '[data-la-material]')!).backgroundColor);
+      const card = over(mat, twin);
+      const track = over(rgba(getComputedStyle(la.querySelector<HTMLElement>('[data-field]')!).backgroundColor), card);
+      const hi = Math.max(lum(track), lum(card));
+      const lo = Math.min(lum(track), lum(card));
+      return (hi + 0.05) / (lo + 0.05);
+    });
+  });
+  expect(ratios.length).toBeGreaterThan(5);
+  for (const r of ratios) expect(r).toBeGreaterThan(1.45);
+});
+
+test('the strip falls back to overflow: hidden where overflow: clip is missing', async ({ page }) => {
+  await open(page);
+  const fallback = await page.evaluate(() => {
+    const rules = (list: CSSRuleList): CSSRule[] => Array.from(list).flatMap((r) => ('cssRules' in r ? [r, ...rules((r as CSSGroupingRule).cssRules)] : [r]));
+    return Array.from(document.styleSheets)
+      .flatMap((sh) => rules(sh.cssRules))
+      .filter((r): r is CSSSupportsRule => r instanceof CSSSupportsRule && /not\s*\(overflow:\s*clip\)/.test(r.conditionText))
+      .some((r) => /la-strip[^{]*\{[^}]*overflow:\s*hidden/.test(r.cssText));
+  });
+  expect(fallback).toBe(true);
+});
+
+test('battery: red at 20% and below, as iOS draws it', async ({ page }) => {
+  await open(page);
+  const low = page.locator('[data-statusbar][data-battery-low]');
+  await expect(low).toHaveCount(1);
+  await expect(low).toHaveAttribute('data-battery', '20');
+  await expect(low.locator('.sb-battery rect').nth(1)).toHaveAttribute('fill', '#FF3B30');
+  const normal = page.locator('[data-statusbar]:not([data-battery-low]) .sb-battery rect:nth-of-type(2)');
+  for (const r of await normal.all()) await expect(r).toHaveAttribute('fill', 'currentColor');
 });
 
 test.describe('play-through (reduced motion: each step lands at once)', () => {

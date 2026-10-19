@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { MOMENTS } from '../../../data/ledger.ts';
+import { fieldShapedAt, fmtCount, MOMENTS } from '../../../data/ledger.ts';
 import {
   activityLabel,
   activityView,
@@ -53,7 +53,8 @@ describe('activityView from the ledger', () => {
     expect(v.timer).toBe('0:00:00');
     expect(v.trees).toBe(0);
     expect(v.place).toBe('North field · Block 2');
-    expect(v.fieldPctText).toBe('26');
+    // The bar has no visible label (the app's has none); its words are for VoiceOver only.
+    expect(v.fieldLabel).toBe('2,190 of 8,540 trees shaped');
     expect(v.rows).toEqual([14, 15, 16]);
     expect(v.track).toEqual([14, 15, 16, 17]);
     expect(v.lead).toBe(false);
@@ -83,13 +84,13 @@ describe('activityView from the ledger', () => {
     expect(v.rows).toEqual([35, 36, 37]);
   });
 
-  it('2:14 before the tap: 6:27:00, 220 trees, 28%, rows 36–38 and 39 waiting', () => {
+  it('2:14 before the tap: 6:27:00, 220 trees, the bar at 28%, rows 36–38 and 39 waiting', () => {
     const v = activityView({ at: MOMENTS.lockScreen });
     expect(v.state).toBe('working');
     expect(v.timer).toBe('6:27:00');
     expect(v.trees).toBe(220);
     expect(v.fieldPct).toBeCloseTo(0.282, 3);
-    expect(v.fieldPctText).toBe('28');
+    expect(v.fieldLabel).toBe('2,410 of 8,540 trees shaped');
     expect(v.track).toEqual([36, 37, 38, 39]);
   });
 
@@ -121,19 +122,21 @@ describe('activityView from the ledger', () => {
     expect(v.rows).toEqual([39, 40, 41]);
   });
 
-  it('4:31 clock-out: 8:30:00, 290 trees, 29%, rows 42–44', () => {
+  it('4:31 clock-out: 8:30:00, 290 trees, the bar at 29%, rows 42–44', () => {
     const v = activityView({ at: MOMENTS.clockOut });
     expect(v.worked).toBe('8:30:00');
     expect(v.trees).toBe(290);
-    expect(v.fieldPctText).toBe('29');
+    expect(v.fieldLabel).toBe(`${fmtCount(fieldShapedAt(MOMENTS.clockOut))} of 8,540 trees shaped`);
+    expect(v.fieldPct).toBeCloseTo(0.29, 2);
     expect(v.rows).toEqual([42, 43, 44]);
   });
 });
 
 describe('activityView overrides', () => {
   it('explicit props win over the ledger', () => {
-    const v = activityView({ at: MOMENTS.clockIn, trees: 99, rows: [5, 6, 7], field: 'South field', block: 'Block 9' });
+    const v = activityView({ at: MOMENTS.clockIn, trees: 99, rows: [5, 6, 7], field: 'South field', block: 'Block 9', fieldPct: 0.5 });
     expect(v.treesText).toBe('99');
+    expect(v.fieldLabel).toBe('4,270 of 8,540 trees shaped');
     expect(v.track).toEqual([5, 6, 7, 8]);
     expect(v.place).toBe('South field · Block 9');
   });
@@ -175,6 +178,8 @@ describe('activityLabel', () => {
     expect(label).toContain('230 trees this shift');
     expect(label).toContain('Row 36 marked with Undo');
     expect(label).toContain('buttons for row 37, row 38, row 39 and Break');
+    // The field bar speaks as the app's does: '{shaped} of {total} trees shaped' (the tap added 10).
+    expect(label).toContain('a field bar: 2,420 of 8,540 trees shaped');
     expect(label.toLowerCase()).not.toContain('clock out');
   });
   it('describes a break', () => {

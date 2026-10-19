@@ -7,6 +7,7 @@
  */
 import {
   BREAKS,
+  FIELD_TREES,
   fmtCount,
   liveActivityAt,
   MOMENTS,
@@ -95,8 +96,11 @@ export interface ActivityView {
   trees: number;
   treesText: string;
   fieldPct: number;
-  /** Whole percent for the label: '28'. */
-  fieldPctText: string;
+  /**
+   * The field bar's words, for VoiceOver only (the card shows no percent, like the app's):
+   * '2,410 of 8,540 trees shaped'.
+   */
+  fieldLabel: string;
   rows: [number, number, number];
   nextRow: number;
   undoRow: number | null;
@@ -163,7 +167,7 @@ export function activityView(props: ActivityProps = {}): ActivityView {
     trees: d.trees,
     treesText: fmtCount(d.trees),
     fieldPct: d.fieldPct,
-    fieldPctText: String(Math.round(d.fieldPct * 100)),
+    fieldLabel: `${fmtCount(Math.round(d.fieldPct * FIELD_TREES))} of ${fmtCount(FIELD_TREES)} trees shaped`,
     rows,
     nextRow,
     undoRow,
@@ -179,7 +183,7 @@ export function activityLabel(v: ActivityView): string {
   const parts = [`The Time Card Live Activity shows ${v.pill}`];
   if (v.onBreak) parts.push(`${v.timer} on ${v.state === 'lunch' ? 'lunch' : 'break'}`, `${v.worked} worked`);
   else parts.push(`${v.worked} worked`);
-  parts.push(`${v.field}, ${v.block}`, `${v.treesText} trees this shift`);
+  parts.push(`${v.field}, ${v.block}`, `${v.treesText} trees this shift`, `a field bar: ${v.fieldLabel}`);
   if (v.tapped && v.undoRow) parts.push(`Row ${v.undoRow} marked with Undo`);
   const buttons = v.onBreak ? 'a Back to work button' : `buttons for row ${v.rows.join(', row ')} and Break`;
   return `${parts.join(', ')}, and ${buttons}.`;
