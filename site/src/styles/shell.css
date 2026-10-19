@@ -165,6 +165,8 @@ html.motion .shot figcaption {
   position: relative;
   z-index: 6;
   display: grid;
+  /* The copy column never grows past its track (long words, or a reader's text spacing). */
+  grid-template-columns: minmax(0, 1fr);
   gap: 32px;
   align-content: center;
   min-width: 0;
