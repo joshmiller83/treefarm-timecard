@@ -17,7 +17,7 @@
 import { registerScene } from '../scene.ts';
 import { MOMENTS, fmtCount } from '../../data/ledger.ts';
 import { ensureFieldMap, toScreen, zoomView } from '../fieldmap.ts';
-import { BEATS, DEMO_ROW, ZOOM_TARGET, dotCenter, finalState } from '../fieldstate.ts';
+import { BEATS, DEMO_ROW, ZOOM_TARGET, dotCenter, finalState, targetRect } from '../fieldstate.ts';
 import { setOdometer } from '../odometer.ts';
 import { CARDS, COUNTS, WIN, countsAt, type Counts, type Win } from '../../sections/field/plan.ts';
 
@@ -117,35 +117,56 @@ registerScene(
       tl.to(card, { opacity: 0, y: -8, duration: len(w.out), ease: 'power2.in' }, w.out[0]);
     });
 
-    // ---- The Undo chip beside row 37 in the close-up: in, tapped, out (row 37 goes back to rings).
+    // ---- The Undo chip in the close-up: in, tapped, out (row 37 goes back to rings). Beside row 37
+    // when the canvas has room (desktop); on a phone, a toast in the legend's place under the map.
     let ro: ResizeObserver | null = null;
-    if (undo && canvas) {
+    if (canvas) {
       const box = canvas.parentElement ?? canvas;
-      const place = () => {
+      const target = targetRect(ZOOM_TARGET);
+      const view = () => {
         const W = box.clientWidth;
         const H = box.clientHeight;
-        if (!W || !H) return;
-        const v = zoomView(ZOOM_TARGET, W, H, Math.min(2, window.devicePixelRatio || 1));
-        const end = dotCenter(DEMO_ROW.block, DEMO_ROW.row, 10);
-        const last = dotCenter(DEMO_ROW.block, ZOOM_TARGET.to, 10);
-        const mid = dotCenter(DEMO_ROW.block, ZOOM_TARGET.to, 5.5);
-        const right = toScreen(v, W, H, end.x + 0.95, end.y);
-        const w = undo.offsetWidth || 96;
-        // Beside the row when there is room; on a narrow canvas, centred under the block.
-        const beside = right.x + w + 6 <= W;
-        const p = beside ? right : toScreen(v, W, H, mid.x, last.y + 1.25);
-        undo.style.setProperty('--ux', `${(beside ? p.x : p.x - w / 2).toFixed(1)}px`);
-        undo.style.setProperty('--uy', `${p.y.toFixed(1)}px`);
+        return W && H ? { W, H, v: zoomView(ZOOM_TARGET, W, H, Math.min(2, window.devicePixelRatio || 1)) } : null;
       };
-      // The vignette paints the stage tint: line its gradient up with the viewport.
+      const besideAt = (z: NonNullable<ReturnType<typeof view>>) => {
+        const end = dotCenter(DEMO_ROW.block, DEMO_ROW.row, 10);
+        const p = toScreen(z.v, z.W, z.H, end.x + 0.95, end.y);
+        return { ...p, fits: p.x + (undo?.offsetWidth || 96) + 6 <= z.W };
+      };
+      const first = view();
+      const toast = !!first && !besideAt(first).fits;
+      const place = () => {
+        const z = view();
+        if (!z || !undo) return;
+        const w = undo.offsetWidth || 96;
+        const b = besideAt(z);
+        if (!toast && b.fits) {
+          undo.style.setProperty('--ux', `${b.x.toFixed(1)}px`);
+          undo.style.setProperty('--uy', `${b.y.toFixed(1)}px`);
+          return;
+        }
+        // Centred on the block, level with the legend row under the box.
+        const mid = toScreen(z.v, z.W, z.H, dotCenter(DEMO_ROW.block, DEMO_ROW.row, 5.5).x, 0);
+        const y = foot && cam ? foot.offsetTop + foot.offsetHeight / 2 - cam.offsetTop : z.H + 24;
+        undo.style.setProperty('--ux', `${(mid.x - w / 2).toFixed(1)}px`);
+        undo.style.setProperty('--uy', `${y.toFixed(1)}px`);
+      };
+      // The vignette paints the stage tint: line its gradient up with the viewport, and keep its
+      // fades inside the context around rows 28-40 (never over the rows or their numbers).
       const frame = ctx.frame;
       const alignEdges = () => {
-        if (!edges || !frame) return;
+        const z = view();
+        if (!edges || !frame || !z) return;
         let y = 0;
         for (let el: HTMLElement | null = box; el && el !== frame; el = el.offsetParent as HTMLElement | null) y += el.offsetTop;
         const stuck = parseFloat(getComputedStyle(frame).top) || 0;
+        const s = z.v.s;
+        const ex = Math.max(8, Math.min(112, (z.W - target.w * s) / 2 + 0.6 * s));
+        const ey = Math.max(8, Math.min(72, (z.H - target.h * s) / 2 + 0.7 * s));
         edges.style.setProperty('--edge-y', `${-(y + stuck - 1)}px`);
         edges.style.setProperty('--edge-vh', `${window.innerHeight}px`);
+        edges.style.setProperty('--ex', `${ex.toFixed(1)}px`);
+        edges.style.setProperty('--ey', `${ey.toFixed(1)}px`);
       };
       const layout = () => {
         place();
@@ -154,9 +175,16 @@ registerScene(
       layout();
       ro = new ResizeObserver(layout);
       ro.observe(box);
-      tl.fromTo(undo, { opacity: 0, scale: 0.88, y: 6 }, { opacity: 1, scale: 1, y: 0, duration: len(WIN.undoIn), ease: 'back.out(1.6)' }, WIN.undoIn[0]);
-      util.tap(tl, undo, WIN.undoTap - 0.012, { dur: 0.03, shake: false });
-      tl.to(undo, { opacity: 0, scale: 0.94, duration: len(WIN.undoOut), ease: 'power2.in' }, WIN.undoOut[0]);
+      if (undo) {
+        tl.fromTo(undo, { opacity: 0, scale: 0.88, y: 6 }, { opacity: 1, scale: 1, y: 0, duration: len(WIN.undoIn), ease: 'back.out(1.6)' }, WIN.undoIn[0]);
+        util.tap(tl, undo, WIN.undoTap - 0.012, { dur: 0.03, shake: false });
+        tl.to(undo, { opacity: 0, scale: 0.94, duration: len(WIN.undoOut), ease: 'power2.in' }, WIN.undoOut[0]);
+        // As a toast it takes the legend's place for a moment.
+        if (toast && foot) {
+          tl.to(foot, { opacity: 0, duration: len(WIN.undoIn), ease: 'power1.out' }, WIN.undoIn[0] - 0.004);
+          tl.to(foot, { opacity: 1, duration: len(WIN.undoOut), ease: 'power1.in' }, WIN.undoOut[1]);
+        }
+      }
     }
 
     // ---- Next season: the chip rolls, the note's key pulses with the flag on the map, then back.

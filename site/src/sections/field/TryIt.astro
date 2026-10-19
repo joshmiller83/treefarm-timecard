@@ -52,6 +52,12 @@ const modes = [
     </div>
     <div class="tryit-readout">
       <p class="tryit-status" role="status" data-try-status>Row {next} is next.</p>
+      <dl class="tryit-how">
+        <div><dt>Row number</dt><dd>marks the whole row</dd></div>
+        <div><dt>One</dt><dd>one tree at a time</dd></div>
+        <div><dt>Fill</dt><dd>tap the first tree, then the last</dd></div>
+        <div><dt>Erase</dt><dd>clears what you tap</dd></div>
+      </dl>
       <p class="tryit-today">
         <span class="tryit-today-n num" data-try-today>{fmtCount(treesAt(MOMENTS.field))}</span>
         <span class="tryit-today-l">trees today</span>
@@ -325,6 +331,26 @@ const modes = [
     color: var(--on-stage-muted);
   }
 
+  /* How each control works: only in the wide layout, where the side column has room. */
+  .tryit-how {
+    display: none;
+    margin: 0;
+    font-size: 0.8125rem;
+    line-height: 1.4;
+  }
+  .tryit-how div {
+    padding: 7px 0;
+    border-top: 1px solid var(--stage-line);
+  }
+  .tryit-how dt {
+    font-weight: 600;
+    color: var(--on-stage);
+  }
+  .tryit-how dd {
+    margin: 0;
+    color: var(--on-stage-muted);
+  }
+
   /* The grid: a row-number column plus 10 trees. */
   .tryit-map {
     grid-area: map;
@@ -426,8 +452,8 @@ const modes = [
     position: absolute;
     left: 50%;
     top: 50%;
-    width: calc(var(--d) * 0.95);
-    height: calc(var(--d) * 0.95);
+    width: calc(var(--d) * 1.05);
+    height: calc(var(--d) * 1.05);
     transform: translate(-23%, -88%);
     z-index: 1;
     fill: #c2462a;
@@ -496,12 +522,18 @@ const modes = [
     /* The status line under the controls; the day's count at the foot, level with the last row. */
     .tryit-readout {
       flex-direction: column;
-      align-items: flex-start;
-      justify-content: space-between;
+      align-items: stretch;
+      justify-content: flex-start;
       padding: 16px 4px 2px;
+    }
+    .tryit-how {
+      display: block;
+      margin-top: 18px;
+      margin-bottom: auto;
     }
     .tryit-today {
       justify-items: start;
+      margin-top: 18px;
     }
     .tryit-today-n {
       font-size: 2.25rem;

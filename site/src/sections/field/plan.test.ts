@@ -50,8 +50,14 @@ describe('the counters at section progress p', () => {
     expect(at(BEATS.reveal[1])).toEqual({ trees: FIELD_TREES, shaped: COUNTS.shaped, today: COUNTS.today });
   });
 
-  it('reach the ledger at the end of the reveal and hold through the zoom and the demo', () => {
-    for (const p of [0.53, 0.6, 0.65, 0.7, 0.72]) expect(at(p)).toEqual({ trees: FIELD_TREES, shaped: COUNTS.shaped, today: COUNTS.today });
+  it('reach the ledger at the end of the reveal and hold through the zoom', () => {
+    for (const p of [0.53, 0.56, 0.6, 0.705, 0.72]) expect(at(p)).toEqual({ trees: FIELD_TREES, shaped: COUNTS.shaped, today: COUNTS.today });
+  });
+
+  it('count row 37 while the demo has it gold, and give it back on Undo', () => {
+    const mid = (BEATS.demoIn[1] + BEATS.demoOut[0]) / 2;
+    expect(at(mid)).toEqual({ trees: FIELD_TREES, shaped: COUNTS.shaped + 10, today: COUNTS.today + 10 });
+    expect(at(BEATS.demoOut[1])).toEqual({ trees: FIELD_TREES, shaped: COUNTS.shaped, today: COUNTS.today });
   });
 
   it('go back to zero shaped next season (the trees stay), then return', () => {

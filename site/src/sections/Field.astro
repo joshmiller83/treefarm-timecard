@@ -304,13 +304,7 @@ const phoneLabel = `Time Card’s Trees tab at ${fmtTime(MOMENTS.field)}, ${FIEL
       linear-gradient(90deg, #000, transparent var(--ex), transparent calc(100% - var(--ex)), #000),
       linear-gradient(180deg, #000, transparent var(--ey), transparent calc(100% - var(--ey)), #000);
   }
-  @media (max-width: 899.98px) {
-    /* On a phone the close-up fills the width: soften only the very edges. */
-    .fm-edges {
-      --ex: 14px;
-      --ey: 44px;
-    }
-  }
+
   .fm-overlay {
     position: absolute;
     inset: 0;
@@ -456,7 +450,7 @@ const phoneLabel = `Time Card’s Trees tab at ${fmtTime(MOMENTS.field)}, ${FIEL
     order: 4;
   }
   /* The close-up's dimmed context fades out at the edges instead of stopping at a hard line. */
-  :global(html:not(.motion)) .fm-zoommap {
+  :global(html:not(.motion)) .fm-zoomfig :global(.fieldmap) {
     -webkit-mask-image:
       linear-gradient(90deg, transparent, #000 14%, #000 86%, transparent),
       linear-gradient(180deg, transparent, #000 10%, #000 90%, transparent);
@@ -521,9 +515,9 @@ const phoneLabel = `Time Card’s Trees tab at ${fmtTime(MOMENTS.field)}, ${FIEL
      shows a seam wherever the frame sits (on phones it rises with the frame). */
   .fm-haze {
     position: absolute;
-    inset: 0;
+    inset: 0 calc(-1 * var(--gutter));
     pointer-events: none;
-    background: #09160e;
+    background: #08140d;
     -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 12%, #000 36%, transparent 64%);
     mask-image: linear-gradient(180deg, transparent 0%, #000 12%, #000 36%, transparent 64%);
   }
@@ -547,6 +541,11 @@ const phoneLabel = `Time Card’s Trees tab at ${fmtTime(MOMENTS.field)}, ${FIEL
   @media (min-width: 900px) {
     :global(html.motion #field .beat-head) {
       --anchor: 40svh;
+    }
+    /* The tilted field's far rows sit lower on a desktop screen: haze them into the horizon. */
+    .fm-haze {
+      -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 10%, #000 58%, transparent 80%);
+      mask-image: linear-gradient(180deg, transparent 0%, #000 10%, #000 58%, transparent 80%);
     }
     :global(html.motion #field .frame-grid) {
       display: block;
@@ -668,6 +667,10 @@ const phoneLabel = `Time Card’s Trees tab at ${fmtTime(MOMENTS.field)}, ${FIEL
       left: 0;
       right: 0;
       bottom: 0;
+    }
+    /* The frame rises into place on phones: the haze sits lower in the viewport, so a touch lighter. */
+    .fm-haze {
+      background: #0a1810;
     }
     /* The section's own phone comes back over the map at the end. */
     :global(html.motion) .fm-shot {

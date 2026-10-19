@@ -8,7 +8,8 @@
  * Every number comes from the ledger; nothing here touches the DOM.
  */
 import { EARLIER_COUNT, FIELD_TREES, MOMENTS, fieldShapedAt, fmtCount, treesAt } from '../../data/ledger.ts';
-import { BEATS, revealCount } from '../../scripts/fieldstate.ts';
+import { FIELD } from '../../data/ledger.ts';
+import { BEATS, revealCount, sceneState } from '../../scripts/fieldstate.ts';
 
 export type Win = readonly [number, number];
 
@@ -83,7 +84,8 @@ export function seasonAt(p: number): number {
 /**
  * The counter strip at progress p. Trees and the earlier shaped count roll up while the field
  * flattens; today's trees count up ten at a time as each row flips to gold (in step with the
- * canvas); next season everything shaped goes back to zero, then returns.
+ * canvas); the row 37 demo adds its row while it is gold and Undo takes it back; next season
+ * everything shaped goes back to zero, then returns.
  */
 export function countsAt(p: number): Counts {
   const q = clamp01(p);
@@ -92,7 +94,8 @@ export function countsAt(p: number): Counts {
   const per = COUNTS.today / rows;
   const flipped = Math.min(rows, Math.max(0, Math.ceil(rows * ramp(q, BEATS.reveal) - 1e-9)));
   const keep = 1 - seasonAt(q);
-  const today = Math.round(flipped * keep) * per || 0;
+  const demo = sceneState(q).demo >= 0.5 ? FIELD.treesPerRow : 0;
+  const today = (Math.round(flipped * keep) * per || 0) + demo;
   const earlier = Math.round(COUNTS.earlier * c * keep);
   return { trees: Math.round(COUNTS.trees * c), shaped: earlier + today, today };
 }
