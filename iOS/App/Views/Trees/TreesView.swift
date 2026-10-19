@@ -14,6 +14,7 @@ struct TreesView: View {
     /// "Fix the times" on a shift left open.
     @State private var fixingShift: ShiftToFix?
     @State private var chromeHeight: CGFloat = 0
+    @State private var scrolledToMap = false
 
     static let zoomKey = "trees.zoom"
 
@@ -23,6 +24,12 @@ struct TreesView: View {
         NavigationStack {
             content
                 .screenBackground()
+                .overlay(alignment: .top) {
+                    // The page scrolls under the status bar; keep the clock and battery readable.
+                    Color.clear
+                        .frame(height: 0)
+                        .background(Palette.bg, ignoresSafeAreaEdges: .top)
+                }
                 .toolbar(.hidden, for: .navigationBar)
                 .navigationTitle("Trees")
         }
@@ -96,10 +103,13 @@ struct TreesView: View {
 
     private var map: some View {
         GeometryReader { proxy in
-            let mapHeight = max(320, proxy.size.height - chromeHeight - 12)
+            // The map never gets less than 55% of the screen. When the controls above it need
+            // more (an SE at large text), the page starts scrolled down to the map.
+            let mapHeight = max(proxy.size.height * 0.55, proxy.size.height - chromeHeight - 12)
+            ScrollViewReader { scroller in
             ScrollView(.vertical) {
                 VStack(spacing: 12) {
-                    chrome
+                    chrome(compact: proxy.size.height < 600)
                         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { chromeHeight = $0 }
                     if showsList {
                         TreeRowsList(model: model)
@@ -111,24 +121,36 @@ struct TreesView: View {
                     } else {
                         mapCard.frame(height: mapHeight)
                     }
+                    Color.clear.frame(height: 0).id("map-bottom")
                 }
                 .padding(.bottom, 12)
             }
             .scrollBounceBehavior(.basedOnSize)
             .accessibilityIdentifier("trees-page")
+            .onChange(of: chromeHeight > proxy.size.height * 0.45) { _, tall in
+                guard tall, !scrolledToMap else { return }
+                scrolledToMap = true
+                scroller.scrollTo("map-bottom", anchor: .bottom)
+            }
+            }
         }
     }
 
-    private var chrome: some View {
+    /// Everything above the map. It stops growing at xxxLarge text (each capped control shows
+    /// the Large Content Viewer on a long press); what a tap did, below it, keeps growing.
+    private func chrome(compact: Bool) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            FieldHeader(model: model, showsList: showsList) { listChoice = !showsList }
-            MarkingForBar(model: model, clockIn: { model.clockIn() },
-                          addShift: {
-                              model.beginAddingShift()
-                              addingShift = true
-                          },
-                          fixShift: { fixingShift = ShiftToFix(id: $0) })
-            ModePicker(model: model)
+            VStack(alignment: .leading, spacing: 10) {
+                FieldHeader(model: model, showsList: showsList) { listChoice = !showsList }
+                MarkingForBar(model: model, compact: compact, clockIn: { model.clockIn() },
+                              addShift: {
+                                  model.beginAddingShift()
+                                  addingShift = true
+                              },
+                              fixShift: { fixingShift = ShiftToFix(id: $0) })
+                ModePicker(model: model)
+            }
+            .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
             MessageBar(model: model)
         }
         .padding(.horizontal, 16)

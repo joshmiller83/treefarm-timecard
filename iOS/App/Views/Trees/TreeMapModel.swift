@@ -106,6 +106,8 @@ final class TreeMapModel {
 
     private(set) var anchor: TreeRef?
     private(set) var message: MapMessage?
+    /// A tree has been marked here: the "Tap a tree to mark it…" hint has done its job.
+    private(set) var hasMarked = false
     private(set) var undoStack = UndoStack<MapEdit>()
     var openTree: OpenTree? {
         didSet { if openTree != oldValue { markDirty([oldValue?.tree.rowRef, openTree?.tree.rowRef]) } }
@@ -573,6 +575,7 @@ final class TreeMapModel {
         let records = (change.added + change.removed).map(SyncRecord.treeMark)
         guard apply(records) else { return .failed }
         undoStack.push(MapEdit(shiftId: shiftId, change: change))
+        if !change.added.isEmpty { hasMarked = true }
         return .saved
     }
 

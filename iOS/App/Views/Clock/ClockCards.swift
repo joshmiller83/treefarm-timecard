@@ -317,10 +317,15 @@ struct HoursPayCardView: View {
                 .buttonStyle(.gloveSecondary)
                 .accessibilityIdentifier("set-rate")
             }
-            WeekChart(hours: hours)
-                // Seven day labels have to share one row; past this size they'd collide.
-                .dynamicTypeSize(...DynamicTypeSize.xLarge)
-                .frame(height: 132)
+            if typeSize.isAccessibilitySize {
+                // Seven labels can't share one row at these sizes: one line per day instead.
+                WeekList(hours: hours)
+            } else {
+                WeekChart(hours: hours)
+                    // Seven day labels have to share one row; past this size they'd collide.
+                    .dynamicTypeSize(...DynamicTypeSize.xLarge)
+                    .frame(height: 132)
+            }
             Text(hours.footnote(showPay: showPay))
                 .font(.footnote)
                 .foregroundStyle(Palette.muted)
@@ -359,20 +364,55 @@ struct HoursPayCardView: View {
     }
 }
 
-/// Seven soft bars for the farm's week, today's in full fir, with each day's hours under it.
+/// The week at accessibility sizes: one row per day, today's in fir.
+private struct WeekList: View {
+    var hours: HoursPay
+
+    var body: some View {
+        VStack(spacing: 0) {
+            ForEach(hours.days) { day in
+                HStack {
+                    Text(day.label)
+                        .font(.body.weight(day.isToday ? .bold : .regular))
+                        .foregroundStyle(day.isToday ? Palette.firText : Palette.ink)
+                    Spacer(minLength: 8)
+                    Text(day.hoursText)
+                        .font(.tcNumberSmall)
+                        .monospacedDigit()
+                        .foregroundStyle(day.hours > 0 ? Palette.ink : Palette.muted)
+                }
+                .padding(.vertical, 6)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(day.spoken)
+                if day.id != hours.days.last?.id { Divider().overlay(Palette.line) }
+            }
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Hours by day this week")
+        .accessibilityIdentifier("week-chart")
+    }
+}
+
+/// Seven bars for the farm's week, today's in full fir, with each day's hours under it.
 private struct WeekChart: View {
     var hours: HoursPay
 
     var body: some View {
-        Chart(hours.days) { day in
-            BarMark(x: .value("Day", day.label), yStart: .value("Hours", 0), yEnd: .value("Hours", hours.chartMax), width: .ratio(0.6))
-                .foregroundStyle(Palette.firSoft)
-                .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
-                .accessibilityHidden(true)
+        Chart {
+            // A faint line at a full day, so the bars have something to measure against. Days
+            // off draw nothing (a full-height track read like data).
+            if hours.chartMax >= 8 {
+                RuleMark(y: .value("Hours", 8))
+                    .foregroundStyle(Palette.line)
+                    .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
+                    .accessibilityHidden(true)
+            }
+            ForEach(hours.days) { day in
             BarMark(x: .value("Day", day.label), yStart: .value("Hours", 0), yEnd: .value("Hours", barHeight(day)), width: .ratio(0.6))
                 .foregroundStyle(day.isToday ? Palette.fir : Palette.fir.opacity(0.62))
                 .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
                 .accessibilityLabel(day.spoken)
+            }
         }
         .chartYScale(domain: 0...hours.chartMax)
         .chartYAxis(.hidden)

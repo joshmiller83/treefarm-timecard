@@ -28,7 +28,9 @@ struct ModePicker: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(mode.spokenTitle)
+                .accessibilityInputLabels([mode.title, mode.spokenTitle])
                 .accessibilityAddTraits(selected ? [.isSelected] : [])
+                .accessibilityShowsLargeContentViewer { Label(mode.title, systemImage: mode.systemImage) }
                 .accessibilityIdentifier("mode-\(mode.rawValue)")
             }
         }
@@ -47,9 +49,11 @@ struct MessageBar: View {
     @Bindable var model: TreeMapModel
     @Environment(\.dynamicTypeSize) private var typeSize
 
-    private var message: MapMessage {
+    /// What the last tap did, or a hint. The mode's hint goes once a tree has been marked here.
+    private var message: MapMessage? {
         if let message = model.message { return message }
         if model.zoom == .all { return MapMessage("This is the whole field. Tap a block to zoom in and mark trees.", tone: .hint) }
+        if model.hasMarked { return nil }
         return MapMessage(model.mode.hint, tone: .hint)
     }
 
@@ -57,7 +61,7 @@ struct MessageBar: View {
         // At the largest sizes a follow-up button goes under the words with Undo, so the words
         // keep the width. Otherwise Undo sits beside them.
         Group {
-            if typeSize.isAccessibilitySize && message.action != nil {
+            if typeSize.isAccessibilitySize && message?.action != nil {
                 VStack(alignment: .leading, spacing: 8) {
                     text
                     HStack(spacing: 10) {
@@ -78,28 +82,33 @@ struct MessageBar: View {
         .animation(.easeOut(duration: 0.15), value: message)
     }
 
+    /// One view whatever the message (or none), so a change never swaps the layout mid-animation.
     private var text: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 6) {
-            if let icon {
-                Image(systemName: icon)
-                    .font(.footnote.weight(.bold))
-                    .foregroundStyle(color)
-                    .accessibilityHidden(true)
-            }
-            Text(message.text)
+        let shown = message
+        let tone = shown?.tone ?? .hint
+        return HStack(alignment: .firstTextBaseline, spacing: 6) {
+            Image(systemName: icon(tone) ?? "circle")
+                .font(.footnote.weight(.bold))
+                .foregroundStyle(tone == .warning ? Palette.sap : Palette.fir)
+                .opacity(icon(tone) == nil ? 0 : 1)
+                .frame(width: icon(tone) == nil ? 0 : nil)
+                .accessibilityHidden(true)
+            Text(shown?.text ?? "")
                 .font(.subheadline)
-                .foregroundStyle(message.tone == .hint ? Palette.muted : Palette.ink)
+                .foregroundStyle(tone == .hint ? Palette.muted : Palette.ink)
                 // A hint never pushes the map off the screen; what a tap did is always shown whole.
-                .lineLimit(message.tone == .hint ? 3 : nil)
+                .lineLimit(tone == .hint ? 3 : nil)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .accessibilityIdentifier("trees-message")
+                .accessibilityHidden(shown == nil)
+                .accessibilityIdentifier(shown == nil ? "" : "trees-message")
         }
-        .dynamicTypeSize(...DynamicTypeSize.accessibility1)
+        // What a tap did follows the person's text size all the way; a hint stops growing.
+        .dynamicTypeSize(...(tone == .hint ? DynamicTypeSize.accessibility1 : .accessibility5))
     }
 
     @ViewBuilder private var actionButton: some View {
-        if let action = message.action {
+        if let action = message?.action {
             Button(action.title) { model.perform(action) }
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(Palette.firText)
@@ -109,6 +118,7 @@ struct MessageBar: View {
                 .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Palette.line, lineWidth: 1))
                 .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                 .dynamicTypeSize(...DynamicTypeSize.accessibility1)
+                .accessibilityShowsLargeContentViewer { Text(action.title) }
                 .accessibilityIdentifier("trees-message-action")
         }
     }
@@ -130,19 +140,16 @@ struct MessageBar: View {
         .disabled(!model.canUndo)
         .opacity(model.canUndo ? 1 : 0.4)
         .accessibilityLabel("Undo")
+        .accessibilityShowsLargeContentViewer { Label("Undo", systemImage: "arrow.uturn.backward") }
         .accessibilityIdentifier("trees-undo")
     }
 
-    private var icon: String? {
-        switch message.tone {
+    private func icon(_ tone: MapMessage.Tone) -> String? {
+        switch tone {
         case .hint: nil
         case .done: "checkmark.circle.fill"
         case .warning: "exclamationmark.circle.fill"
         }
-    }
-
-    private var color: Color {
-        message.tone == .warning ? Palette.sap : Palette.fir
     }
 }
 
@@ -178,7 +185,9 @@ struct ZoomBar: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Map size: \(zoom.spokenTitle)")
+                .accessibilityInputLabels([zoom.title, "Map size \(zoom.title)", zoom.spokenTitle])
                 .accessibilityAddTraits(selected ? [.isSelected] : [])
+                .accessibilityShowsLargeContentViewer { Text(zoom.spokenTitle) }
                 .accessibilityIdentifier("zoom-\(zoom.rawValue)")
             }
         }
@@ -210,5 +219,6 @@ struct MapRoundButton: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(label)
+        .accessibilityShowsLargeContentViewer { Label(label, systemImage: systemImage) }
     }
 }

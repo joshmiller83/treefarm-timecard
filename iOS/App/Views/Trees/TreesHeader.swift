@@ -25,6 +25,10 @@ struct FieldHeader: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(showsList ? "Show the map" : "Show rows as a list")
+                .accessibilityInputLabels(showsList ? ["Map", "Show the map"] : ["List", "Show rows as a list"])
+                .accessibilityShowsLargeContentViewer {
+                    Label(showsList ? "Show the map" : "Show rows as a list", systemImage: showsList ? "map" : "list.bullet")
+                }
                 .accessibilityIdentifier("trees-list-toggle")
             }
             if let progress = model.progress {
@@ -123,6 +127,9 @@ struct MapLegend: View {
         .padding(.vertical, 6)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Legend: rings are not shaped yet, green dots were shaped earlier, gold dots on this shift, and a red corner means the tree has notes.")
+        .accessibilityShowsLargeContentViewer {
+            Text("Rings: not yet. Green: earlier. Gold: this shift. Red corner: notes.")
+        }
     }
 
     @ViewBuilder private var items: some View {
@@ -168,6 +175,8 @@ struct NoteCorner: Shape {
 /// the clock, or when the one on the clock was left open from an earlier day.
 struct MarkingForBar: View {
     @Bindable var model: TreeMapModel
+    /// On a short screen (an SE, or landscape) the picker is one line, so the map gets the room.
+    var compact = false
     var clockIn: () -> Void
     var addShift: () -> Void
     /// Opens the shift editor on this shift ("Fix the times").
@@ -210,6 +219,13 @@ struct MarkingForBar: View {
             }
         } label: {
             HStack(spacing: 12) {
+                if compact {
+                    (Text("For ").foregroundStyle(highlighted ? Palette.sapInk : Palette.muted) + Text(model.shiftTitle(shift)).foregroundStyle(Palette.ink))
+                        .font(.callout.weight(.semibold))
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                } else {
                 VStack(alignment: .leading, spacing: 1) {
                     Text("MARKING TREES FOR")
                         .font(.caption2.weight(.semibold))
@@ -224,6 +240,7 @@ struct MarkingForBar: View {
                         .fixedSize(horizontal: false, vertical: true)
                         .multilineTextAlignment(.leading)
                         .frame(maxWidth: .infinity, alignment: .leading)
+                }
                 }
                 Image(systemName: "chevron.up.chevron.down")
                     .font(.subheadline.weight(.semibold))

@@ -237,8 +237,8 @@ final class TreesUITests: XCTestCase {
         XCTAssertTrue(yesterday.waitForExistence(timeout: 5))
         yesterday.tap()
         XCTAssertTrue(app.buttons["use-open-shift"].waitForExistence(timeout: 5))
-        // “Marked 12 trees…” was about today's shift, so it goes.
-        waitForMessage(app, "Tap a tree to mark it, or a row number to mark the whole row.")
+        // “Marked 12 trees…” was about today's shift, so it goes (and the hint is done once a tree is marked).
+        XCTAssertTrue(message(app).waitForNonExistence(timeout: 5), "message was “\(message(app).label)”")
         app.buttons["use-open-shift"].tap()
         XCTAssertTrue((picker.value as? String)?.hasPrefix("Today") ?? false, "\(String(describing: picker.value))")
     }
