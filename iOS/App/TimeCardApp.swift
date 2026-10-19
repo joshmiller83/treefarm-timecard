@@ -15,7 +15,9 @@ struct TimeCardApp: App {
             RootView()
                 .environment(model)
                 .environment(model.session)
-                .tint(Palette.fir)
+                // Text-colored tint: toolbar buttons, menus, pickers and chevrons read at 4.5:1 or
+                // more in dark mode too. Controls that fill with white keep `Palette.fir` locally.
+                .tint(Palette.firText)
                 // Again for a model that replaced one that couldn't open its database.
                 .task(id: ObjectIdentifier(model)) {
                     await model.start()

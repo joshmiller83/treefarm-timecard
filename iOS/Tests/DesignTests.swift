@@ -59,6 +59,18 @@ struct DesignTests {
         }
     }
 
+    /// The app's tint (and AccentColor, used before SwiftUI's tint applies) is text-colored:
+    /// toolbar Save and Cancel, menus and pickers read on Bg and Surface in both modes.
+    @Test(arguments: [UIUserInterfaceStyle.light, .dark])
+    func theTintReadsAsText(style: UIUserInterfaceStyle) throws {
+        let traits = UITraitCollection(userInterfaceStyle: style)
+        let accent = try #require(UIColor(named: "AccentColor")).resolvedColor(with: traits)
+        for fill in ["Bg", "Surface"] {
+            let f = try #require(UIColor(named: fill)).resolvedColor(with: traits)
+            #expect(Self.contrast(accent, f) >= 4.5, "AccentColor on \(fill)")
+        }
+    }
+
     /// WCAG contrast between two opaque colors.
     static func contrast(_ a: UIColor, _ b: UIColor) -> CGFloat {
         func luminance(_ c: UIColor) -> CGFloat {
