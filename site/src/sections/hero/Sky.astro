@@ -1,0 +1,146 @@
+---
+/**
+ * The hero's dawn: four faint stars and three bands of fir-row silhouettes built from the
+ * app icon's fir (<use href="#fir">, IconSprite). Each band is an SVG pattern tile (see
+ * hero.ts) that repeats across any width, over a solid run of ground to the bottom.
+ *
+ *   [data-hero-sky]                      the layer (absolute, clipped)
+ *     [data-star]                        2px dots
+ *     [data-band="far|mid|near"]         scroll parallax (y)
+ *       [data-band-fade]                 scroll opacity (the far band thins .6 → .3)
+ *         [data-band-art]                load sequence (rises y 24 → 0)
+ *
+ * Decorative: aria-hidden. Only the scene moves it; static, it is simply drawn.
+ */
+import { BANDS, STARS, bandGround, bandHeight, bandTrees, groundBase } from './hero.ts';
+
+const bands = BANDS.map((b) => ({ ...b, h: bandHeight(b), trees: bandTrees(b), ground: bandGround(b) }));
+---
+
+<div class="hero-sky" data-hero-sky aria-hidden="true">
+  <svg class="hero-defs" width="0" height="0" focusable="false">
+    <defs>
+      {
+        bands.map((b) => (
+          <pattern id={`hero-band-${b.id}`} patternUnits="userSpaceOnUse" width={b.tile} height={b.h}>
+            <g fill={b.color}>
+              {b.trees.map((t) => (
+                <use href="#fir" x={t.x} y={t.y} width={t.w.toFixed(2)} height={t.h} />
+              ))}
+              <path d={b.ground} />
+            </g>
+          </pattern>
+        ))
+      }
+    </defs>
+  </svg>
+
+  {
+    STARS.map((s) => (
+      <i class="hero-star" data-star style={`--x:${s.x}%;--y:${s.y}%;--mx:${s.mx}%;--my:${s.my}%`} />
+    ))
+  }
+
+  <div class="hero-bands">
+    {
+      bands.map((b) => (
+        <div class={`hero-band hero-band--${b.id}`} data-band={b.id} style={`--band-h:${b.h}px;--ground:${groundBase(b)}px`}>
+          <div class="hero-band-fade" data-band-fade>
+            <div class="hero-band-art" data-band-art>
+              <svg width="100%" height="100%" focusable="false">
+                <rect width="100%" height={b.h} fill={`url(#hero-band-${b.id})`} />
+                <rect y={b.h - 1} width="100%" height="100%" fill={b.color} />
+              </svg>
+              {b.id === 'far' && <i class="hero-mist" />}
+            </div>
+          </div>
+        </div>
+      ))
+    }
+  </div>
+</div>
+
+<style>
+  .hero-sky {
+    position: absolute;
+    inset: 0;
+    overflow: clip;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .hero-defs {
+    position: absolute;
+    width: 0;
+    height: 0;
+    overflow: hidden;
+  }
+  .hero-star {
+    position: absolute;
+    left: var(--x);
+    top: var(--y);
+    width: 2px;
+    height: 2px;
+    border-radius: 50%;
+    background: #f2f5ef;
+    opacity: 0.35;
+  }
+
+  /* The bands fill the bottom 38% of the frame (desktop) and run full-bleed. */
+  .hero-bands {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 38%;
+  }
+  /* With motion the next chapter scrolls up over the fixed stage tints: the nearest rows melt
+     into ground mist at the bottom, so the hero never ends on a hard edge. (Static sections
+     paint their own backgrounds, and the near rows' ground already meets the next one.) */
+  :global(html.motion) .hero-bands {
+    -webkit-mask-image: linear-gradient(#000 calc(100% - var(--band-fade, 96px)), transparent);
+    mask-image: linear-gradient(#000 calc(100% - var(--band-fade, 96px)), transparent);
+  }
+  .hero-band {
+    position: absolute;
+    left: 0;
+    right: 0;
+    /* Room below for the parallax sink: the ground runs on past the frame's bottom. */
+    bottom: -14vh;
+  }
+  .hero-band--far {
+    top: 2%;
+  }
+  .hero-band--mid {
+    top: 24%;
+  }
+  .hero-band--near {
+    top: 58%;
+  }
+  .hero-band-fade,
+  .hero-band-art {
+    position: absolute;
+    inset: 0;
+  }
+  .hero-band--far .hero-band-fade {
+    opacity: 0.6;
+  }
+  .hero-band-art svg {
+    display: block;
+    width: calc(100% / var(--band-scale, 1));
+    max-width: none; /* the reset caps svg at 100%, which the scaled-down art must exceed */
+    height: calc(100% / var(--band-scale, 1));
+    overflow: hidden;
+    /* The individual scale property (not transform), so nothing the scene animates collides. */
+    scale: var(--band-scale, 1);
+    transform-origin: 0 0;
+  }
+  /* A strip of morning mist along the far rows' ground (.06 once the band's .6 applies). */
+  .hero-mist {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: calc((var(--ground) - 44px) * var(--band-scale, 1));
+    height: calc(72px * var(--band-scale, 1));
+    background: linear-gradient(180deg, transparent, rgba(136, 207, 164, 0.1) 45%, rgba(136, 207, 164, 0.1) 60%, transparent);
+  }
+</style>

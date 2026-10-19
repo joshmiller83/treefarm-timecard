@@ -151,6 +151,9 @@ export interface Band {
   wave: number;
   /** Wave phase, radians. */
   phase: number;
+  /** Where the ground meets each tree, as a fraction of its height from the top: .86 buries
+      the trunk (distant rows read as one line), .93 leaves a stub of trunk (the near rows). */
+  plant: number;
   seed: number;
   /** Desktop parallax: how far the band sinks over the track, vh. */
   sink: number;
@@ -159,14 +162,13 @@ export interface Band {
 }
 
 export const BANDS: readonly Band[] = [
-  { id: 'far', color: '#173229', opacity: 0.6, tree: 42, tile: 624, count: 24, wave: 6, phase: 0.6, seed: 7, sink: 3, sinkMob: 1.5 },
-  { id: 'mid', color: '#10261B', opacity: 1, tree: 72, tile: 768, count: 16, wave: 4, phase: 2.2, seed: 19, sink: 5.5, sinkMob: 2.75 },
-  { id: 'near', color: '#0A1C13', opacity: 1, tree: 120, tile: 920, count: 10, wave: 3, phase: 4.1, seed: 41, sink: 8, sinkMob: 4 },
+  { id: 'far', color: '#173229', opacity: 0.6, tree: 42, tile: 624, count: 24, wave: 6, phase: 0.6, plant: 0.86, seed: 7, sink: 3, sinkMob: 1.5 },
+  { id: 'mid', color: '#10261B', opacity: 1, tree: 72, tile: 768, count: 16, wave: 4, phase: 2.2, plant: 0.86, seed: 19, sink: 5.5, sinkMob: 2.75 },
+  { id: 'near', color: '#0A1C13', opacity: 1, tree: 120, tile: 920, count: 10, wave: 3, phase: 4.1, plant: 0.93, seed: 41, sink: 8, sinkMob: 4 },
 ];
 
-/** The fir symbol's aspect (viewBox 500 × 600) and how much of it is empty under the trunk. */
+/** The fir symbol's aspect (viewBox 500 × 600). */
 const FIR_ASPECT = 500 / 600;
-const FIR_FOOT = 14 / 600; // empty space under the trunk plus a little planting depth
 const H_MIN = 0.8;
 const H_SPAN = 0.3;
 
@@ -184,8 +186,8 @@ function rng(seed: number) {
   };
 }
 
-/** The ground line's height at the top of the tallest possible tree, so nothing clips. */
-const groundBase = (b: Band) => Math.ceil(b.tree * (H_MIN + H_SPAN) + b.wave + 1);
+/** The ground line's mean y in the tile: low enough that the tallest tree never clips. */
+export const groundBase = (b: Band) => Math.ceil(b.tree * (H_MIN + H_SPAN) + b.wave + 1);
 
 /** y of the ground at x (periodic over the tile, so tiles meet without a step). */
 export function groundAt(b: Band, x: number): number {
@@ -194,7 +196,7 @@ export function groundAt(b: Band, x: number): number {
 
 /** The pattern tile's height: trees, the ground's dip and a strip of ground under it. */
 export function bandHeight(b: Band): number {
-  return groundBase(b) + b.wave + Math.ceil(b.tree * 0.1) + 2;
+  return groundBase(b) + b.wave + Math.ceil(b.tree * 0.18) + 2;
 }
 
 export interface Tree {
@@ -213,7 +215,7 @@ export function bandTrees(b: Band): Tree[] {
     const h = r2(b.tree * (H_MIN + rand() * H_SPAN));
     const w = (h * 500) / 600;
     const cx = (i + 0.5) * step + (rand() - 0.5) * step * 0.24;
-    const y = r2(groundAt(b, cx) - h + h * FIR_FOOT);
+    const y = r2(groundAt(b, cx) - h * b.plant);
     const x = r2(cx - w / 2);
     out.push({ x, y, w, h });
     if (x < 0) out.push({ x: r2(x + b.tile), y, w, h });

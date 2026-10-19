@@ -1,8 +1,15 @@
 ---
 /**
- * HERO · 7:02 Clock in. PLACEHOLDER from the foundation: the section team owns this file
- * and src/scripts/scenes/hero.ts. Spec: jq '.sections[] | select(.id=="hero")' docs/landing/brief.json
- * The H1 is the LCP element: never hide it, never put data-intro on it.
+ * HERO · 7:02 AM · Clock in. Spec: jq '.sections[] | select(.id=="hero")' docs/landing/brief.json
+ *
+ * In five seconds: what it is (an iPhone time card for Christmas tree trimmers), the hook
+ * (voice and the lock screen, gloves on), the honest status (in development, beta coming)
+ * and where to go (GitHub). Then the first wow: Siri clocks you in and the Live Activity
+ * rises onto the lock screen (src/scripts/scenes/hero.ts).
+ *
+ * Static first: the markup is the final state (Siri's card and the Live Activity both on the
+ * lock screen, a faint glow border). The H1 is the LCP element: never hidden, never data-intro.
+ * Data and choreography: ./hero/hero.ts (unit-tested in hero.test.ts).
  */
 import SectionShell from '../components/SectionShell.astro';
 import Phone from '../components/phone/Phone.astro';
@@ -11,66 +18,263 @@ import LockScreen from '../components/phone/LockScreen.astro';
 import LiveActivity from '../components/phone/LiveActivity.astro';
 import SiriSnippet from '../components/phone/SiriSnippet.astro';
 import SiriGlow from '../components/phone/SiriGlow.astro';
+import Icon from '../components/app/Icon.astro';
+import Said from './hero/Said.astro';
+import Sky from './hero/Sky.astro';
 import { MOMENTS, fmtClock } from '../data/ledger';
 import { SIRI } from '../data/siri';
+import { REPO, heroPhoneLabel } from './hero/hero';
 
-const REPO = 'https://github.com/joshmiller83/treefarm-timecard';
-const label = `iPhone lock screen at 7:02 AM. Siri says: ${SIRI.clockIn.reply} The Time Card Live Activity shows On the clock, North field, Block 2, 0 trees this shift, and buttons for row 14, row 15, row 16 and Break.`;
+const label = heroPhoneLabel();
 ---
 
 <SectionShell id="hero" headingLevel={1}>
   <Fragment slot="intro">
-    <p class="body" data-intro>
+    <p class="hero-body" data-intro>
       Time Card is an iPhone time card for people who shape Christmas trees. Clock in, mark your rows and take lunch
       by voice, with your phone locked in your pocket. The lock screen does the rest.
     </p>
-    <p data-intro><span class="pill-status">In development · TestFlight beta coming</span></p>
-    <div class="cta" data-intro>
-      <a class="btn btn-gold" href={REPO} rel="noopener">Follow along on GitHub</a>
-      <a class="link-arrow" href="#voice">Walk through a shift <span aria-hidden="true">↓</span></a>
+    <p class="hero-status" data-intro><span class="pill-status">In development · TestFlight beta coming</span></p>
+    <div class="hero-cta" data-intro>
+      <a class="btn btn-gold hero-gh" href={REPO} rel="noopener">
+        Follow along on GitHub <Icon name="arrow.up.right" size="18px" weight={2.2} />
+      </a>
+      <a class="link-arrow hero-walk" href="#voice">
+        Walk through a shift <Icon name="arrow.down" size="18px" weight={2.2} class="hero-walk-arrow" />
+      </a>
     </div>
-    <p class="small muted" data-intro>Open source, MIT licensed. Not on the App Store yet.</p>
+    <p class="hero-fine" data-intro>Open source, MIT licensed. Not on the App Store yet.</p>
   </Fragment>
 
-  <figure class="shot" data-stage-shot slot="figure">
-    <p class="spoken" aria-hidden="true"><q>{SIRI.clockIn.said.replace(/\.$/, '')}</q></p>
-    <Phone label={label}>
-      <div class="screens" data-screens>
-        <Screen stateId="lock-0702-clockin" alt={label} final>
-          <LockScreen time={fmtClock(MOMENTS.clockIn)}>
-            <Fragment slot="top">
-              <SiriGlow />
-              <SiriSnippet text={SIRI.clockIn.reply} />
-            </Fragment>
-            <LiveActivity at={MOMENTS.clockIn} />
-          </LockScreen>
-        </Screen>
+  <figure class="shot hero-shot" data-stage-shot slot="figure">
+    <Said where="figure" />
+    <div class="hero-device" data-hero-device>
+      <div class="hero-float" data-hero-float>
+        <Phone label={label}>
+          <div class="screens" data-screens>
+            <Screen stateId="lock-0702-clockin" alt={label} final>
+              <LockScreen time={fmtClock(MOMENTS.clockIn)}>
+                <Fragment slot="top">
+                  <SiriGlow />
+                  <SiriSnippet text={SIRI.clockIn.reply} />
+                </Fragment>
+                <LiveActivity at={MOMENTS.clockIn} />
+              </LockScreen>
+            </Screen>
+          </div>
+        </Phone>
       </div>
-    </Phone>
-    <figcaption>You: “{SIRI.clockIn.said}” Siri: “{SIRI.clockIn.reply}” The Live Activity rises onto the lock screen.</figcaption>
+    </div>
+    <figcaption>
+      <span class="sr-only">You say “{SIRI.clockIn.said}” </span>Siri clocks you in, and the Time Card Live Activity
+      starts on the lock screen.
+    </figcaption>
   </figure>
+
+  <Fragment slot="extras">
+    <Sky />
+    <Said where="stage" />
+    <div class="hero-dark" data-hero-dark aria-hidden="true"></div>
+  </Fragment>
 </SectionShell>
 
-<style>
-  .cta {
+<style is:global>
+  /* ---------- Copy (columns 1–5 on desktop) ---------- */
+  #hero .beat-head .eyebrow {
+    max-width: none;
+  }
+  #hero .beat-intro {
+    margin-top: 28px;
+    gap: 0;
+  }
+  #hero .hero-body {
+    max-width: 34rem;
+    color: var(--on-stage-muted);
+    font-size: var(--text-body);
+    line-height: 1.55;
+  }
+  #hero .hero-status {
+    margin-top: 24px;
+  }
+  #hero .hero-cta {
+    margin-top: 32px;
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 12px 24px;
+    gap: 14px 28px;
   }
-  .spoken {
+  #hero .hero-gh {
+    padding-inline: 24px 20px;
+  }
+  #hero .hero-gh .icon {
+    width: 18px;
+    height: 18px;
+    margin-left: -2px;
+  }
+  #hero .hero-walk .hero-walk-arrow {
+    transition: transform var(--dur-2) var(--ease-out);
+  }
+  #hero .hero-walk:hover .hero-walk-arrow,
+  #hero .hero-walk:focus-visible .hero-walk-arrow {
+    transform: translateY(3px);
+  }
+  #hero .hero-fine {
+    margin-top: 20px;
+    max-width: none;
+    font-size: var(--text-small);
+    line-height: 1.5;
+    color: var(--on-stage-muted);
+  }
+
+  /* ---------- The figure: spoken line, phone, caption ---------- */
+  #hero .hero-shot {
+    position: relative;
+    z-index: 1;
+    gap: 24px;
+  }
+  #hero .hero-said--figure {
+    justify-items: center;
     text-align: center;
   }
+  #hero .hero-said--stage {
+    display: none;
+  }
+  @media (min-width: 900px) {
+    /* Beside a static phone the line is a caption over it, not a second headline. */
+    #hero .hero-said--figure .hero-said-line {
+      font-size: clamp(1.6rem, 0.9rem + 1.6vw, 2.25rem);
+    }
+  }
+  #hero .hero-device {
+    position: relative;
+    transition: opacity 0.4s linear;
+  }
+
+  /* ---------- Static layouts: the sky spans the whole section ---------- */
+  #hero {
+    overflow: clip;
+  }
+  html:not(.motion) #hero :is(.track, .frame, .extras) {
+    position: static;
+  }
+  html:not(.motion) #hero .beats {
+    z-index: 2;
+  }
+
+  /* ---------- Desktop with the stage (≥900px, motion) ---------- */
+  @media (min-width: 900px) {
+    /* The scroll scene lifts the copy through --hero-lift (see the scene). */
+    html.motion #hero[data-desk='sticky'][data-layout='beats'] .beat-head {
+      translate: 0 calc(-50% + var(--hero-lift, 0px));
+    }
+    /* The spoken line floats beside the stage phone, its right edge 28px left of the phone,
+       18% down. Its size follows the room between the headline and the phone (the H1's
+       longest line is about 4.65em of Display XL), so it never crowds the copy. */
+    html.stage-on #hero .hero-said--stage {
+      --copy-r: calc(max(0px, (100vw - var(--maxw)) / 2 - var(--gutter)) + var(--gutter) + 4.65 * var(--text-xl));
+      --room: calc(var(--stage-x) - 28px - 48px - var(--copy-r));
+      display: grid;
+      position: absolute;
+      top: 18%;
+      right: calc(100% - var(--stage-x) + 28px);
+      justify-items: end;
+      text-align: right;
+      width: max-content;
+      font-size: clamp(1.25rem, var(--room) / 6.1, 2.5rem);
+    }
+    html.stage-on #hero .hero-said--stage .hero-said-line {
+      font-size: 1em;
+      max-width: 8.4em;
+    }
+    /* The buttons share one row once the column can hold them. */
+    #hero .hero-cta {
+      gap: 14px 26px;
+    }
+  }
+  @media (min-width: 1000px) {
+    #hero .hero-cta {
+      flex-wrap: nowrap;
+      width: max-content;
+    }
+  }
+
+  /* ---------- Mobile (<900px): copy first, then the figure, natural height ---------- */
+  @media (max-width: 899.98px) {
+    #hero :is(.track, .frame, .extras) {
+      position: static;
+    }
+    #hero .beats {
+      z-index: 2;
+    }
+    #hero .hero-shot {
+      --phone-h: min(60svh, 520px);
+    }
+    #hero .hero-said--figure .hero-said-line {
+      max-width: 15ch;
+    }
+    /* The rows stand behind the phone, smaller, and fade into the next chapter. */
+    #hero .hero-sky {
+      --band-scale: 0.62;
+    }
+    #hero .hero-bands {
+      height: calc(min(60svh, 520px) * 0.62 + 96px);
+      --band-fade: 72px;
+    }
+    #hero .hero-band--far {
+      top: 0;
+    }
+    #hero .hero-band--mid {
+      top: 16%;
+    }
+    #hero .hero-band--near {
+      top: 42%;
+    }
+    #hero .hero-star {
+      left: var(--mx);
+      top: var(--my);
+    }
+  }
   @media (max-width: 599.98px) {
-    .cta {
+    #hero .hero-cta {
       flex-direction: column;
       align-items: stretch;
+      gap: 6px;
     }
-    .cta .btn {
+    #hero .hero-cta .btn {
       min-height: 48px;
     }
-    .cta .link-arrow {
+    #hero .hero-cta .link-arrow {
       justify-content: center;
+      min-height: 48px;
     }
+  }
+
+  /* ---------- The load sequence's from-states (motion only, until the scene takes over) ---------- */
+  .hero-dark {
+    display: none;
+  }
+  html.motion .hero-dark {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    background: #050b08;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.6s linear;
+  }
+  html.motion.intro-wait .hero-dark {
+    opacity: 1;
+    transition: none;
+  }
+  html.motion.intro-wait #hero :is(.eyebrow, [data-said-word], .hero-device, [data-band-art]) {
+    opacity: 0;
+  }
+  /* The stage phone waits too, so the final state never flashes before the sequence. */
+  html.motion .stage-slot {
+    transition: opacity 0.4s linear;
+  }
+  html.motion.intro-wait .stage-slot {
+    opacity: 0;
   }
 </style>

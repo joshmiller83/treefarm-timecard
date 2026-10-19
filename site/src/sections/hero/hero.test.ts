@@ -12,6 +12,7 @@ import {
   bandHeight,
   bandTrees,
   cue,
+  groundAt,
   heroPhoneLabel,
   introEnd,
   spokenWords,
@@ -111,6 +112,10 @@ describe('the scroll scene', () => {
 });
 
 describe('the fir bands', () => {
+  it('bury the trunks of the distant rows, so they read as one line', () => {
+    expect(BANDS.map((b) => b.plant)).toEqual([0.86, 0.86, 0.93]);
+  });
+
   it('are the brief’s three bands: far, mid and near', () => {
     expect(BANDS.map((b) => [b.id, b.color, b.tree])).toEqual([
       ['far', '#173229', 42],
@@ -136,6 +141,10 @@ describe('the fir bands', () => {
           expect(t.w).toBeCloseTo((t.h * 500) / 600, 6);
           expect(t.y).toBeGreaterThanOrEqual(0);
           expect(t.y + t.h).toBeLessThanOrEqual(h);
+          // Planted: the ground meets the tree at band.plant of its height.
+          const cx = t.x + t.w / 2;
+          const g = groundAt(band, ((cx % band.tile) + band.tile) % band.tile);
+          expect(t.y + t.h * band.plant).toBeCloseTo(g, 0);
         }
       });
 
