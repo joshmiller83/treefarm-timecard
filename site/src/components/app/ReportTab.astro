@@ -1,31 +1,553 @@
 ---
-/** STUB (report): replace the content, keep the Props and hooks in CONTRACT.md. */
+/**
+ * REPORT TAB (brief: "App screens", ReportTab). The light-mode Report screen inside AppChrome,
+ * drawn in the phone's 393 × 852 pt space:
+ *
+ *   Report (large title)
+ *   [ This week | Last week | This month ]        range chips as a segmented control
+ *   Mon, Oct 12 – Fri, Oct 16        (Pick dates)  the period and the fourth chip
+ *   HOURS 39:55 · TREES 1,347 · DAYS 5             totals (TreeFarmKit's Report: worked, trees, days)
+ *   PREVIEW: the paper time card in miniature      [data-paper-thumb], the Flip source rect
+ *   [Export PDF] [CSV]
+ *
+ * Hooks: [data-range-chip="this-week"|"last-week"|"this-month"|"pick-dates"] (the selected one
+ * has data-selected), [data-range-thumb] (the segmented control's white thumb), [data-paper-thumb],
+ * [data-export="pdf"|"csv"], [data-report-total="hours"|"trees"|"days"], and with `picker`
+ * the date sheet [data-date-sheet] and its [data-date-scrim]. No pay anywhere.
+ *
+ * Presentational: it lives inside a phone with role="img", so it uses spans and divs only.
+ */
 import AppChrome from './AppChrome.astro';
-import Stub from '../dev/Stub.astro';
+import Icon from './Icon.astro';
+import PaperTimeCard from '../PaperTimeCard.astro';
+import { WORKER } from '../../data/ledger';
+import { RANGES, STORY_DATE, daysFor, fmtDate, fmtMonth, monthGrid, paperTotals, periodFor, rangeSlug, type ReportRange } from '../report/report';
 
 export interface Props {
   range?: 'This week' | 'Last week' | 'This month' | 'Pick dates';
+  /** Show the Pick dates sheet (From/To and a calendar) over the screen. Default false. */
+  picker?: boolean;
+  /** Status-bar time before DayClock takes over. Default '4:31'. */
+  time?: string;
 }
-const { range = 'This week' } = Astro.props;
-const chips = ['This week', 'Last week', 'This month', 'Pick dates'] as const;
-const slug = (s: string) => s.toLowerCase().replace(/\s+/g, '-');
+
+const { range = 'This week', picker = false, time = '4:31' } = Astro.props as Props & { range?: ReportRange };
+
+const segments = RANGES.filter((r) => r !== 'Pick dates');
+const segIndex = segments.indexOf(range as (typeof segments)[number]);
+const period = periodFor(range);
+const days = daysFor(range);
+const totals = days ? paperTotals(days) : null;
+
+// The date sheet: the month of the story with the picked span (Pick dates defaults to the ledger week).
+const picked = periodFor('Pick dates');
+const year = STORY_DATE.getUTCFullYear();
+const month = STORY_DATE.getUTCMonth();
+const weeks = monthGrid(year, month);
+const fromDay = picked.from.getUTCDate();
+const toDay = picked.to.getUTCDate();
+const today = STORY_DATE.getUTCDate();
+const dow = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+const dayClass = (d: number | null, col: number) => {
+  if (d === null) return [];
+  const inSpan = d >= fromDay && d <= toDay;
+  return [
+    inSpan && 'in-span',
+    d === fromDay && 'is-from',
+    d === toDay && 'is-to',
+    inSpan && (col === 0 || d === fromDay) && 'cap-l',
+    inSpan && (col === 6 || d === toDay) && 'cap-r',
+    d === today && 'is-today',
+  ];
+};
 ---
 
-<AppChrome title="Report" tab="report" time="4:31">
-  <div class="chips">
-    {chips.map((c) => <span data-range-chip={slug(c)} data-selected={c === range ? '' : undefined}>{c}</span>)}
+<AppChrome title="Report" tab="report" time={time}>
+  <div class="rt">
+    <div class="rt-seg" style={`--i:${Math.max(segIndex, 0)}`}>
+      <span class:list={['rt-seg-thumb', segIndex < 0 && 'is-off']} data-range-thumb></span>
+      {
+        segments.map((r) => (
+          <span class:list={['rt-seg-item', r === range && 'is-on']} data-range-chip={rangeSlug(r)} data-selected={r === range ? '' : undefined}>
+            {r}
+          </span>
+        ))
+      }
+    </div>
+
+    <div class="rt-period">
+      <span class="rt-dates">{period.label}</span>
+      <span
+        class:list={['rt-pick', range === 'Pick dates' && 'is-on']}
+        data-range-chip="pick-dates"
+        data-selected={range === 'Pick dates' ? '' : undefined}
+      >
+        <Icon name="calendar" size="calc(17 * var(--pt))" weight={2} />
+        Pick dates
+      </span>
+    </div>
+
+    <div class="rt-stats">
+      <div class="rt-stat" data-report-total="hours">
+        <span class="rt-k">Hours</span>
+        {totals ? <span class="rt-n">{totals.hours}</span> : <span class="rt-ghost" />}
+      </div>
+      <div class="rt-stat" data-report-total="trees">
+        <span class="rt-k">Trees</span>
+        {totals ? <span class="rt-n">{totals.trees}</span> : <span class="rt-ghost" />}
+      </div>
+      <div class="rt-stat" data-report-total="days">
+        <span class="rt-k">Days</span>
+        {totals ? <span class="rt-n">{totals.days}</span> : <span class="rt-ghost" />}
+      </div>
+    </div>
+
+    <div class="rt-label">Preview</div>
+    <div class="rt-well">
+      <div class="rt-thumb" data-paper-thumb>
+        <PaperTimeCard mini pending={!days} days={days ?? []} range={period.label} worker={WORKER} />
+      </div>
+    </div>
+    <div class="rt-foot">Breaks are listed, not counted. Pay is never printed.</div>
+
+    <div class="rt-actions">
+      <span class="rt-btn rt-btn--primary" data-export="pdf">
+        <Icon name="share" size="calc(19 * var(--pt))" weight={2.1} />
+        Export PDF
+      </span>
+      <span class="rt-btn" data-export="csv">
+        <Icon name="grid" size="calc(18 * var(--pt))" weight={2} />
+        CSV
+      </span>
+    </div>
   </div>
-  <div data-paper-thumb>
-    <Stub name="ReportTab" owner="report" tone="light" note="paper preview" box="height:calc(360*var(--pt));" />
-  </div>
-  <span data-export="pdf">Export PDF</span> <span data-export="csv">CSV</span>
+
+  {
+    picker && (
+      <Fragment slot="overlay">
+        <div class="rt-scrim" data-date-scrim />
+        <div class="rt-sheet" data-date-sheet>
+          <div class="rt-grabber" />
+          <div class="rt-sheet-bar">
+            <span class="rt-glass">
+              <Icon name="xmark" size="calc(17 * var(--pt))" weight={2.3} />
+            </span>
+            <span class="rt-sheet-title">Pick dates</span>
+            <span class="rt-glass rt-glass--tint">
+              <Icon name="check" size="calc(19 * var(--pt))" weight={2.5} />
+            </span>
+          </div>
+
+          <div class="rt-group">
+            <div class="rt-row">
+              <span>From</span>
+              <span class="rt-pill is-on">{fmtDate(picked.from)}</span>
+            </div>
+            <div class="rt-row">
+              <span>To</span>
+              <span class="rt-pill">{fmtDate(picked.to)}</span>
+            </div>
+          </div>
+
+          <div class="rt-cal">
+            <div class="rt-cal-head">
+              <span class="rt-month">
+                {fmtMonth(STORY_DATE)}
+                <Icon name="chevron" size="calc(14 * var(--pt))" weight={2.6} />
+              </span>
+              <span class="rt-cal-nav">
+                <Icon name="chevron.left" size="calc(20 * var(--pt))" weight={2.4} />
+                <Icon name="chevron" size="calc(20 * var(--pt))" weight={2.4} />
+              </span>
+            </div>
+            <div class="rt-dow">{dow.map((d) => <span>{d}</span>)}</div>
+            <div class="rt-grid">
+              {weeks.map((w) =>
+                w.map((d, col) => (
+                  <span class:list={['rt-day', ...dayClass(d, col)]}>
+                    <span class="rt-day-n">{d ?? ''}</span>
+                  </span>
+                )),
+              )}
+            </div>
+          </div>
+          <div class="rt-sheet-note">
+            {picked.days} days · {fmtDate(picked.from)} – {fmtDate(picked.to)}
+          </div>
+        </div>
+      </Fragment>
+    )
+  }
 </AppChrome>
 
 <style>
-  .chips {
+  .rt {
+    display: grid;
+    gap: 0;
+    padding-top: calc(2 * var(--pt));
+  }
+
+  /* ---------- Segmented control (iOS 26: a capsule track, a white capsule thumb) ---------- */
+  .rt-seg {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    height: calc(36 * var(--pt));
+    padding: calc(2.5 * var(--pt));
+    border-radius: 999px;
+    background: rgba(118, 128, 120, 0.13);
+  }
+  .rt-seg-thumb {
+    position: absolute;
+    top: calc(2.5 * var(--pt));
+    bottom: calc(2.5 * var(--pt));
+    left: calc(2.5 * var(--pt));
+    width: calc((100% - 5 * var(--pt)) / 3);
+    border-radius: 999px;
+    background: #fff;
+    transform: translateX(calc(var(--i) * 100%));
+    box-shadow:
+      0 calc(3 * var(--pt)) calc(8 * var(--pt)) rgba(20, 34, 26, 0.12),
+      0 calc(1 * var(--pt)) calc(1.5 * var(--pt)) rgba(20, 34, 26, 0.06),
+      inset 0 0 0 calc(0.5 * var(--pt)) rgba(20, 34, 26, 0.04);
+  }
+  .rt-seg-thumb.is-off {
+    opacity: 0;
+  }
+  .rt-seg-item {
+    position: relative;
     display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: calc(14.5 * var(--pt));
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    color: #26332b;
+    white-space: nowrap;
+  }
+  .rt-seg-item.is-on {
+    font-weight: 600;
+    color: var(--ink);
+  }
+
+  /* ---------- Period and the Pick dates chip ---------- */
+  .rt-period {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: calc(10 * var(--pt));
+    margin-top: calc(16 * var(--pt));
+    min-height: calc(36 * var(--pt));
+  }
+  .rt-dates {
+    font-size: calc(17 * var(--pt));
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+    white-space: nowrap;
+  }
+  .rt-pick {
+    display: inline-flex;
+    align-items: center;
     gap: calc(6 * var(--pt));
+    height: calc(36 * var(--pt));
+    padding: 0 calc(14 * var(--pt)) 0 calc(12 * var(--pt));
+    border-radius: 999px;
+    background: #d9eadd;
+    color: var(--fir);
+    font-size: calc(15 * var(--pt));
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+  }
+  .rt-pick.is-on {
+    background: var(--fir);
+    color: #fff;
+  }
+
+  /* ---------- Totals ---------- */
+  .rt-stats {
+    display: grid;
+    grid-template-columns: 1.15fr 1.15fr 0.8fr;
+    gap: calc(8 * var(--pt));
+    margin-top: calc(16 * var(--pt));
+  }
+  .rt-stat {
+    display: grid;
+    gap: calc(3 * var(--pt));
+    padding: calc(11 * var(--pt)) calc(13 * var(--pt)) calc(10 * var(--pt));
+    border-radius: calc(14 * var(--pt));
+    background: #fff;
+    box-shadow: inset 0 0 0 calc(1 * var(--pt)) rgba(207, 218, 207, 0.9);
+  }
+  .rt-k {
+    font-size: calc(11.5 * var(--pt));
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+    line-height: 1.2;
+  }
+  .rt-n {
+    font-family: var(--font-mono);
+    font-weight: 600;
+    font-size: calc(22 * var(--pt));
+    line-height: 1.15;
+    letter-spacing: -0.03em;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink);
+  }
+  .rt-ghost {
+    display: block;
+    width: 62%;
+    height: calc(14 * var(--pt));
+    margin-block: calc(6 * var(--pt)) calc(5 * var(--pt));
+    border-radius: 999px;
+    background: #e6ece7;
+  }
+
+  /* ---------- Preview ---------- */
+  .rt-label {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin: calc(20 * var(--pt)) calc(4 * var(--pt)) calc(7 * var(--pt));
+    font-size: calc(12.5 * var(--pt));
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+    line-height: 1.2;
+  }
+  .rt-well {
+    padding: calc(14 * var(--pt));
+    border-radius: calc(20 * var(--pt));
+    background: var(--bg);
+    box-shadow: inset 0 0 0 calc(0.5 * var(--pt)) rgba(20, 34, 26, 0.05);
+  }
+  .rt-thumb {
+    --tc-mini-w: 333;
+  }
+  .rt-foot {
+    margin: calc(10 * var(--pt)) calc(4 * var(--pt)) 0;
     font-size: calc(13 * var(--pt));
-    margin-bottom: calc(10 * var(--pt));
+    line-height: 1.35;
+    letter-spacing: -0.01em;
+    color: var(--muted);
+  }
+
+  /* ---------- Export ---------- */
+  .rt-actions {
+    display: grid;
+    grid-template-columns: 1.75fr 1fr;
+    gap: calc(10 * var(--pt));
+    margin-top: calc(14 * var(--pt));
+  }
+  .rt-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: calc(8 * var(--pt));
+    height: calc(54 * var(--pt));
+    border-radius: calc(14 * var(--pt));
+    background: #fff;
+    color: var(--ink);
+    box-shadow: inset 0 0 0 calc(1 * var(--pt)) var(--line);
+    font-size: calc(17 * var(--pt));
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    white-space: nowrap;
+  }
+  .rt-btn--primary {
+    background: var(--fir);
+    color: #fff;
+    box-shadow:
+      0 calc(1 * var(--pt)) calc(2 * var(--pt)) rgba(20, 34, 26, 0.12),
+      inset 0 calc(1 * var(--pt)) 0 rgba(255, 255, 255, 0.12);
+  }
+
+  /* ---------- Pick dates sheet (iOS 26: an inset, rounded sheet) ---------- */
+  .rt-scrim {
+    position: absolute;
+    inset: 0;
+    z-index: 6;
+    background: rgba(8, 16, 11, 0.22);
+  }
+  .rt-sheet {
+    position: absolute;
+    left: calc(7 * var(--pt));
+    right: calc(7 * var(--pt));
+    bottom: calc(7 * var(--pt));
+    z-index: 6;
+    padding: calc(6 * var(--pt)) calc(16 * var(--pt)) calc(30 * var(--pt));
+    border-radius: calc(40 * var(--pt)) calc(40 * var(--pt)) calc(48 * var(--pt)) calc(48 * var(--pt));
+    background: #f7f9f7;
+    box-shadow:
+      0 calc(-2 * var(--pt)) calc(24 * var(--pt)) rgba(8, 16, 11, 0.16),
+      inset 0 calc(1 * var(--pt)) 0 rgba(255, 255, 255, 0.9),
+      inset 0 0 0 calc(0.5 * var(--pt)) rgba(20, 34, 26, 0.06);
+  }
+  .rt-grabber {
+    width: calc(36 * var(--pt));
+    height: calc(5 * var(--pt));
+    margin: 0 auto calc(6 * var(--pt));
+    border-radius: 999px;
+    background: rgba(60, 67, 62, 0.28);
+  }
+  .rt-sheet-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: calc(48 * var(--pt));
+  }
+  .rt-sheet-title {
+    font-size: calc(17 * var(--pt));
+    font-weight: 600;
+    letter-spacing: -0.02em;
+  }
+  .rt-glass {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: calc(44 * var(--pt));
+    height: calc(44 * var(--pt));
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.9);
+    color: var(--ink);
+    box-shadow:
+      0 calc(2 * var(--pt)) calc(8 * var(--pt)) rgba(20, 34, 26, 0.1),
+      inset 0 0 0 calc(0.5 * var(--pt)) rgba(20, 34, 26, 0.08);
+  }
+  .rt-glass--tint {
+    background: var(--fir);
+    color: #fff;
+  }
+  .rt-group {
+    margin-top: calc(12 * var(--pt));
+    padding: 0 calc(16 * var(--pt));
+    border-radius: calc(22 * var(--pt));
+    background: #fff;
+  }
+  .rt-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: calc(52 * var(--pt));
+    font-size: calc(17 * var(--pt));
+    letter-spacing: -0.02em;
+  }
+  .rt-row + .rt-row {
+    box-shadow: inset 0 calc(0.6 * var(--pt)) 0 rgba(60, 67, 62, 0.16);
+  }
+  .rt-pill {
+    padding: calc(6 * var(--pt)) calc(12 * var(--pt));
+    border-radius: 999px;
+    background: rgba(118, 128, 120, 0.13);
+    font-size: calc(17 * var(--pt));
+    letter-spacing: -0.02em;
+  }
+  .rt-pill.is-on {
+    color: var(--fir);
+    font-weight: 500;
+  }
+  .rt-cal {
+    margin-top: calc(14 * var(--pt));
+    padding: calc(6 * var(--pt)) calc(4 * var(--pt)) 0;
+  }
+  .rt-cal-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: calc(40 * var(--pt));
+    padding: 0 calc(8 * var(--pt));
+  }
+  .rt-month {
+    display: inline-flex;
+    align-items: center;
+    gap: calc(5 * var(--pt));
+    font-size: calc(17 * var(--pt));
+    font-weight: 600;
+    letter-spacing: -0.02em;
+  }
+  .rt-month :global(svg),
+  .rt-cal-nav {
+    color: var(--fir);
+  }
+  .rt-cal-nav {
+    display: inline-flex;
+    gap: calc(26 * var(--pt));
+  }
+  .rt-dow,
+  .rt-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+  }
+  .rt-dow {
+    margin: calc(4 * var(--pt)) 0 calc(4 * var(--pt));
+    text-align: center;
+    font-size: calc(12.5 * var(--pt));
+    font-weight: 600;
+    color: rgba(60, 67, 62, 0.42);
+    letter-spacing: 0.01em;
+  }
+  .rt-day {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: calc(46 * var(--pt));
+  }
+  /* The picked span: a soft fir band, capped at its ends and at week edges. */
+  .rt-day.in-span::before {
+    content: '';
+    position: absolute;
+    top: calc(4 * var(--pt));
+    bottom: calc(4 * var(--pt));
+    left: 0;
+    right: 0;
+    background: #d9eadd;
+  }
+  .rt-day.cap-l::before {
+    left: 50%;
+  }
+  .rt-day.cap-r::before {
+    right: 50%;
+  }
+  .rt-day.is-from.is-to::before {
+    display: none;
+  }
+  .rt-day-n {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: calc(38 * var(--pt));
+    height: calc(38 * var(--pt));
+    border-radius: 999px;
+    font-size: calc(20 * var(--pt));
+    font-weight: 400;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink);
+  }
+  .rt-day.in-span .rt-day-n {
+    color: var(--fir);
+    font-weight: 500;
+  }
+  .rt-day.is-today .rt-day-n {
+    color: var(--fir);
+    font-weight: 600;
+  }
+  .rt-day.is-from .rt-day-n,
+  .rt-day.is-to .rt-day-n {
+    background: var(--fir);
+    color: #fff;
+    font-weight: 600;
+  }
+  .rt-sheet-note {
+    margin-top: calc(10 * var(--pt));
+    text-align: center;
+    font-size: calc(13 * var(--pt));
+    color: var(--muted);
   }
 </style>
