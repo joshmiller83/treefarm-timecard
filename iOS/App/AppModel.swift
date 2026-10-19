@@ -57,6 +57,11 @@ final class AppModel {
         actions.onLiveSnapshot = { [weak self] snapshot in
             self?.liveSnapshotChanged(snapshot)
         }
+        // Trees someone else shaped first (and other refusals) reach the lock screen too, and
+        // take the Undo that would have pointed at them.
+        session.onNotice = { [weak self] notice in
+            self?.actions.noteRefusal(notice)
+        }
     }
 
     /// The lock screen's Live Activity follows every change.

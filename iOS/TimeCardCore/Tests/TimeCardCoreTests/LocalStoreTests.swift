@@ -175,7 +175,7 @@ struct LocalStoreTests {
             [.rejected(mutations[0].id, .invalid, "Clock-out has to be after clock-in.", current: .shift(theirs))], farmId: f.farmId)
 
         #expect(rejections == [Rejection(mutationId: mutations[0].id, kind: .shift, entityId: f.shiftId, reason: .invalid,
-                                         message: "Clock-out has to be after clock-in.", restoredFromServer: true)])
+                                         message: "Clock-out has to be after clock-in.", restoredFromServer: true, current: .shift(theirs))])
         #expect(store.snapshot.shifts[f.shiftId] == theirs)
         #expect(try store.pendingCount() == 0)
     }

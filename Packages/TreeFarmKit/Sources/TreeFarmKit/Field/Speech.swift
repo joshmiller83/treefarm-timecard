@@ -69,6 +69,24 @@ public enum Speech {
         return one == one.rounded() ? String(Int(one)) : String(format: "%.1f", one)
     }
 
+    /// The first sentence, which is all the lock screen has room for. A stop inside quotes
+    /// (straight or curly) doesn't end it:
+    /// "Row 14 was shaped by Sam on Oct 16. Next open row is 15." → "Row 14 was shaped by Sam on Oct 16."
+    public static func firstSentence(_ text: String) -> String {
+        var quoted = false
+        var index = text.startIndex
+        while index < text.endIndex {
+            let ch = text[index]
+            if ch == "\"" { quoted.toggle() } else if ch == "“" { quoted = true } else if ch == "”" { quoted = false }
+            let next = text.index(after: index)
+            if !quoted, ".?!".contains(ch), next == text.endIndex || text[next] == " " {
+                return String(text[...index])
+            }
+            index = next
+        }
+        return text
+    }
+
     /// "a", "a and b", "a, b and c"
     public static func list(_ items: [String]) -> String {
         switch items.count {

@@ -33,6 +33,8 @@ public struct Rejection: Equatable, Sendable {
     /// True when the server sent its own copy and the store now holds it.
     /// False means the record is refetched on the next pull.
     public var restoredFromServer: Bool
+    /// The server's copy (the mark that won the tree, the shift already on the clock).
+    public var current: SyncRecord? = nil
 }
 
 /// Tells observers the store changed and how many changes wait to sync.
@@ -350,7 +352,7 @@ public final class LocalStore: Sendable {
                         try Self.refetch(db, farmId: farm, key)
                     }
                     rejections.append(Rejection(mutationId: result.mutationId, kind: key.kind, entityId: key.id, reason: result.reason,
-                                                message: message, restoredFromServer: result.current != nil))
+                                                message: message, restoredFromServer: result.current != nil, current: result.current))
                 }
                 return .commit
             }

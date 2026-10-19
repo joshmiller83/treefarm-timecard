@@ -83,5 +83,14 @@ public enum MarkMessages {
         "\(block.label(row: row.row)): \(summary)."
     }
 
+    /// Marks the server refused because someone else's phone got there first, grouped by row:
+    /// "Sam shaped 10 trees in Block 2, row 1 first. They came off your shift."
+    public static func shapedFirst(by name: String?, count: Int, row: Int, in block: Block?) -> String {
+        let who = name.flatMap { $0.isEmpty ? nil : $0 } ?? "Someone else"
+        let place = block.map { $0.label(row: row) } ?? "row \(row + 1)"
+        let them = count == 1 ? "It came" : "They came"
+        return "\(who) shaped \(trees(count)) in \(place) first. \(them) off your shift."
+    }
+
     static func trees(_ n: Int) -> String { "\(n) tree\(n == 1 ? "" : "s")" }
 }

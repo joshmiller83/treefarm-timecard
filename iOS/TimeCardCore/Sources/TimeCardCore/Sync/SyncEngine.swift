@@ -51,11 +51,14 @@ public struct SyncStatus: Equatable, Sendable {
     }
 }
 
-/// A change the server turned down, in words the app can show or Siri can speak.
+/// A change the server turned down, in words the app can show or Siri can speak. Tree marks
+/// lost to someone else in one pass come as one notice per row.
 public struct SyncNotice: Equatable, Sendable, Identifiable {
     public var id: UUID
     public var kind: RecordKind
     public var entityId: UUID
+    /// Every record the notice is about (the trees of a row, say), `entityId` first.
+    public var entityIds: [UUID]
     public var reason: RejectReason?
     public var message: String
 
@@ -63,8 +66,47 @@ public struct SyncNotice: Equatable, Sendable, Identifiable {
         id = rejection.mutationId
         kind = rejection.kind
         entityId = rejection.entityId
+        entityIds = [rejection.entityId]
         reason = rejection.reason
         message = rejection.message
+    }
+
+    /// One notice for several rejections of the same kind and reason.
+    init(_ group: [Rejection], message: String) {
+        self.init(group[0])
+        entityIds = group.map(\.entityId)
+        self.message = message
+    }
+
+    /// The pass's rejections as notices: lost trees grouped by who shaped them and which row
+    /// ("Sam shaped 10 trees in Block 2, row 1 first. …"), everything else one by one (a single
+    /// lost tree keeps the server's "Row 12, tree 4 in Block 2 was shaped by Sam on Oct 16.").
+    public static func grouped(_ rejections: [Rejection], snapshot: FarmSnapshot) -> [SyncNotice] {
+        struct RowKey: Hashable { var userId: UUID; var blockId: UUID; var row: Int }
+        var notices: [SyncNotice] = []
+        var rows: [RowKey: [Rejection]] = [:]
+        var order: [RowKey] = []
+        for rejection in rejections {
+            guard rejection.kind == .treeMark, rejection.reason == .treeTaken, case .treeMark(let winner)? = rejection.current else {
+                notices.append(SyncNotice(rejection))
+                continue
+            }
+            let key = RowKey(userId: winner.userId, blockId: winner.blockId, row: winner.row)
+            if rows[key] == nil { order.append(key) }
+            rows[key, default: []].append(rejection)
+        }
+        for key in order {
+            let group = rows[key] ?? []
+            // One tree: the server's own sentence already says who, where and when.
+            guard group.count > 1 else {
+                notices.append(SyncNotice(group[0]))
+                continue
+            }
+            let message = MarkMessages.shapedFirst(by: snapshot.members[key.userId]?.displayName, count: group.count, row: key.row,
+                                                   in: snapshot.blocks[key.blockId])
+            notices.append(SyncNotice(group, message: message))
+        }
+        return notices
     }
 }
 
@@ -301,6 +343,13 @@ public actor SyncEngine {
     private func pushAll() async throws -> Int {
         var after: Int64 = 0
         var pushed = 0
+        var refused: [Rejection] = []
+        // Said once per pass, grouped, even when a later batch fails.
+        defer {
+            if !refused.isEmpty {
+                for notice in SyncNotice.grouped(refused, snapshot: store.snapshot) { broadcast(notice) }
+            }
+        }
         while true {
             let batch = try store.outbox(farmId: farmId, after: after, limit: config.pushBatch)
             guard let last = batch.last else { break }
@@ -319,7 +368,7 @@ public actor SyncEngine {
             let unanswered = batch.map(\.mutationId).filter { !answered.contains($0) }
             try store.recordAttempt(mutationIds: unanswered, error: "The server didn't answer this change.")
             pushed += response.results.filter { $0.status == .applied }.count
-            for rejection in rejections { broadcast(SyncNotice(rejection)) }
+            refused += rejections
         }
         return pushed
     }

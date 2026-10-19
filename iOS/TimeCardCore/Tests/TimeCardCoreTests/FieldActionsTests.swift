@@ -190,6 +190,27 @@ struct FieldActionsTests {
         #expect(session.snapshot.openShift(for: f.userId) == fixed)
     }
 
+    @Test func aRowLostToSomeoneElseShowsOnTheLockScreenWithoutUndo() async throws {
+        let session = try await signedInSession()
+        let actions = FieldActions(session: session, now: clock.read)
+        var seen: [LiveSnapshot?] = []
+        actions.onLiveSnapshot = { seen.append($0) }
+        actions.perform(.clockIn(fieldId: nil))
+        clock.advance(minutes: 10)
+        actions.perform(.markNextRow)
+        #expect(actions.canUndo)
+        let ids = session.snapshot.marks.values.map(\.id)
+        var notice = SyncNotice(Rejection(mutationId: UUID(), kind: .treeMark, entityId: ids[0], reason: .treeTaken,
+                                          message: "Sam shaped 10 trees in Block 1, row 1 first. They came off your shift.",
+                                          restoredFromServer: true))
+        notice.entityIds = ids
+        actions.noteRefusal(notice)
+        #expect(!actions.canUndo)
+        let live = try #require(seen.last ?? nil)
+        #expect(live.lastAction == "Sam shaped 10 trees in Block 1, row 1 first.")
+        #expect(!live.canUndo)
+    }
+
     @Test func failuresChangeNothing() async throws {
         let session = try await signedInSession()
         let actions = FieldActions(session: session, now: clock.read)

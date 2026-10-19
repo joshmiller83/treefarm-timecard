@@ -15,4 +15,10 @@ struct SpeechTests {
     @Test func aSaveThatFailedOnThePhone() {
         #expect(Speech.saveFailed == "Couldn’t save that on this phone. Try again.")
     }
+
+    @Test func theFirstSentenceSkipsStopsInQuotes() {
+        #expect(Speech.firstSentence("Row 14 was shaped by Sam on Oct 16. Next open row is 15.") == "Row 14 was shaped by Sam on Oct 16.")
+        #expect(Speech.firstSentence("Say “back to work.” when done. Then go.") == "Say “back to work.” when done.")
+        #expect(Speech.firstSentence("No period") == "No period")
+    }
 }

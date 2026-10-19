@@ -96,5 +96,10 @@ struct MarkMessagesTests {
     @Test func aRowsStatusForVoiceOver() {
         #expect(MarkMessages.rowStatus(F.row(block, 13), in: block, "all 10 trees shaped") == "Block 2, row 14: all 10 trees shaped.")
     }
-}
 
+    @Test func treesLostToAnotherPhoneAreOneSentencePerRow() {
+        let block = Block(fieldId: UUID(), name: "2", gridRow: 0, gridColumn: 0, rowCount: 20, treesPerRow: 10)
+        #expect(MarkMessages.shapedFirst(by: "Sam", count: 10, row: 0, in: block) == "Sam shaped 10 trees in Block 2, row 1 first. They came off your shift.")
+        #expect(MarkMessages.shapedFirst(by: nil, count: 1, row: 13, in: nil) == "Someone else shaped 1 tree in row 14 first. It came off your shift.")
+    }
+}

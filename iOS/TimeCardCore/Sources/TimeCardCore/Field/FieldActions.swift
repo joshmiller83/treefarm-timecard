@@ -114,6 +114,24 @@ public final class FieldActions {
         onLiveSnapshot?(liveSnapshot())
     }
 
+    /// The server turned down changes this phone made (trees someone else shaped first, a
+    /// refused shift): undo entries that wrote them are dropped, and the lock screen shows the
+    /// notice in place of the last action, with no Undo beside it.
+    public func noteRefusal(_ notice: SyncNotice) {
+        guard let farm = session.farm, let me = session.membership else { return }
+        let keys = Set(notice.entityIds.map { RecordKey(notice.kind, $0) })
+        var undo = undoStack(farm: farm.id, user: me.userId)
+        let before = undo.entries
+        undo.removeAll { !keys.isDisjoint(with: $0.written.keys) }
+        if undo.entries != before { save(undo, "undo", farm: farm.id, user: me.userId) }
+        guard notice.kind == .treeMark || notice.kind == .shift else {
+            publishLiveSnapshot()
+            return
+        }
+        save(Speech.firstSentence(notice.message), "lastAction", farm: farm.id, user: me.userId)
+        publishLiveSnapshot()
+    }
+
     // MARK: Saved per farm and person
 
     public static func key(_ name: String, farm: UUID, user: UUID) -> String {

@@ -73,18 +73,7 @@ enum IntentRunner {
     /// The first sentence, which is all the lock screen has room for:
     /// "Row 14 was shaped by Sam on Oct 16. Next open row is 15." → "Row 14 was shaped by Sam on Oct 16."
     nonisolated static func lockScreenNote(_ speech: String) -> String {
-        var quoted = false
-        var index = speech.startIndex
-        while index < speech.endIndex {
-            let ch = speech[index]
-            if ch == "\"" { quoted.toggle() }
-            let next = speech.index(after: index)
-            if !quoted, ".?!".contains(ch), next == speech.endIndex || speech[next] == " " {
-                return String(speech[...index])
-            }
-            index = next
-        }
-        return speech
+        Speech.firstSentence(speech)
     }
 
     // MARK: The model

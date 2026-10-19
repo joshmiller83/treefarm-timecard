@@ -1,5 +1,6 @@
 import SwiftUI
 import TimeCardCore
+import UIKit
 
 enum AppTab: String, Hashable {
     case clock, trees, log, report, team
@@ -49,6 +50,7 @@ struct MainTabView: View {
 /// Session and sync messages that sit above every tab.
 private struct Banners: View {
     @Environment(TimeCardSession.self) private var session
+    @Environment(\.scenePhase) private var scenePhase
     @State private var signingIn = false
 
     var body: some View {
@@ -58,12 +60,17 @@ private struct Banners: View {
                        text: "Your sign-in ended. Your changes are safe on this phone.",
                        actionTitle: "Sign in") { signingIn = true }
                     .accessibilityIdentifier("expired-banner")
+                    .onAppear { AccessibilityNotification.Announcement("Your sign-in ended. Your changes are safe on this phone.").post() }
             }
             if let notice = session.latestNotice {
                 Banner(tone: .alert, systemImage: "exclamationmark.bubble", text: notice.message,
                        actionTitle: "OK") { session.dismissNotice() }
                     .accessibilityIdentifier("sync-notice")
                     .task(id: notice.id) {
+                        AccessibilityNotification.Announcement(notice.message).post()
+                        // Seen as it arrived: it goes after a while. One that came while the app
+                        // was in the background, or with VoiceOver on, stays until dismissed.
+                        guard scenePhase == .active, !UIAccessibility.isVoiceOverRunning else { return }
                         try? await Task.sleep(for: .seconds(12))
                         if session.latestNotice?.id == notice.id { session.dismissNotice() }
                     }
@@ -100,7 +107,9 @@ struct Banner: View {
             Button(actionTitle, action: action)
                 .font(.callout.weight(.semibold))
                 .foregroundStyle(tone.ink)
-                .frame(minWidth: 44, minHeight: 44)
+                .padding(.horizontal, 10)
+                .frame(minWidth: GloveButtonStyle.minHeight, minHeight: GloveButtonStyle.minHeight)
+                .contentShape(Rectangle())
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 6)
