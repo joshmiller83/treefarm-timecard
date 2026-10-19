@@ -1,7 +1,8 @@
 import SwiftUI
 import TimeCardCore
 
-/// Account, farm, sync status and sign out.
+/// Settings, from the gear on the Clock tab: who you are, your name, job and pay, the farm,
+/// Siri, the lock screen, sync, and (tucked away) which server to use.
 struct SettingsView: View {
     @Environment(TimeCardSession.self) private var session
     @Environment(\.dismiss) private var dismiss
@@ -9,17 +10,26 @@ struct SettingsView: View {
 
     var body: some View {
         NavigationStack {
+            ScrollViewReader { proxy in
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     AccountCard()
+                    if let member = session.membership {
+                        // A fresh form per farm and person, so a switch never carries the last farm's values over.
+                        ProfileCard(member: member)
+                            .id("\(member.farmId)/\(member.userId)")
+                    }
                     FarmCard()
-                    SyncCard()
+                    VoiceCard().id("voice")
+                    LockScreenCard().id("lock")
+                    SyncCard().id("sync")
+                    AdvancedCard().id("advanced")
                     Button(role: .destructive) {
                         confirmingSignOut = true
                     } label: {
                         Label("Sign out", systemImage: "rectangle.portrait.and.arrow.right")
                     }
-                    .buttonStyle(.gloveDestructive)
+                    .buttonStyle(QuietDestructiveButtonStyle())
                     .accessibilityIdentifier("sign-out")
                     .padding(.top, 8)
                     Text(versionLine)
@@ -32,11 +42,21 @@ struct SettingsView: View {
                 .frame(maxWidth: 640)
                 .frame(maxWidth: .infinity)
             }
+            .task {
+                // UI-test screenshots: `-UITestScrollTo voice|lock|sync|advanced`.
+                guard LaunchMode.current() != .live, let target = ClockScenario.scrollTarget else { return }
+                try? await Task.sleep(for: .seconds(1))
+                proxy.scrollTo(target, anchor: .top)
+            }
+            }
+            .scrollDismissesKeyboard(.interactively)
             .screenBackground()
             .navigationTitle("Settings")
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }.accessibilityIdentifier("settings-done")
+                    Button("Done") { dismiss() }
+                        .fontWeight(.semibold)
+                        .accessibilityIdentifier("settings-done")
                 }
             }
             .confirmationDialog("Sign out of Time Card?", isPresented: $confirmingSignOut, titleVisibility: .visible) {
@@ -65,34 +85,91 @@ struct SettingsView: View {
     }
 }
 
+// MARK: Account and farm
+
 private struct AccountCard: View {
     @Environment(TimeCardSession.self) private var session
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            SectionLabel("Account")
-            Text(session.membership?.displayName ?? session.me?.user.displayName ?? "")
-                .font(.tcHeadline)
-                .foregroundStyle(Palette.ink)
-            Text(session.me?.user.email ?? "")
-                .font(.subheadline)
-                .foregroundStyle(Palette.muted)
-            if let membership = session.membership {
-                HStack(spacing: 8) {
-                    StatusPill(text: membership.role == .admin ? "Admin" : "Crew", tone: membership.role == .admin ? .working : .off)
-                    if !membership.jobTitle.isEmpty {
-                        Text(membership.jobTitle).font(.subheadline).foregroundStyle(Palette.muted)
-                    }
+        Group {
+            if typeSize.isAccessibilitySize {
+                // The initials circle is decoration; at the largest sizes the words get the room.
+                details
+            } else {
+                HStack(alignment: .center, spacing: 14) {
+                    Text(initials)
+                        .font(.tcHeadline)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.5)
+                        .foregroundStyle(Palette.firText)
+                        .frame(width: 54, height: 54)
+                        .background(Palette.firSoft, in: Circle())
+                        .accessibilityHidden(true)
+                    details
                 }
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .card()
         .accessibilityElement(children: .combine)
+    }
+
+    private var details: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(name)
+                .font(.tcHeadline)
+                .foregroundStyle(Palette.ink)
+                .fixedSize(horizontal: false, vertical: true)
+            Text(session.me?.user.email ?? "")
+                .font(.subheadline)
+                .foregroundStyle(Palette.muted)
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
+                .truncationMode(.middle)
+            if let membership = session.membership {
+                let pill = StatusPill(text: membership.role == .admin ? "Admin" : "Crew", tone: membership.role == .admin ? .working : .off)
+                    .fixedSize()
+                if typeSize.isAccessibilitySize {
+                    VStack(alignment: .leading, spacing: 6) {
+                        pill
+                        job(membership)
+                    }
+                    .padding(.top, 2)
+                } else {
+                    HStack(spacing: 8) {
+                        pill
+                        job(membership)
+                    }
+                    .padding(.top, 2)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func job(_ membership: Member) -> some View {
+        if !membership.jobTitle.isEmpty {
+            Text(membership.jobTitle)
+                .font(.subheadline)
+                .foregroundStyle(Palette.muted)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private var name: String {
+        session.membership?.displayName ?? session.me?.user.displayName ?? ""
+    }
+
+    private var initials: String {
+        let letters = name.split(separator: " ").prefix(2).compactMap(\.first)
+        return letters.isEmpty ? "?" : String(letters).uppercased()
     }
 }
 
 private struct FarmCard: View {
     @Environment(TimeCardSession.self) private var session
+    static let weekdays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
 
     private var choices: [Farm] {
         guard let me = session.me else { return [] }
@@ -109,6 +186,7 @@ private struct FarmCard: View {
                 }
                 .pickerStyle(.menu)
                 .tint(Palette.firText)
+                .frame(minHeight: GloveButtonStyle.minHeight)
             } else {
                 Text(session.farm?.name ?? "")
                     .font(.tcHeadline)
@@ -119,11 +197,16 @@ private struct FarmCard: View {
                 Label(farm.timeZoneId.replacingOccurrences(of: "_", with: " "), systemImage: "globe.americas")
                     .font(.subheadline)
                     .foregroundStyle(Palette.muted)
+                Label("Weeks start on \(Self.weekdays[farm.weekStart.rawValue - 1])", systemImage: "calendar")
+                    .font(.subheadline)
+                    .foregroundStyle(Palette.muted)
             }
         }
         .card()
     }
 }
+
+// MARK: Sync
 
 private struct SyncCard: View {
     @Environment(TimeCardSession.self) private var session
@@ -145,6 +228,10 @@ private struct SyncCard: View {
             if let error = status.lastError, status.phase != .idle {
                 ErrorMessage(text: error)
             }
+            Text("Everything saves on this phone first, so it works with no signal and catches up when you’re back in range.")
+                .font(.footnote)
+                .foregroundStyle(Palette.muted)
+                .fixedSize(horizontal: false, vertical: true)
             Button {
                 Task { await session.requestSync(.manual) }
             } label: {
@@ -173,5 +260,26 @@ private struct SyncCard: View {
         case .offline: .off
         case .failed, .signedOut: .alert
         }
+    }
+}
+
+/// Sign out: rust text and outline on the surface, readable in both themes and quieter
+/// than a solid red slab at the bottom of the screen.
+struct QuietDestructiveButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.headline)
+            .foregroundStyle(Palette.rust)
+            .padding(.horizontal, 18)
+            .padding(.vertical, 12)
+            .frame(maxWidth: .infinity, minHeight: GloveButtonStyle.minHeight)
+            .background(Palette.surface, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Palette.rust.opacity(0.6), lineWidth: 1.5))
+            .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .opacity(isEnabled ? (configuration.isPressed ? 0.8 : 1) : 0.45)
+            .scaleEffect(configuration.isPressed ? 0.98 : 1)
+            .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
     }
 }

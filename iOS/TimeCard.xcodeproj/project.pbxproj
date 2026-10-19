@@ -10,8 +10,10 @@
 		002CA683E0D2BE2D1429B8B4 /* LiveActivityStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8192A0C6A92B08C41F565C7 /* LiveActivityStyle.swift */; };
 		00697163D13940091B2F4A8D /* JoinView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98BD916919AFEA594B96FDBB /* JoinView.swift */; };
 		0291B96796EB9489FDCC3CE6 /* LiveActivityViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95CD0060D5CE617E29FF42B8 /* LiveActivityViews.swift */; };
+		03D64E23F6890E3792F0ED6F /* PaceCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D3C73C06F60AE9FE2F7F003 /* PaceCard.swift */; };
 		04C40E265236B5758328D2FD /* VoiceCatalogTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E8ADE5EA509E495FED67FC8 /* VoiceCatalogTests.swift */; };
 		05D6DC6D12167E89FB64AD40 /* VoiceCommandsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4298BA03B5E87CFC9B91E723 /* VoiceCommandsTests.swift */; };
+		093D12E51C7962A139CA14B3 /* NowWorkingNotesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A109B6BD4AE65A47FFAD3C86 /* NowWorkingNotesTests.swift */; };
 		0A0CF0700206A6ABB115235F /* LiveActivityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFD4C0E1F3E26A6CA1F42145 /* LiveActivityUITests.swift */; };
 		0EC762F09BF83156A11A134F /* LiveActivityButtons.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97460A95F1CA9E6D45762BFE /* LiveActivityButtons.swift */; };
 		104D492C8C3A51F286665FD8 /* IntentRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91519E30548CFC57A34F19EE /* IntentRunner.swift */; };
@@ -19,24 +21,29 @@
 		109DC636A3B978D839A4FB06 /* WidgetFonts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 187C0C75548A21E1537C7D26 /* WidgetFonts.swift */; };
 		11875192E9EAFECC79DABA39 /* Components.swift in Sources */ = {isa = PBXBuildFile; fileRef = 174CC43FB55650E3ADD75F46 /* Components.swift */; };
 		184BAD3E2577C3A68E2EBFAF /* VoiceOptions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64E1DF184687B1A1FB003718 /* VoiceOptions.swift */; };
+		185DB3D7F29ECC6001DA9977 /* ClockStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = C52384B1FAF616975C0E6195 /* ClockStatus.swift */; };
 		1A2D50E98BED2E79CA2ACF7D /* SiriSuggestionsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41292E43BE22F217785CF1FB /* SiriSuggestionsTests.swift */; };
 		1C89058F02093C6506330C83 /* LiveActivityButtons.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97460A95F1CA9E6D45762BFE /* LiveActivityButtons.swift */; };
 		1E1B26C4A40FF877A255E691 /* AppEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = C130C9D6D6E12A2BCD39E059 /* AppEnvironment.swift */; };
 		210A451BC06E8FF049CC8269 /* TimeCardUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C111B64C0C07020B9DCCDD2 /* TimeCardUITests.swift */; };
 		253742F751F911DAB962C6A7 /* DeviceConditions.swift in Sources */ = {isa = PBXBuildFile; fileRef = D105DACF9663AEC797D5772E /* DeviceConditions.swift */; };
 		2B0D928BDC4C0BBE97302A71 /* IntentTestSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB65973F2655D3BF684FAD8C /* IntentTestSupport.swift */; };
+		390140C0B40787DABEE5964B /* ClockStatusTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE706B521FDE4D5D4F38A4B7 /* ClockStatusTests.swift */; };
 		3B3E0A8E54FB630EFF4F45D1 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF7548AC9CE7DC4BC309E713 /* SettingsView.swift */; };
 		3CBAB76BCE912BB382A12905 /* LiveActivityControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 195C67A6DC73F508C8ADA207 /* LiveActivityControllerTests.swift */; };
 		3DFDFC60E9F3DEFA8A73D693 /* LiveActivityController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 265B9098E1A69BDACEBA441D /* LiveActivityController.swift */; };
 		403BF0EA3BF618147C7DB9C0 /* LiveActivityLaunchScript.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AF9D326FBA4F613D02D428D /* LiveActivityLaunchScript.swift */; };
 		451757F1EC0F49FD921DAED6 /* LiveActivityDisplayTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5F3CB7223DCD5F08AB88368 /* LiveActivityDisplayTests.swift */; };
 		46676B9D459A12A9680AF1E9 /* StatusIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31130F6FC7731C1A1DED1F21 /* StatusIntent.swift */; };
+		49C96E1CB2468C43E1B417B8 /* NowWorkingCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F45FCDA3212B014A83DF1857 /* NowWorkingCardView.swift */; };
+		4AA0F140DA0AC52F9E4211A3 /* NowWorking.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6EC09F62BE7A4EE1AB0D7EA2 /* NowWorking.swift */; };
 		4AE866D86193069EA486DFC7 /* TimeCardControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C88B4296F1678B1935B86DF /* TimeCardControls.swift */; };
 		4C4F9F482F05AA8C690EADED /* ReportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 165D9CB59A2B73311DD924DB /* ReportView.swift */; };
 		4CE2765501913B4EEF9A13AE /* TimeCardCore in Frameworks */ = {isa = PBXBuildFile; productRef = 1F16EF2DBAA82812E5FCBF05 /* TimeCardCore */; };
 		4DD2F2AA27B852A097142928 /* IntentSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 904D9F76E48F461975CF2B70 /* IntentSupport.swift */; };
 		4E4376B0B83BA6C33E01C406 /* LiveActivityStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8192A0C6A92B08C41F565C7 /* LiveActivityStyle.swift */; };
 		4E86314FA253E2EE7E5DECAA /* LiveActivityFixtures.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3AFAABF051810F9845A8AC16 /* LiveActivityFixtures.swift */; };
+		56196C19D16D487B1AA1A347 /* ClockFlowUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95F68CA9405378E319B596FA /* ClockFlowUITests.swift */; };
 		56E3F456E020D3F26D8FCE9D /* TimeCardCore in Frameworks */ = {isa = PBXBuildFile; productRef = 76760F4A041CFB039DF2E1BF /* TimeCardCore */; };
 		5840091B8188A4BF57AD73A8 /* PlatformTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A441859AAEFA8511A46EA2F /* PlatformTests.swift */; };
 		599CF5E9C4D373F558210B4B /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 6BC6220C858784A309DE828F /* Assets.xcassets */; };
@@ -46,31 +53,41 @@
 		6D9D98F9095F3172A1030E61 /* PlaceholderScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 234058F6C063B04E8BE8BA61 /* PlaceholderScreen.swift */; };
 		6E021FFA63E1736E7099AF2B /* DesignTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC14C784BB8F321617C3E862 /* DesignTests.swift */; };
 		6EF90B4E86E9BD5BD693DBB2 /* LiveActivityViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95CD0060D5CE617E29FF42B8 /* LiveActivityViews.swift */; };
+		7065716ED4BFDC638A3D82E7 /* ClockStyles.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2D5BD8F2781DF7FC276319C /* ClockStyles.swift */; };
 		751062469CE17D71A7CEF54B /* SiriFlows.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC6CA1FF2A1BC48FDE206332 /* SiriFlows.swift */; };
 		7511C0B9FB8E2AD5EF7C1637 /* ShortcutPhraseTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 186796056F4B45B706F848AD /* ShortcutPhraseTests.swift */; };
 		7CA05566481CF06C0E9F30E1 /* Palette.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75E425709A1FCF4E60DE4173 /* Palette.swift */; };
 		8057829A685F63C508DFCF95 /* DaySnippetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C662D48C297ACDAC071A3A7 /* DaySnippetView.swift */; };
 		822D64D9A13F48FE7A32851F /* ActivityKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 99943374729E87599B2C037E /* ActivityKit.framework */; };
 		853E6B295C661EBD1530782A /* LiveActivityDisplay.swift in Sources */ = {isa = PBXBuildFile; fileRef = E29004B28C7C4B8E613925F5 /* LiveActivityDisplay.swift */; };
+		85F2FE3D6ABE89625A8335DE /* ClockScenario.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF789C458C8D692B13334156 /* ClockScenario.swift */; };
+		87DA791A2675D7768713CC64 /* ShiftNotesEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4097098F594090247E501C58 /* ShiftNotesEditor.swift */; };
 		8B061B5A9EA8360F7B808C1F /* TimeCardShortcuts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97313E8FA51B7FD0FC1071AA /* TimeCardShortcuts.swift */; };
 		8EB4B8C0543506D785998774 /* LiveActivityHosting.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2877EF49D9830B22D5631380 /* LiveActivityHosting.swift */; };
 		904DC96DF54580278D189DA6 /* SpokenNumberTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5852DDF9A8C7AC498ED1E6AC /* SpokenNumberTests.swift */; };
 		96CED505F7707F4ED3F801B4 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E751EFB1A84C048A71D83B9 /* AppModel.swift */; };
 		9ABF6503163CD2383CE3F4C1 /* ClockView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0661937D9296096B85070F81 /* ClockView.swift */; };
+		9D6C8E307C1FAA91CDD06991 /* ClockEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A6A9D908CF458D9A4ECF38C /* ClockEnvironment.swift */; };
 		9DC65F62F6D1F7B66DB65D9F /* FarmEntities.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9ED62564AD3E4695044C18E8 /* FarmEntities.swift */; };
 		A0E91B616D12F7A09D9CB812 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FB3543BFD49BF47889FBEFD /* RootView.swift */; };
 		A11346CECD3BFC51BA365381 /* AppModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1528797F8AD8C65C37F90E4 /* AppModelTests.swift */; };
 		A327B4C2DF3C355FFA9FA1F6 /* TimeCardApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1620ADB0A89E887DA3CBB17E /* TimeCardApp.swift */; };
+		A3EAD2ABBE7A177947508211 /* ClockCards.swift in Sources */ = {isa = PBXBuildFile; fileRef = 368D5BA8D4E266B0865F6DB2 /* ClockCards.swift */; };
 		A52443D525B164CED3CE9F97 /* TimeCardActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24D0A0F8E20930ACEF5AD5CB /* TimeCardActivityAttributes.swift */; };
 		A557B44473F43053CBA86614 /* TreesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB142D28E01DD5D7B047B8BA /* TreesView.swift */; };
 		A798EBBB5FBB0B958B5E485E /* SiriSuggestions.swift in Sources */ = {isa = PBXBuildFile; fileRef = A930FFF3A3B899C434078A7C /* SiriSuggestions.swift */; };
+		AB841C6B733FCCF45B27A71D /* ClockSheets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07B52841E4ED2B39D828A789 /* ClockSheets.swift */; };
+		ABD58F89C76AD9A4714CC26B /* SettingsModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71B4ECA4143ED24CAF22C346 /* SettingsModelTests.swift */; };
 		AFD51769D4A8F4A7C1BACF0E /* ShortcutsUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92E2CEA81441D10E9ACFA2FB /* ShortcutsUITests.swift */; };
 		B36F932D59108B2F4C40620E /* Appearance.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5935F4ACB9CB99F78AD24707 /* Appearance.swift */; };
 		B3A31CF1F267626DAE69CD97 /* SignInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB37F784FF57349039E30269 /* SignInView.swift */; };
 		B5541E598750BA078CC799CD /* VoiceCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4BC9B762AD9A1EA2EA656E33 /* VoiceCatalog.swift */; };
 		B958CCE566260AFB7A9D922B /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 76F859F4EF55B8D49AECE08D /* SwiftUI.framework */; };
+		B9DE1ECDE5E1FAC57CCD5626 /* HoursPay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FCC01A96E160B37BAC78F46 /* HoursPay.swift */; };
+		BA9C90434C91A9947E06602D /* HoursPaceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F84FA8BEE8F5D9192B59B77 /* HoursPaceTests.swift */; };
 		BB7A7BA9144FF746B18BBFBF /* ShiftEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3759E7FDBE2DBB6FD394D128 /* ShiftEditorView.swift */; };
 		C12F03D37DC0A84186B91C43 /* LiveActivityDisplay.swift in Sources */ = {isa = PBXBuildFile; fileRef = E29004B28C7C4B8E613925F5 /* LiveActivityDisplay.swift */; };
+		CB3D42F44119A5B8C9EA72EB /* ClockFixture.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FC920F01C7227E4C1BC161F /* ClockFixture.swift */; };
 		CC47F4CC3C75F3FC990D6DCB /* SpokenNumber.swift in Sources */ = {isa = PBXBuildFile; fileRef = F21D5D36381655346D7E3548 /* SpokenNumber.swift */; };
 		CF5BB610A45AA574D9D20AFF /* TeamView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27EE1EAFDEEE2B00BC480F2B /* TeamView.swift */; };
 		D13E042FE534FB7568A52475 /* ResetPasswordView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DF2BA924D3E91EFC54A8D18 /* ResetPasswordView.swift */; };
@@ -84,11 +101,14 @@
 		E299322A522196BD44C9EBE4 /* DayCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6AC0B02FC296D93E3F1452CD /* DayCard.swift */; };
 		E7B1BDB75CDE2C1F66B0B60D /* TimeCardLiveActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BB263D26A2AD84BDE25A0AF /* TimeCardLiveActivity.swift */; };
 		E9F3A70825BDE99356AD28AD /* Typography.swift in Sources */ = {isa = PBXBuildFile; fileRef = 430050FEBA83C41B0D8C1F39 /* Typography.swift */; };
+		EAA5990A3440A02D877A6008 /* StatusCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09497989FB7E542068BDD854 /* StatusCardView.swift */; };
 		EC667902F7B2D991519539B0 /* TimeCardActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24D0A0F8E20930ACEF5AD5CB /* TimeCardActivityAttributes.swift */; };
 		EFF703CFCEE7295C334CEEFF /* StartTime.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0DB32E95B7773AA4B46D9F9 /* StartTime.swift */; };
+		F04936B959D17F4FEFCE751E /* SettingsCards.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5001CCDE93E2A772A6F2739A /* SettingsCards.swift */; };
 		F2DC4499FFD5F66BA1844426 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 268D96072E557AB5DA77E1FA /* WidgetKit.framework */; };
 		F4F56CC8F84944E475EF5D8E /* IntentShellTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D080A410852ECC585704FB4F /* IntentShellTests.swift */; };
 		FA55BECAABCA57C8875A40CE /* DaySnippetTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D47043DF0F5D0E98339B40EA /* DaySnippetTests.swift */; };
+		FA633CB68BDB36A67A5A6B70 /* SettingsModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCB3AB404159719E56FB7440 /* SettingsModels.swift */; };
 		FF6FFF5EDAE4581A8CD35E19 /* TimeCardWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 9DE6B97E96723E748D99793B /* TimeCardWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		FFBB579F0385A5CAC582B5EE /* StartTimeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E71FAB5FE8BD15A8D3A01A07 /* StartTimeTests.swift */; };
 /* End PBXBuildFile section */
@@ -133,6 +153,8 @@
 
 /* Begin PBXFileReference section */
 		0661937D9296096B85070F81 /* ClockView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClockView.swift; sourceTree = "<group>"; };
+		07B52841E4ED2B39D828A789 /* ClockSheets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClockSheets.swift; sourceTree = "<group>"; };
+		09497989FB7E542068BDD854 /* StatusCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusCardView.swift; sourceTree = "<group>"; };
 		0E3D3F98F10B8C5F98580EEF /* LiveActivityFeedTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityFeedTests.swift; sourceTree = "<group>"; };
 		1620ADB0A89E887DA3CBB17E /* TimeCardApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimeCardApp.swift; sourceTree = "<group>"; };
 		165D9CB59A2B73311DD924DB /* ReportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportView.swift; sourceTree = "<group>"; };
@@ -148,16 +170,22 @@
 		27EE1EAFDEEE2B00BC480F2B /* TeamView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeamView.swift; sourceTree = "<group>"; };
 		2877EF49D9830B22D5631380 /* LiveActivityHosting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityHosting.swift; sourceTree = "<group>"; };
 		2C88B4296F1678B1935B86DF /* TimeCardControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimeCardControls.swift; sourceTree = "<group>"; };
+		2FC920F01C7227E4C1BC161F /* ClockFixture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClockFixture.swift; sourceTree = "<group>"; };
 		31130F6FC7731C1A1DED1F21 /* StatusIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusIntent.swift; sourceTree = "<group>"; };
+		368D5BA8D4E266B0865F6DB2 /* ClockCards.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClockCards.swift; sourceTree = "<group>"; };
 		3759E7FDBE2DBB6FD394D128 /* ShiftEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShiftEditorView.swift; sourceTree = "<group>"; };
 		3AFAABF051810F9845A8AC16 /* LiveActivityFixtures.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityFixtures.swift; sourceTree = "<group>"; };
 		3E8ADE5EA509E495FED67FC8 /* VoiceCatalogTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceCatalogTests.swift; sourceTree = "<group>"; };
+		3F84FA8BEE8F5D9192B59B77 /* HoursPaceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HoursPaceTests.swift; sourceTree = "<group>"; };
+		4097098F594090247E501C58 /* ShiftNotesEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShiftNotesEditor.swift; sourceTree = "<group>"; };
 		41292E43BE22F217785CF1FB /* SiriSuggestionsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SiriSuggestionsTests.swift; sourceTree = "<group>"; };
 		4298BA03B5E87CFC9B91E723 /* VoiceCommandsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceCommandsTests.swift; sourceTree = "<group>"; };
 		430050FEBA83C41B0D8C1F39 /* Typography.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Typography.swift; sourceTree = "<group>"; };
 		4533B607361861A2BBFEC580 /* Fonts */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Fonts; path = App/Resources/Fonts; sourceTree = SOURCE_ROOT; };
+		4A6A9D908CF458D9A4ECF38C /* ClockEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClockEnvironment.swift; sourceTree = "<group>"; };
 		4BC9B762AD9A1EA2EA656E33 /* VoiceCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceCatalog.swift; sourceTree = "<group>"; };
 		4E751EFB1A84C048A71D83B9 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
+		5001CCDE93E2A772A6F2739A /* SettingsCards.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsCards.swift; sourceTree = "<group>"; };
 		576C231644ECC8C6932C2E33 /* TimeCardWidgetsBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimeCardWidgetsBundle.swift; sourceTree = "<group>"; };
 		5852DDF9A8C7AC498ED1E6AC /* SpokenNumberTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpokenNumberTests.swift; sourceTree = "<group>"; };
 		5935F4ACB9CB99F78AD24707 /* Appearance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Appearance.swift; sourceTree = "<group>"; };
@@ -167,6 +195,10 @@
 		6AC0B02FC296D93E3F1452CD /* DayCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DayCard.swift; sourceTree = "<group>"; };
 		6BC6220C858784A309DE828F /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		6C662D48C297ACDAC071A3A7 /* DaySnippetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DaySnippetView.swift; sourceTree = "<group>"; };
+		6D3C73C06F60AE9FE2F7F003 /* PaceCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaceCard.swift; sourceTree = "<group>"; };
+		6EC09F62BE7A4EE1AB0D7EA2 /* NowWorking.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NowWorking.swift; sourceTree = "<group>"; };
+		6FCC01A96E160B37BAC78F46 /* HoursPay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HoursPay.swift; sourceTree = "<group>"; };
+		71B4ECA4143ED24CAF22C346 /* SettingsModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsModelTests.swift; sourceTree = "<group>"; };
 		75E425709A1FCF4E60DE4173 /* Palette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Palette.swift; sourceTree = "<group>"; };
 		76F859F4EF55B8D49AECE08D /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 		7C111B64C0C07020B9DCCDD2 /* TimeCardUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimeCardUITests.swift; sourceTree = "<group>"; };
@@ -177,6 +209,7 @@
 		91519E30548CFC57A34F19EE /* IntentRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntentRunner.swift; sourceTree = "<group>"; };
 		92E2CEA81441D10E9ACFA2FB /* ShortcutsUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutsUITests.swift; sourceTree = "<group>"; };
 		95CD0060D5CE617E29FF42B8 /* LiveActivityViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityViews.swift; sourceTree = "<group>"; };
+		95F68CA9405378E319B596FA /* ClockFlowUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClockFlowUITests.swift; sourceTree = "<group>"; };
 		97313E8FA51B7FD0FC1071AA /* TimeCardShortcuts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimeCardShortcuts.swift; sourceTree = "<group>"; };
 		97460A95F1CA9E6D45762BFE /* LiveActivityButtons.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityButtons.swift; sourceTree = "<group>"; };
 		98BD916919AFEA594B96FDBB /* JoinView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JoinView.swift; sourceTree = "<group>"; };
@@ -186,6 +219,7 @@
 		9DE6B97E96723E748D99793B /* TimeCardWidgets.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = TimeCardWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		9ED62564AD3E4695044C18E8 /* FarmEntities.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FarmEntities.swift; sourceTree = "<group>"; };
 		9FB3543BFD49BF47889FBEFD /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
+		A109B6BD4AE65A47FFAD3C86 /* NowWorkingNotesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NowWorkingNotesTests.swift; sourceTree = "<group>"; };
 		A7D1AE21BCC9D9FB5D329866 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		A930FFF3A3B899C434078A7C /* SiriSuggestions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SiriSuggestions.swift; sourceTree = "<group>"; };
 		B1528797F8AD8C65C37F90E4 /* AppModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModelTests.swift; sourceTree = "<group>"; };
@@ -195,9 +229,11 @@
 		BB37F784FF57349039E30269 /* SignInView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignInView.swift; sourceTree = "<group>"; };
 		BC6CA1FF2A1BC48FDE206332 /* SiriFlows.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SiriFlows.swift; sourceTree = "<group>"; };
 		BCE003B9CB6B5840F1EDBDA4 /* TimeCardCore */ = {isa = PBXFileReference; lastKnownFileType = folder; name = TimeCardCore; path = TimeCardCore; sourceTree = SOURCE_ROOT; };
+		BF789C458C8D692B13334156 /* ClockScenario.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClockScenario.swift; sourceTree = "<group>"; };
 		C130C9D6D6E12A2BCD39E059 /* AppEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppEnvironment.swift; sourceTree = "<group>"; };
 		C209647017C5C2118ADABE0C /* TimeCardUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = TimeCardUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		C30229F8AB3A33531A84292B /* TimeCardTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = TimeCardTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		C52384B1FAF616975C0E6195 /* ClockStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClockStatus.swift; sourceTree = "<group>"; };
 		C80A940F649E97D3B59D935C /* TimeCard.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TimeCard.entitlements; sourceTree = "<group>"; };
 		CB04224614B08F77A07C9900 /* TimeCardWidgets.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TimeCardWidgets.entitlements; sourceTree = "<group>"; };
 		CB142D28E01DD5D7B047B8BA /* TreesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TreesView.swift; sourceTree = "<group>"; };
@@ -212,12 +248,16 @@
 		DD3F8FD907AD1AD114626275 /* FieldIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FieldIntents.swift; sourceTree = "<group>"; };
 		DF7548AC9CE7DC4BC309E713 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		E29004B28C7C4B8E613925F5 /* LiveActivityDisplay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityDisplay.swift; sourceTree = "<group>"; };
+		E2D5BD8F2781DF7FC276319C /* ClockStyles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClockStyles.swift; sourceTree = "<group>"; };
 		E463BC54336CEB6A881010E1 /* IntentDonations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntentDonations.swift; sourceTree = "<group>"; };
 		E48D61AF82088B1C9CFDD3F2 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		E71FAB5FE8BD15A8D3A01A07 /* StartTimeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StartTimeTests.swift; sourceTree = "<group>"; };
 		EFD4C0E1F3E26A6CA1F42145 /* LiveActivityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityUITests.swift; sourceTree = "<group>"; };
 		F21D5D36381655346D7E3548 /* SpokenNumber.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpokenNumber.swift; sourceTree = "<group>"; };
+		F45FCDA3212B014A83DF1857 /* NowWorkingCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NowWorkingCardView.swift; sourceTree = "<group>"; };
 		FB65973F2655D3BF684FAD8C /* IntentTestSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntentTestSupport.swift; sourceTree = "<group>"; };
+		FCB3AB404159719E56FB7440 /* SettingsModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsModels.swift; sourceTree = "<group>"; };
+		FE706B521FDE4D5D4F38A4B7 /* ClockStatusTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClockStatusTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -323,6 +363,18 @@
 			path = Log;
 			sourceTree = "<group>";
 		};
+		5A2F59CB30FF9E8B4CD16F6B /* Clock */ = {
+			isa = PBXGroup;
+			children = (
+				2FC920F01C7227E4C1BC161F /* ClockFixture.swift */,
+				FE706B521FDE4D5D4F38A4B7 /* ClockStatusTests.swift */,
+				3F84FA8BEE8F5D9192B59B77 /* HoursPaceTests.swift */,
+				A109B6BD4AE65A47FFAD3C86 /* NowWorkingNotesTests.swift */,
+				71B4ECA4143ED24CAF22C346 /* SettingsModelTests.swift */,
+			);
+			path = Clock;
+			sourceTree = "<group>";
+		};
 		5E15AAD02E82F97B8D92FD9F /* Intents */ = {
 			isa = PBXGroup;
 			children = (
@@ -390,6 +442,7 @@
 			isa = PBXGroup;
 			children = (
 				7C111B64C0C07020B9DCCDD2 /* TimeCardUITests.swift */,
+				A91872FA180589C0A3E50380 /* Clock */,
 				C280E5962FB60731D2B95AE1 /* Intents */,
 				BC450B847D170EF613D07642 /* LiveActivity */,
 			);
@@ -402,6 +455,7 @@
 				B1528797F8AD8C65C37F90E4 /* AppModelTests.swift */,
 				DC14C784BB8F321617C3E862 /* DesignTests.swift */,
 				6A441859AAEFA8511A46EA2F /* PlatformTests.swift */,
+				5A2F59CB30FF9E8B4CD16F6B /* Clock */,
 				7FD5ADA99778BE4497F63AF7 /* Intents */,
 				5F2A6D3052D09F89FE524674 /* LiveActivity */,
 			);
@@ -473,6 +527,8 @@
 		A7A77BD1491F3A0F96AD91D2 /* Settings */ = {
 			isa = PBXGroup;
 			children = (
+				5001CCDE93E2A772A6F2739A /* SettingsCards.swift */,
+				FCB3AB404159719E56FB7440 /* SettingsModels.swift */,
 				DF7548AC9CE7DC4BC309E713 /* SettingsView.swift */,
 			);
 			path = Settings;
@@ -502,6 +558,14 @@
 			path = Siri;
 			sourceTree = "<group>";
 		};
+		A91872FA180589C0A3E50380 /* Clock */ = {
+			isa = PBXGroup;
+			children = (
+				95F68CA9405378E319B596FA /* ClockFlowUITests.swift */,
+			);
+			path = Clock;
+			sourceTree = "<group>";
+		};
 		AD92A9BB98F18AE091154218 /* Design */ = {
 			isa = PBXGroup;
 			children = (
@@ -526,7 +590,19 @@
 		B8B900F3F38EF89350C35174 /* Clock */ = {
 			isa = PBXGroup;
 			children = (
+				368D5BA8D4E266B0865F6DB2 /* ClockCards.swift */,
+				4A6A9D908CF458D9A4ECF38C /* ClockEnvironment.swift */,
+				BF789C458C8D692B13334156 /* ClockScenario.swift */,
+				07B52841E4ED2B39D828A789 /* ClockSheets.swift */,
+				C52384B1FAF616975C0E6195 /* ClockStatus.swift */,
+				E2D5BD8F2781DF7FC276319C /* ClockStyles.swift */,
 				0661937D9296096B85070F81 /* ClockView.swift */,
+				6FCC01A96E160B37BAC78F46 /* HoursPay.swift */,
+				6EC09F62BE7A4EE1AB0D7EA2 /* NowWorking.swift */,
+				F45FCDA3212B014A83DF1857 /* NowWorkingCardView.swift */,
+				6D3C73C06F60AE9FE2F7F003 /* PaceCard.swift */,
+				4097098F594090247E501C58 /* ShiftNotesEditor.swift */,
+				09497989FB7E542068BDD854 /* StatusCardView.swift */,
 			);
 			path = Clock;
 			sourceTree = "<group>";
@@ -734,8 +810,11 @@
 			buildActionMask = 2147483647;
 			files = (
 				A11346CECD3BFC51BA365381 /* AppModelTests.swift in Sources */,
+				CB3D42F44119A5B8C9EA72EB /* ClockFixture.swift in Sources */,
+				390140C0B40787DABEE5964B /* ClockStatusTests.swift in Sources */,
 				FA55BECAABCA57C8875A40CE /* DaySnippetTests.swift in Sources */,
 				6E021FFA63E1736E7099AF2B /* DesignTests.swift in Sources */,
+				BA9C90434C91A9947E06602D /* HoursPaceTests.swift in Sources */,
 				F4F56CC8F84944E475EF5D8E /* IntentShellTests.swift in Sources */,
 				2B0D928BDC4C0BBE97302A71 /* IntentTestSupport.swift in Sources */,
 				3CBAB76BCE912BB382A12905 /* LiveActivityControllerTests.swift in Sources */,
@@ -743,7 +822,9 @@
 				DA5F8B179693CCB76E351EA8 /* LiveActivityFeedTests.swift in Sources */,
 				4E86314FA253E2EE7E5DECAA /* LiveActivityFixtures.swift in Sources */,
 				5C87C190B86463CA43008143 /* LiveActivityRenderTests.swift in Sources */,
+				093D12E51C7962A139CA14B3 /* NowWorkingNotesTests.swift in Sources */,
 				5840091B8188A4BF57AD73A8 /* PlatformTests.swift in Sources */,
+				ABD58F89C76AD9A4714CC26B /* SettingsModelTests.swift in Sources */,
 				7511C0B9FB8E2AD5EF7C1637 /* ShortcutPhraseTests.swift in Sources */,
 				1A2D50E98BED2E79CA2ACF7D /* SiriSuggestionsTests.swift in Sources */,
 				904DC96DF54580278D189DA6 /* SpokenNumberTests.swift in Sources */,
@@ -757,6 +838,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				56196C19D16D487B1AA1A347 /* ClockFlowUITests.swift in Sources */,
 				0A0CF0700206A6ABB115235F /* LiveActivityUITests.swift in Sources */,
 				AFD51769D4A8F4A7C1BACF0E /* ShortcutsUITests.swift in Sources */,
 				210A451BC06E8FF049CC8269 /* TimeCardUITests.swift in Sources */,
@@ -770,6 +852,12 @@
 				1E1B26C4A40FF877A255E691 /* AppEnvironment.swift in Sources */,
 				96CED505F7707F4ED3F801B4 /* AppModel.swift in Sources */,
 				B36F932D59108B2F4C40620E /* Appearance.swift in Sources */,
+				A3EAD2ABBE7A177947508211 /* ClockCards.swift in Sources */,
+				9D6C8E307C1FAA91CDD06991 /* ClockEnvironment.swift in Sources */,
+				85F2FE3D6ABE89625A8335DE /* ClockScenario.swift in Sources */,
+				AB841C6B733FCCF45B27A71D /* ClockSheets.swift in Sources */,
+				185DB3D7F29ECC6001DA9977 /* ClockStatus.swift in Sources */,
+				7065716ED4BFDC638A3D82E7 /* ClockStyles.swift in Sources */,
 				9ABF6503163CD2383CE3F4C1 /* ClockView.swift in Sources */,
 				11875192E9EAFECC79DABA39 /* Components.swift in Sources */,
 				E299322A522196BD44C9EBE4 /* DayCard.swift in Sources */,
@@ -777,6 +865,7 @@
 				253742F751F911DAB962C6A7 /* DeviceConditions.swift in Sources */,
 				9DC65F62F6D1F7B66DB65D9F /* FarmEntities.swift in Sources */,
 				1057CD956DD8FB081911436A /* FieldIntents.swift in Sources */,
+				B9DE1ECDE5E1FAC57CCD5626 /* HoursPay.swift in Sources */,
 				E0D1FB91C0FD52264C43A582 /* IntentDonations.swift in Sources */,
 				104D492C8C3A51F286665FD8 /* IntentRunner.swift in Sources */,
 				4DD2F2AA27B852A097142928 /* IntentSupport.swift in Sources */,
@@ -791,18 +880,25 @@
 				0291B96796EB9489FDCC3CE6 /* LiveActivityViews.swift in Sources */,
 				5FE1436C2232590A373A6C7A /* LogView.swift in Sources */,
 				E0B03D5A5C903A53DE4C5503 /* MainTabView.swift in Sources */,
+				4AA0F140DA0AC52F9E4211A3 /* NowWorking.swift in Sources */,
+				49C96E1CB2468C43E1B417B8 /* NowWorkingCardView.swift in Sources */,
+				03D64E23F6890E3792F0ED6F /* PaceCard.swift in Sources */,
 				7CA05566481CF06C0E9F30E1 /* Palette.swift in Sources */,
 				6D9D98F9095F3172A1030E61 /* PlaceholderScreen.swift in Sources */,
 				4C4F9F482F05AA8C690EADED /* ReportView.swift in Sources */,
 				D13E042FE534FB7568A52475 /* ResetPasswordView.swift in Sources */,
 				A0E91B616D12F7A09D9CB812 /* RootView.swift in Sources */,
+				F04936B959D17F4FEFCE751E /* SettingsCards.swift in Sources */,
+				FA633CB68BDB36A67A5A6B70 /* SettingsModels.swift in Sources */,
 				3B3E0A8E54FB630EFF4F45D1 /* SettingsView.swift in Sources */,
 				BB7A7BA9144FF746B18BBFBF /* ShiftEditorView.swift in Sources */,
+				87DA791A2675D7768713CC64 /* ShiftNotesEditor.swift in Sources */,
 				B3A31CF1F267626DAE69CD97 /* SignInView.swift in Sources */,
 				751062469CE17D71A7CEF54B /* SiriFlows.swift in Sources */,
 				A798EBBB5FBB0B958B5E485E /* SiriSuggestions.swift in Sources */,
 				CC47F4CC3C75F3FC990D6DCB /* SpokenNumber.swift in Sources */,
 				EFF703CFCEE7295C334CEEFF /* StartTime.swift in Sources */,
+				EAA5990A3440A02D877A6008 /* StatusCardView.swift in Sources */,
 				46676B9D459A12A9680AF1E9 /* StatusIntent.swift in Sources */,
 				CF5BB610A45AA574D9D20AFF /* TeamView.swift in Sources */,
 				EC667902F7B2D991519539B0 /* TimeCardActivityAttributes.swift in Sources */,
