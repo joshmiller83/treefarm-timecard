@@ -214,7 +214,56 @@ function leader(dot: { x: number; y: number }, elbowX: number, ly: number, endX:
  * Lays the zoom and the callouts out for one viewport. `phone` is the stage phone's
  * untransformed box; `viewport.top` is the header's height (the card centres below it).
  */
-export function deskLayout({ phone, viewport, zoom }: { phone: Box; viewport: { width: number; height: number; top: number }; zoom?: number }): DeskLayout {
+/**
+ * Stacks boxes (given by centre `y` and height `h`) so that neighbours are at least `gap`
+ * apart and all stay within [min, max]: overlapping pairs push apart around their middle;
+ * a `fixed` box never moves. Returns the new centres, in the input order.
+ */
+export function separate(items: ReadonlyArray<{ y: number; h: number; fixed?: boolean }>, min: number, max: number, gap: number): number[] {
+  const it = items.map((b, i) => ({ ...b, i, y: b.y }));
+  const order = [...it].sort((a, b) => a.y - b.y);
+  for (let pass = 0; pass < 40; pass += 1) {
+    let moved = false;
+    for (let k = 1; k < order.length; k += 1) {
+      const a = order[k - 1]!;
+      const b = order[k]!;
+      const overlap = a.y + a.h / 2 + gap - (b.y - b.h / 2);
+      if (overlap <= 0.001) continue;
+      moved = true;
+      if (a.fixed && b.fixed) continue;
+      if (a.fixed) b.y += overlap;
+      else if (b.fixed) a.y -= overlap;
+      else {
+        a.y -= overlap / 2;
+        b.y += overlap / 2;
+      }
+    }
+    for (const b of order) {
+      if (b.fixed) continue;
+      b.y = Math.min(Math.max(b.y, min + b.h / 2), Math.max(min + b.h / 2, max - b.h / 2));
+    }
+    if (!moved) break;
+  }
+  return it.map((b) => b.y);
+}
+
+export type LabelSizes = Partial<Record<Callout['n'], number>>;
+
+/**
+ * `sizes` are the labels' measured heights (px); with them the labels on each side are
+ * stacked clear of each other and of the ghost block (which stays level with the buttons).
+ */
+export function deskLayout({
+  phone,
+  viewport,
+  zoom,
+  sizes,
+}: {
+  phone: Box;
+  viewport: { width: number; height: number; top: number };
+  zoom?: number;
+  sizes?: LabelSizes;
+}): DeskLayout {
   const z = zoom ?? deskZoom(phone.width, viewport.width);
   const s = (phone.width / FRAME.w) * z; // px per pt, zoomed
   const cx = viewport.width / 2;
@@ -237,6 +286,28 @@ export function deskLayout({ phone, viewport, zoom }: { phone: Box; viewport: { 
   const sixDot = map(CALLOUTS[5]!.target);
   const ghost = { x: labelR, y: sixDot.y };
 
+  // Where each label would like to sit, then stacked per side by measured height.
+  const want = new Map<Callout['n'], number>();
+  for (const c of CALLOUTS) {
+    const dot = map(c.target);
+    want.set(c.n, c.place === 'above' ? dot.y - LIFT * s : c.place === 'below' ? dot.y + LIFT * s : dot.y);
+  }
+  const H = (n: Callout['n']) => sizes?.[n] ?? 44;
+  const placed = new Map<Callout['n'], number>(want);
+  const top = viewport.top + 16;
+  const bottom = viewport.height - 16;
+  for (const side of ['left', 'right'] as const) {
+    const cs = CALLOUTS.filter((c) => c.side === side);
+    const items = cs.map((c) =>
+      c.place === 'ghost'
+        ? // The ghost and the label under it: one block that does not move.
+          { y: (ghost.y - GHOST_H / 2 + ghost.y + GHOST_H / 2 + 14 + H(6)) / 2, h: GHOST_H + 14 + H(6), fixed: true }
+        : { y: want.get(c.n)!, h: H(c.n) },
+    );
+    const ys = separate(items, top, bottom, 8);
+    cs.forEach((c, i) => c.place !== 'ghost' && placed.set(c.n, ys[i]!));
+  }
+
   const callouts = CALLOUTS.map((c): LaidCallout => {
     const dot = map(c.target);
     const left = c.side === 'left';
@@ -252,7 +323,7 @@ export function deskLayout({ phone, viewport, zoom }: { phone: Box; viewport: { 
         label: { x: ghost.x, y: ghost.y + GHOST_H / 2 + 14, maxWidth, valign: 'top' },
       };
     }
-    const ly = c.place === 'above' ? dot.y - LIFT * s : c.place === 'below' ? dot.y + LIFT * s : dot.y;
+    const ly = placed.get(c.n)!;
     return { n: c.n, side: c.side, dot, path: leader(dot, elbowX, ly, lx), label: { x: lx, y: ly, maxWidth, valign: 'middle' } };
   });
 

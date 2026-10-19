@@ -33,6 +33,7 @@ import {
   TAPPED,
   WORKING,
   type DeskLayout,
+  type LabelSizes,
 } from '../../sections/lock-screen/model.ts';
 
 const ISLAND = { rest: [126, 37, 18.5], compact: [250, 37, 18.5], expanded: [371, 160, 44] } as const;
@@ -95,13 +96,49 @@ registerScene(
     const slot = stage?.phone.parentElement ?? null;
     const callRoot = section.querySelector<HTMLElement>('[data-ls-callouts]');
     const header = () => parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--chrome-h')) || 59;
+    /** A wrapped pill hugs its longest line (CSS leaves it at its max-width). */
+    const hug = (pill: HTMLElement) => {
+      pill.style.width = '';
+      const walker = document.createTreeWalker(pill, NodeFilter.SHOW_TEXT);
+      const range = document.createRange();
+      let lines = 0;
+      let lo = Infinity;
+      let hi = -Infinity;
+      for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+        range.selectNodeContents(n);
+        for (const r of Array.from(range.getClientRects())) {
+          if (r.width < 1) continue;
+          lines += 1;
+          lo = Math.min(lo, r.left);
+          hi = Math.max(hi, r.right);
+        }
+      }
+      if (lines < 2 || !Number.isFinite(lo)) return;
+      const cs = getComputedStyle(pill);
+      const pad = ['paddingLeft', 'paddingRight', 'borderLeftWidth', 'borderRightWidth'].reduce((t, k) => t + (parseFloat(cs[k as 'paddingLeft']) || 0), 0);
+      pill.style.width = `${Math.ceil(hi - lo + pad + 1)}px`;
+    };
     const layout = () => {
       if (!useCallouts || !slot || !callRoot) return;
       const r = slot.getBoundingClientRect();
-      L = deskLayout({
+      const geo = {
         phone: { left: r.left, top: r.top, width: r.width, height: r.height },
         viewport: { width: ctx.frame?.getBoundingClientRect().width || innerWidth, height: innerHeight, top: header() },
-      });
+      };
+      // Pass 1: the label columns' widths decide the wrapping, and so each label's height.
+      const first = deskLayout(geo);
+      const sizes: LabelSizes = {};
+      for (const c of first.callouts) {
+        const li = callRoot.querySelector<HTMLElement>(`[data-callout="${c.n}"]`);
+        const pill = li?.querySelector<HTMLElement>('.pill');
+        li?.style.setProperty('--max', Math.max(160, c.label.maxWidth).toFixed(0));
+        if (pill) {
+          pill.style.width = '';
+          sizes[c.n] = pill.offsetHeight;
+        }
+      }
+      // Pass 2: stack the measured labels clear of each other and of the ghost.
+      L = deskLayout({ ...geo, sizes });
       for (const c of L.callouts) {
         const g = callRoot.querySelector(`[data-line-for="${c.n}"]`);
         g?.querySelector('[data-line]')?.setAttribute('d', c.path);
@@ -111,7 +148,8 @@ registerScene(
         const li = callRoot.querySelector<HTMLElement>(`[data-callout="${c.n}"]`);
         li?.style.setProperty('--x', c.label.x.toFixed(1));
         li?.style.setProperty('--y', c.label.y.toFixed(1));
-        li?.style.setProperty('--max', Math.max(160, c.label.maxWidth).toFixed(0));
+        const pill = li?.querySelector<HTMLElement>('.pill');
+        if (pill) hug(pill);
       }
       const g = callRoot.querySelector<HTMLElement>('[data-ls-ghost-at]');
       g?.style.setProperty('--x', L.ghost.x.toFixed(1));

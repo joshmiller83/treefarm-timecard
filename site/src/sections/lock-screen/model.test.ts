@@ -16,6 +16,7 @@ import {
   PIN_PT,
   PIN_PX,
   ROWS,
+  separate,
   slots,
   TAPPED,
   ZOOM,
@@ -206,4 +207,66 @@ describe('the zoom', () => {
     // The card's centre lands in the upper part of the phone.
     expect(ORIGIN.y * 422 + z.y).toBeCloseTo(0.38 * 422, 3);
   });
+});
+
+describe('separate (label stacking)', () => {
+  const boxes = (ys: number[], hs: number[]) => ys.map((y, i) => ({ top: y - hs[i]! / 2, bottom: y + hs[i]! / 2 }));
+  const apart = (ys: number[], hs: number[], gap: number) => {
+    const b = boxes(ys, hs).sort((p, q) => p.top - q.top);
+    return b.every((x, i) => i === 0 || x.top - b[i - 1]!.bottom >= gap - 0.01);
+  };
+
+  it('leaves boxes that already clear each other where they are', () => {
+    expect(separate([{ y: 100, h: 40 }, { y: 200, h: 40 }], 0, 1000, 12)).toEqual([100, 200]);
+  });
+
+  it('pushes overlapping boxes apart around their middle', () => {
+    const ys = separate([{ y: 100, h: 40 }, { y: 120, h: 40 }], 0, 1000, 12);
+    expect(apart(ys, [40, 40], 12)).toBe(true);
+    expect((ys[0]! + ys[1]!) / 2).toBeCloseTo(110, 1);
+  });
+
+  it('never moves a fixed box', () => {
+    const ys = separate([{ y: 100, h: 40 }, { y: 120, h: 60, fixed: true }], 0, 1000, 12);
+    expect(ys[1]).toBe(120);
+    expect(apart(ys, [40, 60], 12)).toBe(true);
+  });
+
+  it('keeps boxes inside the bounds', () => {
+    const ys = separate([{ y: 10, h: 40 }, { y: 20, h: 40 }, { y: 30, h: 40 }], 0, 1000, 12);
+    expect(ys[0]! - 20).toBeGreaterThanOrEqual(-0.01);
+    expect(apart(ys, [40, 40, 40], 12)).toBe(true);
+  });
+});
+
+describe('desk layout with measured labels', () => {
+  for (const [w, h] of [
+    [1440, 900],
+    [1280, 800],
+    [1024, 768],
+    [900, 700],
+  ] as const) {
+    it(`stacks the labels and the ghost without overlaps at ${w} × ${h}`, () => {
+      const ph = Math.min(0.78 * h, 760);
+      const pw = (ph * 420) / 879;
+      const phone = { left: w * 0.72 - pw / 2, top: 59 + (h - 59 - ph) / 2, width: pw, height: ph };
+      // Labels that wrap to two lines in narrow columns.
+      const sizes = { 1: 64, 2: 64, 3: 64, 4: 64, 5: 64, 6: 90 };
+      const L = deskLayout({ phone, viewport: { width: w, height: h, top: 59 }, sizes });
+      for (const side of ['left', 'right'] as const) {
+        const items = L.callouts
+          .filter((c) => c.side === side)
+          .map((c) =>
+            c.label.valign === 'top'
+              ? { top: L.ghost.y - 23, bottom: c.label.y + sizes[c.n] }
+              : { top: c.label.y - sizes[c.n] / 2, bottom: c.label.y + sizes[c.n] / 2 },
+          )
+          .sort((a, b) => a.top - b.top);
+        items.forEach((it, i) => {
+          if (i > 0) expect(it.top - items[i - 1]!.bottom).toBeGreaterThanOrEqual(7.9);
+          expect(it.top).toBeGreaterThanOrEqual(59);
+        });
+      }
+    });
+  }
 });
