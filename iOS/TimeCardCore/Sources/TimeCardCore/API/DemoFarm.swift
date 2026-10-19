@@ -5,20 +5,31 @@ import Foundation
 public enum DemoFarm {
     public static let email = "demo@example.com"
     public static let password = "demo-password"
+    /// Sam Ortiz, the demo worker, signs in with `password` too.
+    public static let workerEmail = "sam@example.com"
+    /// An open worker invite on the demo farm, to try joining with.
+    public static let inviteCode = "K7Q4-M2XP-9R"
 
     /// A stub server already holding the demo farm. With `signedIn`, the demo admin's
-    /// session is live on it (as if they'd signed in before).
+    /// session is live on it (as if they'd signed in before), next to one other device.
     public static func makeServer(signedIn: Bool = true, now: Date = Date()) -> (server: StubAPIClient, me: MeResponse) {
         let records = makeRecords(now: now)
+        let ipad = SessionInfo(id: UUID(), deviceName: "Shop iPad", createdAt: now.addingTimeInterval(-20 * 86400),
+                               lastUsedAt: now.addingTimeInterval(-2 * 86400), isCurrent: false)
+        let invite = InviteInfo(id: UUID(), role: .worker, note: "New trimmer", createdAt: now.addingTimeInterval(-86400),
+                                expiresAt: now.addingTimeInterval(6 * 86400), code: inviteCode)
         let server = StubAPIClient(seed: .init(farmId: records.farm.id, records: records.all,
-                                              accounts: [.init(email: email, password: password, me: records.me)],
-                                              signedIn: signedIn ? records.me : nil))
+                                              accounts: [.init(email: email, password: password, me: records.me),
+                                                         .init(email: workerEmail, password: password, me: records.workerMe)],
+                                              signedIn: signedIn ? records.me : nil,
+                                              sessions: [ipad], invites: [invite]))
         return (server, records.me)
     }
 
     struct Records {
         var farm: Farm
         var me: MeResponse
+        var workerMe: MeResponse
         var all: [SyncRecord]
     }
 
@@ -31,7 +42,8 @@ public enum DemoFarm {
         let admin = UserProfile(id: UUID(), email: email, displayName: "Alex Rivera")
         let adminMember = Member(userId: admin.id, farmId: farmId, displayName: admin.displayName, email: email, role: .admin,
                                  jobTitle: "Crew lead", rateCents: 2000, updatedAt: start)
-        let worker = Member(userId: UUID(), farmId: farmId, displayName: "Sam Ortiz", email: "", role: .worker,
+        let workerProfile = UserProfile(id: UUID(), email: workerEmail, displayName: "Sam Ortiz")
+        let worker = Member(userId: workerProfile.id, farmId: farmId, displayName: workerProfile.displayName, email: workerEmail, role: .worker,
                             jobTitle: "Trimmer", updatedAt: start)
 
         let north = Field(farmId: farmId, name: "North Field", sortOrder: 0, updatedAt: start)
@@ -56,8 +68,9 @@ public enum DemoFarm {
         }
 
         let me = MeResponse(user: admin, farms: [farm], memberships: [adminMember])
+        let workerMe = MeResponse(user: workerProfile, farms: [farm], memberships: [worker])
         let all: [SyncRecord] = [.farm(farm), .season(season), .member(adminMember), .member(worker), .field(north), .field(creek)]
             + blocks.map(SyncRecord.block) + [.shift(samShift)] + marks
-        return Records(farm: farm, me: me, all: all)
+        return Records(farm: farm, me: me, workerMe: workerMe, all: all)
     }
 }

@@ -92,7 +92,7 @@ struct AuthServiceTests {
     @Test func anExpiredInviteSaysSo() async throws {
         let (auth, stub, _) = try await makeService()
         await stub.addInvite(code: "OLD", farm: f.farm, expired: true)
-        await #expect(throws: APIError.client(status: 410, reason: "That invite code has expired. Ask your admin for a new one.")) {
+        await #expect(throws: APIError.client(status: 400, reason: "That invite code has expired. Ask your admin for a new one.")) {
             _ = try await auth.register(inviteCode: "OLD", email: "sam@example.com", password: "pines", displayName: "Sam")
         }
     }
