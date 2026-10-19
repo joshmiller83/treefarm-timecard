@@ -29,15 +29,18 @@ export const POSES = {
   desk: {
     hidden: { x: 0, y: 0, rotate: 0, scale: 0.86 },
     rest: { x: -0.36, y: -0.04, rotate: -4, scale: 0.86 },
+    /** Sam's tap: further out, so his row 12 filling gold reads (still clear of the copy at 1024). */
+    swing: { x: -0.48, y: -0.04, rotate: -5, scale: 0.86 },
     front: { x: -0.2, y: 0, rotate: -1.5, scale: 1 },
   },
   /** Mobile: behind the section phone. */
   mob: {
     hidden: { x: 0, y: 0, rotate: 0, scale: 0.84 },
     rest: { x: -0.34, y: -0.03, rotate: -3, scale: 0.84 },
+    swing: { x: -0.42, y: -0.03, rotate: -3.5, scale: 0.84 },
     front: { x: -0.08, y: 0.01, rotate: -1, scale: 1 },
   },
-} satisfies Record<string, Record<'hidden' | 'rest' | 'front', Pose>>;
+} satisfies Record<string, Record<'hidden' | 'rest' | 'swing' | 'front', Pose>>;
 
 /** Desktop camera: the stage phone (and the rig the second phone hangs on) during the chapter. */
 export const PULL = { scale: 0.88, y: 0.035 } as const;

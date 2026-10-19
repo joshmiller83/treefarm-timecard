@@ -9,7 +9,8 @@
  * desktop, stacked on mobile: offline, synced, the owner's Team tab, under a static server
  * glyph). With motion, Alex's phone carries three layers (block 3 → offline → synced) and the
  * extras add a second phone (Sam's map, then the owner's), name chips, the server and its
- * wires; src/scripts/scenes/crew.ts scrubs it all with the DayClock. Every number, row, time
+ * wires. The offline map and the Team tab are drawn once, in the static figure, and the scene
+ * borrows them into the moving phones (each map is a few hundred elements); src/scripts/scenes/crew.ts scrubs it all with the DayClock. Every number, row, time
  * and line comes from the ledger through ./crew/story.ts.
  */
 import SectionShell from '../components/SectionShell.astro';
@@ -21,37 +22,41 @@ import Icon from '../components/app/Icon.astro';
 import ServerGlyph from './crew/ServerGlyph.astro';
 import { CONFLICT_MESSAGE, MOMENTS } from '../data/ledger';
 import { COPY } from './crew/copy';
-import { AT } from './crew/schedule';
+import { chapter } from '../data/chapters';
+import { AT, AT_MOB, TRACK_MOB } from './crew/schedule';
 import { BLOCK, CAPTION, CONFLICT, LABELS, OFFLINE_LINE, ROWS, STEPS, SYNCED_LINE } from './crew/story';
 
 const [, b1, b2, b3, b4] = AT.beats;
+// Mobile: the cards sit further apart on a longer track, so the phone is clear for each event.
+const [, m1, m2, m3, m4] = AT_MOB.beats;
+const track = { desk: chapter('crew').track.desk, mob: TRACK_MOB };
 const map = { block: BLOCK, rows: ROWS.view, zoom: 'L' as const };
 const [stepOff, stepSync, stepOwner] = STEPS;
 ---
 
-<SectionShell id="crew">
+<SectionShell id="crew" track={track}>
   <Fragment slot="intro">
     <p>{COPY.body}</p>
   </Fragment>
 
-  <div class="beat crew-beat" data-beat="1" style={`--at:${b1}`}>
+  <div class="beat crew-beat" data-beat="1" style={`--at:${b1};--at-mob:${m1}`}>
     <span class="crew-ic" aria-hidden="true"><Icon name="wifi.slash" size="20px" weight={2} /></span>
     <p><strong>{COPY.offline.lead}</strong> {COPY.offline.rest}</p>
   </div>
 
-  <div class="beat crew-beat" data-beat="2" style={`--at:${b2}`}>
+  <div class="beat crew-beat" data-beat="2" style={`--at:${b2};--at-mob:${m2}`}>
     <span class="crew-ic" aria-hidden="true"><Icon name="check" size="20px" weight={2.2} /></span>
     <p><strong>{COPY.firstWins.lead}</strong> {COPY.firstWins.rest}</p>
     <p class="crew-msg"><q>{COPY.firstWins.quote}</q></p>
   </div>
 
-  <div class="beat crew-beat" data-beat="3" style={`--at:${b3}`}>
+  <div class="beat crew-beat" data-beat="3" style={`--at:${b3};--at-mob:${m3}`}>
     <span class="crew-ic" aria-hidden="true"><Icon name="people" size="20px" weight={2} /></span>
     <p><strong>{COPY.admins.lead}</strong> {COPY.admins.rest}</p>
     <p class="crew-workers-line"><strong>{COPY.workers}</strong></p>
   </div>
 
-  <div class="beat crew-beat" data-beat="4" style={`--at:${b4}`}>
+  <div class="beat crew-beat" data-beat="4" style={`--at:${b4};--at-mob:${m4}`}>
     <span class="crew-ic" aria-hidden="true"><Icon name="server" size="20px" weight={2} /></span>
     <p><strong>{COPY.server}</strong></p>
   </div>
@@ -82,9 +87,7 @@ const [stepOff, stepSync, stepOwner] = STEPS;
             <Screen stateId="trees-1447-block3" alt={LABELS.main} tone="light">
               <TreesTab at={MOMENTS.crew} {...map} syncSlot />
             </Screen>
-            <Screen stateId="trees-1456-offline" alt={LABELS.offline} tone="light">
-              <TreesTab at={MOMENTS.alexRow12} {...map} syncLine={OFFLINE_LINE} noService />
-            </Screen>
+            <!-- With motion, the scene borrows the static figure's offline map as the layer here. -->
             <Screen stateId="trees-1500-synced" alt={LABELS.main} tone="light" final>
               <TreesTab at={MOMENTS.synced} {...map} syncLine={SYNCED_LINE} banner={CONFLICT_MESSAGE} />
             </Screen>
@@ -135,9 +138,7 @@ const [stepOff, stepSync, stepOwner] = STEPS;
             <Screen stateId="sam-1449-trees" alt={LABELS.peek} tone="light">
               <TreesTab at={CONFLICT.at} who="Sam" {...map} />
             </Screen>
-            <Screen stateId="team-1500" alt={LABELS.owner} tone="light" final>
-              <TeamTab />
-            </Screen>
+            <!-- …and the static figure's Team tab here: each screen is drawn once (a lighter DOM). -->
           </div>
         </Phone>
         <span class="crew-chip crew-chip--peek" data-crew-chip="sam" aria-hidden="true">{CONFLICT.by}</span>
@@ -164,11 +165,11 @@ const [stepOff, stepSync, stepOwner] = STEPS;
               <path d="M-3.4 -3.4 3.4 3.4"></path>
             </g>
           </g>
-          <g class="crew-packet" data-packet="sam"><circle class="crew-packet-halo" r="8"></circle><circle r="3.4"></circle></g>
-          <g class="crew-packet" data-packet="alex-1"><circle class="crew-packet-halo" r="8"></circle><circle r="3.4"></circle></g>
-          <g class="crew-packet" data-packet="alex-2"><circle class="crew-packet-halo" r="8"></circle><circle r="3.4"></circle></g>
-          <g class="crew-packet crew-packet--green" data-packet="down-alex"><circle class="crew-packet-halo" r="8"></circle><circle r="3.4"></circle></g>
-          <g class="crew-packet crew-packet--green" data-packet="down-sam"><circle class="crew-packet-halo" r="8"></circle><circle r="3.4"></circle></g>
+          <g class="crew-packet" data-packet="sam"><circle class="crew-packet-halo" r="11"></circle><circle r="4.5"></circle></g>
+          <g class="crew-packet" data-packet="alex-1"><circle class="crew-packet-halo" r="11"></circle><circle r="4.5"></circle></g>
+          <g class="crew-packet" data-packet="alex-2"><circle class="crew-packet-halo" r="11"></circle><circle r="4.5"></circle></g>
+          <g class="crew-packet crew-packet--green" data-packet="down-alex"><circle class="crew-packet-halo" r="11"></circle><circle r="4.5"></circle></g>
+          <g class="crew-packet crew-packet--green" data-packet="down-sam"><circle class="crew-packet-halo" r="11"></circle><circle r="4.5"></circle></g>
         </svg>
         <div class="crew-server" data-crew-server>
           <div class="crew-server-in" data-crew-server-in>
@@ -265,6 +266,10 @@ const [stepOff, stepSync, stepOwner] = STEPS;
     }
   }
   @media (max-width: 899.98px) {
+    /* The mobile schedule's card positions (src/sections/crew/schedule.ts AT_MOB.beats). */
+    :global(html.motion #crew) .crew-beat {
+      --at: var(--at-mob) !important;
+    }
     :global(html.motion) .crew-beat {
       gap: 12px;
     }
@@ -529,6 +534,13 @@ const [stepOff, stepSync, stepOwner] = STEPS;
   }
   .crew-peek :global(.phone-shadow) {
     opacity: 0.7;
+  }
+  /* The Team tab's rows come in one by one (the scene tweens them to their end state only). */
+  :global(html.motion) .crew-peek :global([data-team-row]),
+  :global(html.motion) .crew-peek :global([data-team-total]),
+  :global(html.motion) .crew-peek :global([data-invite]),
+  :global(html.motion) .crew-peek :global([data-fields-row]) {
+    opacity: 0;
   }
 
   .crew-chip {

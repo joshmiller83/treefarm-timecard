@@ -53,7 +53,7 @@ const teamHours = TEAM.map((r) => `${r.name} ${r.hours}`).join(', ');
 /** aria-labels for the phones (each phone root is role="img"). */
 export const LABELS = {
   /** Alex's phone, final state (the section figure; the stage phone shows it on desktop). */
-  main: `Your map, back in range: Synced, and the message ${CONFLICT_MESSAGE} Row ${KEPT.map((m) => m.row).join(', ')} stays gold. Row ${CONFLICT.row} is green, because ${CONFLICT.by} shaped it first.`,
+  main: `Your map, back in range: Synced, and the message ${CONFLICT_MESSAGE} ${rowsText(KEPT.map((m) => m.row)).replace(/^r/, 'R')} count${KEPT.length === 1 ? 's' : ''} as yours. Row ${CONFLICT.row} does not: ${CONFLICT.by} shaped it first.`,
   /** Static figure 1: Alex's phone with no signal. */
   offline: `Your map with no signal: No Service, ${rowsText(OFFLINE_MARKS.map((m) => m.row))} in gold, and the line ${OFFLINE_LINE}.`,
   /** Static figure 3: the owner's phone. */
