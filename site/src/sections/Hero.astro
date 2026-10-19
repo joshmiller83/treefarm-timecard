@@ -313,6 +313,13 @@ const label = heroPhoneLabel();
   html.motion.intro-wait #hero :is(.eyebrow, [data-said-word], .hero-device, [data-band-art]) {
     opacity: 0;
   }
+  /* The header's ribbon fill and riding tag arrive with the scroll scene on desktop (the
+     shift starts as you leave the hero): keep them back until the scene has set them. */
+  @media (min-width: 900px) {
+    html.motion.intro-wait nav.shift :is(.ribbon-fill, .tag-ride) {
+      opacity: 0;
+    }
+  }
   /* The stage phone waits too, so the final state never flashes before the sequence. */
   html.motion .stage-slot {
     transition: opacity 0.4s linear;

@@ -60,6 +60,9 @@ test.describe('the hero', () => {
     await expect(hero.locator('.eyebrow')).toHaveText(/Time Card · For Christmas tree trimmers/i);
     await expect(hero.locator('.hero-body')).toContainText('iPhone time card for people who shape Christmas trees');
     await expect(hero.locator('.hero-body')).toContainText('with your phone locked in your pocket');
+    // The sentences are separate spans (blocks on phones): their spaces must survive.
+    await expect(hero.locator('.hero-body')).toContainText('Christmas trees. Clock in');
+    await expect(hero.locator('.hero-body')).toContainText('in your pocket. The lock screen does the rest.');
     await expect(hero.locator('.pill-status')).toHaveText(STATUS);
     const gh = hero.getByRole('link', { name: 'Follow along on GitHub' });
     await expect(gh).toHaveAttribute('href', REPO);
@@ -139,6 +142,20 @@ test.describe('the hero', () => {
     if (isMobile(page)) await page.locator('#hero [data-hero-device]').scrollIntoViewIfNeeded();
     expect(await opacity(page, '[data-screen="lock-0702-clockin"] [data-la]')).toBe(1);
     expect(await opacity(page, '#hero .hero-body')).toBe(1);
+  });
+
+  test('ends the sequence at once when Pause motion is pressed', async ({ page }) => {
+    await page.goto('/');
+    await booted(page);
+    await page.waitForTimeout(300);
+    await page.locator('[data-pause-toggle]').click();
+    await expect(page.locator('html')).toHaveAttribute('data-hero-intro', 'done');
+    if (isMobile(page)) await page.locator('#hero [data-hero-device]').scrollIntoViewIfNeeded();
+    expect(await opacity(page, '[data-screen="lock-0702-clockin"] [data-la]')).toBe(1);
+    expect(await opacity(page, '#hero .hero-fine')).toBe(1);
+    expect(await opacity(page, '[data-screen="lock-0702-clockin"] [data-snippet]')).toBe(0);
+    // Restore for the next test in this worker.
+    await page.evaluate(() => localStorage.removeItem('tf-pause'));
   });
 
   test('has no horizontal overflow at 320 and 375', async ({ page }) => {

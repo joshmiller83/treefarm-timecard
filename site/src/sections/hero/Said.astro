@@ -65,8 +65,10 @@ const NBSP = ' ';
   .hero-q {
     color: var(--gold-lit);
   }
-  /* The stage line breaks before the app's name; the figure's wraps on its own. */
-  .hero-said--figure .hero-said-br {
-    display: none;
+  /* The line breaks before the app's name, except as one line over a static desktop phone. */
+  @media (min-width: 900px) {
+    .hero-said--figure .hero-said-br {
+      display: none;
+    }
   }
 </style>

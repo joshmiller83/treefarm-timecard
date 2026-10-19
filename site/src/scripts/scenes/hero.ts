@@ -189,8 +189,11 @@ registerScene(
     };
     pageTl.eventCallback('onComplete', () => ended(pageTl));
     phoneTl.eventCallback('onComplete', () => ended(phoneTl));
+    let pendingPhone: ScrollTrigger | null = null;
     const finish = () => {
       waiting = false;
+      pendingPhone?.kill();
+      pendingPhone = null;
       if (pageTl.progress() < 1) pageTl.progress(1);
       if (phoneTl.progress() < 1) phoneTl.progress(1);
       halves.clear();
@@ -209,7 +212,16 @@ registerScene(
       waiting = later;
       start(pageTl);
       if (!later) start(phoneTl);
-      else ctx.trigger({ trigger: device!, start: 'top 85%', once: true, onEnter: () => start(phoneTl, k(INTRO.phone).at) });
+      else
+        pendingPhone = ctx.trigger({
+          trigger: device!,
+          start: 'top 85%',
+          once: true,
+          onEnter: () => {
+            pendingPhone = null;
+            if (phoneTl.progress() < 1) start(phoneTl, k(INTRO.phone).at);
+          },
+        });
     }
 
     // Pause motion ends the sequence at once.
