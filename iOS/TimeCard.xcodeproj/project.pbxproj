@@ -8,16 +8,24 @@
 
 /* Begin PBXBuildFile section */
 		00697163D13940091B2F4A8D /* JoinView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98BD916919AFEA594B96FDBB /* JoinView.swift */; };
+		04C40E265236B5758328D2FD /* VoiceCatalogTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E8ADE5EA509E495FED67FC8 /* VoiceCatalogTests.swift */; };
+		05D6DC6D12167E89FB64AD40 /* VoiceCommandsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4298BA03B5E87CFC9B91E723 /* VoiceCommandsTests.swift */; };
 		0EC762F09BF83156A11A134F /* LiveActivityButtons.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97460A95F1CA9E6D45762BFE /* LiveActivityButtons.swift */; };
 		104D492C8C3A51F286665FD8 /* IntentRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91519E30548CFC57A34F19EE /* IntentRunner.swift */; };
+		1057CD956DD8FB081911436A /* FieldIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD3F8FD907AD1AD114626275 /* FieldIntents.swift */; };
 		11875192E9EAFECC79DABA39 /* Components.swift in Sources */ = {isa = PBXBuildFile; fileRef = 174CC43FB55650E3ADD75F46 /* Components.swift */; };
+		184BAD3E2577C3A68E2EBFAF /* VoiceOptions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64E1DF184687B1A1FB003718 /* VoiceOptions.swift */; };
 		1C89058F02093C6506330C83 /* LiveActivityButtons.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97460A95F1CA9E6D45762BFE /* LiveActivityButtons.swift */; };
 		1E1B26C4A40FF877A255E691 /* AppEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = C130C9D6D6E12A2BCD39E059 /* AppEnvironment.swift */; };
 		210A451BC06E8FF049CC8269 /* TimeCardUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C111B64C0C07020B9DCCDD2 /* TimeCardUITests.swift */; };
+		253742F751F911DAB962C6A7 /* DeviceConditions.swift in Sources */ = {isa = PBXBuildFile; fileRef = D105DACF9663AEC797D5772E /* DeviceConditions.swift */; };
+		2B0D928BDC4C0BBE97302A71 /* IntentTestSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB65973F2655D3BF684FAD8C /* IntentTestSupport.swift */; };
 		3B3E0A8E54FB630EFF4F45D1 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF7548AC9CE7DC4BC309E713 /* SettingsView.swift */; };
 		3DFDFC60E9F3DEFA8A73D693 /* LiveActivityController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 265B9098E1A69BDACEBA441D /* LiveActivityController.swift */; };
+		46676B9D459A12A9680AF1E9 /* StatusIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31130F6FC7731C1A1DED1F21 /* StatusIntent.swift */; };
 		4C4F9F482F05AA8C690EADED /* ReportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 165D9CB59A2B73311DD924DB /* ReportView.swift */; };
 		4CE2765501913B4EEF9A13AE /* TimeCardCore in Frameworks */ = {isa = PBXBuildFile; productRef = 1F16EF2DBAA82812E5FCBF05 /* TimeCardCore */; };
+		4DD2F2AA27B852A097142928 /* IntentSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 904D9F76E48F461975CF2B70 /* IntentSupport.swift */; };
 		56E3F456E020D3F26D8FCE9D /* TimeCardCore in Frameworks */ = {isa = PBXBuildFile; productRef = 76760F4A041CFB039DF2E1BF /* TimeCardCore */; };
 		5840091B8188A4BF57AD73A8 /* PlatformTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A441859AAEFA8511A46EA2F /* PlatformTests.swift */; };
 		599CF5E9C4D373F558210B4B /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 6BC6220C858784A309DE828F /* Assets.xcassets */; };
@@ -25,10 +33,16 @@
 		618B9907BE87D4087CF8B019 /* Fonts in Resources */ = {isa = PBXBuildFile; fileRef = 4533B607361861A2BBFEC580 /* Fonts */; };
 		6D9D98F9095F3172A1030E61 /* PlaceholderScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 234058F6C063B04E8BE8BA61 /* PlaceholderScreen.swift */; };
 		6E021FFA63E1736E7099AF2B /* DesignTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC14C784BB8F321617C3E862 /* DesignTests.swift */; };
+		751062469CE17D71A7CEF54B /* SiriFlows.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC6CA1FF2A1BC48FDE206332 /* SiriFlows.swift */; };
+		7511C0B9FB8E2AD5EF7C1637 /* ShortcutPhraseTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 186796056F4B45B706F848AD /* ShortcutPhraseTests.swift */; };
 		7CA05566481CF06C0E9F30E1 /* Palette.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75E425709A1FCF4E60DE4173 /* Palette.swift */; };
+		8057829A685F63C508DFCF95 /* DaySnippetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C662D48C297ACDAC071A3A7 /* DaySnippetView.swift */; };
 		822D64D9A13F48FE7A32851F /* ActivityKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 99943374729E87599B2C037E /* ActivityKit.framework */; };
+		8B061B5A9EA8360F7B808C1F /* TimeCardShortcuts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97313E8FA51B7FD0FC1071AA /* TimeCardShortcuts.swift */; };
+		904DC96DF54580278D189DA6 /* SpokenNumberTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5852DDF9A8C7AC498ED1E6AC /* SpokenNumberTests.swift */; };
 		96CED505F7707F4ED3F801B4 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E751EFB1A84C048A71D83B9 /* AppModel.swift */; };
 		9ABF6503163CD2383CE3F4C1 /* ClockView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0661937D9296096B85070F81 /* ClockView.swift */; };
+		9DC65F62F6D1F7B66DB65D9F /* FarmEntities.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9ED62564AD3E4695044C18E8 /* FarmEntities.swift */; };
 		A0E91B616D12F7A09D9CB812 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FB3543BFD49BF47889FBEFD /* RootView.swift */; };
 		A11346CECD3BFC51BA365381 /* AppModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1528797F8AD8C65C37F90E4 /* AppModelTests.swift */; };
 		A327B4C2DF3C355FFA9FA1F6 /* TimeCardApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1620ADB0A89E887DA3CBB17E /* TimeCardApp.swift */; };
@@ -36,17 +50,27 @@
 		A557B44473F43053CBA86614 /* TreesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB142D28E01DD5D7B047B8BA /* TreesView.swift */; };
 		B36F932D59108B2F4C40620E /* Appearance.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5935F4ACB9CB99F78AD24707 /* Appearance.swift */; };
 		B3A31CF1F267626DAE69CD97 /* SignInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB37F784FF57349039E30269 /* SignInView.swift */; };
+		B5541E598750BA078CC799CD /* VoiceCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4BC9B762AD9A1EA2EA656E33 /* VoiceCatalog.swift */; };
 		B958CCE566260AFB7A9D922B /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 76F859F4EF55B8D49AECE08D /* SwiftUI.framework */; };
 		BB7A7BA9144FF746B18BBFBF /* ShiftEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3759E7FDBE2DBB6FD394D128 /* ShiftEditorView.swift */; };
+		CC47F4CC3C75F3FC990D6DCB /* SpokenNumber.swift in Sources */ = {isa = PBXBuildFile; fileRef = F21D5D36381655346D7E3548 /* SpokenNumber.swift */; };
 		CF5BB610A45AA574D9D20AFF /* TeamView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27EE1EAFDEEE2B00BC480F2B /* TeamView.swift */; };
 		D13E042FE534FB7568A52475 /* ResetPasswordView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DF2BA924D3E91EFC54A8D18 /* ResetPasswordView.swift */; };
 		D37A27B39B55A8CA3FB8CE65 /* TimeCardWidgetsBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 576C231644ECC8C6932C2E33 /* TimeCardWidgetsBundle.swift */; };
+		DA625F7D09CE2A55CC7F361B /* VoiceText.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0301314C66A18C9D233890B /* VoiceText.swift */; };
+		DEC03AE02545A77399012EEF /* VoiceCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C9EA53B37797325B0CFB766 /* VoiceCommands.swift */; };
 		E0B03D5A5C903A53DE4C5503 /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87281864A7B6C79D025F7336 /* MainTabView.swift */; };
+		E0D1FB91C0FD52264C43A582 /* IntentDonations.swift in Sources */ = {isa = PBXBuildFile; fileRef = E463BC54336CEB6A881010E1 /* IntentDonations.swift */; };
+		E299322A522196BD44C9EBE4 /* DayCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6AC0B02FC296D93E3F1452CD /* DayCard.swift */; };
 		E7B1BDB75CDE2C1F66B0B60D /* TimeCardLiveActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BB263D26A2AD84BDE25A0AF /* TimeCardLiveActivity.swift */; };
 		E9F3A70825BDE99356AD28AD /* Typography.swift in Sources */ = {isa = PBXBuildFile; fileRef = 430050FEBA83C41B0D8C1F39 /* Typography.swift */; };
 		EC667902F7B2D991519539B0 /* TimeCardActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24D0A0F8E20930ACEF5AD5CB /* TimeCardActivityAttributes.swift */; };
+		EFF703CFCEE7295C334CEEFF /* StartTime.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0DB32E95B7773AA4B46D9F9 /* StartTime.swift */; };
 		F2DC4499FFD5F66BA1844426 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 268D96072E557AB5DA77E1FA /* WidgetKit.framework */; };
+		F4F56CC8F84944E475EF5D8E /* IntentShellTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D080A410852ECC585704FB4F /* IntentShellTests.swift */; };
+		FA55BECAABCA57C8875A40CE /* DaySnippetTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D47043DF0F5D0E98339B40EA /* DaySnippetTests.swift */; };
 		FF6FFF5EDAE4581A8CD35E19 /* TimeCardWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 9DE6B97E96723E748D99793B /* TimeCardWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		FFBB579F0385A5CAC582B5EE /* StartTimeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E71FAB5FE8BD15A8D3A01A07 /* StartTimeTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -92,36 +116,50 @@
 		1620ADB0A89E887DA3CBB17E /* TimeCardApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimeCardApp.swift; sourceTree = "<group>"; };
 		165D9CB59A2B73311DD924DB /* ReportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportView.swift; sourceTree = "<group>"; };
 		174CC43FB55650E3ADD75F46 /* Components.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Components.swift; sourceTree = "<group>"; };
+		186796056F4B45B706F848AD /* ShortcutPhraseTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutPhraseTests.swift; sourceTree = "<group>"; };
 		20FB6B3A248F1A020FE728B8 /* Base.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Base.xcconfig; sourceTree = "<group>"; };
 		234058F6C063B04E8BE8BA61 /* PlaceholderScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaceholderScreen.swift; sourceTree = "<group>"; };
 		24D0A0F8E20930ACEF5AD5CB /* TimeCardActivityAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimeCardActivityAttributes.swift; sourceTree = "<group>"; };
 		265B9098E1A69BDACEBA441D /* LiveActivityController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityController.swift; sourceTree = "<group>"; };
 		268D96072E557AB5DA77E1FA /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		27EE1EAFDEEE2B00BC480F2B /* TeamView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeamView.swift; sourceTree = "<group>"; };
+		31130F6FC7731C1A1DED1F21 /* StatusIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusIntent.swift; sourceTree = "<group>"; };
 		3759E7FDBE2DBB6FD394D128 /* ShiftEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShiftEditorView.swift; sourceTree = "<group>"; };
+		3E8ADE5EA509E495FED67FC8 /* VoiceCatalogTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceCatalogTests.swift; sourceTree = "<group>"; };
+		4298BA03B5E87CFC9B91E723 /* VoiceCommandsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceCommandsTests.swift; sourceTree = "<group>"; };
 		430050FEBA83C41B0D8C1F39 /* Typography.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Typography.swift; sourceTree = "<group>"; };
 		4533B607361861A2BBFEC580 /* Fonts */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Fonts; path = App/Resources/Fonts; sourceTree = SOURCE_ROOT; };
+		4BC9B762AD9A1EA2EA656E33 /* VoiceCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceCatalog.swift; sourceTree = "<group>"; };
 		4E751EFB1A84C048A71D83B9 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
 		576C231644ECC8C6932C2E33 /* TimeCardWidgetsBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimeCardWidgetsBundle.swift; sourceTree = "<group>"; };
+		5852DDF9A8C7AC498ED1E6AC /* SpokenNumberTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpokenNumberTests.swift; sourceTree = "<group>"; };
 		5935F4ACB9CB99F78AD24707 /* Appearance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Appearance.swift; sourceTree = "<group>"; };
+		5C9EA53B37797325B0CFB766 /* VoiceCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceCommands.swift; sourceTree = "<group>"; };
+		64E1DF184687B1A1FB003718 /* VoiceOptions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceOptions.swift; sourceTree = "<group>"; };
 		6A441859AAEFA8511A46EA2F /* PlatformTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlatformTests.swift; sourceTree = "<group>"; };
+		6AC0B02FC296D93E3F1452CD /* DayCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DayCard.swift; sourceTree = "<group>"; };
 		6BC6220C858784A309DE828F /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		6C662D48C297ACDAC071A3A7 /* DaySnippetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DaySnippetView.swift; sourceTree = "<group>"; };
 		75E425709A1FCF4E60DE4173 /* Palette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Palette.swift; sourceTree = "<group>"; };
 		76F859F4EF55B8D49AECE08D /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 		7C111B64C0C07020B9DCCDD2 /* TimeCardUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimeCardUITests.swift; sourceTree = "<group>"; };
 		7DF2BA924D3E91EFC54A8D18 /* ResetPasswordView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResetPasswordView.swift; sourceTree = "<group>"; };
 		87281864A7B6C79D025F7336 /* MainTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainTabView.swift; sourceTree = "<group>"; };
 		8C42AEC580754A7C4570AB15 /* TimeCard.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = TimeCard.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		904D9F76E48F461975CF2B70 /* IntentSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntentSupport.swift; sourceTree = "<group>"; };
 		91519E30548CFC57A34F19EE /* IntentRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntentRunner.swift; sourceTree = "<group>"; };
+		97313E8FA51B7FD0FC1071AA /* TimeCardShortcuts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimeCardShortcuts.swift; sourceTree = "<group>"; };
 		97460A95F1CA9E6D45762BFE /* LiveActivityButtons.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityButtons.swift; sourceTree = "<group>"; };
 		98BD916919AFEA594B96FDBB /* JoinView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JoinView.swift; sourceTree = "<group>"; };
 		99943374729E87599B2C037E /* ActivityKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ActivityKit.framework; path = System/Library/Frameworks/ActivityKit.framework; sourceTree = SDKROOT; };
 		9BB263D26A2AD84BDE25A0AF /* TimeCardLiveActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimeCardLiveActivity.swift; sourceTree = "<group>"; };
 		9DE6B97E96723E748D99793B /* TimeCardWidgets.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = TimeCardWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		9ED62564AD3E4695044C18E8 /* FarmEntities.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FarmEntities.swift; sourceTree = "<group>"; };
 		9FB3543BFD49BF47889FBEFD /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		A7D1AE21BCC9D9FB5D329866 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		B1528797F8AD8C65C37F90E4 /* AppModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModelTests.swift; sourceTree = "<group>"; };
 		BB37F784FF57349039E30269 /* SignInView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignInView.swift; sourceTree = "<group>"; };
+		BC6CA1FF2A1BC48FDE206332 /* SiriFlows.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SiriFlows.swift; sourceTree = "<group>"; };
 		BCE003B9CB6B5840F1EDBDA4 /* TimeCardCore */ = {isa = PBXFileReference; lastKnownFileType = folder; name = TimeCardCore; path = TimeCardCore; sourceTree = SOURCE_ROOT; };
 		C130C9D6D6E12A2BCD39E059 /* AppEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppEnvironment.swift; sourceTree = "<group>"; };
 		C209647017C5C2118ADABE0C /* TimeCardUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = TimeCardUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -129,10 +167,20 @@
 		C80A940F649E97D3B59D935C /* TimeCard.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TimeCard.entitlements; sourceTree = "<group>"; };
 		CB04224614B08F77A07C9900 /* TimeCardWidgets.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TimeCardWidgets.entitlements; sourceTree = "<group>"; };
 		CB142D28E01DD5D7B047B8BA /* TreesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TreesView.swift; sourceTree = "<group>"; };
+		D0301314C66A18C9D233890B /* VoiceText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceText.swift; sourceTree = "<group>"; };
+		D080A410852ECC585704FB4F /* IntentShellTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntentShellTests.swift; sourceTree = "<group>"; };
+		D0DB32E95B7773AA4B46D9F9 /* StartTime.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StartTime.swift; sourceTree = "<group>"; };
+		D105DACF9663AEC797D5772E /* DeviceConditions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceConditions.swift; sourceTree = "<group>"; };
+		D47043DF0F5D0E98339B40EA /* DaySnippetTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DaySnippetTests.swift; sourceTree = "<group>"; };
 		D8590FEBE4E0A048FDFC91F7 /* LogView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogView.swift; sourceTree = "<group>"; };
 		DC14C784BB8F321617C3E862 /* DesignTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignTests.swift; sourceTree = "<group>"; };
+		DD3F8FD907AD1AD114626275 /* FieldIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FieldIntents.swift; sourceTree = "<group>"; };
 		DF7548AC9CE7DC4BC309E713 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		E463BC54336CEB6A881010E1 /* IntentDonations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntentDonations.swift; sourceTree = "<group>"; };
 		E48D61AF82088B1C9CFDD3F2 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		E71FAB5FE8BD15A8D3A01A07 /* StartTimeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StartTimeTests.swift; sourceTree = "<group>"; };
+		F21D5D36381655346D7E3548 /* SpokenNumber.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpokenNumber.swift; sourceTree = "<group>"; };
+		FB65973F2655D3BF684FAD8C /* IntentTestSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntentTestSupport.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -158,6 +206,19 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		046C540C6248C9D5FB7A3E5D /* Voice */ = {
+			isa = PBXGroup;
+			children = (
+				6AC0B02FC296D93E3F1452CD /* DayCard.swift */,
+				D105DACF9663AEC797D5772E /* DeviceConditions.swift */,
+				F21D5D36381655346D7E3548 /* SpokenNumber.swift */,
+				D0DB32E95B7773AA4B46D9F9 /* StartTime.swift */,
+				5C9EA53B37797325B0CFB766 /* VoiceCommands.swift */,
+				D0301314C66A18C9D233890B /* VoiceText.swift */,
+			);
+			path = Voice;
+			sourceTree = "<group>";
+		};
 		1293CD6E8D0B4EE3793B1D89 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
@@ -278,8 +339,24 @@
 				B1528797F8AD8C65C37F90E4 /* AppModelTests.swift */,
 				DC14C784BB8F321617C3E862 /* DesignTests.swift */,
 				6A441859AAEFA8511A46EA2F /* PlatformTests.swift */,
+				7FD5ADA99778BE4497F63AF7 /* Intents */,
 			);
 			path = Tests;
+			sourceTree = "<group>";
+		};
+		7FD5ADA99778BE4497F63AF7 /* Intents */ = {
+			isa = PBXGroup;
+			children = (
+				D47043DF0F5D0E98339B40EA /* DaySnippetTests.swift */,
+				D080A410852ECC585704FB4F /* IntentShellTests.swift */,
+				FB65973F2655D3BF684FAD8C /* IntentTestSupport.swift */,
+				186796056F4B45B706F848AD /* ShortcutPhraseTests.swift */,
+				5852DDF9A8C7AC498ED1E6AC /* SpokenNumberTests.swift */,
+				E71FAB5FE8BD15A8D3A01A07 /* StartTimeTests.swift */,
+				3E8ADE5EA509E495FED67FC8 /* VoiceCatalogTests.swift */,
+				4298BA03B5E87CFC9B91E723 /* VoiceCommandsTests.swift */,
+			);
+			path = Intents;
 			sourceTree = "<group>";
 		};
 		8BDCD0D4B3AAEBAF41405806 /* Config */ = {
@@ -290,12 +367,34 @@
 			path = Config;
 			sourceTree = "<group>";
 		};
+		8D32B26DADCD78D761E23EC2 /* Snippets */ = {
+			isa = PBXGroup;
+			children = (
+				6C662D48C297ACDAC071A3A7 /* DaySnippetView.swift */,
+			);
+			path = Snippets;
+			sourceTree = "<group>";
+		};
 		8F460B0C21EE2F89DEB0C76B /* Intents */ = {
 			isa = PBXGroup;
 			children = (
 				91519E30548CFC57A34F19EE /* IntentRunner.swift */,
+				921F82DA2104EF0E61437A4A /* Entities */,
+				A8B0B6F1FFE5E0374291334C /* Siri */,
+				8D32B26DADCD78D761E23EC2 /* Snippets */,
+				046C540C6248C9D5FB7A3E5D /* Voice */,
 			);
 			path = Intents;
+			sourceTree = "<group>";
+		};
+		921F82DA2104EF0E61437A4A /* Entities */ = {
+			isa = PBXGroup;
+			children = (
+				9ED62564AD3E4695044C18E8 /* FarmEntities.swift */,
+				4BC9B762AD9A1EA2EA656E33 /* VoiceCatalog.swift */,
+				64E1DF184687B1A1FB003718 /* VoiceOptions.swift */,
+			);
+			path = Entities;
 			sourceTree = "<group>";
 		};
 		9EDC3ABE2AF545DE830BB132 /* Team */ = {
@@ -322,6 +421,19 @@
 				BB37F784FF57349039E30269 /* SignInView.swift */,
 			);
 			path = SignIn;
+			sourceTree = "<group>";
+		};
+		A8B0B6F1FFE5E0374291334C /* Siri */ = {
+			isa = PBXGroup;
+			children = (
+				DD3F8FD907AD1AD114626275 /* FieldIntents.swift */,
+				E463BC54336CEB6A881010E1 /* IntentDonations.swift */,
+				904D9F76E48F461975CF2B70 /* IntentSupport.swift */,
+				BC6CA1FF2A1BC48FDE206332 /* SiriFlows.swift */,
+				31130F6FC7731C1A1DED1F21 /* StatusIntent.swift */,
+				97313E8FA51B7FD0FC1071AA /* TimeCardShortcuts.swift */,
+			);
+			path = Siri;
 			sourceTree = "<group>";
 		};
 		AD92A9BB98F18AE091154218 /* Design */ = {
@@ -536,8 +648,16 @@
 			buildActionMask = 2147483647;
 			files = (
 				A11346CECD3BFC51BA365381 /* AppModelTests.swift in Sources */,
+				FA55BECAABCA57C8875A40CE /* DaySnippetTests.swift in Sources */,
 				6E021FFA63E1736E7099AF2B /* DesignTests.swift in Sources */,
+				F4F56CC8F84944E475EF5D8E /* IntentShellTests.swift in Sources */,
+				2B0D928BDC4C0BBE97302A71 /* IntentTestSupport.swift in Sources */,
 				5840091B8188A4BF57AD73A8 /* PlatformTests.swift in Sources */,
+				7511C0B9FB8E2AD5EF7C1637 /* ShortcutPhraseTests.swift in Sources */,
+				904DC96DF54580278D189DA6 /* SpokenNumberTests.swift in Sources */,
+				FFBB579F0385A5CAC582B5EE /* StartTimeTests.swift in Sources */,
+				04C40E265236B5758328D2FD /* VoiceCatalogTests.swift in Sources */,
+				05D6DC6D12167E89FB64AD40 /* VoiceCommandsTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -558,7 +678,14 @@
 				B36F932D59108B2F4C40620E /* Appearance.swift in Sources */,
 				9ABF6503163CD2383CE3F4C1 /* ClockView.swift in Sources */,
 				11875192E9EAFECC79DABA39 /* Components.swift in Sources */,
+				E299322A522196BD44C9EBE4 /* DayCard.swift in Sources */,
+				8057829A685F63C508DFCF95 /* DaySnippetView.swift in Sources */,
+				253742F751F911DAB962C6A7 /* DeviceConditions.swift in Sources */,
+				9DC65F62F6D1F7B66DB65D9F /* FarmEntities.swift in Sources */,
+				1057CD956DD8FB081911436A /* FieldIntents.swift in Sources */,
+				E0D1FB91C0FD52264C43A582 /* IntentDonations.swift in Sources */,
 				104D492C8C3A51F286665FD8 /* IntentRunner.swift in Sources */,
+				4DD2F2AA27B852A097142928 /* IntentSupport.swift in Sources */,
 				00697163D13940091B2F4A8D /* JoinView.swift in Sources */,
 				0EC762F09BF83156A11A134F /* LiveActivityButtons.swift in Sources */,
 				3DFDFC60E9F3DEFA8A73D693 /* LiveActivityController.swift in Sources */,
@@ -572,11 +699,20 @@
 				3B3E0A8E54FB630EFF4F45D1 /* SettingsView.swift in Sources */,
 				BB7A7BA9144FF746B18BBFBF /* ShiftEditorView.swift in Sources */,
 				B3A31CF1F267626DAE69CD97 /* SignInView.swift in Sources */,
+				751062469CE17D71A7CEF54B /* SiriFlows.swift in Sources */,
+				CC47F4CC3C75F3FC990D6DCB /* SpokenNumber.swift in Sources */,
+				EFF703CFCEE7295C334CEEFF /* StartTime.swift in Sources */,
+				46676B9D459A12A9680AF1E9 /* StatusIntent.swift in Sources */,
 				CF5BB610A45AA574D9D20AFF /* TeamView.swift in Sources */,
 				EC667902F7B2D991519539B0 /* TimeCardActivityAttributes.swift in Sources */,
 				A327B4C2DF3C355FFA9FA1F6 /* TimeCardApp.swift in Sources */,
+				8B061B5A9EA8360F7B808C1F /* TimeCardShortcuts.swift in Sources */,
 				A557B44473F43053CBA86614 /* TreesView.swift in Sources */,
 				E9F3A70825BDE99356AD28AD /* Typography.swift in Sources */,
+				B5541E598750BA078CC799CD /* VoiceCatalog.swift in Sources */,
+				DEC03AE02545A77399012EEF /* VoiceCommands.swift in Sources */,
+				184BAD3E2577C3A68E2EBFAF /* VoiceOptions.swift in Sources */,
+				DA625F7D09CE2A55CC7F361B /* VoiceText.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
