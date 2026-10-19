@@ -23,13 +23,14 @@ import { registerScene, type SceneContext } from '../scene.ts';
 import { MOMENTS, liveActivityAt } from '../../data/ledger.ts';
 import { setWave } from '../wave.ts';
 import { activityView } from '../../components/system/lockscreen/activity.ts';
-import { BREAK_PILL } from '../../sections/notes/copy.ts';
 import { plan, type BeatKey, type Span } from '../../sections/notes/plan.ts';
 
 type El = HTMLElement;
 
 /** The gold face before a reason is given ('On break': the card's own button gives none). */
 const SHORT_BREAK = activityView({ at: MOMENTS.island }).pillBreak;
+/** The gold face once the reason is spoken: 'On break · Sharpening shears'. */
+const BREAK_PILL = liveActivityAt(MOMENTS.break).pill;
 
 registerScene(
   'notes',
