@@ -158,11 +158,13 @@ HTML ≤ 75 KB gz, CSS ≤ 35 KB gz, first-load JS ≤ 6 KB gz, motion bundle �
 Animate only transform, opacity, clip-path and stroke-dashoffset.
 
 `npm run budgets` checks the built page and fails the run (and CI, before the deploy) when a
-line is over. On 2026-10-19: HTML 60 KB gz, first-load JS 3.7 KB gz, CSS before the first paint
-33 KB gz (one file: `astro.config.mjs` merges the page's eight Vite stylesheets after the build),
-CSS after the first paint 7.8 KB gz (the Trees, Clock and Report tabs, far below the fold: one
-non-blocking file; app screens stay blank until it lands, and the motion core waits for it before
-it builds a scene that measures one). Motion JS is 102 KB gz across a full scroll, over the
+line is over. On 2026-10-19: HTML 58 KB gz, first-load JS 3.7 KB gz, CSS before the first paint
+34.6 KB gz and CSS after the first paint 5.5 KB gz. After the build, `astro.config.mjs` (pageCss)
+merges the page's eight Vite stylesheets, in order, into one file; moves the Trees, Clock and
+Report tabs' rules for components that only draw inside a phone below the hero (found in the built
+HTML) into a second, non-blocking file (app screens stay blank until it lands, and the motion core
+waits for it before it builds a scene that measures one); and shortens Astro's scope classes
+(`astro-xxxxxxxx` → `_0`, `_1`…) in the page and those two files. Lab pages keep Vite's files. Motion JS is 102 KB gz across a full scroll, over the
 brief's 80 KB: GSAP, ScrollTrigger and SplitText alone are 50 KB, the motion core 4 KB and the
 nine scenes with their shared modules ~48 KB. That line fails at 104 KB, so it can only shrink;
 getting to 80 KB means replacing ScrollTrigger with a small scroll driver or cutting the scenes
