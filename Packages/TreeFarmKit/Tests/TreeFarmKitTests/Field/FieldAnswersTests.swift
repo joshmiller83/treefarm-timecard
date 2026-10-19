@@ -44,6 +44,31 @@ struct FieldAnswersTests {
         #expect(FieldAnswers.answer(.pace, state: f.state, now: f.at(30)) == "16 trees an hour today. Your season pace is 16 an hour.")
     }
 
+    @Test mutating func tooEarlyForAPace() {
+        _ = FieldEngine.run(.clockIn(fieldId: nil), &f.state, &undo, at: f.monday9)
+        _ = FieldEngine.run(.markNextRow, &f.state, &undo, at: f.at(1))
+        _ = FieldEngine.run(.markNextRow, &f.state, &undo, at: f.at(2))
+        #expect(FieldAnswers.answer(.trees, state: f.state, now: f.at(2)) == "8 trees today. Too early for a pace. You’re on block 1, row 3.")
+        #expect(FieldAnswers.answer(.pace, state: f.state, now: f.at(2)) == "8 trees today. Too early for a pace.")
+        #expect(FieldAnswers.answer(.trees, state: f.state, now: f.at(15)).hasPrefix("8 trees today, 32 an hour."))
+    }
+
+    @Test mutating func theSeasonPaceComesWithEarlierDays() {
+        // Last Monday: a shift with 2 rows over an hour.
+        let lastWeek = f.monday9.addingTimeInterval(-7 * 86400)
+        let old = Shift(userId: f.josh.userId, farmId: f.farm.id, start: lastWeek, end: lastWeek.addingTimeInterval(3600), rateCents: 1500, updatedAt: lastWeek)
+        f.state.myShifts = [old]
+        f.state.marks = (0..<2).flatMap { r in (0..<4).map { TreeMark(seasonId: f.season.id, tree: TreeRef(blockId: f.block2.id, row: r, position: $0), shiftId: old.id, userId: f.josh.userId, markedAt: lastWeek) } }
+        workAHalfHour()
+        #expect(FieldAnswers.answer(.pace, state: f.state, now: f.at(30)) == "16 trees an hour today. Your season pace is 11 an hour.")
+    }
+
+    @Test func aRateNeedsFifteenMinutes() {
+        #expect(!PaceStats(trees: 24, worked: 14 * 60, treesPerHour: 102, minutesPerTree: 0.6, payCentsPerTree: 0).hasRate)
+        #expect(PaceStats(trees: 24, worked: 15 * 60, treesPerHour: 96, minutesPerTree: 0.6, payCentsPerTree: 0).hasRate)
+        #expect(!PaceStats(trees: 0, worked: 3600, treesPerHour: 0, minutesPerTree: 0, payCentsPerTree: 0).hasRate)
+    }
+
     @Test mutating func payIsPrivateWhenLocked() {
         workAHalfHour()
         #expect(FieldAnswers.answer(.pay(locked: true, sayWhenLocked: false), state: f.state, now: f.at(90)) == "Unlock your phone to hear your pay.")

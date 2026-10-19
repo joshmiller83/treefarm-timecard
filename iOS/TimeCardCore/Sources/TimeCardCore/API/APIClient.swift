@@ -11,6 +11,34 @@ public protocol APIClient: Sendable {
     func me() async throws -> MeResponse
     func push(farmId: UUID, _ request: PushRequest) async throws -> PushResponse
     func pull(farmId: UUID, since: Int64, limit: Int) async throws -> PullResponse
+
+    // MARK: Your account
+
+    /// `PATCH /v1/me`: a new name, or a new password (with the current one).
+    func updateMe(_ request: UpdateMeRequest) async throws -> MeResponse
+    /// `DELETE /v1/me`: deletes the login. Shifts stay with the farm under the person's name.
+    func deleteAccount(_ request: DeleteAccountRequest) async throws
+    /// The devices signed in to this account, newest use first.
+    func sessions() async throws -> [SessionInfo]
+    func revokeSession(id: UUID) async throws
+
+    // MARK: Admin (the server refuses workers)
+
+    /// Every invite on the farm, newest first, without codes.
+    func invites(farmId: UUID) async throws -> [InviteInfo]
+    /// A new single-use invite; the answer is the only time its `code` is shown.
+    func createInvite(farmId: UUID, _ request: CreateInviteRequest) async throws -> InviteInfo
+    func revokeInvite(farmId: UUID, id: UUID) async throws
+    /// A single-use password-reset code for someone on the farm (24 hours).
+    func resetCode(farmId: UUID, userId: UUID) async throws -> ResetCodeResponse
+    /// Sets the person's `removedAt`; their hours stay. The change comes down with the next pull.
+    func removeMember(farmId: UUID, userId: UUID) async throws
+
+    // MARK: Export
+
+    /// Shifts that clock in within `[from, to)` as CSV. Workers get their own only;
+    /// admins anyone's (`userId`), or everyone's when it's nil.
+    func exportCSV(farmId: UUID, from: Date?, to: Date?, userId: UUID?) async throws -> Data
 }
 
 /// Why a call failed, sorted the way the app reacts to it.
@@ -44,7 +72,7 @@ public enum APIError: Error, Equatable, Sendable {
     public var userMessage: String {
         switch self {
         case .offline:
-            return "You're offline. Changes are saved on this phone and sync when you're back online."
+            return "You’re offline. Changes are saved on this phone and sync when you’re back online."
         case .unauthorized(let reason):
             return reason.isEmpty ? "Your sign-in has ended. Sign in again." : reason
         case .rateLimited(let reason, let retryAfter):
@@ -54,9 +82,9 @@ public enum APIError: Error, Equatable, Sendable {
         case .client(_, let reason), .server(_, let reason):
             return reason.isEmpty ? Self.serverTrouble : reason
         case .badResponse:
-            return "The server sent an answer this app doesn't understand. Check for an app update."
+            return "The server sent an answer this app doesn’t understand. Check for an app update."
         case .transport(let detail):
-            return "Couldn't reach the server (\(detail))."
+            return "Couldn’t reach the server (\(detail))."
         }
     }
 
@@ -123,9 +151,63 @@ public struct URLSessionAPIClient: APIClient {
         ], body: Optional<Empty>.none)
     }
 
+    // MARK: Your account
+
+    public func updateMe(_ request: UpdateMeRequest) async throws -> MeResponse {
+        try await send("PATCH", APIPath.me, body: request)
+    }
+
+    public func deleteAccount(_ request: DeleteAccountRequest) async throws {
+        try await sendNoAnswer("DELETE", APIPath.me, body: request)
+    }
+
+    public func sessions() async throws -> [SessionInfo] {
+        try await send("GET", APIPath.sessions, body: Optional<Empty>.none)
+    }
+
+    public func revokeSession(id: UUID) async throws {
+        try await sendNoAnswer("DELETE", APIPath.session(id), body: Optional<Empty>.none)
+    }
+
+    // MARK: Admin
+
+    public func invites(farmId: UUID) async throws -> [InviteInfo] {
+        try await send("GET", APIPath.invites(farm: farmId), body: Optional<Empty>.none)
+    }
+
+    public func createInvite(farmId: UUID, _ request: CreateInviteRequest) async throws -> InviteInfo {
+        try await send("POST", APIPath.invites(farm: farmId), body: request)
+    }
+
+    public func revokeInvite(farmId: UUID, id: UUID) async throws {
+        try await sendNoAnswer("DELETE", APIPath.invite(farm: farmId, id: id), body: Optional<Empty>.none)
+    }
+
+    public func resetCode(farmId: UUID, userId: UUID) async throws -> ResetCodeResponse {
+        try await send("POST", APIPath.memberReset(farm: farmId, user: userId), body: Optional<Empty>.none)
+    }
+
+    public func removeMember(farmId: UUID, userId: UUID) async throws {
+        try await sendNoAnswer("DELETE", APIPath.member(farm: farmId, user: userId), body: Optional<Empty>.none)
+    }
+
+    // MARK: Export
+
+    public func exportCSV(farmId: UUID, from: Date? = nil, to: Date? = nil, userId: UUID? = nil) async throws -> Data {
+        var query: [URLQueryItem] = []
+        if let from { query.append(URLQueryItem(name: "from", value: String(Self.millis(from)))) }
+        if let to { query.append(URLQueryItem(name: "to", value: String(Self.millis(to)))) }
+        if let userId { query.append(URLQueryItem(name: "userId", value: userId.uuidString)) }
+        return try await data("GET", APIPath.exportCSV(farm: farmId), query: query, body: nil, authenticated: true, accept: "text/csv")
+    }
+
     // MARK: Plumbing
 
     private struct Empty: Encodable {}
+
+    static func millis(_ date: Date) -> Int64 {
+        Int64((date.timeIntervalSince1970 * 1000).rounded())
+    }
 
     private func send<Body: Encodable, Answer: Decodable>(
         _ method: String, _ path: String, query: [URLQueryItem] = [], body: Body?, authenticated: Bool = true
@@ -139,13 +221,20 @@ public struct URLSessionAPIClient: APIClient {
         }
     }
 
-    private func data(_ method: String, _ path: String, query: [URLQueryItem], body: Data?, authenticated: Bool) async throws -> Data {
+    /// For routes that answer 204 No Content.
+    private func sendNoAnswer<Body: Encodable>(_ method: String, _ path: String, body: Body?) async throws {
+        let encoded = try body.map { try JSONCoding.encoder().encode($0) }
+        _ = try await data(method, path, query: [], body: encoded, authenticated: true)
+    }
+
+    private func data(_ method: String, _ path: String, query: [URLQueryItem], body: Data?, authenticated: Bool,
+                      accept: String = "application/json") async throws -> Data {
         let relative = String(path.drop(while: { $0 == "/" }))
         var components = URLComponents(url: baseURL.appendingPathComponent(relative), resolvingAgainstBaseURL: false)!
         if !query.isEmpty { components.queryItems = query }
         var request = URLRequest(url: components.url!)
         request.httpMethod = method
-        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue(accept, forHTTPHeaderField: "Accept")
         if let body {
             request.httpBody = body
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")

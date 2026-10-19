@@ -45,4 +45,13 @@ struct DatabaseTests {
         #expect(FileManager.default.fileExists(atPath: file.path))
         #expect(FileManager.default.fileExists(atPath: file.path + "-wal"))
     }
+
+    @Test func letsGoOfTheSharedFileWhenTheAppSleeps() {
+        // Suspension itself is process-wide, so it isn't exercised here (other tests write in parallel).
+        #expect(AppDatabase.configuration().observesSuspensionNotifications)
+        #expect(AppDatabase.isSuspension(DatabaseError(resultCode: .SQLITE_ABORT)))
+        #expect(AppDatabase.isSuspension(DatabaseError(resultCode: .SQLITE_INTERRUPT)))
+        #expect(!AppDatabase.isSuspension(DatabaseError(resultCode: .SQLITE_FULL)))
+        #expect(!AppDatabase.isSuspension(APIError.offline))
+    }
 }

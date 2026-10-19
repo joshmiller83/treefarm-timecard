@@ -9,6 +9,9 @@ public struct PaceStats: Equatable, Sendable {
     public var minutesPerTree: Double
     public var payCentsPerTree: Int
 
+    /// Enough work behind it to say a rate: a few minutes in, "535 an hour" sounds broken.
+    public var hasRate: Bool { trees > 0 && worked >= Pace.minimumForRate }
+
     public init(trees: Int, worked: TimeInterval, treesPerHour: Double, minutesPerTree: Double, payCentsPerTree: Int) {
         self.trees = trees
         self.worked = worked
@@ -20,6 +23,10 @@ public struct PaceStats: Equatable, Sendable {
 
 /// Ports of the artifact's paceOf, the best-day note, and its number wording.
 public enum Pace {
+    /// Worked time before trees an hour means anything (15 minutes). Below it Siri says
+    /// "Too early for a pace." and cards show "–".
+    public static let minimumForRate: TimeInterval = 15 * 60
+
     /// Only shifts with at least one tree count (an unmarked shift doesn't drag the pace down).
     /// Deleted shifts are skipped. Pay per tree uses each shift's own rate.
     public static func stats(_ shifts: [Shift], now: Date, treeCount: (Shift) -> Int) -> PaceStats {

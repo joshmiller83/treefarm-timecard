@@ -15,6 +15,9 @@ enum Palette {
     static let line = Color("Line")
     /// Fir green: primary actions, "working".
     static let fir = Color("Fir")
+    /// The working status card: fir in light mode, a deeper fir in dark mode so white text
+    /// and the translucent buttons on it stay above 4.5:1.
+    static let firCard = Color("FirCard")
     /// Text and icons on fir.
     static let firInk = Color("FirInk")
     /// Soft fir fill (status pill, selected rows).
@@ -25,8 +28,11 @@ enum Palette {
     static let sap = Color("Sap")
     static let sapSoft = Color("SapSoft")
     static let sapInk = Color("SapInk")
-    /// Rust: destructive actions and errors.
+    /// Rust: destructive actions and errors (as text and icons).
     static let rust = Color("Rust")
+    /// Rust as a fill under white text (destructive buttons): deeper than `rust` in dark
+    /// mode, where the text color is too light to carry white.
+    static let rustFill = Color("RustFill")
     /// The printed time card stays paper-white in both modes.
     static let paper = Color("Paper")
     static let paperInk = Color("PaperInk")
@@ -40,8 +46,8 @@ enum Palette {
     /// Every token by asset name, for tests and previews.
     static let all: [(name: String, color: Color)] = [
         ("Bg", bg), ("Surface", surface), ("Ink", ink), ("Muted", muted), ("Line", line),
-        ("Fir", fir), ("FirInk", firInk), ("FirSoft", firSoft), ("FirText", firText),
-        ("Sap", sap), ("SapSoft", sapSoft), ("SapInk", sapInk), ("Rust", rust),
+        ("Fir", fir), ("FirCard", firCard), ("FirInk", firInk), ("FirSoft", firSoft), ("FirText", firText),
+        ("Sap", sap), ("SapSoft", sapSoft), ("SapInk", sapInk), ("Rust", rust), ("RustFill", rustFill),
         ("Paper", paper), ("PaperInk", paperInk), ("TreeEmpty", treeEmpty), ("Stripe", stripe), ("BlockLine", blockLine),
     ]
 }

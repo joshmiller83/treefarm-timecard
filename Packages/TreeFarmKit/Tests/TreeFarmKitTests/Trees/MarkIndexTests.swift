@@ -151,4 +151,29 @@ struct MarkIndexTests {
         #expect(next.mark(at: sams.tree) == sams)
         #expect(next.marks(onShift: F.myShift).isEmpty)
     }
+
+    @Test func keptUpToDateItMatchesARebuild() {
+        let block = UUID()
+        let shiftA = UUID(), shiftB = UUID(), user = UUID(), season = UUID()
+        let t0 = Date(timeIntervalSince1970: 1_000)
+        func mark(_ row: Int, _ p: Int, shift: UUID, at: TimeInterval) -> TreeMark {
+            TreeMark(seasonId: season, tree: TreeRef(blockId: block, row: row, position: p), shiftId: shift, userId: user, markedAt: t0 + at)
+        }
+        let early = mark(0, 0, shift: shiftA, at: 0)
+        let late = mark(0, 0, shift: shiftB, at: 5)
+        var index = MarkIndex(marks: [])
+        index.apply(late)
+        index.apply(early)
+        #expect(index.mark(at: early.tree)?.id == early.id, "the earlier claim wins")
+        var gone = early
+        gone.deletedAt = t0 + 10
+        index.apply(gone)
+        #expect(index.mark(at: early.tree)?.id == late.id, "the next claim takes the tree")
+        #expect(index.count(onShift: shiftB, blocks: [Block(id: block, fieldId: UUID(), name: "1", gridRow: 0, gridColumn: 0, rowCount: 5, treesPerRow: 5)]) == 1)
+        var moved = late
+        moved.shiftId = shiftA
+        index.apply(moved)
+        #expect(index.marks(onShift: shiftB).isEmpty)
+        #expect(index.marks(onShift: shiftA).map(\.id) == [late.id])
+    }
 }

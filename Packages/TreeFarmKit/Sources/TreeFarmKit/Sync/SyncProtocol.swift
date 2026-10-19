@@ -8,6 +8,17 @@ public enum RecordKind: String, Codable, Sendable, CaseIterable {
     case farm, member, season, field, block, shift, treeMark, treeNote
 }
 
+/// A record's identity: its kind and the id of the thing it describes.
+public struct RecordKey: Hashable, Codable, Sendable {
+    public var kind: RecordKind
+    public var id: UUID
+
+    public init(_ kind: RecordKind, _ id: UUID) {
+        self.kind = kind
+        self.id = id
+    }
+}
+
 public enum SyncRecord: Hashable, Sendable {
     case farm(Farm)
     case member(Member)
@@ -30,6 +41,8 @@ public enum SyncRecord: Hashable, Sendable {
         case .treeNote: .treeNote
         }
     }
+
+    public var key: RecordKey { RecordKey(kind, entityId) }
 
     /// The id of the thing this record describes (a member is keyed by its user).
     public var entityId: UUID {

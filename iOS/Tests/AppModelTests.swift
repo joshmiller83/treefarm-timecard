@@ -49,4 +49,70 @@ struct AppModelTests {
         await model.start()
         #expect(model.storageError == "Broken")
     }
+
+    // MARK: Switching servers
+
+    private func signedInStore() throws -> (LocalStore, InMemoryTokenStore, UserDefaults) {
+        let store = try LocalStore.inMemory()
+        try store.setValue(Data("me".utf8), forKey: AuthService.meKey)
+        let defaults = try #require(UserDefaults(suiteName: "ServerSwitch-\(UUID().uuidString)"))
+        return (store, InMemoryTokenStore(token: "old-token"), defaults)
+    }
+
+    @Test func theSameServerKeepsTheSignIn() throws {
+        let (store, tokens, defaults) = try signedInStore()
+        // Signed in before the setting existed: that was the standard server.
+        let switched = try AppEnvironment.adoptServer(TimeCardCore.defaultServerURL, store: store, tokens: tokens, defaults: defaults)
+        #expect(!switched)
+        #expect(try tokens.read() == "old-token")
+        #expect(try store.value(forKey: AuthService.meKey) != nil)
+        #expect(defaults.string(forKey: ServerAddress.signedInServerKey) == TimeCardCore.defaultServerURL.absoluteString)
+    }
+
+    @Test func aNewServerForgetsTheOldSignInBeforeAnyRequest() throws {
+        let (store, tokens, defaults) = try signedInStore()
+        let other = try ServerAddress.parse("https://tc.example.com").get()
+        let switched = try AppEnvironment.adoptServer(other, store: store, tokens: tokens, defaults: defaults)
+        #expect(switched)
+        #expect(try tokens.read() == nil)
+        #expect(try store.value(forKey: AuthService.meKey) == nil)
+        #expect(defaults.string(forKey: ServerAddress.signedInServerKey) == other.absoluteString)
+        // The next launch on that server keeps the sign-in made there.
+        try tokens.save("new-token")
+        #expect(try !AppEnvironment.adoptServer(other, store: store, tokens: tokens, defaults: defaults))
+        #expect(try tokens.read() == "new-token")
+    }
+
+    @Test func settingsOffersTheSwitchNowThatTheAppMakesIt() {
+        #expect(ServerAddress.isEditable)
+    }
+
+    // MARK: Opening again after the first unlock
+
+    private func sealedModel(_ error: String = "Sealed") -> AppModel {
+        let session = TimeCardSession(store: try! LocalStore.inMemory(), api: StubAPIClient(), tokens: InMemoryTokenStore(), deviceName: "t")
+        return AppModel(session: session, mode: .live, storageError: error)
+    }
+
+    @Test func aSealedModelIsMadeAgain() {
+        let opened = AppEnvironment.makeModel(mode: .uiTest(signedIn: true))
+        #expect(AppModel.reopening(sealedModel(), make: { opened }) === opened)
+    }
+
+    @Test func aModelThatOpenedIsKept() {
+        var made = 0
+        let opened = AppEnvironment.makeModel(mode: .uiTest(signedIn: true))
+        #expect(AppModel.reopening(opened, make: { made += 1; return opened }) == nil)
+        #expect(made == 0)
+    }
+
+    @Test func theSharedModelStaysWhileItsDatabaseIsOpen() {
+        let shared = AppModel.shared
+        guard shared.storageError == nil else { return }
+        var made = 0
+        #expect(AppModel.reopenIfSealed(make: { made += 1; return self.sealedModel() }) === shared)
+        #expect(made == 0)
+        #expect(AppModel.shared === shared)
+    }
 }
+

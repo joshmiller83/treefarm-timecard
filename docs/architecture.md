@@ -36,7 +36,7 @@ Fields have bad reception. Every change is saved on the phone first and queued i
 
 ## The lock screen while locked
 
-Live Activity buttons and Siri run while the phone is locked. The database therefore uses the `completeUntilFirstUserAuthentication` protection class and the token sits in the Keychain as `afterFirstUnlock`. Both are readable after the first unlock following a reboot. Before that first unlock, an intent says "Unlock your phone once, then try again."
+Live Activity buttons and Siri run while the phone is locked. The database therefore uses the `completeUntilFirstUserAuthentication` protection class and the token sits in the Keychain as `afterFirstUnlock`. Both are readable after the first unlock following a reboot. Before that first unlock, an intent says "Unlock your phone once, then try again." A process woken then keeps a model that couldn't open its data; once the phone is unlocked, the next intent or the app coming forward opens the database again (`AppModel.reopenIfSealed`), and that model becomes the one the window, Siri and the lock screen share.
 
 ## Data shape
 

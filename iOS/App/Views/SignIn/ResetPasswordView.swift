@@ -22,14 +22,17 @@ struct ResetPasswordView: View {
                         .keyboardType(.emailAddress)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
+                        .accessibilityLabel("Email")
                         .accessibilityIdentifier("reset-email")
                     TextField("Reset code", text: $code)
                         .textInputAutocapitalization(.characters)
                         .autocorrectionDisabled()
                         .font(.tcNumber)
+                        .accessibilityLabel("Reset code")
                         .accessibilityIdentifier("reset-code")
                     SecureField("New password", text: $newPassword)
                         .textContentType(.newPassword)
+                        .accessibilityLabel("New password")
                         .accessibilityIdentifier("reset-password")
                 }
                 .textFieldStyle(.glove)
@@ -52,7 +55,7 @@ struct ResetPasswordView: View {
         }
         .scrollDismissesKeyboard(.interactively)
         .screenBackground()
-        .navigationTitle("Reset code")
+        .navigationTitle("Reset Code")
         .navigationBarTitleDisplayMode(.inline)
     }
 

@@ -131,4 +131,14 @@ struct ClockTests {
         let closed = F.shift("2026-10-16 07:00", "2026-10-16 12:20", breaks: [F.lunch("2026-10-16 12:00", nil)])
         #expect(Clock.breakLines(closed, now: F.wall("2026-10-18 09:00")) == ["Lunch 20 min"])
     }
+
+    @Test func aBreakEndedTheMomentItStartedLeavesNothing() throws {
+        let t = Date(timeIntervalSince1970: 1_760_000_000)
+        let open = try Clock.clockIn(userId: UUID(), farmId: UUID(), rateCents: 0, at: t, shifts: [])
+        let lunch = try Clock.startBreak(.lunch, reason: "", at: t + 60, in: open)
+        #expect(try Clock.endBreak(at: t + 60, in: lunch).breaks.isEmpty)
+        let out = try Clock.clockOut(at: t + 60, shift: lunch)
+        #expect(out.breaks.isEmpty)
+        #expect(ShiftRules.validate(out, others: [], now: t + 60, calendar: FarmCalendar(timeZone: .gmt, weekStart: .monday)) == nil)
+    }
 }

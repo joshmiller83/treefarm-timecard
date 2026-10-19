@@ -61,11 +61,36 @@ struct TimeCardSessionTests {
         #expect(second.snapshot.blocks[f.blockId] == f.block)
     }
 
+    @Test func aSignedInLaunchKnowsItsFarmBeforeTheStoreOpens() async throws {
+        let store = try LocalStore.inMemory()
+        let stub = await makeStub()
+        let first = try makeSession(store: store, stub: stub)
+        try await first.signIn(email: "josh@example.com", password: "pw")
+        _ = await first.syncNow()
+        await first.stop()
+
+        let second = try makeSession(store: store, stub: stub)
+        // Straight from the cached `/me`: the app never shows "No farm yet" for a crew member.
+        #expect(second.farm == f.farm)
+        #expect(!second.hasOpened)
+        await second.start()
+        #expect(second.hasOpened)
+        #expect(second.snapshot.blocks[f.blockId] == f.block)
+    }
+
+    @Test func aSignedOutLaunchHasNothingToOpen() async throws {
+        let session = try makeSession(stub: await makeStub())
+        #expect(session.farm == nil)
+        await session.start()
+        #expect(session.hasOpened)
+    }
+
     @Test func savesShowUpAndWaitToSync() async throws {
         let stub = await makeStub()
         let session = try makeSession(stub: stub)
         try await session.signIn(email: "josh@example.com", password: "pw")
         _ = await session.syncNow()
+        await session.engine?.settle()
         await stub.failNext(.offline)
         await stub.failNext(.offline)
         await stub.failNext(.offline)
@@ -131,6 +156,26 @@ struct TimeCardSessionTests {
         #expect(session.snapshot.blocks.isEmpty)
     }
 
+    @Test func signingOutDuringASlowPullLeavesNothingBehind() async throws {
+        let stub = await makeStub()
+        let store = try LocalStore.inMemory()
+        let session = try makeSession(store: store, stub: stub)
+        try await session.signIn(email: "josh@example.com", password: "pw")
+        _ = await session.syncNow()
+        // Sam's shift comes with the next pull, which takes a while.
+        let sams = Shift(userId: f.otherUserId, farmId: f.farmId, start: Fixtures.t0, end: Fixtures.t0 + 3600, rateCents: 2000, updatedAt: Fixtures.t0)
+        await stub.seed(farmId: f.farmId, [.shift(sams)])
+        await stub.setPullDelay(.milliseconds(400))
+        await session.requestSync(.manual)
+        try await Task.sleep(for: .milliseconds(100))
+
+        #expect(await session.signOut() == .signedOut)
+        try await Task.sleep(for: .milliseconds(600))
+        #expect(store.snapshot.shifts.isEmpty, "the pull on its way wrote into the signed-out phone")
+        #expect(store.snapshot.blocks.isEmpty)
+        #expect(try store.cursor(farmId: f.farmId) == 0)
+    }
+
     @Test func rejectionsBecomeTheLatestNotice() async throws {
         let stub = await makeStub()
         let session = try makeSession(stub: stub)
@@ -169,5 +214,75 @@ struct TimeCardSessionTests {
         let removed = Member(userId: f.userId, farmId: f.farmId, displayName: "Josh", email: "", role: .worker, removedAt: Fixtures.t0)
         let me = MeResponse(user: UserProfile(id: f.userId, email: "", displayName: "Josh"), farms: [f.farm], memberships: [removed])
         #expect(TimeCardSession.chooseFarm(in: me, preferred: f.farmId) == nil)
+    }
+
+    // MARK: Role changes
+
+    struct Crew {
+        let stub: StubAPIClient
+        let me: Member
+        let boss: Member
+        let bossShift: Shift
+    }
+
+    /// Josh (the phone's person) with `role`, and Sam, an admin on $25 with a shift of his own.
+    func crew(joshAs role: Role) async -> Crew {
+        let me = Member(userId: f.userId, farmId: f.farmId, displayName: "Josh", email: "josh@example.com", role: role,
+                        rateCents: 1800, updatedAt: Fixtures.t0)
+        let boss = Member(userId: f.otherUserId, farmId: f.farmId, displayName: "Sam", email: "sam@example.com", role: .admin,
+                          rateCents: 2500, updatedAt: Fixtures.t0)
+        let bossShift = Shift(userId: boss.userId, farmId: f.farmId, start: Fixtures.t0, end: Fixtures.t0 + 3600, rateCents: 2500,
+                              updatedAt: Fixtures.t0)
+        let stub = StubAPIClient()
+        await stub.seed(farmId: f.farmId, [.farm(f.farm), .member(me), .member(boss), .season(f.season), .field(f.field), .block(f.block),
+                                           .shift(bossShift)])
+        let response = MeResponse(user: UserProfile(id: f.userId, email: "josh@example.com", displayName: "Josh"), farms: [f.farm], memberships: [me])
+        await stub.addAccount(email: "josh@example.com", password: "pw", me: response)
+        return Crew(stub: stub, me: me, boss: boss, bossShift: bossShift)
+    }
+
+    @Test func aPromotedWorkerGetsEveryonesHoursAndRealRates() async throws {
+        let crew = await crew(joshAs: .worker)
+        let session = try makeSession(stub: crew.stub)
+        try await session.signIn(email: "josh@example.com", password: "pw")
+        _ = await session.syncNow()
+        #expect(session.snapshot.shifts[crew.bossShift.id] == nil)
+        #expect(session.snapshot.members[crew.boss.userId]?.rateCents == 0)
+        #expect(!session.isAdmin)
+
+        var promoted = crew.me
+        promoted.role = .admin
+        promoted.updatedAt = Fixtures.t0 + 60
+        await crew.stub.seed(farmId: f.farmId, [.member(promoted)])
+        _ = await session.syncNow()
+
+        try await waitUntil { await MainActor.run {
+            session.snapshot.shifts[crew.bossShift.id] != nil && !session.isCatchingUpOnRole
+        } }
+        #expect(session.isAdmin)
+        #expect(session.snapshot.members[crew.boss.userId] == crew.boss)
+        #expect(try session.store.pulledAs(farmId: f.farmId) == .admin)
+    }
+
+    @Test func aDemotedAdminsPhoneForgetsOtherPeoplesHours() async throws {
+        let crew = await crew(joshAs: .admin)
+        let session = try makeSession(stub: crew.stub)
+        try await session.signIn(email: "josh@example.com", password: "pw")
+        _ = await session.syncNow()
+        #expect(session.snapshot.shifts[crew.bossShift.id] == crew.bossShift)
+        #expect(session.snapshot.members[crew.boss.userId]?.rateCents == 2500)
+
+        var demoted = crew.me
+        demoted.role = .worker
+        demoted.updatedAt = Fixtures.t0 + 60
+        await crew.stub.seed(farmId: f.farmId, [.member(demoted)])
+        _ = await session.syncNow()
+
+        try await waitUntil { await MainActor.run {
+            session.snapshot.shifts[crew.bossShift.id] == nil && !session.isCatchingUpOnRole
+                && session.snapshot.members[crew.boss.userId]?.rateCents == 0
+        } }
+        #expect(session.snapshot.members[crew.boss.userId]?.email == "")
+        #expect(!session.isAdmin)
     }
 }

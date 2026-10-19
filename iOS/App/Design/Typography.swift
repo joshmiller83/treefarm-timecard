@@ -32,6 +32,34 @@ extension Font {
     /// Numbers inside body text and lists.
     static let tcNumber = Font.custom(Typeface.numberMedium, size: 17, relativeTo: .body)
     static let tcNumberSmall = Font.custom(Typeface.numberMedium, size: 13, relativeTo: .caption)
+
+    // One weight up for Bold Text (Settings > Accessibility > Display & Text Size).
+    static let tcTitle2Bold = Font.custom(Typeface.headingBold, size: 22, relativeTo: .title2)
+    static let tcHeadlineBold = Font.custom(Typeface.headingBold, size: 19, relativeTo: .headline)
+    static let tcNumberBold = Font.custom(Typeface.numberSemiBold, size: 17, relativeTo: .body)
+    static let tcNumberSmallBold = Font.custom(Typeface.numberSemiBold, size: 13, relativeTo: .caption)
+
+    /// The same face one weight heavier, for Bold Text. Plex Mono SemiBold is the heaviest
+    /// number weight bundled, so the timer and stats stay as they are.
+    var bolder: Font {
+        switch self {
+        case .tcTitle2: .tcTitle2Bold
+        case .tcHeadline: .tcHeadlineBold
+        case .tcNumber: .tcNumberBold
+        case .tcNumberSmall: .tcNumberSmallBold
+        default: self
+        }
+    }
+}
+
+/// A custom font that goes one weight up with Bold Text, as the system font does.
+struct LegibleFont: ViewModifier {
+    var font: Font
+    @Environment(\.legibilityWeight) private var weight
+
+    func body(content: Content) -> some View {
+        content.font(weight == .bold ? font.bolder : font)
+    }
 }
 
 /// The sizes numbers come in.
@@ -48,14 +76,37 @@ enum NumberSize {
     }
 }
 
+extension Text {
+    /// "48 trees", "3.03 hrs", "1:45/tree": the number in Plex Mono, the words after it in the
+    /// system font at the same size, so only digits look like digits.
+    static func numberPhrase(_ phrase: String, _ size: NumberSize = .body, weight: Font.Weight = .regular) -> Text {
+        let split = phrase.firstIndex(of: " ") ?? phrase.endIndex
+        let number = Text(phrase[..<split]).font(size.font).monospacedDigit()
+        guard split < phrase.endIndex else { return number }
+        return number + Text(phrase[split...]).font(size.wordFont.weight(weight))
+    }
+}
+
+extension NumberSize {
+    /// The system font that sits beside each number size.
+    var wordFont: Font {
+        switch self {
+        case .timer: .title
+        case .stat: .title3
+        case .body: .body
+        case .small: .footnote
+        }
+    }
+}
+
 extension View {
     /// Plex Mono with tabular digits, so ticking numbers don't jiggle.
     func numberStyle(_ size: NumberSize = .body) -> some View {
-        font(size.font).monospacedDigit()
+        modifier(LegibleFont(font: size.font)).monospacedDigit()
     }
 
     /// Zilla Slab title in ink.
     func headingStyle(_ font: Font = .tcTitle2) -> some View {
-        self.font(font).foregroundStyle(Palette.ink)
+        modifier(LegibleFont(font: font)).foregroundStyle(Palette.ink)
     }
 }

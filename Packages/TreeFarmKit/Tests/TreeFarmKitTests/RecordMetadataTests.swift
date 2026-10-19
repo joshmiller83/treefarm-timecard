@@ -71,3 +71,36 @@ struct WireDateTests {
         #expect(abs(shift.start.timeIntervalSince1970 - 1_760_000_000.1234) < 0.000_01)
     }
 }
+
+@Suite("Edit stamps and rate changes")
+struct EditStampTests {
+    let t = Date(timeIntervalSince1970: 1_760_000_000)
+
+    @Test func anEditIsAlwaysAfterWhatItReplaces() {
+        #expect(RecordMetadata.stamp(t + 60, after: t) == (t + 60).roundedToMillisecond)
+        // This phone's clock is behind the last writer's.
+        #expect(RecordMetadata.stamp(t - 60, after: t) == t.addingTimeInterval(0.001).roundedToMillisecond)
+        #expect(RecordMetadata.stamp(t, after: t) == t.addingTimeInterval(0.001).roundedToMillisecond)
+    }
+
+    @Test func aNewRateRepricesTheShiftOnTheClockOnly() throws {
+        let userId = UUID(), farmId = UUID()
+        let old = Member(userId: userId, farmId: farmId, displayName: "Sam", email: "", role: .worker, rateCents: 1800, updatedAt: t)
+        var raised = old
+        raised.rateCents = 2000
+        let open = Shift(userId: userId, farmId: farmId, start: t, rateCents: 1800, updatedAt: t)
+        let records = RateChange.records(member: raised, from: old, openShift: open, now: t + 120)
+        #expect(records.count == 2)
+        guard case .shift(let repriced) = records[1] else { Issue.record("no shift"); return }
+        #expect(repriced.rateCents == 2000)
+        // Only the job title changed: no shift is touched.
+        var retitled = old
+        retitled.jobTitle = "Crew lead"
+        #expect(RateChange.records(member: retitled, from: old, openShift: open, now: t + 120).count == 1)
+        // A finished shift keeps its rate.
+        var closed = open
+        closed.end = t + 3600
+        #expect(RateChange.records(member: raised, from: old, openShift: closed, now: t + 120).count == 1)
+        #expect(RateChange.outOfRange == "The pay rate has to be between $0 and $10,000 an hour.")
+    }
+}

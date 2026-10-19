@@ -11,6 +11,7 @@ Each line here has a test, written before the code it covers. The test name is i
 - An open shift from yesterday shows "worked this shift" with a warning.
 - A shift open more than 16 hours prompts a "forgot to clock out?" fix.
 - A closed shift can't be longer than 24 hours; a zero-length shift is refused.
+- A clock-in left open for days: Clock out (and Siri) checks the same rules as the server and points to the Log; the Clock tab's button becomes "Fix clock-out time", which opens the shift with a clock-out filled in from the last break or tree [clockingOutAfter25HoursPointsToTheLog, fixingAClockOutLeftOpenForDaysFillsInTheLastWork].
 
 ## Shifts and breaks
 - Overlapping shifts, including overlap with the shift that's still open.
@@ -34,7 +35,11 @@ Each line here has a test, written before the code it covers. The test name is i
 - Days offline, then hundreds of changes pushed in batches.
 - A push retried after a timeout is applied once.
 - A pull while edits are waiting keeps the local edits.
-- A token that expires while offline keeps every local change and asks to sign in again.
+- A token that expires while offline keeps every local change and asks to sign in again; someone else signing in over unsynced work is refused before anything is wiped [signingInAgainAsSomeoneElseCantWipeUnsyncedWork].
+- A clock-in refused because a shift is already open moves its trees to that shift; only a lost tree drops the local copy [aRefusedClockInKeepsItsCopyAndMovesItsTreesToTheOpenShift].
+- A role change pulls the farm again under the new role; a demoted admin's phone forgets other people's shifts [aPromotedWorkerGetsEveryonesHoursAndRealRates, aDemotedAdminsPhoneForgetsOtherPeoplesHours].
+- Signing out waits for a sync on its way and sends waiting changes first [signingOutDuringASlowPullLeavesNothingBehind, signingOutRightAfterASaveSendsItFirst].
+- An edit is stamped after the version it replaces, even when this phone's clock is behind [anEditIsAlwaysAfterWhatItReplaces].
 - Expired or used invite codes; a mistyped code with dashes or lowercase letters still works.
 - The last admin can't demote or remove themself.
 - A removed member's hours stay, but they can't sign in to that farm.
@@ -48,7 +53,8 @@ Each line here has a test, written before the code it covers. The test name is i
 - Siri before the first unlock after a reboot.
 - Two voice commands back to back, faster than a sync.
 - A spoken row far from where you are ("forty" heard for "fourteen") asks before marking.
-- "Next row" when the next open row is in another block says the block out loud.
+- "Next row" when the next open row is in another block says the block out loud, including when a sync shaped the rest of your block [nextRowSaysTheBlockWhenASyncMovedYou].
 - Answering "no" to the clock-out question changes nothing.
+- Undo never crosses a shift: clocking in or out clears it, and it refuses anything changed since (deleted in the Log, fixed by an admin, refused by the server) [clockingOutForgetsWhatCouldBeUndone, undoCantReviveAShiftDeletedInTheLog, undoKeepsAnAdminFixThatArrivedBySync].
 - A dictated note over the length limit is trimmed, and Siri says so.
 - Pay is spoken on a locked phone only if you turned that on.

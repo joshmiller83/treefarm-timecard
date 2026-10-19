@@ -13,10 +13,11 @@ struct GloveButtonStyle: ButtonStyle {
         case destructive
     }
 
-    static let minHeight: CGFloat = 54
+    nonisolated static let minHeight: CGFloat = 54
 
     var kind: Kind = .primary
     @Environment(\.isEnabled) private var isEnabled
+    @Environment(\.colorSchemeContrast) private var contrast
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
@@ -29,27 +30,32 @@ struct GloveButtonStyle: ButtonStyle {
             .background(background, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
             .overlay {
                 if kind == .secondary {
-                    RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Palette.line, lineWidth: 1)
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .strokeBorder(Palette.line, lineWidth: contrast == .increased ? 1.5 : 1)
                 }
             }
             .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-            .opacity(isEnabled ? (configuration.isPressed ? 0.82 : 1) : 0.45)
-            .scaleEffect(configuration.isPressed ? 0.98 : 1)
+            .opacity(configuration.isPressed ? 0.82 : 1)
+            .pressScale(configuration.isPressed)
             .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
     }
 
+    /// A disabled button is drawn as one, in both modes: a hairline-grey fill and muted words
+    /// (fir at half opacity still looked like a button you could press in dark mode).
     private var foreground: Color {
+        guard isEnabled else { return Palette.muted }
         switch kind {
-        case .primary, .destructive: Palette.firInk
-        case .secondary: Palette.ink
+        case .primary, .destructive: return Palette.firInk
+        case .secondary: return Palette.ink
         }
     }
 
     private var background: Color {
+        guard isEnabled else { return Palette.line }
         switch kind {
-        case .primary: Palette.fir
-        case .secondary: Palette.surface
-        case .destructive: Palette.rust
+        case .primary: return Palette.fir
+        case .secondary: return Palette.surface
+        case .destructive: return Palette.rustFill
         }
     }
 }
@@ -65,13 +71,16 @@ extension ButtonStyle where Self == GloveButtonStyle {
 /// A surface card: 1 pt line border, 14 pt corners.
 struct CardModifier: ViewModifier {
     var padding: CGFloat = 16
+    @Environment(\.colorSchemeContrast) private var contrast
 
     func body(content: Content) -> some View {
         content
             .padding(padding)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(Palette.surface, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Palette.line, lineWidth: 1))
+            // With Increase Contrast the edge is heavier, and Line itself is stronger (asset catalog).
+            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .strokeBorder(Palette.line, lineWidth: contrast == .increased ? 1.5 : 1))
     }
 }
 
@@ -83,6 +92,57 @@ extension View {
     /// The calm green-grey page behind everything.
     func screenBackground() -> some View {
         background(Palette.bg.ignoresSafeArea())
+    }
+}
+
+/// The small shrink of a pressed button, left out with Reduce Motion.
+struct PressScale: ViewModifier {
+    var pressed: Bool
+    var amount: CGFloat
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func body(content: Content) -> some View {
+        content.scaleEffect(pressed && !reduceMotion ? amount : 1)
+    }
+}
+
+extension View {
+    func pressScale(_ pressed: Bool, _ amount: CGFloat = 0.98) -> some View {
+        modifier(PressScale(pressed: pressed, amount: amount))
+    }
+}
+
+extension AnyTransition {
+    /// Slides in from an edge, or only fades with Reduce Motion.
+    static func slide(from edge: Edge, reduceMotion: Bool) -> AnyTransition {
+        reduceMotion ? .opacity : .move(edge: edge).combined(with: .opacity)
+    }
+}
+
+/// The house empty or waiting state: an icon in a soft fir square, a Zilla Slab title and a
+/// line of help, on a surface card. Used wherever there's nothing to show yet.
+struct EmptyStateCard: View {
+    var systemImage: String
+    var title: String
+    var detail: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Image(systemName: systemImage)
+                .font(.system(size: 26, weight: .semibold))
+                .foregroundStyle(Palette.firText)
+                .frame(width: 56, height: 56)
+                .background(Palette.firSoft, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .accessibilityHidden(true)
+            Text(title).headingStyle(.tcTitle2)
+                .accessibilityAddTraits(.isHeader)
+            Text(detail)
+                .font(.body)
+                .foregroundStyle(Palette.muted)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .card(padding: 20)
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -99,6 +159,9 @@ struct SectionLabel: View {
             .font(.caption.weight(.semibold))
             .tracking(0.8)
             .foregroundStyle(Palette.muted)
+            // All caps grow loud fast: they stop at AX2, with the Large Content Viewer past it.
+            .dynamicTypeSize(...DynamicTypeSize.accessibility2)
+            .accessibilityShowsLargeContentViewer()
             .accessibilityAddTraits(.isHeader)
     }
 }
@@ -142,16 +205,98 @@ struct StatusPill: View {
     var tone: Tone
 
     var body: some View {
-        HStack(spacing: 6) {
-            Circle().fill(tone.dot).frame(width: 8, height: 8)
-            Text(text).font(.subheadline.weight(.semibold))
+        PillContent(text: text, tone: tone)
+            // A pill is a label, not a paragraph: it stops growing at AX2.
+            .dynamicTypeSize(...DynamicTypeSize.accessibility2)
+            .accessibilityElement(children: .combine)
+            .accessibilityShowsLargeContentViewer { Text(text) }
+    }
+
+    /// Inside the size cap, so the dot grows with the words up to where they stop.
+    private struct PillContent: View {
+        var text: String
+        var tone: Tone
+        @ScaledMetric(relativeTo: .subheadline) private var dot: CGFloat = 8
+
+        var body: some View {
+            HStack(spacing: 6) {
+                Circle().fill(tone.dot).frame(width: dot, height: dot)
+                Text(text).font(.subheadline.weight(.semibold))
+            }
+            .foregroundStyle(tone.ink)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(tone.fill, in: Capsule())
+            .overlay(Capsule().strokeBorder(tone.dot.opacity(0.25), lineWidth: 1))
         }
-        .foregroundStyle(tone.ink)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 6)
-        .background(tone.fill, in: Capsule())
-        .overlay(Capsule().strokeBorder(tone.dot.opacity(0.25), lineWidth: 1))
-        .accessibilityElement(children: .combine)
+    }
+}
+
+// MARK: Segmented choices
+
+/// Two or three big choices side by side (Crew | Fields | Season, Lunch | Break, This week |
+/// Last week | …): glove-sized segments, the chosen one fir green. When the words wouldn't fit
+/// on one line each (the largest text sizes) the segments go one under another, so a word
+/// never breaks ("Lun/ch"). Used by every tab, so a choice looks the same everywhere.
+struct GloveSegmented<Value: Hashable>: View {
+    var options: [(value: Value, title: String, identifier: String)]
+    @Binding var selection: Value
+
+    /// Each option names its own accessibility identifier.
+    init(options: [(value: Value, title: String, identifier: String)], selection: Binding<Value>) {
+        self.options = options
+        self._selection = selection
+    }
+
+    /// Identifiers are "<identifier>-<title>", e.g. "report-range-This week".
+    init(options: [(value: Value, title: String)], selection: Binding<Value>, identifier: String) {
+        self.options = options.map { ($0.value, $0.title, "\(identifier)-\($0.title)") }
+        self._selection = selection
+    }
+
+    var body: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 4) { segments(oneLine: true) }
+            VStack(spacing: 4) { segments(oneLine: false) }
+        }
+        .padding(4)
+        .background(Palette.surface, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Palette.line, lineWidth: 1))
+        // Like the system's segmented controls, the words stop growing a step into the
+        // accessibility sizes (a long press shows them large), so short choices such as
+        // Crew | Fields | Season stay side by side instead of filling the screen.
+        .dynamicTypeSize(...DynamicTypeSize.accessibility1)
+        .sensoryFeedback(.selection, trigger: selection)
+    }
+
+    private func segments(oneLine: Bool) -> some View {
+        ForEach(options.indices, id: \.self) { i in
+            let option = options[i]
+            let selected = option.value == selection
+            Button {
+                withAnimation(.easeInOut(duration: 0.18)) { selection = option.value }
+            } label: {
+                Text(option.title)
+                    .font(.headline)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(oneLine ? 1 : nil)
+                    .minimumScaleFactor(oneLine ? 0.75 : 1)
+                    .foregroundStyle(selected ? Palette.firInk : Palette.ink)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, oneLine ? 0 : 8)
+                    .frame(maxWidth: .infinity, minHeight: GloveButtonStyle.minHeight)
+                    .background {
+                        if selected {
+                            RoundedRectangle(cornerRadius: 11, style: .continuous).fill(Palette.fir)
+                        }
+                    }
+                    .contentShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
+            }
+            .buttonStyle(.plain)
+            .accessibilityShowsLargeContentViewer()
+            .accessibilityAddTraits(selected ? .isSelected : [])
+            .accessibilityIdentifier(option.identifier)
+        }
     }
 }
 
@@ -175,6 +320,26 @@ extension TextFieldStyle where Self == GloveFieldStyle {
 }
 
 /// A message in rust with an icon, for errors under a form.
+/// Says something to VoiceOver once: a message that just appeared on screen. The same words
+/// within a second (a view and its action both asking) are said once.
+@MainActor
+enum Announcer {
+    private static var last: (text: String, at: Date)?
+
+    static func say(_ text: String?, after delay: Duration = .milliseconds(250)) {
+        guard let text, !text.isEmpty else { return }
+        let now = Date()
+        if let last, last.text == text, now.timeIntervalSince(last.at) < 1 { return }
+        last = (text, now)
+        Task { @MainActor in
+            // After VoiceOver has read the button that was tapped.
+            try? await Task.sleep(for: delay)
+            AccessibilityNotification.Announcement(text).post()
+        }
+    }
+}
+
+/// A problem under a form, said to VoiceOver as it appears.
 struct ErrorMessage: View {
     var text: String
 
@@ -188,6 +353,7 @@ struct ErrorMessage: View {
         .foregroundStyle(Palette.rust)
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityIdentifier("form-error")
+        .task(id: text) { Announcer.say(text) }
     }
 }
 
@@ -209,7 +375,7 @@ struct ErrorMessage: View {
             Button("Take a break") {}.buttonStyle(.gloveSecondary)
             Button("Clock out") {}.buttonStyle(.gloveDestructive)
             TextField("Email", text: .constant("")).textFieldStyle(.glove)
-            ErrorMessage(text: "That email and password don't match.")
+            ErrorMessage(text: "That email and password don’t match.")
         }
         .padding()
     }

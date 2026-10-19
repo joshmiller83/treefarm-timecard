@@ -1,5 +1,6 @@
 import SwiftUI
 import TimeCardCore
+import UIKit
 
 enum AppTab: String, Hashable {
     case clock, trees, log, report, team
@@ -41,12 +42,15 @@ struct MainTabView: View {
         .safeAreaInset(edge: .top, spacing: 0) {
             Banners()
         }
+        // Buttons like the Clock tab's "Past shifts" and "Open the map" switch tabs.
+        .environment(\.openTab, OpenTabAction { [tab = $tab] in tab.wrappedValue = $0 })
     }
 }
 
 /// Session and sync messages that sit above every tab.
 private struct Banners: View {
     @Environment(TimeCardSession.self) private var session
+    @Environment(\.scenePhase) private var scenePhase
     @State private var signingIn = false
 
     var body: some View {
@@ -56,12 +60,17 @@ private struct Banners: View {
                        text: "Your sign-in ended. Your changes are safe on this phone.",
                        actionTitle: "Sign in") { signingIn = true }
                     .accessibilityIdentifier("expired-banner")
+                    .onAppear { AccessibilityNotification.Announcement("Your sign-in ended. Your changes are safe on this phone.").post() }
             }
             if let notice = session.latestNotice {
                 Banner(tone: .alert, systemImage: "exclamationmark.bubble", text: notice.message,
                        actionTitle: "OK") { session.dismissNotice() }
                     .accessibilityIdentifier("sync-notice")
                     .task(id: notice.id) {
+                        AccessibilityNotification.Announcement(notice.message).post()
+                        // Seen as it arrived: it goes after a while. One that came while the app
+                        // was in the background, or with VoiceOver on, stays until dismissed.
+                        guard scenePhase == .active, !UIAccessibility.isVoiceOverRunning else { return }
                         try? await Task.sleep(for: .seconds(12))
                         if session.latestNotice?.id == notice.id { session.dismissNotice() }
                     }
@@ -78,6 +87,7 @@ private struct Banners: View {
 }
 
 struct Banner: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var tone: StatusPill.Tone
     var systemImage: String
     var text: String
@@ -98,12 +108,14 @@ struct Banner: View {
             Button(actionTitle, action: action)
                 .font(.callout.weight(.semibold))
                 .foregroundStyle(tone.ink)
-                .frame(minWidth: 44, minHeight: 44)
+                .padding(.horizontal, 10)
+                .frame(minWidth: GloveButtonStyle.minHeight, minHeight: GloveButtonStyle.minHeight)
+                .contentShape(Rectangle())
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 6)
         .background(Palette.surface, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(tone.dot.opacity(0.45), lineWidth: 1))
-        .transition(.move(edge: .top).combined(with: .opacity))
+        .transition(.slide(from: .top, reduceMotion: reduceMotion))
     }
 }

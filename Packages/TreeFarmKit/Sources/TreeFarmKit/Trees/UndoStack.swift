@@ -29,6 +29,15 @@ public struct UndoStack<Entry: Sendable>: Sendable {
         entries.popLast()
     }
 
+    /// Changes every entry in place (oldest first).
+    public mutating func updateEach(_ body: (inout Entry) -> Void) {
+        for i in entries.indices { body(&entries[i]) }
+    }
+
+    public mutating func removeAll() {
+        entries.removeAll()
+    }
+
     /// Drops entries that can no longer be undone, such as ones for a deleted shift.
     public mutating func removeAll(where shouldRemove: (Entry) -> Bool) {
         entries.removeAll(where: shouldRemove)

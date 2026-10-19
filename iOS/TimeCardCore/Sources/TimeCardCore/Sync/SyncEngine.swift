@@ -51,11 +51,14 @@ public struct SyncStatus: Equatable, Sendable {
     }
 }
 
-/// A change the server turned down, in words the app can show or Siri can speak.
+/// A change the server turned down, in words the app can show or Siri can speak. Tree marks
+/// lost to someone else in one pass come as one notice per row.
 public struct SyncNotice: Equatable, Sendable, Identifiable {
     public var id: UUID
     public var kind: RecordKind
     public var entityId: UUID
+    /// Every record the notice is about (the trees of a row, say), `entityId` first.
+    public var entityIds: [UUID]
     public var reason: RejectReason?
     public var message: String
 
@@ -63,8 +66,47 @@ public struct SyncNotice: Equatable, Sendable, Identifiable {
         id = rejection.mutationId
         kind = rejection.kind
         entityId = rejection.entityId
+        entityIds = [rejection.entityId]
         reason = rejection.reason
         message = rejection.message
+    }
+
+    /// One notice for several rejections of the same kind and reason.
+    init(_ group: [Rejection], message: String) {
+        self.init(group[0])
+        entityIds = group.map(\.entityId)
+        self.message = message
+    }
+
+    /// The pass's rejections as notices: lost trees grouped by who shaped them and which row
+    /// ("Sam shaped 10 trees in Block 2, row 1 first. …"), everything else one by one (a single
+    /// lost tree keeps the server's "Row 12, tree 4 in Block 2 was shaped by Sam on Oct 16.").
+    public static func grouped(_ rejections: [Rejection], snapshot: FarmSnapshot) -> [SyncNotice] {
+        struct RowKey: Hashable { var userId: UUID; var blockId: UUID; var row: Int }
+        var notices: [SyncNotice] = []
+        var rows: [RowKey: [Rejection]] = [:]
+        var order: [RowKey] = []
+        for rejection in rejections {
+            guard rejection.kind == .treeMark, rejection.reason == .treeTaken, case .treeMark(let winner)? = rejection.current else {
+                notices.append(SyncNotice(rejection))
+                continue
+            }
+            let key = RowKey(userId: winner.userId, blockId: winner.blockId, row: winner.row)
+            if rows[key] == nil { order.append(key) }
+            rows[key, default: []].append(rejection)
+        }
+        for key in order {
+            let group = rows[key] ?? []
+            // One tree: the server's own sentence already says who, where and when.
+            guard group.count > 1 else {
+                notices.append(SyncNotice(group[0]))
+                continue
+            }
+            let message = MarkMessages.shapedFirst(by: snapshot.members[key.userId]?.displayName, count: group.count, row: key.row,
+                                                   in: snapshot.blocks[key.blockId])
+            notices.append(SyncNotice(group, message: message))
+        }
+        return notices
     }
 }
 
@@ -118,6 +160,8 @@ public actor SyncEngine {
 
     public private(set) var status = SyncStatus()
     private var signedOut = false
+    /// Set by `stopAndWait()`: no pass writes to the store again.
+    private var stopped = false
     private var running: Task<SyncOutcome, Never>?
     private var scheduled: Task<Void, Never>?
     private var generation = 0
@@ -154,6 +198,16 @@ public actor SyncEngine {
         scheduled?.cancel()
         scheduled = nil
         generation += 1
+    }
+
+    /// Stops for good and waits for a pass already running to end (it stops at its next step
+    /// and writes nothing more). Call before wiping the store, so a pull that was on its way
+    /// can't put the last person's records back after the wipe.
+    public func stopAndWait() async {
+        stop()
+        stopped = true
+        running?.cancel()
+        while let current = running { _ = await current.value }
     }
 
     /// Stops syncing as if the server had refused the token (the app opened with an
@@ -228,9 +282,48 @@ public actor SyncEngine {
         return await pass.value
     }
 
+    /// Waits until no pass is running or already asked for. A pass requested a moment ago
+    /// (signing in asks for one) may not have started when `syncNow()` returns, and then runs
+    /// after it; tests wait here before scripting the server's next answer, so that late pass
+    /// can't take it. A backoff retry is waited for too, so call this only when nothing fails.
+    func settle() async {
+        var waited: Set<Task<Void, Never>> = []
+        while true {
+            if let pending = scheduled, !waited.contains(pending) {
+                waited.insert(pending)
+                await pending.value
+            } else if let current = running {
+                _ = await current.value
+            } else {
+                return
+            }
+        }
+    }
+
+    /// Pulls everything again from the start, after any pass already running, because the
+    /// person's role changed and the server now shows them different records. With `owner`,
+    /// other people's shifts are dropped first (no longer an admin).
+    @discardableResult
+    public func pullEverythingAgain(keepingOnlyShiftsOf owner: UUID?) async -> SyncOutcome {
+        // A pass already running would move the cursor past the restart when it ends.
+        while let current = running { _ = await current.value }
+        do {
+            try store.restartPulls(farmId: farmId, keepingOnlyShiftsOf: owner)
+        } catch {
+            return .failed("Couldn’t save on this phone: \(error.localizedDescription)")
+        }
+        return await syncNow()
+    }
+
+    /// Before every store write in a pass: stop when the engine was stopped meanwhile.
+    private func stillRunning() throws {
+        if stopped || Task.isCancelled { throw CancellationError() }
+    }
+
     private func runPass() async -> SyncOutcome {
         defer { running = nil }
         guard !signedOut else { return .signedOut }
+        guard !stopped else { return .failed("Syncing stopped.") }
         update { $0.phase = .syncing }
         do {
             let pushed = try await pushAll()
@@ -244,7 +337,10 @@ public actor SyncEngine {
                 $0.lastError = nil
             }
             return .synced(pushed: pushed, pulled: pulled)
+        } catch is CancellationError {
+            return .failed("Syncing stopped.")
         } catch let error as APIError {
+            if stopped || Task.isCancelled { return .failed("Syncing stopped.") }
             switch error {
             case .unauthorized:
                 signedOut = true
@@ -255,8 +351,12 @@ public actor SyncEngine {
                 update { $0.phase = phase; $0.lastError = error.userMessage }
                 return error.isRetryable ? .retryLater(error) : .failed(error.userMessage)
             }
+        } catch where AppDatabase.isSuspension(error) {
+            // The app is going to sleep and let go of the database: try again when it wakes.
+            update { $0.phase = .idle }
+            return .retryLater(.transport("The database is paused while Time Card is in the background."))
         } catch {
-            let message = "Couldn't save on this phone: \(error.localizedDescription)"
+            let message = "Couldn’t save on this phone: \(error.localizedDescription)"
             update { $0.phase = .failed; $0.lastError = message }
             return .failed(message)
         }
@@ -265,6 +365,13 @@ public actor SyncEngine {
     private func pushAll() async throws -> Int {
         var after: Int64 = 0
         var pushed = 0
+        var refused: [Rejection] = []
+        // Said once per pass, grouped, even when a later batch fails.
+        defer {
+            if !refused.isEmpty {
+                for notice in SyncNotice.grouped(refused, snapshot: store.snapshot) { broadcast(notice) }
+            }
+        }
         while true {
             let batch = try store.outbox(farmId: farmId, after: after, limit: config.pushBatch)
             guard let last = batch.last else { break }
@@ -273,15 +380,17 @@ public actor SyncEngine {
             do {
                 response = try await api.push(farmId: farmId, PushRequest(mutations: batch.map(\.mutation)))
             } catch let error as APIError {
+                try stillRunning()
                 try? store.recordAttempt(mutationIds: batch.map(\.mutationId), error: error.userMessage)
                 throw error
             }
+            try stillRunning()
             let rejections = try store.applyPushResults(response.results, farmId: farmId)
             let answered = Set(response.results.map(\.mutationId))
             let unanswered = batch.map(\.mutationId).filter { !answered.contains($0) }
-            try store.recordAttempt(mutationIds: unanswered, error: "The server didn't answer this change.")
+            try store.recordAttempt(mutationIds: unanswered, error: "The server didn’t answer this change.")
             pushed += response.results.filter { $0.status == .applied }.count
-            for rejection in rejections { broadcast(SyncNotice(rejection)) }
+            refused += rejections
         }
         return pushed
     }
@@ -291,12 +400,14 @@ public actor SyncEngine {
         var pulled = 0
         while true {
             let page = try await api.pull(farmId: farmId, since: since, limit: config.pullLimit)
+            try stillRunning()
             try store.applyRemote(page.changes, farmId: farmId, cursor: page.cursor)
             pulled += page.changes.count
             // Stop if the server says it's done, or stops making progress.
             guard page.hasMore, page.cursor > since else { break }
             since = page.cursor
         }
+        try stillRunning()
         try store.finishPull(farmId: farmId)
         return pulled
     }

@@ -22,7 +22,7 @@ public struct FieldReply: Equatable, Sendable {
 /// because Siri and lock-screen buttons may wake the app in a fresh process each time.
 @MainActor
 public final class FieldActions {
-    public static let signedOut = "Open Time Card to sign in."
+    public static let signedOut = Speech.signedOut
 
     public let session: TimeCardSession
     private let now: () -> Date
@@ -34,11 +34,32 @@ public final class FieldActions {
         self.now = now
     }
 
+    /// What `state()` and `liveSnapshot()` were last built from, and what they gave.
+    private struct StateKey: Equatable {
+        var generation: UUID
+        var revision: Int
+        var farm: Farm
+        var me: Member
+        var position: Data?
+    }
+    private var cachedState: (key: StateKey, state: FieldState)?
+    /// Goes up each time `state()` had to be built again: anything derived from the state can
+    /// be kept until it changes.
+    public private(set) var stateVersion = 0
+    private var cachedLive: (key: StateKey, last: String?, canUndo: Bool, day: DayKey, snapshot: LiveSnapshot?)?
+    private var cachedUndo: (data: Data?, stack: UndoStack<UndoEntry>)?
+
     /// The engine's view of the open farm for the signed-in person, or nil when signed out.
+    /// Built once per change to the store (a late-season farm has thousands of marks, and a
+    /// screen reads this many times per redraw); the season's index comes from the store.
     public func state() -> FieldState? {
-        guard let farm = session.farm, let me = session.membership else { return nil }
+        // Before the farm's records load there's nothing true to say (an empty map, no shift).
+        guard session.hasOpened, let farm = session.farm, let me = session.membership else { return nil }
         let snap = session.snapshot
-        return FieldState(
+        let key = StateKey(generation: snap.generation, revision: snap.revision, farm: farm, me: me,
+                           position: try? session.store.value(forKey: Self.key("position", farm: farm.id, user: me.userId)))
+        if let cachedState, cachedState.key == key { return cachedState.state }
+        let state = FieldState(
             farm: farm,
             me: me,
             season: snap.activeSeason,
@@ -47,8 +68,12 @@ public final class FieldActions {
             myShifts: snap.shifts.values.filter { $0.userId == me.userId },
             marks: Array(snap.marks.values),
             members: Array(snap.members.values),
-            position: load(WorkPosition.self, "position", farm: farm.id, user: me.userId),
-            notes: Array(snap.notes.values))
+            position: key.position.flatMap { try? JSONCoding.decoder().decode(WorkPosition.self, from: $0) },
+            notes: Array(snap.notes.values),
+            seasonIndex: farm.activeSeasonId == snap.farm?.activeSeasonId ? snap.seasonIndex : nil)
+        cachedState = (key, state)
+        stateVersion += 1
+        return state
     }
 
     public var canUndo: Bool {
@@ -67,12 +92,17 @@ public final class FieldActions {
 
         switch FieldEngine.perform(command, state: state, undo: &undo, now: at) {
         case .failure(let failure):
+            // An undo that couldn't be used is dropped, so the next one isn't stuck on it.
+            if undo.entries != before.entries {
+                save(undo, "undo", farm: farmId, user: userId)
+                publishLiveSnapshot()
+            }
             return FieldReply(speech: failure.speech, succeeded: false)
         case .success(let outcome):
             do {
                 if !outcome.records.isEmpty { try session.save(outcome.records) }
             } catch {
-                return FieldReply(speech: "Couldn’t save that on this phone. Try again.", succeeded: false)
+                return FieldReply(speech: Speech.saveFailed, succeeded: false)
             }
             if outcome.position != state.position {
                 save(outcome.position, "position", farm: farmId, user: userId)
@@ -99,13 +129,40 @@ public final class FieldActions {
 
     /// What the Live Activity should show right now.
     public func liveSnapshot() -> LiveSnapshot? {
-        guard let state = state() else { return nil }
+        guard let state = state(), let key = cachedState?.key else { return nil }
         let last = load(String.self, "lastAction", farm: state.farm.id, user: state.me.userId)
-        return LiveSnapshot.build(state: state, now: now(), lastAction: last, canUndo: canUndo)
+        let undo = canUndo
+        let at = now()
+        let day = state.calendar.dayKey(at)
+        // The same while nothing changed: the timer counts from `timerStart` on its own.
+        if let cachedLive, cachedLive.key == key, cachedLive.last == last, cachedLive.canUndo == undo, cachedLive.day == day {
+            return cachedLive.snapshot
+        }
+        let snapshot = LiveSnapshot.build(state: state, now: at, lastAction: last, canUndo: undo)
+        cachedLive = (key, last, undo, day, snapshot)
+        return snapshot
     }
 
     public func publishLiveSnapshot() {
         onLiveSnapshot?(liveSnapshot())
+    }
+
+    /// The server turned down changes this phone made (trees someone else shaped first, a
+    /// refused shift): undo entries that wrote them are dropped, and the lock screen shows the
+    /// notice in place of the last action, with no Undo beside it.
+    public func noteRefusal(_ notice: SyncNotice) {
+        guard let farm = session.farm, let me = session.membership else { return }
+        let keys = Set(notice.entityIds.map { RecordKey(notice.kind, $0) })
+        var undo = undoStack(farm: farm.id, user: me.userId)
+        let before = undo.entries
+        undo.removeAll { !keys.isDisjoint(with: $0.written.keys) }
+        if undo.entries != before { save(undo, "undo", farm: farm.id, user: me.userId) }
+        guard notice.kind == .treeMark || notice.kind == .shift else {
+            publishLiveSnapshot()
+            return
+        }
+        save(Speech.firstSentence(notice.message), "lastAction", farm: farm.id, user: me.userId)
+        publishLiveSnapshot()
     }
 
     // MARK: Saved per farm and person
@@ -115,7 +172,11 @@ public final class FieldActions {
     }
 
     private func undoStack(farm: UUID, user: UUID) -> UndoStack<UndoEntry> {
-        load(UndoStack<UndoEntry>.self, "undo", farm: farm, user: user) ?? UndoStack()
+        let data = try? session.store.value(forKey: Self.key("undo", farm: farm, user: user))
+        if let cachedUndo, cachedUndo.data == data { return cachedUndo.stack }
+        let stack = data.flatMap { try? JSONCoding.decoder().decode(UndoStack<UndoEntry>.self, from: $0) } ?? UndoStack()
+        cachedUndo = (data, stack)
+        return stack
     }
 
     private func load<T: Decodable>(_ type: T.Type, _ name: String, farm: UUID, user: UUID) -> T? {

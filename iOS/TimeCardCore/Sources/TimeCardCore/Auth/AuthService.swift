@@ -47,13 +47,15 @@ public actor AuthService {
 
     public private(set) var state: AuthState
 
-    public init(api: any APIClient, tokens: any TokenStore, cache: any KeyValueStore, deviceName: String) {
+    /// `initialState` saves reading the Keychain and the cached `/me` twice at launch when the
+    /// caller already has it.
+    public init(api: any APIClient, tokens: any TokenStore, cache: any KeyValueStore, deviceName: String, initialState: AuthState? = nil) {
         self.api = api
         self.tokens = tokens
         self.cache = cache
         self.deviceName = deviceName
 
-        state = Self.initialState(tokens: tokens, cache: cache)
+        state = initialState ?? Self.initialState(tokens: tokens, cache: cache)
     }
 
     /// What launch looks like before any network: the cached person, signed in if a token is
@@ -77,7 +79,7 @@ public actor AuthService {
         do {
             return try adopt(await api.login(LoginRequest(email: email, password: password, deviceName: deviceName)))
         } catch APIError.unauthorized(let reason) {
-            throw APIError.unauthorized(reason: reason.isEmpty ? "That email and password don't match." : reason)
+            throw APIError.unauthorized(reason: reason.isEmpty ? "That email and password don’t match." : reason)
         }
     }
 
@@ -119,6 +121,35 @@ public actor AuthService {
         }
     }
 
+    // MARK: Your account
+
+    /// Changes the person's name or password and caches the new `/me`. A password
+    /// change keeps this phone signed in; the server signs out every other device.
+    @discardableResult
+    public func updateMe(_ request: UpdateMeRequest) async throws -> MeResponse {
+        do {
+            let me = try await api.updateMe(request)
+            try cacheMe(me)
+            state = .signedIn(me)
+            return me
+        } catch let error as APIError {
+            if case .unauthorized = error { markExpired() }
+            throw error
+        }
+    }
+
+    /// Deletes the login on the server, then forgets it here. Shifts stay with the farm.
+    public func deleteAccount(password: String) async throws {
+        guard !password.isEmpty else { throw AuthError.invalid("Enter your password.") }
+        do {
+            try await api.deleteAccount(DeleteAccountRequest(password: password))
+        } catch let error as APIError {
+            if case .unauthorized = error { markExpired() }
+            throw error
+        }
+        forget()
+    }
+
     /// The sync engine got a 401: keep the person, ask them to sign in again.
     public func markExpired() {
         if case .signedIn(let me) = state { state = .expired(me) }
@@ -127,6 +158,20 @@ public actor AuthService {
     /// Ends the session on the server if it can, and forgets it here either way.
     public func logout() async {
         try? await api.logout()
+        forget()
+    }
+
+    /// Takes back a sign-in that can't be used (someone else signing in over unsynced work):
+    /// signs that token out on the server and goes back to `me`'s ended sign-in.
+    public func restoreExpired(_ me: MeResponse) async {
+        try? await api.logout()
+        try? tokens.clear()
+        if let data = try? JSONCoding.encoder().encode(me) { try? cache.setValue(data, forKey: Self.meKey) }
+        state = .expired(me)
+    }
+
+    /// Drops the token and the cached person without asking the server.
+    private func forget() {
         try? tokens.clear()
         try? cache.setValue(nil, forKey: Self.meKey)
         state = .signedOut
@@ -149,7 +194,7 @@ public actor AuthService {
         let trimmed = email.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { throw AuthError.invalid("Enter your email address.") }
         guard trimmed.contains("@"), !trimmed.hasPrefix("@"), !trimmed.hasSuffix("@") else {
-            throw AuthError.invalid("That doesn't look like an email address.")
+            throw AuthError.invalid("That doesn’t look like an email address.")
         }
         return trimmed
     }
@@ -166,6 +211,6 @@ public func userMessage(for error: any Error) -> String {
 
 /// Like `userMessage(for:)`, worded for the sign-in, join and reset screens.
 public func signInMessage(for error: any Error) -> String {
-    if case APIError.offline = error { return "You're offline. Connect to the internet to sign in." }
+    if case APIError.offline = error { return "You’re offline. Connect to the internet to sign in." }
     return userMessage(for: error)
 }

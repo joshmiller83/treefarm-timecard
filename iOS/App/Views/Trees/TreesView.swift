@@ -1,56 +1,214 @@
 import SwiftUI
 import TimeCardCore
 
-/// The Trees tab. (Stand-in until the map slice lands: the farm's fields as synced.)
+/// The Trees tab: the field map. Pick a field and the shift you're marking for, choose what a
+/// tap does, then tap trees or row numbers. Long-press a tree (or use Notes) for its card.
 struct TreesView: View {
     @Environment(TimeCardSession.self) private var session
+    @Environment(\.accessibilityVoiceOverEnabled) private var voiceOver
+    @State private var model = TreesView.makeModel()
+    /// Nil follows VoiceOver: the list when it's on, the map when it's off.
+    @State private var listChoice: Bool?
+    @State private var typing = false
+    @State private var addingShift = false
+    /// "Fix the times" on a shift left open.
+    @State private var fixingShift: ShiftToFix?
+    @State private var chromeHeight: CGFloat = 0
+    @State private var scrolledToMap = false
 
-    private struct FieldSummary: Identifiable {
-        var id: UUID
-        var name: String
-        var blocks: Int
-        var trees: Int
-        var shaped: Int
-    }
+    static let zoomKey = "trees.zoom"
 
-    private var summaries: [FieldSummary] {
-        let snapshot = session.snapshot
-        let season = snapshot.farm?.activeSeasonId
-        let fields = snapshot.fields.values.filter { $0.archivedAt == nil }.sorted { ($0.sortOrder, $0.name) < ($1.sortOrder, $1.name) }
-        return fields.map { field in
-            let blocks = snapshot.blocks.values.filter { $0.fieldId == field.id }
-            let ids = Set(blocks.map(\.id))
-            let shaped = snapshot.marks.values.filter { ids.contains($0.blockId) && $0.seasonId == season }.count
-            return FieldSummary(id: field.id, name: field.name, blocks: blocks.count, trees: blocks.reduce(0) { $0 + $1.treeCount }, shaped: shaped)
-        }
-    }
+    private var showsList: Bool { listChoice ?? voiceOver }
 
     var body: some View {
-        PlaceholderScreen(title: "Trees", systemImage: "tree",
-                          headline: "The field map",
-                          detail: "Blocks laid out as they stand in the field. Tap a row to mark it shaped, long-press a tree for its notes.") {
-            if !summaries.isEmpty {
-                VStack(alignment: .leading, spacing: 12) {
-                    SectionLabel("Fields")
-                    ForEach(summaries) { field in
-                        HStack(alignment: .firstTextBaseline) {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(field.name).font(.tcHeadline).foregroundStyle(Palette.ink)
-                                Text(field.blocks == 1 ? "1 block" : "\(field.blocks) blocks")
-                                    .font(.subheadline).foregroundStyle(Palette.muted)
-                            }
-                            Spacer()
-                            Text("\(field.shaped) / \(field.trees)")
-                                .numberStyle(.body)
-                                .foregroundStyle(Palette.firText)
-                                .accessibilityLabel("\(field.shaped) of \(field.trees) trees shaped")
-                        }
-                        .accessibilityElement(children: .combine)
-                        if field.id != summaries.last?.id { Divider().overlay(Palette.line) }
-                    }
+        NavigationStack {
+            content
+                .screenBackground()
+                .overlay(alignment: .top) {
+                    // The page scrolls under the status bar; keep the clock and battery readable.
+                    Color.clear
+                        .frame(height: 0)
+                        .background(Palette.bg, ignoresSafeAreaEdges: .top)
                 }
-                .card()
+                .toolbar(.hidden, for: .navigationBar)
+                .navigationTitle("Trees")
+        }
+        .onChange(of: session.snapshot, initial: true) { refresh() }
+        .onChange(of: session.membership) { refresh() }
+        .onChange(of: model.zoom) { _, zoom in
+            if AppModel.shared.mode == .live { UserDefaults.standard.set(zoom.rawValue, forKey: Self.zoomKey) }
+        }
+        .onChange(of: model.message) { _, message in
+            if let message, message.tone != .hint { AccessibilityNotification.Announcement(message.text).post() }
+        }
+        .sensoryFeedback(.impact(weight: .medium), trigger: model.feedback)
+        .sheet(item: $model.openTree) { open in
+            TreeCardView(model: model, tree: open.tree)
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+        }
+        .sheet(isPresented: $typing) {
+            TypeNumbersSheet(model: model)
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+        }
+        .sheet(isPresented: $addingShift, onDismiss: {
+            refresh()
+            model.finishAddingShift()
+        }) {
+            ShiftEditorView(shiftId: nil)
+        }
+        .sheet(item: $fixingShift) { shift in
+            ShiftEditorView(shiftId: shift.id)
+        }
+        .task {
+            // Siri, the lock screen and the Clock tab remember where you're working: open there
+            // until a field is picked, and show that row each time it has moved.
+            model.showWorkingPlace(AppModel.shared.actions.state()?.position)
+            await TreesDemoSeed.runIfRequested(model: AppModel.shared)
+        }
+    }
+
+    // MARK: Screens
+
+    @ViewBuilder private var content: some View {
+        if model.data == nil || (model.fields.isEmpty && session.snapshot.farm == nil) {
+            // Nothing pulled from the server yet (a first sign-in), so "no fields" would be wrong.
+            EmptyStateCard(systemImage: "tree", title: "Loading the farm",
+                           detail: session.syncStatus.phase == .offline
+                               ? "This phone hasn’t downloaded the farm yet. The map shows up when it’s back online."
+                               : "The field map shows up as soon as this phone has the farm.")
+                .padding(16)
+                .frame(maxHeight: .infinity, alignment: .top)
+        } else if model.fields.isEmpty {
+            emptyFarm(title: "No fields yet",
+                      detail: model.data?.isAdmin == true
+                        ? "Add a field and its blocks in the Team tab, then mark trees here."
+                        : "Ask an admin to set up your field. It shows up here when they do.")
+        } else if model.blocks.isEmpty {
+            VStack(alignment: .leading, spacing: 16) {
+                FieldHeader(model: model, showsList: showsList) { listChoice = !showsList }
+                // The same sentence the Clock tab and Siri say.
+                emptyFarm(title: "No blocks yet",
+                          detail: model.field.map { Speech.noBlocks($0, isAdmin: model.data?.isAdmin == true) }
+                            ?? "Ask an admin to add this field’s blocks.")
+                Spacer()
+            }
+            .padding(16)
+        } else {
+            map
+        }
+    }
+
+    private var map: some View {
+        GeometryReader { proxy in
+            // The map never gets less than 55% of the screen. When the controls above it need
+            // more (an SE at large text), the page starts scrolled down to the map.
+            let mapHeight = max(proxy.size.height * 0.55, proxy.size.height - chromeHeight - 12)
+            ScrollViewReader { scroller in
+            ScrollView(.vertical) {
+                VStack(spacing: 12) {
+                    chrome(compact: proxy.size.height < 600)
+                        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { chromeHeight = $0 }
+                    if showsList {
+                        TreeRowsList(model: model)
+                            .frame(height: mapHeight)
+                            .background(Palette.surface)
+                            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                            .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(Palette.line, lineWidth: 1))
+                            .padding(.horizontal, 16)
+                    } else {
+                        mapCard.frame(height: mapHeight)
+                    }
+                    Color.clear.frame(height: 0).id("map-bottom")
+                }
+                .padding(.bottom, 12)
+            }
+            .scrollBounceBehavior(.basedOnSize)
+            .accessibilityIdentifier("trees-page")
+            .onChange(of: chromeHeight > proxy.size.height * 0.45) { _, tall in
+                guard tall, !scrolledToMap else { return }
+                scrolledToMap = true
+                scroller.scrollTo("map-bottom", anchor: .bottom)
+            }
             }
         }
+    }
+
+    /// Everything above the map. It stops growing at xxxLarge text (each capped control shows
+    /// the Large Content Viewer on a long press); what a tap did, below it, keeps growing.
+    private func chrome(compact: Bool) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 10) {
+                FieldHeader(model: model, showsList: showsList) { listChoice = !showsList }
+                MarkingForBar(model: model, compact: compact, clockIn: { model.clockIn() },
+                              addShift: {
+                                  model.beginAddingShift()
+                                  addingShift = true
+                              },
+                              fixShift: { fixingShift = ShiftToFix(id: $0) })
+                ModePicker(model: model)
+            }
+            .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
+            MessageBar(model: model, showsList: showsList)
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 4)
+    }
+
+    private var mapCard: some View {
+        VStack(spacing: 0) {
+            MapLegend()
+                .padding(.horizontal, 14)
+                .frame(maxWidth: .infinity, minHeight: 30, alignment: .leading)
+            Divider().overlay(Palette.line)
+            ZStack(alignment: .bottom) {
+                TreeMapView(model: model)
+                    .accessibilityIdentifier("tree-map")
+                HStack(alignment: .bottom) {
+                    ZoomBar(model: model)
+                    Spacer(minLength: 8)
+                    MapRoundButton(systemImage: "textformat.123", label: "Type row and tree numbers") { typing = true }
+                        .accessibilityIdentifier("type-numbers")
+                }
+                .padding(10)
+            }
+        }
+        .background(Palette.surface)
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(Palette.line, lineWidth: 1))
+        .padding(.horizontal, 16)
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width in
+            model.viewportWidth = max(120, width - 32 - 2 * TreeMapScrollView.padding)
+        }
+    }
+
+    private func emptyFarm(title: String, detail: String) -> some View {
+        EmptyStateCard(systemImage: "square.grid.3x3", title: title, detail: detail)
+            .padding(.horizontal, model.fields.isEmpty ? 16 : 0)
+    }
+
+    // MARK: Model
+
+    private struct ShiftToFix: Identifiable {
+        var id: UUID
+    }
+
+    private func refresh() {
+        model.update(snapshot: session.snapshot, farm: session.farm, me: session.membership)
+    }
+
+    @MainActor
+    static func makeModel() -> TreeMapModel {
+        let app = AppModel.shared
+        // The first time, trees open at L: the biggest targets for gloved fingers.
+        let zoom = app.mode == .live ? MapZoom(rawValue: UserDefaults.standard.string(forKey: zoomKey) ?? "") ?? .l
+                                     : TreesDemoSeed.zoom() ?? .m
+        let model = TreeMapModel(save: { try app.session.save($0) },
+                                 perform: { app.performInApp($0) },
+                                 canUndoElsewhere: { app.actions.canUndo },
+                                 zoom: zoom)
+        model.onTreesChanged = { app.actions.publishLiveSnapshot() }
+        return model
     }
 }

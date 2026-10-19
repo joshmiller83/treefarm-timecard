@@ -41,8 +41,8 @@ struct SignInView: View {
             VStack(spacing: 28) {
                 AuthHeader(title: reauthenticating ? "Sign in again" : "Time Card",
                            subtitle: reauthenticating
-                               ? "Your sign-in ended. Your work is safe on this phone and syncs once you're back in."
-                               : "Clock in, mark your rows, and keep the crew's map in step.")
+                               ? "Your sign-in ended. Your work is safe on this phone and syncs once you’re back in."
+                               : "Clock in, mark your rows, and keep the crew’s map in step.")
 
                 VStack(spacing: 12) {
                     TextField("Email", text: $email)
@@ -53,12 +53,15 @@ struct SignInView: View {
                         .submitLabel(.next)
                         .focused($focus, equals: .email)
                         .onSubmit { focus = .password }
+                        // A filled field still says what it is.
+                        .accessibilityLabel("Email")
                         .accessibilityIdentifier("sign-in-email")
                     SecureField("Password", text: $password)
                         .textContentType(.password)
                         .submitLabel(.go)
                         .focused($focus, equals: .password)
                         .onSubmit { Task { await signIn() } }
+                        .accessibilityLabel("Password")
                         .accessibilityIdentifier("sign-in-password")
                 }
                 .textFieldStyle(.glove)
@@ -86,7 +89,8 @@ struct SignInView: View {
                             Text("I have a reset code")
                                 .font(.callout.weight(.semibold))
                                 .foregroundStyle(Palette.firText)
-                                .frame(maxWidth: .infinity, minHeight: 44)
+                                .frame(maxWidth: .infinity, minHeight: GloveButtonStyle.minHeight)
+                                .contentShape(Rectangle())
                         }
                     }
                 }
@@ -110,7 +114,8 @@ struct SignInView: View {
         error = nil
         defer { busy = false }
         do {
-            try await session.signIn(email: email, password: password)
+            // Signing in again: someone else can't sign in over this person's unsynced work.
+            try await session.signIn(email: email, password: password, expecting: reauthenticating ? session.me?.user.id : nil)
             password = ""
             onSignedIn()
         } catch {
@@ -119,18 +124,18 @@ struct SignInView: View {
     }
 }
 
-/// The leaf mark, a Zilla Slab title and one line under it.
+/// The app's own mark (the fir and clock of its icon), a Zilla Slab title and one line under it.
 struct AuthHeader: View {
     var title: String
     var subtitle: String
 
     var body: some View {
         VStack(spacing: 14) {
-            Image(systemName: "leaf.fill")
-                .font(.system(size: 30, weight: .semibold))
-                .foregroundStyle(Palette.firInk)
-                .frame(width: 68, height: 68)
-                .background(Palette.fir, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            Image("BrandMark")
+                .resizable()
+                .interpolation(.high)
+                .frame(width: 72, height: 72)
+                .clipShape(RoundedRectangle(cornerRadius: 17, style: .continuous))
                 .accessibilityHidden(true)
             Text(title).headingStyle(.tcLargeTitle)
             Text(subtitle)

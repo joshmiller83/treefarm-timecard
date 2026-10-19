@@ -37,7 +37,7 @@ struct AuthServiceTests {
 
     @Test func aWrongPasswordSaysSo() async throws {
         let (auth, _, _) = try await makeService()
-        await #expect(throws: APIError.unauthorized(reason: "That email and password don't match.")) {
+        await #expect(throws: APIError.unauthorized(reason: "That email and password don’t match.")) {
             _ = try await auth.login(email: "josh@example.com", password: "wrong")
         }
         #expect(await auth.state == .signedOut)
@@ -48,7 +48,7 @@ struct AuthServiceTests {
         let stub = StubAPIClient()
         await stub.failNext(.unauthorized(reason: ""))
         let (auth, _, _) = try await makeService(stub: stub)
-        await #expect(throws: APIError.unauthorized(reason: "That email and password don't match.")) {
+        await #expect(throws: APIError.unauthorized(reason: "That email and password don’t match.")) {
             _ = try await auth.login(email: "josh@example.com", password: "right horse")
         }
     }
@@ -92,7 +92,7 @@ struct AuthServiceTests {
     @Test func anExpiredInviteSaysSo() async throws {
         let (auth, stub, _) = try await makeService()
         await stub.addInvite(code: "OLD", farm: f.farm, expired: true)
-        await #expect(throws: APIError.client(status: 410, reason: "That invite code has expired. Ask your admin for a new one.")) {
+        await #expect(throws: APIError.client(status: 400, reason: "That invite code has expired. Ask your admin for a new one.")) {
             _ = try await auth.register(inviteCode: "OLD", email: "sam@example.com", password: "pines", displayName: "Sam")
         }
     }
@@ -164,8 +164,8 @@ struct AuthServiceTests {
     }
 
     @Test func signInScreensSpeakPlainly() {
-        #expect(signInMessage(for: APIError.offline) == "You're offline. Connect to the internet to sign in.")
-        #expect(signInMessage(for: APIError.unauthorized(reason: "That email and password don't match.")) == "That email and password don't match.")
+        #expect(signInMessage(for: APIError.offline) == "You’re offline. Connect to the internet to sign in.")
+        #expect(signInMessage(for: APIError.unauthorized(reason: "That email and password don’t match.")) == "That email and password don’t match.")
         #expect(signInMessage(for: APIError.rateLimited(reason: "", retryAfter: 600)) == "Too many tries. Try again in 10 minutes.")
         #expect(signInMessage(for: APIError.client(status: 410, reason: "That invite code has expired.")) == "That invite code has expired.")
         #expect(signInMessage(for: AuthError.invalid("Enter your password.")) == "Enter your password.")

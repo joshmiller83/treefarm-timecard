@@ -5,6 +5,16 @@ import Foundation
 public enum MarkMessages {
     public static let needShift = "Clock in or add a shift first. Trees are saved with a shift."
     public static let undid = "Undid your last change."
+
+    /// Undo couldn't bring back trees someone shaped since (a sync brought their marks):
+    /// "Undid your last change, except 3 trees Sam shaped since." / "… except tree 4 in row 2, which Sam shaped since."
+    public static func undidExcept(_ skipped: [TreeMark], by name: String?) -> String {
+        let who = name.flatMap { $0.isEmpty ? nil : $0 } ?? "someone else"
+        if skipped.count == 1, let tree = skipped.first {
+            return "Undid your last change, except tree \(tree.position + 1) in row \(tree.row + 1), which \(who) shaped since."
+        }
+        return "Undid your last change, except \(trees(skipped.count)) \(who) shaped since."
+    }
     public static let fillOneBlock = "Pick the first and last tree in the same block. Tap the first tree again to start over."
 
     /// A one-tree tap (one or erase mode). `shapedOn` is the day another shift shaped
@@ -52,6 +62,44 @@ public enum MarkMessages {
             return "Trees go from 1 to \(block.treesPerRow) in each row of \(block.displayName)."
         }
         return nil
+    }
+
+    /// Fill mode, after the first tree: "Start: Block 2, row 14, tree 4. Now tap the last tree."
+    public static func fillStart(_ tree: TreeRef, in block: Block) -> String {
+        "Start: \(block.label(tree)). Now tap the last tree."
+    }
+
+    /// After a tap on a block in the whole-field view.
+    public static func zoomedInto(_ block: Block) -> String {
+        "Showing \(block.displayName). Tap All to see the whole field again."
+    }
+
+    /// Editing or deleting a note someone deleted on another phone.
+    public static let noteGone = "That note was deleted."
+
+    /// What someone tried to do to a note that isn't theirs.
+    public enum NoteChange: Sendable {
+        case edit, delete
+    }
+
+    /// Only a note's author, or an admin, may change or delete it.
+    public static func notePermission(_ change: NoteChange) -> String {
+        "Only the person who wrote a note, or an admin, can \(change == .edit ? "change" : "delete") it."
+    }
+
+    /// A row's state for VoiceOver: "Block 2, row 14: all 10 trees shaped." `summary` is the
+    /// row's `TreeSummary` line.
+    public static func rowStatus(_ row: RowRef, in block: Block, _ summary: String) -> String {
+        "\(block.label(row: row.row)): \(summary)."
+    }
+
+    /// Marks the server refused because someone else's phone got there first, grouped by row:
+    /// "Sam shaped 10 trees in Block 2, row 1 first. They came off your shift."
+    public static func shapedFirst(by name: String?, count: Int, row: Int, in block: Block?) -> String {
+        let who = name.flatMap { $0.isEmpty ? nil : $0 } ?? "Someone else"
+        let place = block.map { $0.label(row: row) } ?? "row \(row + 1)"
+        let them = count == 1 ? "It came" : "They came"
+        return "\(who) shaped \(trees(count)) in \(place) first. \(them) off your shift."
     }
 
     static func trees(_ n: Int) -> String { "\(n) tree\(n == 1 ? "" : "s")" }

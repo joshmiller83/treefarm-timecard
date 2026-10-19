@@ -194,8 +194,8 @@ struct APIClientTests {
     }
 
     @Test func messagesForPeople() {
-        #expect(APIError.offline.userMessage == "You're offline. Changes are saved on this phone and sync when you're back online.")
-        #expect(APIError.unauthorized(reason: "That email and password don't match.").userMessage == "That email and password don't match.")
+        #expect(APIError.offline.userMessage == "You’re offline. Changes are saved on this phone and sync when you’re back online.")
+        #expect(APIError.unauthorized(reason: "That email and password don’t match.").userMessage == "That email and password don’t match.")
         #expect(APIError.rateLimited(reason: "", retryAfter: 900).userMessage == "Too many tries. Try again in 15 minutes.")
         #expect(APIError.rateLimited(reason: "Locked for a bit.", retryAfter: 60).userMessage == "Locked for a bit.")
         #expect(APIError.client(status: 410, reason: "That invite code has expired.").userMessage == "That invite code has expired.")

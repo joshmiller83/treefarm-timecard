@@ -18,6 +18,13 @@ public enum Fmt {
         return "\(m / 60):\(pad2(m % 60))"
     }
 
+    /// "6:05", rounded to the nearest minute the way `spokenDuration` is, for a card shown
+    /// beside what Siri says (1 min 45 s is "0:02" and "2 minutes", never "0:01").
+    public static func hmRounded(_ t: TimeInterval) -> String {
+        let m = roundedMinutes(t)
+        return "\(m / 60):\(pad2(m % 60))"
+    }
+
     /// Hours to two places, as on the report: "6.08".
     public static func decimalHours(_ t: TimeInterval) -> String {
         let hundredths = Int((clean(t) / 36).rounded())

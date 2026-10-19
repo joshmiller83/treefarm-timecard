@@ -36,4 +36,71 @@ struct DesignTests {
     @Test func buttonsAreGloveSized() {
         #expect(GloveButtonStyle.minHeight >= 54)
     }
+
+    /// Every text color on every fill it's used on, at 4.5:1 or more in light and dark.
+    static let textOnFill: [(text: String, fill: String)] = [
+        ("Ink", "Bg"), ("Ink", "Surface"), ("Ink", "Stripe"), ("Ink", "FirSoft"),
+        ("Muted", "Bg"), ("Muted", "Surface"), ("Muted", "Stripe"),
+        ("FirText", "Bg"), ("FirText", "Surface"), ("FirText", "FirSoft"), ("FirText", "Stripe"),
+        ("FirInk", "Fir"), ("FirInk", "FirCard"), ("FirInk", "RustFill"),
+        ("SapInk", "SapSoft"), ("SapSoft", "SapInk"),
+        ("Rust", "Bg"), ("Rust", "Surface"),
+        ("PaperInk", "Paper"),
+    ]
+
+    @Test(arguments: [UIUserInterfaceStyle.light, .dark])
+    func textOnEveryFillPassesAA(style: UIUserInterfaceStyle) throws {
+        let traits = UITraitCollection(userInterfaceStyle: style)
+        for (text, fill) in Self.textOnFill {
+            let t = try #require(UIColor(named: text)).resolvedColor(with: traits)
+            let f = try #require(UIColor(named: fill)).resolvedColor(with: traits)
+            let ratio = Self.contrast(t, f)
+            #expect(ratio >= 4.5, "\(text) on \(fill) is \(String(format: "%.2f", ratio)):1 in \(style == .dark ? "dark" : "light") mode")
+        }
+    }
+
+    /// The app's tint (and AccentColor, used before SwiftUI's tint applies) is text-colored:
+    /// toolbar Save and Cancel, menus and pickers read on Bg and Surface in both modes.
+    @Test(arguments: [UIUserInterfaceStyle.light, .dark])
+    func theTintReadsAsText(style: UIUserInterfaceStyle) throws {
+        let traits = UITraitCollection(userInterfaceStyle: style)
+        let accent = try #require(UIColor(named: "AccentColor")).resolvedColor(with: traits)
+        for fill in ["Bg", "Surface"] {
+            let f = try #require(UIColor(named: fill)).resolvedColor(with: traits)
+            #expect(Self.contrast(accent, f) >= 4.5, "AccentColor on \(fill)")
+        }
+    }
+
+    /// WCAG contrast between two opaque colors.
+    static func contrast(_ a: UIColor, _ b: UIColor) -> CGFloat {
+        func luminance(_ c: UIColor) -> CGFloat {
+            var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, alpha: CGFloat = 0
+            c.getRed(&r, green: &g, blue: &b, alpha: &alpha)
+            let lin = [r, g, b].map { $0 <= 0.03928 ? $0 / 12.92 : pow(($0 + 0.055) / 1.055, 2.4) }
+            return 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2]
+        }
+        let (x, y) = (luminance(a), luminance(b))
+        return (max(x, y) + 0.05) / (min(x, y) + 0.05)
+    }
+
+    /// With Increase Contrast, hairlines and card edges reach 3:1 against the surfaces they sit on.
+    @Test(arguments: [UIUserInterfaceStyle.light, .dark])
+    func increaseContrastStrengthensHairlines(style: UIUserInterfaceStyle) throws {
+        let high = UITraitCollection(traitsFrom: [UITraitCollection(userInterfaceStyle: style), UITraitCollection(accessibilityContrast: .high)])
+        let normal = UITraitCollection(traitsFrom: [UITraitCollection(userInterfaceStyle: style), UITraitCollection(accessibilityContrast: .normal)])
+        for fill in ["Surface", "Bg"] {
+            let f = try #require(UIColor(named: fill)).resolvedColor(with: high)
+            #expect(Self.contrast(try #require(UIColor(named: "Line")).resolvedColor(with: high), f) >= 3, "Line on \(fill)")
+        }
+        for name in ["Line", "Muted", "Stripe", "FirSoft", "TreeEmpty", "BlockLine"] {
+            let color = try #require(UIColor(named: name))
+            #expect(color.resolvedColor(with: high) != color.resolvedColor(with: normal), "\(name) has no High Contrast look")
+        }
+    }
+
+    @Test func boldTextGoesOneWeightUp() {
+        #expect(Font.tcHeadline.bolder == .tcHeadlineBold)
+        #expect(Font.tcNumber.bolder == .tcNumberBold)
+        #expect(Font.tcTimer.bolder == .tcTimer, "no heavier Plex Mono is bundled")
+    }
 }

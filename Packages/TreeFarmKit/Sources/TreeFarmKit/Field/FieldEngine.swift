@@ -21,37 +21,96 @@ public enum FieldCommand: Codable, Hashable, Sendable {
 }
 
 /// How to take back one action: the earlier copies of what it changed, and where you were.
-public struct UndoEntry: Codable, Equatable, Sendable {
+public struct UndoEntry: Equatable, Sendable {
     /// Fits "Undid …": "row 14", "lunch".
     public var label: String
     public var restore: [SyncRecord]
     public var position: WorkPosition?
+    /// What the action wrote, with each record's `updatedAt`. Undo goes ahead only while
+    /// every one of them is still live and unchanged, so it can't revive a shift deleted
+    /// in the Log or throw away an admin's fix that arrived by sync.
+    public var written: [RecordKey: Date]
 
-    public init(label: String, restore: [SyncRecord], position: WorkPosition?) {
+    public init(label: String, restore: [SyncRecord], position: WorkPosition?, written: [RecordKey: Date] = [:]) {
         self.label = label
         self.restore = restore
         self.position = position
+        self.written = written
     }
 
-    /// The restore records stamped with the time of the undo, so they win over what they replace.
+    /// An entry for an action that wrote `records`.
+    public init(label: String, restore: [SyncRecord], position: WorkPosition?, after records: [SyncRecord]) {
+        self.init(label: label, restore: restore, position: position,
+                  written: Dictionary(records.map { ($0.key, $0.updatedAt) }) { _, last in last })
+    }
+
+    /// True while everything the action wrote is still live and unchanged in `state`.
+    public func isCurrent(in state: FieldState) -> Bool {
+        guard !written.isEmpty else { return true }
+        let markIds = Set(written.keys.lazy.filter { $0.kind == .treeMark }.map(\.id))
+        var marks: [UUID: TreeMark] = [:]
+        if !markIds.isEmpty {
+            for m in state.marks where markIds.contains(m.id) && m.isLive { marks[m.id] = m }
+        }
+        for (key, stamp) in written {
+            let current: Date?
+            switch key.kind {
+            case .shift: current = state.liveShifts.first { $0.id == key.id }?.updatedAt
+            case .treeMark: current = marks[key.id]?.updatedAt
+            case .treeNote: current = state.notes.first { $0.id == key.id && $0.isLive }?.updatedAt
+            default: current = nil
+            }
+            guard current == stamp else { return false }
+        }
+        return true
+    }
+
+    /// The restore records stamped with the time of the undo, after the versions they replace
+    /// (what the action wrote), so they win over them even on a phone whose clock is behind.
     public func records(at now: Date) -> [SyncRecord] {
         restore.map { record in
+            let stamp = RecordMetadata.stamp(now, after: written[record.key] ?? record.updatedAt)
             switch record {
             case .treeMark(var m):
-                m.updatedAt = now
-                if m.deletedAt != nil { m.deletedAt = now }
+                m.updatedAt = stamp
+                if m.deletedAt != nil { m.deletedAt = stamp }
                 return .treeMark(m)
             case .treeNote(var n):
-                n.updatedAt = now
-                if n.deletedAt != nil { n.deletedAt = now }
+                n.updatedAt = stamp
+                if n.deletedAt != nil { n.deletedAt = stamp }
                 return .treeNote(n)
             case .shift(var s):
-                s.updatedAt = now
+                s.updatedAt = stamp
                 return .shift(s)
             default:
                 return record
             }
         }
+    }
+}
+
+extension UndoEntry: Codable {
+    private enum CodingKeys: String, CodingKey { case label, restore, position, written }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        label = try c.decode(String.self, forKey: .label)
+        restore = try c.decode([SyncRecord].self, forKey: .restore)
+        position = try c.decodeIfPresent(WorkPosition.self, forKey: .position)
+        if let written = try c.decodeIfPresent([RecordKey: Date].self, forKey: .written) {
+            self.written = written
+        } else {
+            // Saved before undo checked anything: it can't be checked now, so it never matches.
+            written = Dictionary(restore.map { ($0.key, Date.distantPast) }) { first, _ in first }
+        }
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(label, forKey: .label)
+        try c.encode(restore, forKey: .restore)
+        try c.encodeIfPresent(position, forKey: .position)
+        try c.encode(written, forKey: .written)
     }
 }
 
@@ -117,8 +176,15 @@ public enum FieldEngine {
 
     private static func run(_ command: FieldCommand, _ state: FieldState, _ undo: inout UndoStack<UndoEntry>, _ now: Date) throws(FieldFailure) -> FieldOutcome {
         switch command {
-        case .clockIn(let fieldId): return try clockIn(fieldId, state, now)
-        case .clockOut: return try clockOut(state, now)
+        case .clockIn(let fieldId):
+            // A new shift starts with nothing to undo: older entries belong to another shift.
+            let outcome = try clockIn(fieldId, state, now)
+            undo.removeAll()
+            return outcome
+        case .clockOut:
+            let outcome = try clockOut(state, now)
+            undo.removeAll()
+            return outcome
         case .startBreak(let kind, let reason): return try startBreak(kind, reason, state, now)
         case .endBreak: return try endBreak(state, now)
         case .markNextRow: return try markNextRow(state, now)
@@ -130,7 +196,21 @@ public enum FieldEngine {
         case .changeStart(let start): return try changeStart(start, state, now)
         case .undo:
             guard let entry = undo.pop() else { throw FieldFailure(Speech.nothingToUndo) }
-            return FieldOutcome(records: entry.records(at: now), position: entry.position, undo: nil,
+            // The entry stays popped when it can't be used, so the next undo isn't stuck on it.
+            guard entry.isCurrent(in: state) else { throw FieldFailure(Speech.undoChanged) }
+            let records = entry.records(at: now)
+            for case .shift(let shift) in records {
+                let others = state.liveShifts.filter { $0.id != shift.id }
+                if let problem = ShiftRules.validate(shift, others: others, now: now, calendar: state.calendar) {
+                    throw FieldFailure(problem.message)
+                }
+            }
+            // The restored copies are re-stamped, so older entries that wrote them now expect the new stamp.
+            let restamp = Dictionary(zip(entry.restore, records).map { ($0.0.key, ($0.0.updatedAt, $0.1.updatedAt)) }) { first, _ in first }
+            undo.updateEach { older in
+                for (key, (was, now)) in restamp where older.written[key] == was { older.written[key] = now }
+            }
+            return FieldOutcome(records: records, position: entry.position, undo: nil,
                                 speech: "Undid \(entry.label).", lastAction: "Undid \(entry.label)")
         }
     }
@@ -169,6 +249,7 @@ public enum FieldEngine {
         guard let open = state.openShift else { throw FieldFailure(Speech.notClockedIn) }
         let closed: Shift
         do { closed = try Clock.clockOut(at: now, shift: open) } catch { throw FieldFailure(error.message) }
+        try check(closed, state, now)
         let trees = state.treeCount(closed)
         var speech = "Clocked out at \(Fmt.spokenTime(now, state.calendar)). \(Fmt.spokenDuration(closed.workedTime(at: now)))"
         speech += trees > 0 ? ", \(Fmt.plural(trees, "tree"))." : "."
@@ -179,20 +260,26 @@ public enum FieldEngine {
         let cal = state.calendar
         guard let open = state.openShift else { throw FieldFailure(Speech.notClockedIn) }
         if let b = open.openBreak {
-            throw FieldFailure("You’re already on \(b.kind == .lunch ? "lunch" : "a break") since \(Fmt.spokenTime(b.start, cal)). Say \"back to work\" when you’re done.")
+            throw FieldFailure("You’re already on \(b.kind == .lunch ? "lunch" : "a break") since \(Fmt.spokenTime(b.start, cal)). Say “back to work” when you’re done.")
         }
-        let why = Limits.clampReason(reason)
         let updated: Shift
-        do { updated = try Clock.startBreak(kind, reason: why, at: now, in: open) } catch { throw FieldFailure(error.message) }
+        do { updated = try Clock.startBreak(kind, reason: Limits.clampReason(reason), at: now, in: open) } catch { throw FieldFailure(error.message) }
+        // As stored: trimmed and held to `Limits.reason`.
+        let why = updated.openBreak?.reason ?? ""
+        try check(updated, state, now)
         let at = Fmt.spokenTime(now, cal)
         let speech: String
         switch kind {
         case .lunch: speech = "Lunch started at \(at)."
-        case .break: speech = why.isEmpty ? "Break started at \(at)." : "Break for \(why) started at \(at)."
+        case .break:
+            let trimmed = reason.trimmingCharacters(in: .whitespacesAndNewlines).count > Limits.reason
+            speech = why.isEmpty ? "Break started at \(at)."
+                : trimmed ? "Break for \(why) started at \(at), but the reason was cut short to fit."
+                : "Break for \(why) started at \(at)."
         }
         let label = kind == .lunch ? "lunch" : "the break"
         return FieldOutcome(records: [.shift(updated)], position: nil,
-                            undo: UndoEntry(label: label, restore: [.shift(open)], position: state.position),
+                            undo: UndoEntry(label: label, restore: [.shift(open)], position: state.position, after: [.shift(updated)]),
                             speech: speech, lastAction: kind == .lunch ? "Lunch started" : "Break started")
     }
 
@@ -201,12 +288,22 @@ public enum FieldEngine {
         guard let b = open.openBreak else { throw FieldFailure("You’re not on a break.") }
         let updated: Shift
         do { updated = try Clock.endBreak(at: now, in: open) } catch { throw FieldFailure(error.message) }
+        try check(updated, state, now)
         let what = b.kind == .lunch ? "Lunch" : "The break"
         let speech = "Back at \(Fmt.spokenTime(now, state.calendar)). \(what) was \(Fmt.spokenDuration(now.timeIntervalSince(b.start)))."
         let label = b.kind == .lunch ? "the end of lunch" : "the end of the break"
         return FieldOutcome(records: [.shift(updated)], position: nil,
-                            undo: UndoEntry(label: label, restore: [.shift(open)], position: state.position),
+                            undo: UndoEntry(label: label, restore: [.shift(open)], position: state.position, after: [.shift(updated)]),
                             speech: speech, lastAction: "Back to work")
+    }
+
+    /// The checks the server runs on every pushed shift, so nothing reported as done here is
+    /// refused later (a 72-hour clock-out, say, which would reopen the shift).
+    private static func check(_ shift: Shift, _ state: FieldState, _ now: Date) throws(FieldFailure) {
+        let others = state.liveShifts.filter { $0.id != shift.id }
+        guard let problem = ShiftRules.validate(shift, others: others, now: now, calendar: state.calendar) else { return }
+        if problem == .tooLong { throw FieldFailure(Speech.tooLongToClockOut(shift, calendar: state.calendar)) }
+        throw FieldFailure(problem.message)
     }
 
     // MARK: rows
@@ -222,12 +319,15 @@ public enum FieldEngine {
         let ctx = try marking(state, now)
         guard let field = state.currentField else { throw FieldFailure(Speech.noField) }
         let walker = state.walker(for: field)
-        guard !walker.blocks.isEmpty else { throw FieldFailure("\(field.name) has no blocks yet. Add them in the Trees tab.") }
+        guard !walker.blocks.isEmpty else { throw FieldFailure(Speech.noBlocks(field, isAdmin: state.me.role == .admin)) }
         let index = state.index
-        guard let row = walker.nextRows(from: FieldState.valid(state.position?.next, in: walker), count: 1, index: index).first else {
+        let from = FieldState.valid(state.position?.next, in: walker)
+        guard let row = walker.nextRows(from: from, count: 1, index: index).first else {
             throw FieldFailure("Every row in \(field.name) is shaped.")
         }
-        return markWholeRow(row, field: field, walker: walker, index: index, ctx: ctx, state: state, now: now)
+        // Rows shaped by someone else (a sync) can move you into the next block: say so.
+        return markWholeRow(row, field: field, walker: walker, index: index, ctx: ctx, state: state, now: now,
+                            sayBlock: from.map { $0.blockId != row.blockId } ?? false)
     }
 
     private static func markRow(_ row: RowRef, _ state: FieldState, _ now: Date) throws(FieldFailure) -> FieldOutcome {
@@ -277,9 +377,9 @@ public enum FieldEngine {
             records: records,
             position: WorkPosition(fieldId: field.id, next: nextOpen ?? walker.row(after: row)),
             undo: UndoEntry(label: "row \(row.row + 1)", restore: (undoRecords.added + undoRecords.removed).map(SyncRecord.treeMark),
-                            position: state.position),
+                            position: state.position, after: records),
             speech: speech,
-            lastAction: "Row \(row.row + 1) marked")
+            lastAction: sayBlock ? "Row \(row.row + 1), \(Speech.blockPhrase(block)) marked" : "Row \(row.row + 1) marked")
     }
 
     private static func markTrees(_ row: RowRef, _ positions: ClosedRange<Int>, _ state: FieldState, _ now: Date) throws(FieldFailure) -> FieldOutcome {
@@ -302,8 +402,10 @@ public enum FieldEngine {
             position?.next = walker.nextRows(from: walker.row(after: row), count: 1, index: after).first
         }
         let inverse = change.inverse(now: now)
-        return FieldOutcome(records: change.added.map(SyncRecord.treeMark), position: position,
-                            undo: UndoEntry(label: "\(what) in row \(row.row + 1)", restore: (inverse.added + inverse.removed).map(SyncRecord.treeMark), position: state.position),
+        let records = change.added.map(SyncRecord.treeMark)
+        return FieldOutcome(records: records, position: position,
+                            undo: UndoEntry(label: "\(what) in row \(row.row + 1)", restore: (inverse.added + inverse.removed).map(SyncRecord.treeMark),
+                                            position: state.position, after: records),
                             speech: speech, lastAction: "Marked \(what)")
     }
 
@@ -344,10 +446,11 @@ public enum FieldEngine {
         guard kept != target.notes else { throw FieldFailure("Today’s notes are full, so nothing was added.") }
         var updated = target
         updated.notes = kept
-        updated.updatedAt = now
+        updated.updatedAt = RecordMetadata.stamp(now, after: target.updatedAt)
+        try check(updated, state, now)
         let speech = kept.count < combined.count ? "Added to today’s notes, but it was cut short to fit." : "Added to today’s notes."
         return FieldOutcome(records: [.shift(updated)], position: nil,
-                            undo: UndoEntry(label: "the note", restore: [.shift(target)], position: state.position),
+                            undo: UndoEntry(label: "the note", restore: [.shift(target)], position: state.position, after: [.shift(updated)]),
                             speech: speech, lastAction: "Note added")
     }
 
@@ -363,7 +466,8 @@ public enum FieldEngine {
         gone.deletedAt = now
         let place = "\(Speech.place(tree.rowRef, block)), tree \(tree.position + 1)"
         return FieldOutcome(records: [.treeNote(note)], position: nil,
-                            undo: UndoEntry(label: "the note on row \(tree.row + 1), tree \(tree.position + 1)", restore: [.treeNote(gone)], position: state.position),
+                            undo: UndoEntry(label: "the note on row \(tree.row + 1), tree \(tree.position + 1)", restore: [.treeNote(gone)],
+                                            position: state.position, after: [.treeNote(note)]),
                             speech: "Noted on \(place).", lastAction: "Tree note saved")
     }
 
@@ -375,9 +479,9 @@ public enum FieldEngine {
         }
         var updated = open
         updated.start = start
-        updated.updatedAt = now
+        updated.updatedAt = RecordMetadata.stamp(now, after: open.updatedAt)
         return FieldOutcome(records: [.shift(updated)], position: nil,
-                            undo: UndoEntry(label: "the start time", restore: [.shift(open)], position: state.position),
+                            undo: UndoEntry(label: "the start time", restore: [.shift(open)], position: state.position, after: [.shift(updated)]),
                             speech: "Start time changed to \(Fmt.spokenTime(start, state.calendar)).", lastAction: "Start time changed")
     }
 }
