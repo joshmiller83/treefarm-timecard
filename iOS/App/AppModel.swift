@@ -21,7 +21,7 @@ final class AppModel {
     @ObservationIgnored private var lastForegroundRefresh: Date?
     @ObservationIgnored private var networkWatcher: Task<Void, Never>?
 
-    static let backgroundRefreshID = (Bundle.main.bundleIdentifier ?? "com.joshmiller83.timecard") + ".sync"
+    nonisolated static let backgroundRefreshID = (Bundle.main.bundleIdentifier ?? "com.joshmiller83.timecard") + ".sync"
 
     init(session: TimeCardSession, mode: LaunchMode, storageError: String? = nil) {
         self.session = session
