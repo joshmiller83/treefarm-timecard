@@ -232,13 +232,13 @@ const islandAt = fmtClock(MOMENTS.island);
         <div class="crop" role="img" aria-label="Dynamic Island, compact: Row 37, 6:29">
           <div aria-hidden="true"><DynamicIsland size="compact" inline /></div>
         </div>
-        <p>compact · inline · --pt: 1px</p>
+        <p>compact · inline (fits its container, max 1 px/pt)</p>
       </div>
       <div class="lab-cell" data-lab-cell="crop-expanded">
         <div class="crop" role="img" aria-label="Dynamic Island, expanded: North field, Block 2, 6:29:10, Row 37, Row 38, Break">
           <div aria-hidden="true"><DynamicIsland size="expanded" inline /></div>
         </div>
-        <p>expanded · inline · --pt: 1px</p>
+        <p>expanded · inline (fits its container, max 1 px/pt)</p>
       </div>
     </div>
   </section>
@@ -346,6 +346,13 @@ const islandAt = fmtClock(MOMENTS.island);
     transform: rotate(60deg);
   }
 
+  /* Until device-a's Phone lands, the stub's rest island sits lower than y 11 pt; hide it
+     where the DynamicIsland itself is the island, so the lab shows one island. */
+  [data-lab-cell^='island-'] :global([data-island-rest]),
+  .scrub :global([data-island-rest]) {
+    visibility: hidden;
+  }
+
   /* ---------- Abstract home screen (lab context) ---------- */
   .home {
     position: absolute;
@@ -420,10 +427,10 @@ const islandAt = fmtClock(MOMENTS.island);
 
   /* ---------- Crops ---------- */
   .crop {
-    --pt: 1px;
+    container-type: inline-size;
     display: grid;
     place-items: center;
-    width: min(100%, 420px);
+    width: min(calc(100vw - 32px), 420px);
     padding: 24px 0;
     border-radius: 28px;
     background: linear-gradient(180deg, #0d2418, #1c3a2b);

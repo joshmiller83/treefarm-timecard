@@ -8,6 +8,7 @@
  *   [data-wave-bar]             one bar: transform scaleY(h), h from waveHeights(progress)
  *   [data-transcript]           your words (util.typeIn target)
  *     > [data-word="0".."n"]    pre-split word spans
+ *   [data-listening]            'Listening…' in place of the transcript when there is none
  *
  * Scenes scrub it with setWave(waveEl, progress) from src/scripts/wave.ts. The server render
  * draws waveHeights(progress) statically, so the static page shows a frozen, real-looking wave.
@@ -68,6 +69,7 @@ const words = transcript ? transcript.trim().split(/\s+/) : [];
       </div>
     )
   }
+  {!transcript && <div class="wave-listening" data-listening>Listening…</div>}
 </div>
 
 <style>
@@ -81,7 +83,7 @@ const words = transcript ? transcript.trim().split(/\s+/) : [];
     background:
       linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0) 48%),
       linear-gradient(var(--siri-card), var(--siri-card)),
-      rgba(20, 24, 22, 0.86);
+      #121614;
     box-shadow:
       inset 0 calc(0.75 * var(--pt)) 0 rgba(255, 255, 255, 0.14),
       inset 0 0 0 calc(0.75 * var(--pt)) rgba(255, 255, 255, 0.06),
@@ -96,6 +98,11 @@ const words = transcript ? transcript.trim().split(/\s+/) : [];
   }
   .wave--text {
     padding-bottom: calc(18 * var(--pt));
+  }
+  .wave-listening {
+    font-size: calc(15 * var(--pt));
+    line-height: calc(20 * var(--pt));
+    color: rgba(235, 235, 245, 0.6);
   }
   .wave-bars {
     display: flex;

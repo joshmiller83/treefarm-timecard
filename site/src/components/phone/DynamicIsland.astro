@@ -16,7 +16,8 @@
  *
  * Positioning: y 11 pt from the screen's top, horizontally centred with left/right 0 and
  * auto margins (no transform), so a width tween stays centred and transforms stay free.
- * `inline` renders it in normal flow for crops outside a phone (set --pt on a wrapper).
+ * `inline` renders it in normal flow for crops outside a phone: it uses --pt from a wrapper
+ * when one is set, else fits its container (up to 1 px per pt).
  */
 import { FIELD, MOMENTS, fmtHMS, positionAt, treesAt, workedAt } from '../../data/ledger';
 
@@ -96,14 +97,17 @@ const {
 
 <style>
   .island {
+    /* In a phone this is the screen's --pt. Inline crops outside a phone may set --pt on a
+       wrapper; without one they fit the nearest container (or the viewport), at most 1 px/pt. */
+    --isl-pt: var(--pt, 1px);
     position: absolute;
-    top: calc(11 * var(--pt));
+    top: calc(11 * var(--isl-pt));
     left: 0;
     right: 0;
     margin-inline: auto;
-    width: calc(126 * var(--pt));
-    height: calc(37 * var(--pt));
-    border-radius: calc(18.5 * var(--pt));
+    width: calc(126 * var(--isl-pt));
+    height: calc(37 * var(--isl-pt));
+    border-radius: calc(18.5 * var(--isl-pt));
     background: #000;
     color: #fff;
     font-family: var(--font-system);
@@ -113,17 +117,18 @@ const {
     z-index: 8;
   }
   .island--inline {
+    --isl-pt: var(--pt, min(1px, calc((100cqw - 24px) / 371)));
     position: relative;
     top: auto;
     flex: none;
   }
   .island[data-size='compact'] {
-    width: calc(250 * var(--pt));
+    width: calc(250 * var(--isl-pt));
   }
   .island[data-size='expanded'] {
-    width: calc(371 * var(--pt));
-    height: calc(160 * var(--pt));
-    border-radius: calc(44 * var(--pt));
+    width: calc(371 * var(--isl-pt));
+    height: calc(160 * var(--isl-pt));
+    border-radius: calc(44 * var(--isl-pt));
   }
 
   .isl-mono {
@@ -148,33 +153,33 @@ const {
 
   /* ---------- Compact: 250 × 37, the camera in the middle 126 pt ---------- */
   .isl-compact {
-    width: calc(250 * var(--pt));
-    height: calc(37 * var(--pt));
-    margin-left: calc(-125 * var(--pt));
+    width: calc(250 * var(--isl-pt));
+    height: calc(37 * var(--isl-pt));
+    margin-left: calc(-125 * var(--isl-pt));
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 calc(13 * var(--pt)) 0 calc(11 * var(--pt));
+    padding: 0 calc(13 * var(--isl-pt)) 0 calc(11 * var(--isl-pt));
   }
   .isl-lead {
     display: flex;
     align-items: center;
-    gap: calc(3.5 * var(--pt));
+    gap: calc(3.5 * var(--isl-pt));
   }
   .isl-fir {
-    width: calc(14 * var(--pt));
-    height: calc(14 * var(--pt));
+    width: calc(14 * var(--isl-pt));
+    height: calc(14 * var(--isl-pt));
     color: var(--fir-lit);
     flex: none;
   }
   .isl-row {
-    font-size: calc(13.5 * var(--pt));
+    font-size: calc(13.5 * var(--isl-pt));
     font-weight: 600;
     letter-spacing: -0.015em;
     white-space: nowrap;
   }
   .isl-trail {
-    font-size: calc(14.5 * var(--pt));
+    font-size: calc(14.5 * var(--isl-pt));
     font-weight: 600;
     color: var(--fir-lit);
     letter-spacing: -0.02em;
@@ -182,51 +187,51 @@ const {
 
   /* ---------- Expanded: 371 × 160, radius 44 ---------- */
   .isl-expanded {
-    width: calc(371 * var(--pt));
-    height: calc(160 * var(--pt));
-    margin-left: calc(-185.5 * var(--pt));
-    padding: 0 calc(20 * var(--pt)) calc(14 * var(--pt));
+    width: calc(371 * var(--isl-pt));
+    height: calc(160 * var(--isl-pt));
+    margin-left: calc(-185.5 * var(--isl-pt));
+    padding: 0 calc(20 * var(--isl-pt)) calc(14 * var(--isl-pt));
     display: grid;
-    grid-template-rows: calc(37 * var(--pt)) 1fr auto;
+    grid-template-rows: calc(37 * var(--isl-pt)) 1fr auto;
   }
   /* Leading and trailing sit beside the camera (y 0–37). */
   .isl-top {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding-top: calc(4 * var(--pt));
+    padding-top: calc(4 * var(--isl-pt));
   }
   .isl-badge {
     display: grid;
     place-items: center;
-    width: calc(26 * var(--pt));
-    height: calc(26 * var(--pt));
+    width: calc(26 * var(--isl-pt));
+    height: calc(26 * var(--isl-pt));
     border-radius: 50%;
     background: #2e7a4e;
     color: #f7f2e4;
   }
   .isl-badge svg {
-    width: calc(16 * var(--pt));
-    height: calc(16 * var(--pt));
+    width: calc(16 * var(--isl-pt));
+    height: calc(16 * var(--isl-pt));
   }
   .isl-pill {
     display: inline-flex;
     align-items: center;
-    gap: calc(5 * var(--pt));
-    height: calc(22 * var(--pt));
-    padding: 0 calc(9 * var(--pt)) 0 calc(8 * var(--pt));
-    border-radius: calc(11 * var(--pt));
+    gap: calc(5 * var(--isl-pt));
+    height: calc(22 * var(--isl-pt));
+    padding: 0 calc(9 * var(--isl-pt)) 0 calc(8 * var(--isl-pt));
+    border-radius: calc(11 * var(--isl-pt));
     background: rgba(136, 207, 164, 0.16);
     color: var(--fir-lit);
-    font-size: calc(12 * var(--pt));
+    font-size: calc(12 * var(--isl-pt));
     font-weight: 600;
     letter-spacing: -0.005em;
     white-space: nowrap;
   }
   .isl-pill::before {
     content: '';
-    width: calc(6 * var(--pt));
-    height: calc(6 * var(--pt));
+    width: calc(6 * var(--isl-pt));
+    height: calc(6 * var(--isl-pt));
     border-radius: 50%;
     background: currentColor;
   }
@@ -234,31 +239,31 @@ const {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: calc(12 * var(--pt));
-    padding-bottom: calc(2 * var(--pt));
+    gap: calc(12 * var(--isl-pt));
+    padding-bottom: calc(2 * var(--isl-pt));
   }
   .isl-place {
     display: grid;
-    gap: calc(2 * var(--pt));
+    gap: calc(2 * var(--isl-pt));
     min-width: 0;
   }
   .isl-field {
-    font-size: calc(15 * var(--pt));
+    font-size: calc(15 * var(--isl-pt));
     font-weight: 600;
     letter-spacing: -0.012em;
     white-space: nowrap;
   }
   .isl-sub {
-    font-size: calc(13 * var(--pt));
+    font-size: calc(13 * var(--isl-pt));
     color: rgba(235, 235, 245, 0.6);
     white-space: nowrap;
   }
   .isl-sub .isl-mono {
-    font-size: calc(12.5 * var(--pt));
+    font-size: calc(12.5 * var(--isl-pt));
     font-weight: 500;
   }
   .isl-timer {
-    font-size: calc(32 * var(--pt));
+    font-size: calc(32 * var(--isl-pt));
     font-weight: 600;
     line-height: 1;
     letter-spacing: -0.03em;
@@ -267,14 +272,14 @@ const {
   .isl-btns {
     display: grid;
     grid-template-columns: 1fr 1fr 0.86fr;
-    gap: calc(8 * var(--pt));
+    gap: calc(8 * var(--isl-pt));
   }
   .isl-btn {
     display: grid;
     place-items: center;
-    height: calc(40 * var(--pt));
-    border-radius: calc(13 * var(--pt));
-    font-size: calc(15 * var(--pt));
+    height: calc(40 * var(--isl-pt));
+    border-radius: calc(13 * var(--isl-pt));
+    font-size: calc(15 * var(--isl-pt));
     font-weight: 600;
     letter-spacing: -0.01em;
     white-space: nowrap;

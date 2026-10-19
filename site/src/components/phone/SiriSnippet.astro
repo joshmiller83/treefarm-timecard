@@ -82,12 +82,13 @@ const tiers = firTiers();
     width: calc(361 * var(--pt));
     padding: calc(14 * var(--pt)) calc(16 * var(--pt)) calc(16 * var(--pt));
     border-radius: calc(26 * var(--pt));
-    /* The brief's material (--siri-card) over a darker underlay: no backdrop blur, so this
-       keeps the lock-screen clock from showing through the way it never would on a device. */
+    /* The brief's material (--siri-card) over an opaque underlay. There is no backdrop blur
+       (never animate one), and without it a translucent card shows crisp ghost text of the
+       lock-screen clock, which a real material never does. */
     background:
       linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0) 48%),
       linear-gradient(var(--siri-card), var(--siri-card)),
-      rgba(20, 24, 22, 0.86);
+      #121614;
     /* A glass edge: a hairline highlight on top, a soft baked shadow under (never animated). */
     box-shadow:
       inset 0 calc(0.75 * var(--pt)) 0 rgba(255, 255, 255, 0.14),

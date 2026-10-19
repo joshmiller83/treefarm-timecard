@@ -160,7 +160,7 @@ test.describe('SiriGlow', () => {
         .locator('[data-glow]')
         .evaluate((el) => {
           const cs = getComputedStyle(el);
-          return { mask: cs.maskImage || cs.webkitMaskImage, opacity: cs.opacity };
+          return { mask: cs.maskImage || cs.getPropertyValue('-webkit-mask-image'), opacity: cs.opacity };
         });
     const live = await mask('glow-live');
     const still = await mask('glow-still');
@@ -177,7 +177,7 @@ test.describe('SiriGlow', () => {
 
   test('defaults to the faint border without html.motion and the full glow with it', async ({ page }) => {
     const auto = cell(page, 'glow-auto').locator('[data-glow]');
-    const read = () => auto.evaluate((el) => getComputedStyle(el).maskImage || getComputedStyle(el).webkitMaskImage);
+    const read = () => auto.evaluate((el) => getComputedStyle(el).maskImage || getComputedStyle(el).getPropertyValue('-webkit-mask-image'));
     expect(await read()).not.toContain('feGaussianBlur');
     await page.evaluate(() => document.documentElement.classList.add('motion'));
     expect(await read()).toContain('feGaussianBlur');
@@ -342,7 +342,7 @@ test.describe('reduced motion', () => {
     await expect(page.locator('html')).not.toHaveClass(/(^|\s)motion(\s|$)/);
     const mask = await cell(page, 'glow-auto')
       .locator('[data-glow]')
-      .evaluate((el) => getComputedStyle(el).maskImage || getComputedStyle(el).webkitMaskImage);
+      .evaluate((el) => getComputedStyle(el).maskImage || getComputedStyle(el).getPropertyValue('-webkit-mask-image'));
     expect(mask).not.toContain('feGaussianBlur');
     await expect(cell(page, 'island-expanded').locator('[data-island-expanded]')).toBeVisible();
     // Nothing in the ControlsCard (it sits in copy beats) is faded on the static page.
