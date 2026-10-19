@@ -1,19 +1,141 @@
 ---
-/** STUB (map): replace with the canvas map, keep the Props and hooks in CONTRACT.md. */
-import Stub from './dev/Stub.astro';
+/**
+ * FIELD MAP (map team): North field's 8,540 trees on Canvas 2D, for the field section.
+ * Spec: brief sharedComponents "FieldMap" and sections.field; renderer in src/scripts/fieldmap.ts.
+ *
+ * - The box takes the width it is given; its aspect ratio comes from the layout: portrait
+ *   below 900px (blocks 1–7 across), landscape from 900px (the field transposed, ~1.7:1).
+ *   view='zoom' is the close-up of block 2 rows 28–40 with row numbers.
+ * - First paint and no-JS: an inline SVG of the same state (a few KB of patterned runs).
+ * - The canvas (role="img", the ledger summary as its label) loads its renderer when it comes
+ *   within one viewport, draws the static final state, and hides the SVG.
+ * - Scenes drive it: ensureFieldMap(canvas).setProgress(p) plays the brief's choreography
+ *   (sceneState in fieldmap.ts), or .draw({ camera, season, ... }) for anything custom.
+ *
+ * Hooks: [data-fieldmap] (the canvas), [data-fieldmap-box] (the box; data-ready after the
+ * first frame), event 'fieldmap:ready' on the canvas.
+ */
 import { MOMENTS } from '../data/ledger';
-import { FIELD_SUMMARY } from '../scripts/fieldmap';
+import { FIELD_SUMMARY, ZOOM_TARGET, fieldSVG, frameRect, targetRect, zoomSummary } from '../scripts/fieldmap';
+import { nextId } from './app/trees/markup';
 
 export interface Props {
+  /** Ledger minute for the drawn state. Default MOMENTS.field (2:15 PM). */
   at?: number;
   view?: 'overview' | 'zoom';
+  /** Zoomed view: block 2 rows 28–40. */
   zoom?: { block: number; from: number; to: number };
+  /** Accessible summary (defaults to the ledger sentence in the brief, or the close-up's). */
   label?: string;
   class?: string;
+  /** Draw the field scene's choreography statically at this progress (labs, tests). */
+  progress?: number;
+  /** Force an orientation instead of following the box's shape. */
+  orientation?: 'portrait' | 'landscape';
 }
-const { at = MOMENTS.field, view = 'overview', label = FIELD_SUMMARY, class: cls } = Astro.props;
+
+const { at = MOMENTS.field, view = 'overview', zoom = ZOOM_TARGET, label, class: cls, progress, orientation } = Astro.props;
+
+const summary = label ?? (view === 'zoom' ? zoomSummary(zoom, at) : FIELD_SUMMARY);
+const ratio = (r: { w: number; h: number }) => (r.w / r.h).toFixed(4);
+const port = view === 'zoom' ? targetRect(zoom, 'portrait') : frameRect('portrait');
+const land = view === 'zoom' ? targetRect(zoom, 'landscape') : frameRect('landscape');
+const id = nextId('fm');
+// The close-up stays portrait (row numbers on the left) unless asked otherwise.
+const orients = view === 'zoom' ? [orientation ?? 'portrait'] : orientation ? [orientation] : ['portrait', 'landscape'];
+const svgs = orients.map((o) =>
+  fieldSVG({
+    orientation: o as 'portrait' | 'landscape',
+    at,
+    zoom: view === 'zoom' ? zoom : undefined,
+    id: `${id}-${o[0]}`,
+    class: `fm-svg fm-svg--${o}`,
+  }),
+);
+const fixed = view === 'zoom' || orientation ? (orients[0] === 'portrait' ? port : land) : null;
+const style = fixed ? `--fm-ratio:${ratio(fixed)}` : `--fm-port:${ratio(port)};--fm-land:${ratio(land)}`;
 ---
 
-<div class:list={['fieldmap', cls]} role="img" aria-label={label} data-fieldmap data-view={view} data-at={at}>
-  <Stub name="FieldMap" owner="map" note="8,540 dots on Canvas 2D" box="aspect-ratio:1.55;width:100%;" />
+<div
+  class:list={['fieldmap', `fieldmap--${view}`, fixed && 'fieldmap--fixed', cls]}
+  data-fieldmap-box
+  style={style}
+>
+  <Fragment set:html={svgs.join('')} />
+  <canvas
+    role="img"
+    aria-label={summary}
+    data-fieldmap
+    data-view={view}
+    data-at={at}
+    data-zoom={`${zoom.block}:${zoom.from}:${zoom.to}`}
+    data-progress={progress}
+    data-orientation={orientation ?? (view === 'zoom' ? 'portrait' : 'auto')}></canvas>
 </div>
+
+<script>
+  // Load the renderer only when a map comes within one viewport (brief: rootMargin 100%).
+  const maps = document.querySelectorAll<HTMLCanvasElement>('canvas[data-fieldmap]');
+  const start = (c: HTMLCanvasElement) =>
+    import('../scripts/fieldmap.ts').then((m) => m.ensureFieldMap(c)).catch((e) => console.warn('[fieldmap]', e));
+  if (maps.length && 'IntersectionObserver' in window) {
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (!e.isIntersecting) continue;
+          io.unobserve(e.target);
+          start(e.target as HTMLCanvasElement);
+        }
+      },
+      { rootMargin: '100% 0px' },
+    );
+    maps.forEach((c) => io.observe(c));
+  } else maps.forEach(start);
+</script>
+
+<style>
+  .fieldmap {
+    position: relative;
+    width: 100%;
+    aspect-ratio: var(--fm-port);
+  }
+  @media (min-width: 900px) {
+    .fieldmap {
+      aspect-ratio: var(--fm-land);
+    }
+  }
+  .fieldmap--fixed,
+  .fieldmap.fieldmap--fixed {
+    aspect-ratio: var(--fm-ratio);
+  }
+  .fieldmap canvas,
+  .fieldmap :global(.fm-svg) {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+  .fieldmap :global(.fm-svg-label) {
+    font-family: var(--font-mono);
+    font-weight: 500;
+  }
+  .fieldmap :global(.fm-svg--landscape) {
+    display: none;
+  }
+  @media (min-width: 900px) {
+    .fieldmap :global(.fm-svg--portrait) {
+      display: none;
+    }
+    .fieldmap :global(.fm-svg--landscape) {
+      display: block;
+    }
+  }
+  /* A forced orientation shows its one SVG at every width. */
+  .fieldmap--fixed :global(.fm-svg) {
+    display: block !important;
+  }
+  .fieldmap[data-ready] :global(.fm-svg) {
+    visibility: hidden;
+  }
+</style>

@@ -285,6 +285,32 @@ export function fieldRuns(s: Uint8Array): Run[] {
   return runs;
 }
 
+/** The close-up in words, from the ledger: the zoomed canvas's aria-label. */
+export function zoomSummary(t: ZoomTarget = ZOOM_TARGET, at: Minute = MOMENTS.field, notes: readonly TreeNote[] = notesAt(at)): string {
+  const s = treeStatus({ at });
+  const kind = (row: number) => {
+    const i = treeIndex(t.block, row, 1);
+    const r = s.subarray(i, i + ACROSS);
+    if (r.every((v) => v === TODAY)) return 'shaped today in gold';
+    if (r.every((v) => v === EARLIER_S)) return 'shaped earlier in green';
+    if (r.every((v) => v === EMPTY)) return 'not yet shaped';
+    return 'partly shaped';
+  };
+  const parts: string[] = [];
+  let from = t.from;
+  for (let row = t.from; row <= t.to; row += 1) {
+    if (row < t.to && kind(row + 1) === kind(row)) continue;
+    parts.push(`${from === row ? `row ${row}` : `rows ${from} to ${row}`} ${kind(row)}`);
+    from = row + 1;
+  }
+  const flags = notes
+    .filter((n) => n.block === t.block && n.row >= t.from && n.row <= t.to)
+    .map((n) => ` A flag marks a tree note on row ${n.row}, tree ${n.tree}: ${n.flag}.`)
+    .join('');
+  const text = parts.join(', ');
+  return `Close-up of block ${t.block}, rows ${t.from} to ${t.to}, 10 trees a row: ${text.charAt(0).toUpperCase()}${text.slice(1)}.${flags}`;
+}
+
 // ---------------------------------------------------------------------------
 // Static SVG (server-rendered first paint, no-JS fallback)
 
@@ -347,12 +373,17 @@ export function fieldSVG(o: SvgOptions): string {
   out.push(
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${n2(vb.x)} ${n2(vb.y)} ${n2(vb.w)} ${n2(vb.h)}" preserveAspectRatio="xMidYMid meet" aria-hidden="true" focusable="false"${o.class ? ` class="${o.class}"` : ''}>`,
     '<defs>',
-    `<pattern id="${id}-r" width="1" height="1" patternUnits="userSpaceOnUse"><circle cx=".5" cy=".5" r="${DOT_R - 0.07}" fill="none" stroke="${t.ring}" stroke-width=".14"/></pattern>`,
+    `<pattern id="${id}-r" width="1" height="1" patternUnits="userSpaceOnUse"><circle cx=".5" cy=".5" r="${n2(DOT_R - 0.07)}" fill="none" stroke="${t.ring}" stroke-width=".14"/></pattern>`,
     `<pattern id="${id}-e" width="1" height="1" patternUnits="userSpaceOnUse"><circle cx=".5" cy=".5" r="${DOT_R}" fill="${t.earlier}"/></pattern>`,
     `<pattern id="${id}-t" width="1" height="1" patternUnits="userSpaceOnUse"><circle cx=".5" cy=".5" r="${n2(DOT_R * TODAY_SCALE)}" fill="${t.today}"/></pattern>`,
     '</defs>',
   );
-  const runs = fieldRuns(s);
+  const z = o.zoom;
+  const runs = z
+    ? fieldRuns(s)
+        .filter((r) => r.block === z.block && r.row1 >= z.from && r.row0 <= z.to)
+        .map((r) => ({ ...r, row0: Math.max(r.row0, z.from), row1: Math.min(r.row1, z.to) }))
+    : fieldRuns(s);
   let block = 0;
   for (const r of runs) {
     if (r.block !== block) {
@@ -370,9 +401,9 @@ export function fieldSVG(o: SvgOptions): string {
   if (block) out.push('</g>');
 
   // Block labels.
-  const fs = o.orientation === 'portrait' ? 2 : 1.35;
+  const fs = o.orientation === 'portrait' ? 1.7 : 1.35;
   out.push(`<g fill="${t.label}" font-size="${fs}" class="fm-svg-label">`);
-  for (let b = 1; b <= FIELD.blocks; b += 1) {
+  for (let b = 1; b <= FIELD.blocks && !o.zoom; b += 1) {
     const r = blockRect(b, o.orientation);
     if (o.orientation === 'portrait') out.push(`<text x="${n2(r.x)}" y="${n2(r.y - 0.8)}">Block ${b}</text>`);
     else if (b <= PER_STRIP) out.push(`<text x="${n2(r.x - 0.9)}" y="${n2(r.y + r.h / 2 + fs * 0.35)}" text-anchor="end">Block ${b}</text>`);
@@ -815,16 +846,17 @@ export function createFieldMap(canvas: HTMLCanvasElement, opts: FieldMapOptions 
       }
       c.globalAlpha = 1;
     }
-    // Block labels.
+    // Block labels ('Block 7'; just '7' where a portrait block is narrower than its name).
     c.font = `500 11px ${font}`;
     c.fillStyle = theme.label;
     c.textBaseline = 'alphabetic';
-    for (let b = 1; b <= FIELD.blocks; b += 1) {
+    const short = orientation === 'portrait' && c.measureText('Block 14').width > ACROSS * v.s - 4;
+    for (let b = 1; b <= FIELD.blocks && view !== 'zoom'; b += 1) {
       const r = blockRect(b, orientation);
       if (orientation === 'portrait') {
         const p = toScreen(v, r.x, r.y);
         c.textAlign = 'left';
-        c.fillText(`Block ${b}`, p.x, p.y - Math.max(4, v.s * 0.8));
+        c.fillText(short ? String(b) : `Block ${b}`, p.x, p.y - Math.max(4, v.s * 0.8));
       } else {
         const left = b <= PER_STRIP;
         const p = toScreen(v, left ? r.x : r.x + r.w, r.y + r.h / 2);
@@ -835,8 +867,10 @@ export function createFieldMap(canvas: HTMLCanvasElement, opts: FieldMapOptions 
       }
     }
     // Row numbers of the close-up, and the touch ring on the demo row's number.
-    if (state.labels > 0) {
-      c.font = `500 13px ${font}`;
+    // Numbers shrink with the zoom so they never crowd (13px at full zoom, hidden below 7px).
+    const numPx = Math.min(13, v.s * 0.62);
+    if (state.labels > 0 && numPx >= 7) {
+      c.font = `500 ${numPx.toFixed(1)}px ${font}`;
       c.textBaseline = 'middle';
       const og = blockOrigin(target.block, orientation);
       for (let row = target.from; row <= target.to; row += 1) {
@@ -851,11 +885,11 @@ export function createFieldMap(canvas: HTMLCanvasElement, opts: FieldMapOptions 
         c.fillText(String(row), p.x, p.y);
         if (hot && state.touch > 0 && state.touch < 1) {
           const u = state.touch;
-          const cx = orientation === 'portrait' ? p.x - 8 : p.x;
+          const cx = orientation === 'portrait' ? p.x - numPx * 0.6 : p.x;
           c.globalAlpha = 0.35 * (1 - u);
           c.fillStyle = '#FFFFFF';
           c.beginPath();
-          c.arc(cx, p.y, 22 * (0.6 + 0.8 * u), 0, Math.PI * 2);
+          c.arc(cx, p.y, Math.min(22, v.s * 0.92) * (0.6 + 0.8 * u), 0, Math.PI * 2);
           c.fill();
         }
       }
@@ -896,7 +930,11 @@ export function createFieldMap(canvas: HTMLCanvasElement, opts: FieldMapOptions 
     raf = 0;
     if (destroyed || !ctx || W === 0 || H === 0) return;
     const v = view === 'zoom' ? v1 : lerpView(v0, v1, state.camera);
-    const cells = visibleCells(v, orientation, W, H);
+    // The close-up shows only its own rows: no neighbouring blocks or rows at the edges.
+    const cells =
+      view === 'zoom'
+        ? [{ block: target.block, row0: target.from, row1: target.to, tree0: 1, tree1: ACROSS }]
+        : visibleCells(v, orientation, W, H);
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);

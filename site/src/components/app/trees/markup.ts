@@ -57,6 +57,10 @@ export interface WindowBlock {
   rows: [number, number];
 }
 
+let seq = 0;
+/** A page-unique id for SVG pattern definitions. */
+export const nextId = (prefix = 'tm') => `${prefix}${(seq += 1)}`;
+
 /** Which blocks and rows the map viewport shows: the target block at the left margin, its strip-mates beside it. */
 export function appMapWindow(o: { block: number; first: number; zoom: AppZoom; height: number; width?: number }): {
   blocks: WindowBlock[];
@@ -104,6 +108,8 @@ export function appTreeMarkup(o: AppMapOptions): string {
     notesBy.set(k, [...(notesBy.get(k) ?? []), n]);
   }
   const numFs = Math.min(10, z.cw * 0.62);
+  // At XS the rows are 8 pt apart: number every fifth row (and row 1), like a ruler.
+  const labelled = (row: number) => o.zoom !== 'XS' || row === 1 || row % 5 === 0;
   for (const w of blocks) {
     const target = w.block === o.block;
     const [r0, r1] = w.rows;
@@ -119,7 +125,7 @@ export function appTreeMarkup(o: AppMapOptions): string {
       const cur = target && o.currentRow === row;
       out.push(
         `<div class="tm-row${row % 2 === 0 ? ' tm-even' : ''}"${target ? ` data-map-row="${row}"` : ''} data-block-row="${w.block}-${row}" style="--r:${row - r0}">`,
-        `<span class="tm-rl${cur ? ' tm-cur' : ''}"${target ? ` data-row-label="${row}"` : ''}>${row}</span>`,
+        `<span class="tm-rl${cur ? ' tm-cur' : ''}"${target ? ` data-row-label="${row}"` : ''}>${labelled(row) || cur ? row : ''}</span>`,
       );
       for (let tree = 1; tree <= ACROSS; tree += 1) {
         const s = statusOf(o.status, w.block, row, tree);
