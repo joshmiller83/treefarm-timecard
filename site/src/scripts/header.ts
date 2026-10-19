@@ -2,8 +2,9 @@
  * First-load header behaviour (no GSAP): the mobile chapter disclosure, the light/dark
  * header switch, the current chapter, and the Pause motion toggle.
  * DayClock (motion only) also writes the ribbon and tag; this keeps them right without it.
+ * It reads the chapters from the sections' own attributes (SectionShell writes
+ * data-ribbon-tag), so the first-load bundle never pulls in the chapter list or the ledger.
  */
-import { CHAPTERS } from '../data/chapters.ts';
 
 export const PAUSE_KEY = 'tf-pause';
 export const PAUSE_EVENT = 'tf:pause';
@@ -56,7 +57,7 @@ export function initHeader(): void {
   }
 
   // ---- Which section is under the header ----
-  const sections = CHAPTERS.map((c) => document.getElementById(c.id)).filter((s): s is HTMLElement => !!s);
+  const sections = Array.from(document.querySelectorAll<HTMLElement>('main section[data-ribbon-tag]'));
   const links = new Map(
     Array.from(list.querySelectorAll<HTMLAnchorElement>('a[data-chapter-link]')).map((a) => [a.dataset.chapterLink!, a]),
   );
@@ -87,9 +88,9 @@ export function initHeader(): void {
     });
     // Without motion, the tag names the chapter; with motion DayClock writes the live time.
     if (!root.classList.contains('motion')) {
-      const c = CHAPTERS[Math.max(0, idx)]!;
-      for (const t of tags) t.textContent = c.ribbonTag;
-      nav.style.setProperty('--p', String(Math.max(0, idx) / (CHAPTERS.length - 1)));
+      const tag = sections[Math.max(0, idx)]?.dataset.ribbonTag ?? '';
+      for (const t of tags) t.textContent = tag;
+      nav.style.setProperty('--p', String(Math.max(0, idx) / Math.max(1, sections.length - 1)));
     }
   };
 
