@@ -132,8 +132,8 @@ struct MapLegend: View {
         note
     }
 
-    private var notYet: some View { item("Not yet") { Circle().strokeBorder(Color.mapTreeEmpty, lineWidth: 1.6) } }
-    private var earlier: some View { item("Earlier") { Circle().fill(Palette.fir) } }
+    private var notYet: some View { item("Not yet") { Circle().strokeBorder(Color.mapTreeEmpty, lineWidth: 2) } }
+    private var earlier: some View { item("Earlier") { Circle().fill(Color.mapDone) } }
     private var thisShift: some View {
         item("This shift") {
             ZStack {

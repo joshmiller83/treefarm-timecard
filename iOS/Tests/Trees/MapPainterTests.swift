@@ -86,7 +86,21 @@ struct MapPainterTests {
         #expect(contrast(high.empty, high.surface) > contrast(normal.empty, normal.surface))
         #expect(normal.done == high.done, "the green and gold dots keep their look")
         #expect(MapPainter.ringWidth(cell: 15, highContrast: true) > MapPainter.ringWidth(cell: 15, highContrast: false))
-        #expect(MapPainter.ringWidth(cell: 15, highContrast: false) > MapPainter.ringWidth(cell: 10, highContrast: false), "M and L rings are heavier")
+        for cell: CGFloat in [10, 15, 22] {
+            #expect(MapPainter.ringWidth(cell: cell, highContrast: false) == 2, "S, M and L rings are 2 pt")
+        }
+    }
+
+    /// Outdoors with default settings, rings and outlines already reach 3:1, and shaped dots
+    /// stand out on a dark map.
+    @Test(arguments: [false, true])
+    func theDefaultMapReadsInSunlight(dark: Bool) {
+        let normal = MapPalette(traits: MapPalette.traits(dark: dark, highContrast: false))
+        for background in [normal.surface, normal.stripe] {
+            #expect(contrast(normal.empty, background) >= 3, "not-yet rings reach 3:1")
+            #expect(contrast(normal.line, background) >= 3, "block outlines reach 3:1")
+            #expect(contrast(normal.done, background) >= 3, "shaped dots reach 3:1")
+        }
     }
 
     @Test func differentiateWithoutColorPutsAHoleInThisShiftsDots() {

@@ -3,34 +3,21 @@ import SwiftUI
 import TimeCardCore
 import UIKit
 
-/// The map's quiet colors, with stronger versions for Increase Contrast. The default look is
-/// the web time card's; with Increase Contrast on, "not yet" rings and block outlines reach
-/// at least 3:1 against the map in both themes (WCAG 1.4.11).
-///
-/// These belong in the asset catalog as "High Contrast" appearances of TreeEmpty and
-/// BlockLine; until then the map resolves them here.
+/// The map's "not yet" rings and block outlines. Outdoors, in sunlight, they reach at least
+/// 3:1 against the map in both themes (WCAG 1.4.11) by default, and the asset catalog's High
+/// Contrast appearances make them stronger still with Increase Contrast.
 enum MapColors {
-    static let treeEmpty = dynamic("TreeEmpty", lightHigh: 0x678770, darkHigh: 0x6B8A76)
-    static let blockLine = dynamic("BlockLine", lightHigh: 0x62806B, darkHigh: 0x688572)
-
-    private static func dynamic(_ name: String, lightHigh: UInt32, darkHigh: UInt32) -> UIColor {
-        UIColor { traits in
-            guard traits.accessibilityContrast == .high else {
-                return (UIColor(named: name) ?? .gray).resolvedColor(with: traits)
-            }
-            return rgb(traits.userInterfaceStyle == .dark ? darkHigh : lightHigh)
-        }
-    }
-
-    private static func rgb(_ hex: UInt32) -> UIColor {
-        UIColor(red: CGFloat((hex >> 16) & 0xFF) / 255, green: CGFloat((hex >> 8) & 0xFF) / 255,
-                blue: CGFloat(hex & 0xFF) / 255, alpha: 1)
-    }
+    static let treeEmpty = UIColor(named: "TreeEmpty") ?? .gray
+    static let blockLine = UIColor(named: "BlockLine") ?? .gray
 }
 
 extension Color {
     /// "Not shaped yet" rings, stronger with Increase Contrast.
     static let mapTreeEmpty = Color(uiColor: MapColors.treeEmpty)
+    /// Shaped trees as the map draws them: fir, or text fir on a dark map.
+    static let mapDone = Color(uiColor: UIColor { traits in
+        (UIColor(named: traits.userInterfaceStyle == .dark ? "FirText" : "Fir") ?? .systemGreen).resolvedColor(with: traits)
+    })
 }
 
 /// The map's colors, resolved for light or dark and the contrast setting, as Core Graphics colors.
@@ -54,7 +41,8 @@ struct MapPalette {
             (UIColor(named: name) ?? .gray).resolvedColor(with: traits).cgColor
         }
         empty = MapColors.treeEmpty.resolvedColor(with: traits).cgColor
-        done = color("Fir")
+        // Shaped trees: fir, or the lighter text fir on a dark map, where fir is too dim.
+        done = color(traits.userInterfaceStyle == .dark ? "FirText" : "Fir")
         mine = color("Sap")
         muted = color("Muted")
         ink = color("Ink")
@@ -215,9 +203,10 @@ struct MapPainter {
         }
     }
 
-    /// A "not yet" ring's stroke: heavier at M and L, where there's room, and with Increase Contrast.
+    /// A "not yet" ring's stroke: 2 pt at S, M and L so it reads in sunlight, thinner at XS where
+    /// the rings are tiny, and heavier with Increase Contrast.
     static func ringWidth(cell: CGFloat, highContrast: Bool) -> CGFloat {
-        let base: CGFloat = cell < 9 ? 1 : (cell >= 15 ? 1.6 : 1.3)
+        let base: CGFloat = cell < 9 ? 1.2 : 2
         return highContrast ? base + 0.4 : base
     }
 

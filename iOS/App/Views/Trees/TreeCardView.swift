@@ -80,7 +80,7 @@ struct TreeCardView: View {
                 switch info.state {
                 case .notShaped: Circle().strokeBorder(Color.mapTreeEmpty, lineWidth: 3)
                 case .thisShift: Circle().fill(Palette.sap)
-                case .earlier: Circle().fill(Palette.fir)
+                case .earlier: Circle().fill(Color.mapDone)
                 }
             }
             .frame(width: 28, height: 28)
