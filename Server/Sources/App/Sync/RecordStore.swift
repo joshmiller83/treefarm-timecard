@@ -127,29 +127,7 @@ extension RecordModel {
 }
 
 extension SyncRecord {
-    var updatedAt: Date {
-        switch self {
-        case .farm(let r): r.updatedAt
-        case .member(let r): r.updatedAt
-        case .season(let r): r.updatedAt
-        case .field(let r): r.updatedAt
-        case .block(let r): r.updatedAt
-        case .shift(let r): r.updatedAt
-        case .treeMark(let r): r.updatedAt
-        case .treeNote(let r): r.updatedAt
-        }
-    }
-
-    var deletedAt: Date? {
-        switch self {
-        case .farm, .member, .season: nil
-        case .field(let r): r.deletedAt
-        case .block(let r): r.deletedAt
-        case .shift(let r): r.deletedAt
-        case .treeMark(let r): r.deletedAt
-        case .treeNote(let r): r.deletedAt
-        }
-    }
+    // `updatedAt` and `deletedAt` come from TreeFarmKit (Sync/RecordMetadata.swift).
 
     var ownerUserId: UUID? {
         switch self {
