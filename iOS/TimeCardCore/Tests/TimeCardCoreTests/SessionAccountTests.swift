@@ -34,6 +34,9 @@ struct SessionAccountTests {
                                       engineConfiguration: config)
         try await session.signIn(email: email, password: password)
         _ = await session.syncNow()
+        // The pass signing in asked for can start after that one; let it end before a test
+        // scripts the server's next answer, or it takes the scripted failure.
+        await session.engine?.settle()
         return session
     }
 

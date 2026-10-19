@@ -90,6 +90,7 @@ struct TimeCardSessionTests {
         let session = try makeSession(stub: stub)
         try await session.signIn(email: "josh@example.com", password: "pw")
         _ = await session.syncNow()
+        await session.engine?.settle()
         await stub.failNext(.offline)
         await stub.failNext(.offline)
         await stub.failNext(.offline)

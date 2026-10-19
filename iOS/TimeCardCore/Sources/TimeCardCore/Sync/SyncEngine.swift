@@ -282,6 +282,24 @@ public actor SyncEngine {
         return await pass.value
     }
 
+    /// Waits until no pass is running or already asked for. A pass requested a moment ago
+    /// (signing in asks for one) may not have started when `syncNow()` returns, and then runs
+    /// after it; tests wait here before scripting the server's next answer, so that late pass
+    /// can't take it. A backoff retry is waited for too, so call this only when nothing fails.
+    func settle() async {
+        var waited: Set<Task<Void, Never>> = []
+        while true {
+            if let pending = scheduled, !waited.contains(pending) {
+                waited.insert(pending)
+                await pending.value
+            } else if let current = running {
+                _ = await current.value
+            } else {
+                return
+            }
+        }
+    }
+
     /// Pulls everything again from the start, after any pass already running, because the
     /// person's role changed and the server now shows them different records. With `owner`,
     /// other people's shifts are dropped first (no longer an admin).
