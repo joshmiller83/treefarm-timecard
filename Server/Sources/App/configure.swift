@@ -39,6 +39,7 @@ public func configure(_ app: Application, config: AppConfig) async throws {
 
     app.asyncCommands.use(BootstrapCommand(), as: "bootstrap")
     app.asyncCommands.use(InviteCommand(), as: "invite")
+    app.asyncCommands.use(ResetCodeCommand(), as: "reset-code")
     app.asyncCommands.use(BackupCommand(), as: "backup")
     app.asyncCommands.use(ImportArtifactCommand(), as: "import-artifact")
     if config.scheduleBackups {

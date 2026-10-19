@@ -26,6 +26,24 @@ struct CommandTests {
         }
     }
 
+    @Test func resetCodeLetsAnAccountSignInAgain() async throws {
+        try await withTestApp { app, _ in
+            let farm = try await FarmFixture.make(app)
+            let out = try await runCommand(app, ["reset-code", "--email", "  \(farm.admin.email.uppercased()) "])
+            #expect(out.contains("I have a reset code"))
+            let code = try #require(findCode(in: out))
+            let res = try await app.client2.send(.POST, APIPath.resetPassword, json: ResetPasswordRequest(email: farm.admin.email, resetCode: code, newPassword: "a brand new one", deviceName: "iPhone"))
+            #expect(res.status == .ok)
+
+            await #expect(throws: (any Error).self) {
+                _ = try await runCommand(app, ["reset-code", "--email", "nobody@example.com"])
+            }
+            await #expect(throws: (any Error).self) {
+                _ = try await runCommand(app, ["reset-code"])
+            }
+        }
+    }
+
     @Test func invitePrintsAWorkingCode() async throws {
         try await withTestApp { app, _ in
             let farm = try await FarmFixture.make(app)

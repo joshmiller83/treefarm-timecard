@@ -45,6 +45,7 @@ deploy/update.sh
 - Logs are in `$DATA_DIR/logs/` (server, backup, watchdog). The watchdog rotates them at 20 MB.
 - Backups are in `$DATA_DIR/backups/`, one per night, and the newest 30 are kept. To restore one, stop the server (`sudo launchctl bootout system/<prefix>.timecard`), copy the backup over `data/timecard.sqlite`, then rerun `sudo deploy/install-services.sh`.
 - To invite someone, use the app's Team tab or run `bin/Run invite --farm <farm id> --role worker`.
+- If a sign-in code expired, or an admin is locked out, run `bin/Run reset-code --email <email>` for a new one.
 
 ## Notes
 

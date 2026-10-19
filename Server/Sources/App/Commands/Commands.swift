@@ -40,6 +40,32 @@ struct BootstrapCommand: AsyncCommand {
     }
 }
 
+/// `Run reset-code --email <e>`: a fresh one-time sign-in code for an existing account,
+/// for when the bootstrap code expired or an admin is locked out with no other admin to ask.
+struct ResetCodeCommand: AsyncCommand {
+    struct Signature: CommandSignature {
+        @Option(name: "email", help: "The account's email.")
+        var email: String?
+
+        init() {}
+    }
+
+    var help: String { "Prints a one-time code that sets a new password for an existing account." }
+
+    func run(using context: CommandContext, signature: Signature) async throws {
+        guard let raw = signature.email else { throw CommandFailure("Usage: Run reset-code --email <email>") }
+        let app = context.application
+        let email = Accounts.normalizeEmail(raw)
+        guard let user = try await UserModel.query(on: app.db).filter(\.$email == email).first(), let userId = user.id else {
+            throw CommandFailure("There's no account for \(email).")
+        }
+        let reset = try await ResetCodes.issue(for: userId, on: app.db, now: Date())
+        context.console.print("In the app, choose \"I have a reset code\" and enter this code for \(email):")
+        context.console.print("    \(reset.code)")
+        context.console.print("It works once, for 24 hours. Any earlier unused code no longer works.")
+    }
+}
+
 /// `Run invite --farm <id> --role worker|admin [--note <who it's for>]`
 struct InviteCommand: AsyncCommand {
     struct Signature: CommandSignature {
