@@ -26,6 +26,10 @@ public func configure(_ app: Application, config: AppConfig) async throws {
         app.databases.use(.sqlite(.file(path)), as: .sqlite)
     }
 
+    app.rateLimiter = RateLimiter(rules: .init(ipAttempts: config.ipAttempts, ipWindow: config.ipWindow,
+                                               emailFailures: config.emailFailures, lockout: config.lockout))
+    app.dummyPasswordHash = try await app.hasher.hash(Codes.token())
+
     app.migrations.add(CreateSchema())
     try await app.autoMigrate()
 

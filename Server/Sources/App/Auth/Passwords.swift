@@ -6,6 +6,7 @@ import Vapor
 struct PasswordService: Sendable {
     let cost: Int
     let threadPool: NIOThreadPool
+    let dummyHash: String
 
     func hash(_ password: String) async throws -> String {
         let cost = self.cost
@@ -19,19 +20,25 @@ struct PasswordService: Sendable {
     /// Spends the same time as a real check, so a missing account can't be told
     /// apart from a wrong password by timing.
     func verifyNothing(_ password: String) async {
-        _ = try? await verify(password, hash: Self.dummyHash)
+        _ = try? await verify(password, hash: dummyHash)
     }
 
     /// A password nobody knows, for accounts that must sign in with a reset code first.
     func unusableHash() async throws -> String {
         try await hash(Codes.token())
     }
-
-    private static let dummyHash = "$2b$04$C6UzMDM.H6dfI/f/IKxGhuJ5bdD7wq1A8Fz3W8BeUCmmYd/i9WMzG"
 }
 
 extension Application {
-    var hasher: PasswordService { PasswordService(cost: config.bcryptCost, threadPool: threadPool) }
+    private struct DummyHashKey: StorageKey { typealias Value = String }
+
+    /// A hash of a random password at the configured cost, made at start-up.
+    var dummyPasswordHash: String {
+        get { storage[DummyHashKey.self] ?? "" }
+        set { storage[DummyHashKey.self] = newValue }
+    }
+
+    var hasher: PasswordService { PasswordService(cost: config.bcryptCost, threadPool: threadPool, dummyHash: dummyPasswordHash) }
 }
 
 extension Request {

@@ -7,24 +7,40 @@ import Vapor
 struct AuthController: RouteCollection {
     func boot(routes: any RoutesBuilder) throws {
         let auth = routes.grouped("v1", "auth")
-        auth.post("login", use: login)
-        auth.post("register", use: register)
-        auth.post("reset", use: reset)
+        let limited = auth.grouped(AuthRateLimitMiddleware())
+        limited.post("login", use: login)
+        limited.post("register", use: register)
+        limited.post("reset", use: reset)
         auth.grouped(BearerAuth()).post("logout", use: logout)
+    }
+
+    /// Answers 429 while the email is locked after too many wrong tries.
+    private func checkLock(_ email: String, _ req: Request) async throws {
+        if let wait = await req.application.rateLimiter.lockRemaining(email: email, now: req.now) {
+            throw RateLimiter.tooMany(wait)
+        }
+    }
+
+    private func failed(_ email: String, _ req: Request) async {
+        await req.application.rateLimiter.recordFailure(email: email, now: req.now)
     }
 
     func login(req: Request) async throws -> Response {
         let body = try req.decodeJSON(LoginRequest.self)
         let email = Accounts.normalizeEmail(body.email)
         let now = req.now
+        try await checkLock(email, req)
 
         guard let user = try await UserModel.query(on: req.db).filter(\.$email == email).first() else {
             await req.hasher.verifyNothing(body.password)
+            await failed(email, req)
             throw Abort(.unauthorized, reason: "That email and password don’t match.")
         }
         guard try await req.hasher.verify(body.password, hash: user.passwordHash) else {
+            await failed(email, req)
             throw Abort(.unauthorized, reason: "That email and password don’t match.")
         }
+        await req.application.rateLimiter.recordSuccess(email: email)
         let memberships = try await RecordStore(db: req.db).activeMemberships(of: user.id!)
         guard !memberships.isEmpty else {
             throw Abort(.forbidden, reason: "You’re no longer on any farm. Ask an admin for a new invite.")
@@ -45,7 +61,9 @@ struct AuthController: RouteCollection {
         let existing = try await UserModel.query(on: req.db).filter(\.$email == email).first()
         let newHash: String?
         if let existing {
+            try await checkLock(email, req)
             guard try await req.hasher.verify(password, hash: existing.passwordHash) else {
+                await failed(email, req)
                 throw Abort(.conflict, reason: "There’s already an account for that email. Use its password to join, or sign in.")
             }
             newHash = nil
@@ -93,10 +111,15 @@ struct AuthController: RouteCollection {
         let email = Accounts.normalizeEmail(body.email)
         let now = req.now
         let badCode = Abort(.badRequest, reason: "That reset code isn’t right or has expired. Ask your admin for a new one.")
+        try await checkLock(email, req)
 
         guard let user = try await UserModel.query(on: req.db).filter(\.$email == email).first(),
               try await ResetCodes.usable(body.resetCode, for: user.id!, on: req.db, now: now) != nil
-        else { throw badCode }
+        else {
+            await failed(email, req)
+            throw badCode
+        }
+        await req.application.rateLimiter.recordSuccess(email: email)
         let password = try Accounts.validPassword(body.newPassword)
         let hash = try await req.hasher.hash(password)
 
