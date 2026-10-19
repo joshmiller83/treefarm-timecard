@@ -11,6 +11,12 @@ public enum ShiftRuleError: Error, Equatable, Sendable {
     case alreadyClockedIn
     /// Clashes with another of the person's shifts. The strings are ready to show: "Mon, Oct 12", "7:00 AM", "3:30 PM" or "now".
     case overlaps(day: String, from: String, to: String)
+    /// Breaks are numbered from 1 in the order the shift lists them (the editor's order).
+    case breakNeedsEnd(Int)
+    case breakEndNotAfterStart(Int)
+    case breakOutsideShift(Int)
+    case onlyLatestBreakOpen
+    case breaksOverlap
 
     public var message: String {
         switch self {
@@ -26,6 +32,16 @@ public enum ShiftRuleError: Error, Equatable, Sendable {
             "You’re already clocked in on another shift. Add a clock-out time to this one."
         case .overlaps(let day, let from, let to):
             "This overlaps your shift on \(day) from \(from) to \(to). Change the times or edit that shift."
+        case .breakNeedsEnd(let n):
+            "Break \(n) needs an end time."
+        case .breakEndNotAfterStart(let n):
+            "Break \(n) has to end after it starts."
+        case .breakOutsideShift(let n):
+            "Break \(n) has to fall inside the shift."
+        case .onlyLatestBreakOpen:
+            "Only the latest break can be left open."
+        case .breaksOverlap:
+            "Two breaks overlap. Fix their times."
         }
     }
 }
@@ -50,6 +66,34 @@ public enum ShiftRules {
         if shift.isOpen && rivals.contains(where: \.isOpen) { return .alreadyClockedIn }
         if let o = overlap(shift.start, shift.end ?? now, rivals, now: now) {
             return .overlaps(day: Fmt.day(o.start, calendar), from: Fmt.time(o.start, calendar), to: o.end.map { Fmt.time($0, calendar) } ?? "now")
+        }
+        return validateBreaks(shift, latest: latest)
+    }
+
+    /// Breaks sorted by start, notes and break reasons trimmed and clamped to `Limits`.
+    public static func normalized(_ shift: Shift) -> Shift {
+        var s = shift
+        s.notes = Limits.clampNotes(s.notes)
+        s.breaks = s.breaks
+            .enumerated()
+            .sorted { ($0.element.start, $0.offset) < ($1.element.start, $1.offset) }
+            .map { var b = $0.element; b.reason = Limits.clampReason(b.reason); return b }
+        return s
+    }
+
+    /// Each break on its own, then the breaks in time order.
+    static func validateBreaks(_ shift: Shift, latest: Date) -> ShiftRuleError? {
+        for (i, b) in shift.breaks.enumerated() {
+            let n = i + 1
+            if let end = b.end, end <= b.start { return .breakEndNotAfterStart(n) }
+            if b.end == nil && shift.end != nil { return .breakNeedsEnd(n) }
+            let limit = shift.end ?? latest
+            if b.start < shift.start || b.start > limit || (b.end ?? b.start) > limit { return .breakOutsideShift(n) }
+        }
+        let sorted = shift.breaks.sorted { $0.start < $1.start }
+        for (b, next) in zip(sorted, sorted.dropFirst()) {
+            guard let end = b.end else { return .onlyLatestBreakOpen }
+            if end > next.start { return .breaksOverlap }
         }
         return nil
     }

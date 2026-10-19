@@ -93,3 +93,91 @@ struct ShiftRulesTimeTests {
         #expect(check(F.shift("2026-10-16 15:00", "2026-10-16 07:00", deleted: true)) == nil)
     }
 }
+
+@Suite("ShiftRules: breaks")
+struct ShiftRulesBreakTests {
+    typealias F = TimeFixture
+    let now = F.wall("2026-10-18 10:00")
+
+    func check(_ s: Shift, skew: TimeInterval = 0) -> ShiftRuleError? {
+        ShiftRules.validate(s, others: [], now: now, calendar: F.indy, skew: skew)
+    }
+
+    func friday(_ breaks: [Break]) -> Shift {
+        F.shift("2026-10-16 07:00", "2026-10-16 15:30", breaks: breaks)
+    }
+
+    @Test func aBreakMustEndAfterItStarts() {
+        #expect(check(friday([F.lunch("2026-10-16 12:30", "2026-10-16 12:00")])) == .breakEndNotAfterStart(1))
+        #expect(check(friday([F.lunch("2026-10-16 12:00", "2026-10-16 12:00")])) == .breakEndNotAfterStart(1))
+        #expect(ShiftRuleError.breakEndNotAfterStart(1).message == "Break 1 has to end after it starts.")
+    }
+
+    @Test func aClosedShiftNeedsClosedBreaks() {
+        let s = friday([F.lunch("2026-10-16 12:00", "2026-10-16 12:30"), F.rest("2026-10-16 14:00", nil)])
+        #expect(check(s) == .breakNeedsEnd(2))
+        #expect(ShiftRuleError.breakNeedsEnd(2).message == "Break 2 needs an end time.")
+    }
+
+    @Test func breaksStayInsideTheShift() {
+        #expect(check(friday([F.rest("2026-10-16 06:30", "2026-10-16 07:15")])) == .breakOutsideShift(1))
+        #expect(check(friday([F.rest("2026-10-16 15:00", "2026-10-16 15:45")])) == .breakOutsideShift(1))
+        #expect(check(friday([F.rest("2026-10-16 07:00", "2026-10-16 07:15"), F.rest("2026-10-16 15:15", "2026-10-16 15:30")])) == nil)
+        #expect(ShiftRuleError.breakOutsideShift(1).message == "Break 1 has to fall inside the shift.")
+    }
+
+    @Test func anOpenShiftsBreaksCantBeInTheFuture() {
+        let future = F.shift("2026-10-18 07:00", nil, breaks: [F.lunch("2026-10-18 10:01", nil)])
+        #expect(check(future) == .breakOutsideShift(1))
+        #expect(check(future, skew: Limits.clockSkew) == nil)
+        let endsLater = F.shift("2026-10-18 07:00", nil, breaks: [F.lunch("2026-10-18 09:30", "2026-10-18 10:10")])
+        #expect(check(endsLater, skew: Limits.clockSkew) == .breakOutsideShift(1))
+        #expect(check(F.shift("2026-10-18 07:00", nil, breaks: [F.lunch("2026-10-18 09:30", nil)])) == nil)
+    }
+
+    @Test func onlyTheLatestBreakCanBeOpen() {
+        let s = F.shift("2026-10-18 07:00", nil, breaks: [F.rest("2026-10-18 08:00", nil), F.rest("2026-10-18 09:00", "2026-10-18 09:10")])
+        #expect(check(s) == .onlyLatestBreakOpen)
+        #expect(ShiftRuleError.onlyLatestBreakOpen.message == "Only the latest break can be left open.")
+        let two = F.shift("2026-10-18 07:00", nil, breaks: [F.rest("2026-10-18 08:00", nil), F.rest("2026-10-18 09:00", nil)])
+        #expect(check(two) == .onlyLatestBreakOpen)
+    }
+
+    @Test func breaksCantOverlap() {
+        let s = friday([F.lunch("2026-10-16 12:00", "2026-10-16 12:30"), F.rest("2026-10-16 12:15", "2026-10-16 12:45")])
+        #expect(check(s) == .breaksOverlap)
+        #expect(ShiftRuleError.breaksOverlap.message == "Two breaks overlap. Fix their times.")
+        #expect(check(friday([F.lunch("2026-10-16 12:00", "2026-10-16 12:30"), F.rest("2026-10-16 12:30", "2026-10-16 12:40")])) == nil)
+    }
+
+    @Test func breaksAreCheckedInTimeOrderButNumberedAsGiven() {
+        #expect(check(friday([F.rest("2026-10-16 14:00", "2026-10-16 14:10"), F.lunch("2026-10-16 12:00", "2026-10-16 12:30")])) == nil)
+        #expect(check(friday([F.lunch("2026-10-16 12:00", "2026-10-16 12:30"), F.rest("2026-10-16 16:00", "2026-10-16 16:10")])) == .breakOutsideShift(2))
+    }
+
+    @Test func shiftProblemsComeBeforeBreakProblems() {
+        let s = F.shift("2026-10-16 15:00", "2026-10-16 07:00", breaks: [F.lunch("2026-10-16 12:30", "2026-10-16 12:00")])
+        #expect(check(s) == .endNotAfterStart)
+    }
+}
+
+@Suite("ShiftRules: normalized")
+struct ShiftRulesNormalizeTests {
+    typealias F = TimeFixture
+
+    @Test func sortsBreaksAndClampsText() {
+        let long = String(repeating: "r", count: 100)
+        let s = F.shift("2026-10-16 07:00", "2026-10-16 15:30", breaks: [
+            F.rest("2026-10-16 14:00", "2026-10-16 14:10", reason: "  " + long),
+            F.lunch("2026-10-16 12:00", "2026-10-16 12:30", reason: " Lunch "),
+        ], notes: "  " + String(repeating: "n", count: 2500))
+        let n = ShiftRules.normalized(s)
+        #expect(n.breaks.map(\.start) == [F.wall("2026-10-16 12:00"), F.wall("2026-10-16 14:00")])
+        #expect(n.breaks[0].reason == "Lunch")
+        #expect(n.breaks[1].reason.count == Limits.reason)
+        #expect(n.notes.count == Limits.notes)
+        #expect(n.notes.first == "n")
+        #expect(n.id == s.id && n.start == s.start && n.end == s.end && n.updatedAt == s.updatedAt)
+        #expect(ShiftRules.normalized(n) == n)
+    }
+}
