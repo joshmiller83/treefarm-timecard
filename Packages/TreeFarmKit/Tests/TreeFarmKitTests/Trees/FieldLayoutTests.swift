@@ -155,3 +155,120 @@ struct FieldLayoutTests {
         #expect(FieldLayout(blocks: M.blocks, metrics: metrics).rowHeaderRect(F.row(M.a, 0)) == nil)
     }
 }
+
+@Suite("FieldLayout hit tests")
+struct FieldLayoutHitTests {
+    typealias F = TreeFixtures
+    typealias M = MapFixture
+    let layout = M.layout
+
+    func hit(_ x: CGFloat, _ y: CGFloat) -> MapHit? { layout.hitTest(CGPoint(x: x, y: y)) }
+
+    @Test func treesInsideTheGrid() {
+        #expect(hit(111, 71) == .tree(F.tree(M.a, 2, 3)))
+        #expect(hit(215, 101) == .tree(F.tree(M.b, 1, 4)))
+        #expect(hit(40, 210) == .tree(F.tree(M.d, 0, 0)))
+        #expect(hit(109, 349) == .tree(F.tree(M.d, 9, 2)))
+    }
+
+    @Test func cellEdgesBelongToTheCellThatStartsThere() {
+        #expect(hit(32, 40) == .tree(F.tree(M.a, 0, 0)))
+        #expect(hit(58, 40) == .tree(F.tree(M.a, 0, 1)))
+        #expect(hit(57.99, 54.99) == .tree(F.tree(M.a, 0, 0)))
+        #expect(hit(58, 55) == .tree(F.tree(M.a, 1, 1)))
+        #expect(hit(135.99, 114.99) == .tree(F.tree(M.a, 4, 3)))
+    }
+
+    @Test func theBorderPaddingSnapsToTheNearestTree() {
+        #expect(hit(139, 50) == .tree(F.tree(M.a, 0, 3)))   // right of the grid, inside the border
+        #expect(hit(29, 50) == .tree(F.tree(M.a, 0, 0)))    // left of the grid, inside the border
+        #expect(hit(25, 50) == .row(F.row(M.a, 0)))         // left of the border is the label gutter
+        #expect(hit(50, 36) == .tree(F.tree(M.a, 0, 0)))    // above the grid, inside the border
+        #expect(hit(50, 120) == .tree(F.tree(M.a, 4, 0)))   // below the grid, inside the border
+    }
+
+    @Test func rowLabelGutterOfAnAcrossBlock() {
+        #expect(hit(10, 72) == .row(F.row(M.a, 2)))
+        #expect(hit(0, 40) == .row(F.row(M.a, 0)))
+        #expect(hit(10, 38) == .row(F.row(M.a, 0)))   // 2 points of slack above
+        #expect(hit(10, 37) == nil)
+        #expect(hit(10, 116) == .row(F.row(M.a, 4)))  // 2 points of slack below
+        #expect(hit(10, 117) == nil)
+    }
+
+    @Test func headerAboveAnAcrossBlockIsNotARow() {
+        #expect(hit(50, 10) == nil)
+        #expect(hit(10, 10) == nil)
+    }
+
+    @Test func columnHeaderOfADownBlockIsARow() {
+        #expect(hit(219, 10) == .row(F.row(M.b, 1)))
+        #expect(hit(188, 0) == .row(F.row(M.b, 0)))
+        #expect(hit(270, 20) == .row(F.row(M.b, 2)))  // header over the right padding clamps to the last row
+    }
+
+    @Test func downBlocksHaveNoLabelGutterButHaveAFooter() {
+        #expect(hit(160, 60) == nil)
+        #expect(hit(190, 146) == .row(F.row(M.b, 0)))
+        #expect(hit(250, 159) == .row(F.row(M.b, 2)))
+        #expect(hit(250, 160) == nil)
+    }
+
+    @Test func gapsAndEmptyStripSpaceHitNothing() {
+        #expect(hit(142, 50) == nil)   // the gap right of A
+        #expect(hit(150, 50) == nil)
+        #expect(hit(50, 125) == nil)   // under A, which is shorter than its strip
+        #expect(hit(330, 100) == nil)  // under C
+        #expect(hit(50, 150) == nil)   // the gap between strips
+        #expect(hit(200, 250) == nil)  // right of D in the second strip
+    }
+
+    @Test func outsideTheMapHitsNothing() {
+        #expect(hit(-1, 50) == nil)
+        #expect(hit(50, -1) == nil)
+        #expect(hit(376, 50) == nil)
+        #expect(hit(5000, 5000) == nil)
+    }
+
+    @Test func overviewTapsPickABlock() throws {
+        let metrics = MapMetrics.overview(blocks: M.blocks, width: 390)
+        let layout = FieldLayout(blocks: M.blocks, metrics: metrics)
+        let a = try #require(layout.frame(of: M.a.id))
+        let d = try #require(layout.frame(of: M.d.id))
+        #expect(layout.hitTest(CGPoint(x: a.frame.midX, y: a.frame.midY)) == .block(M.a.id))
+        #expect(layout.hitTest(CGPoint(x: a.frame.minX + 1, y: a.frame.minY + 1)) == .block(M.a.id))
+        #expect(layout.hitTest(CGPoint(x: a.frame.maxX + 1, y: a.frame.midY)) == .block(M.a.id))  // half the gap
+        #expect(layout.hitTest(CGPoint(x: d.grid.minX, y: d.grid.minY)) == .block(M.d.id))
+        #expect(layout.hitTest(CGPoint(x: 1000, y: 1000)) == nil)
+    }
+
+    @Test func lastTreeOfAThreeHundredSquareBlock() throws {
+        let big = F.block(1, rows: 300, trees: 300, direction: .down)
+        let layout = FieldLayout(blocks: [big], metrics: .xs)
+        let cell = try #require(layout.cellRect(F.tree(big, 299, 299)))
+        #expect(layout.hitTest(CGPoint(x: cell.midX, y: cell.midY)) == .tree(F.tree(big, 299, 299)))
+        #expect(layout.hitTest(CGPoint(x: cell.midX, y: 5)) == .row(F.row(big, 299)))
+    }
+
+    @Test func everyCellHitsItsOwnTree() throws {
+        for block in [M.a, M.b, M.c, M.d] {
+            for row in 0..<block.rowCount {
+                for position in 0..<block.treesPerRow {
+                    let tree = F.tree(block, row, position)
+                    let cell = try #require(layout.cellRect(tree))
+                    #expect(layout.hitTest(CGPoint(x: cell.midX, y: cell.midY)) == .tree(tree))
+                    #expect(layout.hitTest(cell.origin) == .tree(tree))
+                }
+            }
+        }
+    }
+
+    @Test func everyRowHeaderHitsItsRow() throws {
+        for block in [M.a, M.b, M.c, M.d] {
+            for row in 0..<block.rowCount {
+                let rect = try #require(layout.rowHeaderRect(F.row(block, row)))
+                #expect(layout.hitTest(CGPoint(x: rect.midX, y: rect.midY)) == .row(F.row(block, row)))
+            }
+        }
+    }
+}

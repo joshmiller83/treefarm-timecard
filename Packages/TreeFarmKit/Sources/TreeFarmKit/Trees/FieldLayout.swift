@@ -140,6 +140,34 @@ public struct FieldLayout: @unchecked Sendable {
         return CGRect(x: f.frame.minX, y: f.grid.minY + CGFloat(row.row) * metrics.cell.height, width: metrics.rowLabelWidth, height: metrics.cell.height)
     }
 
+    /// What a point on the map lands on. In the overview any point on or near a block
+    /// picks the block. Otherwise: a tree inside the border (the padding snaps to the
+    /// nearest tree), a row in an across block's label gutter or a down block's
+    /// column header and footer, and nil for gaps, headers of across blocks and outside.
+    public func hitTest(_ point: CGPoint) -> MapHit? {
+        if metrics.isOverview {
+            let reach = frames.first { $0.frame.insetBy(dx: -metrics.blockGap / 2, dy: -metrics.stripGap / 2).contains(point) }
+            return reach.map { .block($0.block.id) }
+        }
+        guard let f = frames.first(where: { $0.frame.contains(point) }), f.columns > 0, f.lines > 0 else { return nil }
+        let (x, y) = (point.x, point.y)
+        let line = Self.clamp(((y - f.grid.minY) / metrics.cell.height).rounded(.down), f.lines)
+        if x < f.outline.minX {
+            guard !f.isDown, y >= f.grid.minY - 2, y < f.grid.maxY + 2 else { return nil }
+            return .row(RowRef(blockId: f.block.id, row: line))
+        }
+        let column = Self.clamp(((x - f.grid.minX) / metrics.cell.width).rounded(.down), f.columns)
+        if y < f.outline.minY || y >= f.outline.maxY {
+            return f.isDown ? .row(RowRef(blockId: f.block.id, row: column)) : nil
+        }
+        return .tree(f.isDown ? TreeRef(blockId: f.block.id, row: column, position: line)
+                              : TreeRef(blockId: f.block.id, row: line, position: column))
+    }
+
+    private static func clamp(_ value: CGFloat, _ count: Int) -> Int {
+        Int(max(0, min(value, CGFloat(count - 1))))
+    }
+
     // MARK: - Strips
 
     /// Live blocks grouped by gridRow, top to bottom, each strip in walk order.
