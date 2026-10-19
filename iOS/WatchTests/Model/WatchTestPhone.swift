@@ -123,19 +123,22 @@ final class WatchModelRecorder {
     var changes: [WatchModelChange] = []
 }
 
-@MainActor
-func eventually(_ timeout: Duration = .seconds(3), _ condition: () -> Bool) async -> Bool {
-    let clock = ContinuousClock()
-    let end = clock.now.advanced(by: timeout)
-    while clock.now < end {
-        if condition() { return true }
-        try? await Task.sleep(for: .milliseconds(10))
+extension WatchFixture {
+    /// Polls `condition` on the main actor until it holds or `timeout` passes.
+    @MainActor
+    static func eventually(_ timeout: Duration = .seconds(3), _ condition: () -> Bool) async -> Bool {
+        let clock = ContinuousClock()
+        let end = clock.now.advanced(by: timeout)
+        while clock.now < end {
+            if condition() { return true }
+            try? await Task.sleep(for: .milliseconds(10))
+        }
+        return condition()
     }
-    return condition()
 }
 
 /// A clock a test can move.
-final class TestClock: @unchecked Sendable {
+final class WatchTestClock: @unchecked Sendable {
     private let lock = NSLock()
     private var current: Date
 

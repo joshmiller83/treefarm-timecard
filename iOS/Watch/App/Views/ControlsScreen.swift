@@ -87,7 +87,7 @@ struct ControlsScreen: View {
 
     private var lockAvailable: Bool {
         WaterLockGate.isAvailable(rating: WKInterfaceDevice.current().waterResistanceRating,
-                                  sessionActive: ShiftWorkout.shared.live.hasSession,
+                                  sessionActive: WatchShiftModel.sessionExists(ShiftWorkout.shared.live),
                                   foreground: scenePhase == .active)
     }
 

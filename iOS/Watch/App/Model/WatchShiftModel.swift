@@ -137,7 +137,7 @@ final class WatchShiftModel {
          reloadComplications: @escaping @MainActor () -> Void = {
              WidgetCenter.shared.reloadTimelines(ofKind: WatchShiftModel.complicationKind)
          },
-         sessionActive: @escaping @MainActor () -> Bool = { ShiftWorkout.shared.live.hasSession },
+         sessionActive: @escaping @MainActor () -> Bool = { WatchShiftModel.sessionExists(ShiftWorkout.shared.live) },
          demo: DemoWatchTransport? = nil) {
         self.transport = transport
         self.courier = WatchCourier(transport: transport, store: store, replyTimeout: replyTimeout, now: now)
@@ -615,10 +615,11 @@ final class WatchShiftModel {
     }
 }
 
-extension WorkoutLive {
-    /// A workout session exists (it may be stopped, waiting for a clock-out).
-    var hasSession: Bool {
-        switch recording {
+extension WatchShiftModel {
+    /// A workout session exists (it may be stopped, waiting for a clock-out): it keeps the app
+    /// running and reachable, so the outbox is tried once a minute and the rain lock shows.
+    static func sessionExists(_ live: WorkoutLive) -> Bool {
+        switch live.recording {
         case .recording, .paused, .waitingForClockOut: true
         case .off, .notAuthorized, .idle, .stoppedUnexpectedly: false
         }

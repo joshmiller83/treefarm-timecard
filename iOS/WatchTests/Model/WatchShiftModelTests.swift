@@ -14,7 +14,7 @@ struct WatchShiftModelTests {
 
     let directory = FileManager.default.temporaryDirectory.appending(path: "WatchShiftModelTests-\(UUID().uuidString)")
     let recorder = WatchModelRecorder()
-    let clock = TestClock(WatchFixture.at(10, 0))
+    let clock = WatchTestClock(WatchFixture.at(10, 0))
 
     func makeModel(_ transport: FakeWatchTransport, store: InMemoryOutboxStore = InMemoryOutboxStore(),
                    replyTimeout: Duration = .seconds(2), directory: URL? = nil,
@@ -65,7 +65,7 @@ struct WatchShiftModelTests {
         fake.defaultAnswer = .after(.milliseconds(300), fake.defaultAnswer!)
 
         let task = Task { await model.perform(.markRow(F.row(14)), source: .doubleTap) }
-        #expect(await eventually { model.displayed?.nextRows.first?.title == "Row 15" })
+        #expect(await F.eventually { model.displayed?.nextRows.first?.title == "Row 15" })
         #expect(model.isSending)
         #expect(model.waitingCount == 0, "a tap in flight never flashes the badge")
         _ = await task.value
@@ -107,7 +107,7 @@ struct WatchShiftModelTests {
     @Test func aTapQueuedWhileThePhoneNeedsUnlockingSaysSo() async {
         let (model, fake, _) = await connected(F.working(), reachable: false)
         fake.setNeedsUnlock(true)
-        #expect(await eventually { model.reach == .needsUnlock })
+        #expect(await F.eventually { model.reach == .needsUnlock })
 
         let outcome = await model.perform(.markRow(F.row(14)), source: .button)
 
@@ -179,7 +179,7 @@ struct WatchShiftModelTests {
 
         let firstTap = primary()
         async let first = model.perform(firstTap, source: .doubleTap)
-        _ = await eventually { model.displayed?.nextRows.first?.title == "Row 15" }
+        _ = await F.eventually { model.displayed?.nextRows.first?.title == "Row 15" }
         let secondTap = primary()
         async let second = model.perform(secondTap, source: .doubleTap)
         _ = await (first, second)
@@ -216,7 +216,7 @@ struct WatchShiftModelTests {
         // Siri on the phone added a note meanwhile: a newer state without the taps.
         let pushed = phone.change { $0.todayTrees = 40 }
         fake.deliverContext(F.envelope(pushed))
-        #expect(await eventually { model.confirmed?.revision == pushed.revision })
+        #expect(await F.eventually { model.confirmed?.revision == pushed.revision })
 
         #expect(model.displayed?.nextRows.first?.title == "Row 16")
         #expect(model.displayed?.todayTrees == 40)
@@ -233,16 +233,16 @@ struct WatchShiftModelTests {
         after.revision = 9
         after.appliedRequestIds = [queued.id]
         fake.deliverContext(F.envelope(after))
-        #expect(await eventually { model.confirmed?.revision == 9 })
+        #expect(await F.eventually { model.confirmed?.revision == 9 })
 
         #expect(model.displayed?.nextRows.first?.title == "Row 15", "not row 16")
-        #expect(await eventually { model.waitingCount == 0 }, "the state cleared it from the outbox")
+        #expect(await F.eventually { model.waitingCount == 0 }, "the state cleared it from the outbox")
     }
 
     @Test func aNewEpochWithALowerRevisionIsAccepted() async {
         let (model, fake, _) = await connected(F.working(revision: 40))
         fake.deliverContext(F.envelope(F.offClock(revision: 2, epoch: UUID())))
-        #expect(await eventually { model.confirmed?.revision == 2 })
+        #expect(await F.eventually { model.confirmed?.revision == 2 })
         #expect(WatchDisplay.phase(model.displayed) == .offClock)
     }
 
@@ -252,14 +252,14 @@ struct WatchShiftModelTests {
         await fake.drained()
         #expect(model.confirmed?.revision == 40)
         fake.deliverContext(F.envelope(F.working(revision: 41)))
-        #expect(await eventually { model.confirmed?.revision == 41 })
+        #expect(await F.eventually { model.confirmed?.revision == 41 })
         #expect(WatchDisplay.phase(model.displayed) == .working)
     }
 
     @Test func aStatePushedAsAMessageIsAcceptedToo() async {
         let (model, fake, _) = await connected(F.working(revision: 5))
         fake.deliverPost(F.envelope(F.onLunch(revision: 6)))
-        #expect(await eventually { model.confirmed?.revision == 6 })
+        #expect(await F.eventually { model.confirmed?.revision == 6 })
         #expect(WatchDisplay.phase(model.displayed) == .lunch)
     }
 
@@ -383,7 +383,7 @@ struct WatchShiftModelTests {
         phone.refuseNext("You’re already on lunch since 10:34.")
 
         fake.setReachable(true)
-        #expect(await eventually { model.waitingCount == 0 && !model.refused.isEmpty })
+        #expect(await F.eventually { model.waitingCount == 0 && !model.refused.isEmpty })
 
         #expect(model.refused.first?.speech == "You’re already on lunch since 10:34.")
         #expect(model.toast?.kind == .refusal)
@@ -405,7 +405,7 @@ struct WatchShiftModelTests {
         fake.defaultAnswer = .after(.milliseconds(300), fake.defaultAnswer!)
         let task = Task { await model.perform(.clockIn(fieldId: nil), source: .button) }
 
-        #expect(await eventually {
+        #expect(await F.eventually {
             recorder.changes.last.map { change in (change.workout.outbox + change.workout.inFlight).contains { $0.command == .clockIn(fieldId: nil) } } ?? false
         })
         #expect(recorder.changes.last?.displayed?.isClockedIn == true)
@@ -420,7 +420,7 @@ struct WatchShiftModelTests {
 
         fake.setReachable(true)
 
-        #expect(await eventually { model.waitingCount == 0 })
+        #expect(await F.eventually { model.waitingCount == 0 })
         #expect(phone.commands.map(\.command) == [.markRow(F.row(14)), .markRow(F.row(15))])
         #expect(model.reach == .reachable)
         #expect(model.displayed?.nextRows.first?.title == "Row 16")
@@ -434,11 +434,11 @@ struct WatchShiftModelTests {
         model.slowAfter = .milliseconds(100)
         model.activate()
         fake.deliverContext(F.envelope(F.working()))
-        _ = await eventually { model.confirmed != nil }
+        _ = await F.eventually { model.confirmed != nil }
         fake.enqueue(.lost)
 
         let task = Task { await model.perform(.markRow(F.row(14)), source: .button) }
-        #expect(await eventually { model.isSlow })
+        #expect(await F.eventually { model.isSlow })
         #expect(await task.value == .queued("Saved on watch · 1 waiting"))
         #expect(!model.isSlow)
     }
@@ -449,15 +449,15 @@ struct WatchShiftModelTests {
         let fake = FakeWatchTransport(reachable: false)
         let model = makeModel(fake)
         model.activate()
-        #expect(await eventually { model.reach == .neverConnected })
+        #expect(await F.eventually { model.reach == .neverConnected })
         fake.deliverContext(F.envelope(F.working()))
-        #expect(await eventually { model.reach == .outOfReach })
+        #expect(await F.eventually { model.reach == .outOfReach })
         fake.setReachable(true)
-        #expect(await eventually { model.reach == .reachable })
+        #expect(await F.eventually { model.reach == .reachable })
         fake.setNeedsUnlock(true)
-        #expect(await eventually { model.reach == .needsUnlock })
+        #expect(await F.eventually { model.reach == .needsUnlock })
         fake.setNeedsUnlock(false)
-        #expect(await eventually { model.reach == .reachable })
+        #expect(await F.eventually { model.reach == .reachable })
     }
 
     @Test func aQuestionIsAnsweredByThePhone() async {
