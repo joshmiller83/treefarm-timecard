@@ -1,7 +1,7 @@
 import Foundation
 
 /// Status questions Siri can answer.
-public enum FieldQuestion: Hashable, Sendable {
+public enum FieldQuestion: Codable, Hashable, Sendable {
     case hours
     case trees
     case whereAmI

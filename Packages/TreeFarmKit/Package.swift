@@ -6,7 +6,7 @@ import PackageDescription
 
 let package = Package(
     name: "TreeFarmKit",
-    platforms: [.macOS(.v14), .iOS(.v17)],
+    platforms: [.macOS(.v14), .iOS(.v17), .watchOS(.v10)],
     products: [
         .library(name: "TreeFarmKit", targets: ["TreeFarmKit"]),
     ],

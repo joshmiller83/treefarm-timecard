@@ -1,7 +1,7 @@
 import Foundation
 
 /// Everything a person can do in the field, by voice, lock screen or tap.
-public enum FieldCommand: Hashable, Sendable {
+public enum FieldCommand: Codable, Hashable, Sendable {
     /// `fieldId` nil keeps the current field.
     case clockIn(fieldId: UUID?)
     case clockOut
