@@ -22,6 +22,9 @@ a number or a Siri line by hand.
   inside its `Phone`. Each state is a layer: `<Screen stateId="…" final?>` renders
   `<div class="layer" data-state data-screen>`. Without motion only `[data-final]` shows;
   with motion all layers stack and scenes set opacity (CSS starts non-final layers at 0).
+  A non-final layer ships inside `<template data-layer>`: the motion core puts a section's
+  layers in place just before it builds that section's scene, so a scene finds them as usual,
+  but nothing else (and no static visitor) sees them until then.
 - **The stage moves nodes.** On desktop with motion, `stage.ts` moves the section's
   `[data-screens]` into the stage phone. Style screen content with scoped classes; never
   with selectors that depend on the section around it (`#voice .x` breaks after the move).
