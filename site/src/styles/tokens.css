@@ -117,7 +117,7 @@
      stage height min(78svh, 760px), section phones min(52svh, 460px) on mobile. */
   --phone-ratio: 420 / 879;
   --phone-h-desk: min(78svh, 760px);
-  --phone-h-mob: min(52svh, 460px);
+  --phone-h-mob: min(48svh, 440px);
 
   /* Written by stage.ts on resize: the stage phone's rect (desktop with motion). */
   --stage-x: 0px;

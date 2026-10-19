@@ -530,6 +530,12 @@ registerScene(
     }
 
     sync();
+    // A ScrollTrigger refresh (a resize, or a scene built elsewhere changing the page's height)
+    // moves the playheads with their update events suppressed: recompute the minute after it,
+    // or the clock would rest on a stale time after a jump.
+    const ST = ctx.ScrollTrigger;
+    ST.addEventListener('refresh', sync);
+    cleanups.push(() => ST.removeEventListener('refresh', sync));
     return () => cleanups.forEach((f) => f());
   },
   { dayStart: MOMENTS.clockIn },
