@@ -1,4 +1,6 @@
 import CoreGraphics
+import CoreText
+import os
 import SwiftUI
 import TimeCardCore
 import UIKit
@@ -100,7 +102,7 @@ struct MapScene {
 /// outlines with striped columns, trees as rings (not yet), green dots (shaped earlier) and
 /// gold dots (this shift), row and tree numbers around each block, note markers in the corner.
 /// Only the cells inside the rectangle are visited, so a tile of a huge field stays cheap.
-struct MapPainter {
+struct MapPainter: @unchecked Sendable {
     var scene: MapScene
     var palette: MapPalette
 
@@ -309,16 +311,55 @@ struct MapPainter {
 
     private enum Align { case left, center, right }
 
+    /// Draws a label from the shared cache of laid-out lines (row and tree numbers repeat on
+    /// every tile), with Core Text, so tiles can be drawn off the main thread.
     private func text(_ s: String, font: UIFont, color: CGColor, x: CGFloat, baseline: CGFloat, align: Align, ctx: CGContext) {
-        let attributes: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: UIColor(cgColor: color)]
-        let width = align == .left ? 0 : (s as NSString).size(withAttributes: attributes).width
+        let (line, width) = MapLabels.shared.line(s, font: font, color: color)
         let left = switch align {
         case .left: x
         case .center: x - width / 2
         case .right: x - width
         }
-        UIGraphicsPushContext(ctx)
-        (s as NSString).draw(at: CGPoint(x: left, y: baseline - font.ascender), withAttributes: attributes)
-        UIGraphicsPopContext()
+        ctx.saveGState()
+        // The map's context runs y downward; Core Text draws y upward.
+        ctx.textMatrix = CGAffineTransform(scaleX: 1, y: -1)
+        ctx.textPosition = CGPoint(x: left, y: baseline)
+        CTLineDraw(line, ctx)
+        ctx.restoreGState()
+    }
+}
+
+/// Laid-out map labels ("14", "Row", "Block 2"), kept so each is shaped once, not on every
+/// tile it appears on. Shared by tiles drawn on any thread.
+final class MapLabels: @unchecked Sendable {
+    static let shared = MapLabels()
+
+    private struct Key: Hashable {
+        var text: String
+        var font: String
+        var size: CGFloat
+        var color: [CGFloat]
+    }
+
+    /// Lines are immutable once made, so sharing them across threads is safe.
+    private struct Entry: @unchecked Sendable {
+        var line: CTLine
+        var width: CGFloat
+    }
+
+    private let cache = OSAllocatedUnfairLock<[Key: Entry]>(initialState: [:])
+
+    func line(_ text: String, font: UIFont, color: CGColor) -> (CTLine, CGFloat) {
+        let key = Key(text: text, font: font.fontName, size: font.pointSize, color: color.components ?? [])
+        if let hit = cache.withLock({ $0[key] }) { return (hit.line, hit.width) }
+        let attributed = NSAttributedString(string: text, attributes: [.font: font as CTFont, .foregroundColor: color])
+        let line = CTLineCreateWithAttributedString(attributed)
+        let width = CGFloat(CTLineGetTypographicBounds(line, nil, nil, nil))
+        let entry = Entry(line: line, width: width)
+        cache.withLock { cache in
+            if cache.count > 4000 { cache.removeAll() }
+            cache[key] = entry
+        }
+        return (line, width)
     }
 }

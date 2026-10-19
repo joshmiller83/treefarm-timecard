@@ -60,25 +60,48 @@ private final class TapGate: NSObject, UIGestureRecognizerDelegate {
     }
 }
 
-/// One square of the map, drawn on demand.
+/// One square of the map. Drawn to an image off the main thread, then shown, so scrolling at
+/// 120 Hz never waits on drawing; the old picture stays up until the new one is ready.
 final class MapTileView: UIView {
-    weak var map: TreeMapScrollView?
+    /// One serial queue for every tile: drawing keeps up with the screen, never with the touch.
+    static let queue = DispatchQueue(label: "TimeCard.map-tiles", qos: .userInitiated)
+    private var generation = 0
 
     override init(frame: CGRect) {
         super.init(frame: frame)
         isOpaque = false
         backgroundColor = .clear
-        contentMode = .redraw
         isUserInteractionEnabled = false
+        layer.contentsGravity = .resize
     }
 
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
 
-    override func draw(_ rect: CGRect) {
-        guard let ctx = UIGraphicsGetCurrentContext(), let map else { return }
-        ctx.translateBy(x: -frame.minX, y: -frame.minY)
-        map.painter.draw(rect.offsetBy(dx: frame.minX, dy: frame.minY), in: ctx)
+    /// Draws the tile with `painter` at `scale` and shows it when done (a newer request wins).
+    func render(_ painter: MapPainter, scale: CGFloat) {
+        generation += 1
+        let mine = generation
+        let frame = self.frame
+        guard frame.width > 0, frame.height > 0 else { return }
+        Self.queue.async { [weak self] in
+            let image = MapTileView.draw(painter, frame: frame, scale: scale)
+            DispatchQueue.main.async {
+                guard let self, self.generation == mine else { return }
+                self.layer.contents = image
+            }
+        }
+    }
+
+    nonisolated static func draw(_ painter: MapPainter, frame: CGRect, scale: CGFloat) -> CGImage? {
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = scale
+        format.opaque = false
+        return UIGraphicsImageRenderer(size: frame.size, format: format).image { context in
+            let ctx = context.cgContext
+            ctx.translateBy(x: -frame.minX, y: -frame.minY)
+            painter.draw(frame, in: ctx)
+        }.cgImage
     }
 }
 
@@ -125,6 +148,11 @@ final class TreeMapScrollView: UIScrollView, UIScrollViewDelegate {
     private(set) var painter = MapPainter(scene: .empty, palette: MapPalette(traits: .current))
     private let content = MapContentView()
     private var tiles: [TileKey: MapTileView] = [:]
+    /// The whole map, small, shown while a pinch zooms out a long way: dozens of full-size
+    /// tiles would be drawn for one gesture. Real tiles come back when the gesture settles.
+    private let overview = UIImageView()
+    private var overviewKey: (layout: TreeMapModel.LayoutKey, revision: Int, look: MapLook?)?
+    static let overviewBelowScale: CGFloat = 0.6
     /// Kept alive here: accessibility holds elements weakly.
     private var rowElementCache: [RowRef: MapRowElement] = [:]
     private var layoutKey: TreeMapModel.LayoutKey?
@@ -159,6 +187,10 @@ final class TreeMapScrollView: UIScrollView, UIScrollViewDelegate {
         content.map = self
         content.isAccessibilityElement = false
         addSubview(content)
+        overview.isHidden = true
+        overview.contentMode = .scaleToFill
+        overview.isUserInteractionEnabled = false
+        content.addSubview(overview)
 
         let longPress = UILongPressGestureRecognizer(target: self, action: #selector(longPressed(_:)))
         longPress.minimumPressDuration = 0.45
@@ -216,6 +248,9 @@ final class TreeMapScrollView: UIScrollView, UIScrollViewDelegate {
         tiles.values.forEach { $0.removeFromSuperview() }
         tiles.removeAll()
         rowElementCache.removeAll()
+        overview.isHidden = true
+        overview.image = nil
+        overviewKey = nil
         if keepFocus, let focus = focusBeforeRelayout, let f = painter.scene.layout.frame(of: focus.blockId) {
             let point = CGPoint(x: f.grid.minX + focus.x * f.grid.width, y: f.grid.minY + focus.y * f.grid.height)
             contentOffset = clampedOffset(CGPoint(x: point.x - bounds.width / 2, y: point.y - bounds.height / 2))
@@ -231,17 +266,18 @@ final class TreeMapScrollView: UIScrollView, UIScrollViewDelegate {
     }
 
     private func redraw(dirty: Set<RowRef>?) {
+        let scale = tileScale
         guard let dirty else {
-            tiles.values.forEach { $0.setNeedsDisplay() }
+            tiles.values.forEach { $0.render(painter, scale: scale) }
             return
         }
         let bands = dirty.compactMap { painter.scene.band(of: $0) }
-        for tile in tiles.values {
-            for band in bands where band.intersects(tile.frame) {
-                tile.setNeedsDisplay(band.intersection(tile.frame).offsetBy(dx: -tile.frame.minX, dy: -tile.frame.minY))
-            }
+        for tile in tiles.values where bands.contains(where: { $0.intersects(tile.frame) }) {
+            tile.render(painter, scale: scale)
         }
     }
+
+    private var tileScale: CGFloat { max(1, traitCollection.displayScale) }
 
     // MARK: Tiles
 
@@ -266,6 +302,11 @@ final class TreeMapScrollView: UIScrollView, UIScrollViewDelegate {
         let visible = convert(bounds, to: content).insetBy(dx: -side / 2, dy: -side / 2)
             .intersection(CGRect(origin: .zero, size: size))
         guard !visible.isNull, !visible.isEmpty else { return }
+        // Pinching out a long way: the small whole-map picture stands in, and no new full-size
+        // tiles are drawn until the gesture settles on a size.
+        let zoomedOut = (isZooming || isZoomBouncing) && zoomScale < Self.overviewBelowScale
+        showOverview(zoomedOut)
+        if zoomedOut { return }
         let columns = Int((visible.minX / side).rounded(.down))...Int(((visible.maxX - 0.01) / side).rounded(.down))
         let rows = Int((visible.minY / side).rounded(.down))...Int(((visible.maxY - 0.01) / side).rounded(.down))
         var wanted = Set<TileKey>()
@@ -280,10 +321,33 @@ final class TreeMapScrollView: UIScrollView, UIScrollViewDelegate {
             let frame = CGRect(x: CGFloat(key.column) * side, y: CGFloat(key.row) * side, width: side, height: side)
                 .intersection(CGRect(origin: .zero, size: size))
             let tile = MapTileView(frame: frame)
-            tile.map = self
-            tile.contentScaleFactor = max(1, traitCollection.displayScale)
             content.addSubview(tile)
             tiles[key] = tile
+            tile.render(painter, scale: tileScale)
+        }
+    }
+
+    private func showOverview(_ show: Bool) {
+        guard show else {
+            if !overview.isHidden { overview.isHidden = true }
+            return
+        }
+        let size = painter.scene.layout.size
+        overview.frame = CGRect(origin: .zero, size: size)
+        content.sendSubviewToBack(overview)
+        overview.isHidden = false
+        guard let layoutKey, overviewKey?.layout != layoutKey || overviewKey?.revision != revision || overviewKey?.look != look else { return }
+        overviewKey = (layoutKey, revision, look)
+        // Small enough to draw quickly; it's only seen shrinking under the fingers.
+        let scale = min(1, 1600 / max(size.width, size.height, 1))
+        let painter = self.painter
+        let frame = CGRect(origin: .zero, size: size)
+        MapTileView.queue.async { [weak self] in
+            let image = MapTileView.draw(painter, frame: frame, scale: scale)
+            DispatchQueue.main.async {
+                guard let self, self.overviewKey?.layout == layoutKey, let image else { return }
+                self.overview.image = UIImage(cgImage: image)
+            }
         }
     }
 
