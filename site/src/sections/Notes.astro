@@ -66,13 +66,16 @@ const split = (s: string) => {
     <p class="nb-you"><q data-nb-answer="break">{brk.answer}</q></p>
     <p class="siri-reply nb-line" data-nb-reply="break">{brk.reply}</p>
     <p class="nb-fine">Siri asks for a reason only when “Ask for a break reason” is on in Settings.</p>
-    <figure class="nb-crop static-only">
-      <div class="nb-crop-card" role="img" aria-label={cropLabel}>
-        <div aria-hidden="true"><LiveActivity at={MOMENTS.break} placement="solo" fixed /></div>
-      </div>
-      <figcaption>The Live Activity on a break: gold, with a break timer, {WORKED_ON_BREAK} worked and one big button.</figcaption>
-    </figure>
   </div>
+
+  <!-- Static page only: figure 1, the Live Activity on the break (outside the beat: its
+       hidden faces and buttons are part of the card, not faded copy) -->
+  <figure class="nb-crop static-only">
+    <div class="nb-crop-card" role="img" aria-label={cropLabel}>
+      <div aria-hidden="true"><LiveActivity at={MOMENTS.break} placement="solo" fixed /></div>
+    </div>
+    <figcaption>The Live Activity on a break: gold, with a break timer, {WORKED_ON_BREAK} worked and one big button.</figcaption>
+  </figure>
 
   <!-- 2 · 2:33 PM: a tree note -->
   <div class="beat nb nb-tree" data-beat="2" data-nb="tree" style={at('tree')}>
@@ -408,7 +411,6 @@ const split = (s: string) => {
   .nb-flagby {
     white-space: nowrap;
     font-size: 0.8125rem;
-    opacity: 0.85;
   }
   .nb-flagby::before {
     content: '— ';
@@ -515,7 +517,7 @@ const split = (s: string) => {
 
   /* ---------- Reduced motion / no JS: the Live Activity crop in the break beat ---------- */
   .nb-crop {
-    margin: 10px 0 0;
+    margin: 0;
     display: grid;
     gap: 10px;
     width: min(100%, 22rem);
@@ -553,6 +555,12 @@ const split = (s: string) => {
   /* The Siri cards share the lock screen's top slot (one shows at a time under motion). */
   .nb-siri {
     display: contents;
+  }
+
+  /* ---------- Static page (reduced motion, no JS): a readable transcript ---------- */
+  :global(html:not(.motion)) .nb {
+    padding-top: 32px;
+    border-top: 1px solid var(--stage-line);
   }
 
   /* ---------- Mobile cards ---------- */
