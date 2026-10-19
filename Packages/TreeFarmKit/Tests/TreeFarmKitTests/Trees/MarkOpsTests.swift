@@ -236,3 +236,37 @@ struct MarkOpsRowTests {
         #expect(change.added.last?.tree == F.tree(big, 299, 299))
     }
 }
+
+@Suite("MarkOps: other shifts' trees")
+struct MarkOpsOwnershipTests {
+    typealias F = TreeFixtures
+
+    @Test func noOperationEverTakesOrErasesAnotherShiftsTree() {
+        let block = F.block(1, rows: 6, trees: 5)
+        let sams = [F.mark(block, 0, 0), F.mark(block, 1, 4), F.mark(block, 2, 2), F.mark(block, 5, 0)]
+            .map { var m = $0; m.shiftId = F.samShift; m.userId = F.sam; return m }
+        let mine = [F.mark(block, 0, 1), F.mark(block, 2, 3)]
+        let index = MarkIndex(marks: sams + mine)
+        let ctx = F.ctx()
+        let all = (0..<6).flatMap { r in (0..<5).map { F.tree(block, r, $0) } }
+
+        var changes: [MarkChange] = all.map { MarkOps.toggle($0, ctx: ctx, index: index) }
+        changes += [MarkOps.mark(all, ctx: ctx, index: index), MarkOps.unmark(all, ctx: ctx, index: index)]
+        for r in 0..<6 {
+            changes.append(MarkOps.markRow(F.row(block, r), block: block, ctx: ctx, index: index))
+            for mode in TapMode.allCases { changes.append(MarkOps.rowTap(F.row(block, r), block: block, mode: mode, ctx: ctx, index: index)) }
+        }
+        changes.append(MarkOps.fillBetween(F.tree(block, 0, 0), F.tree(block, 5, 4), block: block, ctx: ctx, index: index))
+        changes.append(MarkOps.range(block: block, rows: 0...5, positions: 0...4, add: true, ctx: ctx, index: index))
+        changes.append(MarkOps.range(block: block, rows: 0...5, positions: 0...4, add: false, ctx: ctx, index: index))
+
+        let samTrees = Set(sams.map(\.tree))
+        for change in changes {
+            #expect(change.removed.allSatisfy { $0.shiftId == F.myShift })
+            #expect(change.added.allSatisfy { !samTrees.contains($0.tree) && $0.shiftId == F.myShift })
+            #expect(change.skipped.allSatisfy { $0.shiftId == F.samShift })
+            let after = index.applying(change)
+            #expect(sams.allSatisfy { after.mark(at: $0.tree) == $0 })
+        }
+    }
+}

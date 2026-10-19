@@ -4,11 +4,11 @@ import CoreGraphics
 #endif
 
 // Map geometry for the SwiftUI Canvas. Pure math, so the view only draws and the
-// tests can check every point. CG geometry types aren't marked Sendable on every
-// platform, so the value types here say so themselves.
+// tests can check every point. CGRect and friends come from CoreGraphics on Apple
+// platforms and from Foundation on Linux.
 
 /// Sizes for one zoom level. Ports the artifact's ZOOMS and its "All" fit-to-width overview.
-public struct MapMetrics: Equatable, @unchecked Sendable {
+public struct MapMetrics: Equatable, Sendable {
     /// One tree's cell: width along a line, height between lines.
     public var cell: CGSize
     /// Row numbers to the left of an across block.
@@ -67,7 +67,7 @@ public enum MapHit: Equatable, Sendable {
 }
 
 /// Where one block sits on the map.
-public struct BlockFrame: Equatable, @unchecked Sendable {
+public struct BlockFrame: Equatable, Sendable {
     public var block: Block
     /// Everything that belongs to the block: label gutter, header, border, and a down block's footer.
     public var frame: CGRect
@@ -86,7 +86,7 @@ public struct BlockFrame: Equatable, @unchecked Sendable {
 /// Blocks sit in strips: one strip per gridRow (top to bottom), blocks left to right
 /// by gridColumn in a strip. A strip is as tall as its tallest block; the map is as
 /// wide as its widest strip. "down" blocks swap columns and lines.
-public struct FieldLayout: @unchecked Sendable {
+public struct FieldLayout: Sendable {
     public var metrics: MapMetrics
     public var frames: [BlockFrame]
     public var size: CGSize
