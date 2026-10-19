@@ -31,14 +31,20 @@ async function arrive(page: Page) {
   await page.evaluate((y) => window.scrollTo(0, y), Math.max(0, top - 80));
 }
 
-/** True when nothing inside #open is faded, offset or clipped (the final state). */
-async function finalState(page: Page) {
-  return page.locator('#open').evaluate((sec) => {
+/**
+ * What inside #open is not in its final state (faded, hidden, or the ring not drawn).
+ * `inView` limits the check to what is on screen. Transient layers (the icon's one-time sheen)
+ * rest at opacity 0 by design.
+ */
+async function finalState(page: Page, inView = false) {
+  return page.locator('#open').evaluate((sec, inView) => {
     const off: string[] = [];
     const els = [sec, ...Array.from(sec.querySelectorAll<HTMLElement | SVGElement>('*'))];
     for (const el of els) {
       const cs = getComputedStyle(el);
-      if (el.closest('.sr-only')) continue;
+      if (el.closest('.sr-only, [data-transient]')) continue;
+      const r = el.getBoundingClientRect();
+      if (inView && (r.top > innerHeight * 0.85 || r.bottom < 0)) continue;
       if (Number(cs.opacity) < 0.999) off.push(`opacity ${cs.opacity}: ${el.outerHTML.slice(0, 70)}`);
       if (cs.visibility === 'hidden') off.push(`hidden: ${el.outerHTML.slice(0, 70)}`);
     }
@@ -46,7 +52,7 @@ async function finalState(page: Page) {
     const dash = ring ? parseFloat(getComputedStyle(ring).strokeDashoffset || '0') : 0;
     if (Math.abs(dash) > 0.001) off.push(`ring dashoffset ${dash}`);
     return off;
-  });
+  }, inView);
 }
 
 for (const mode of ['reduced', 'motion'] as const) {
@@ -64,12 +70,12 @@ for (const mode of ['reduced', 'motion'] as const) {
       await expect(sec.locator('.eyebrow').first()).toHaveText(/the story so far/i);
 
       // The three facts, in plain text.
-      const text = (await sec.innerText()).replace(/\s+/g, ' ');
-      expect(text).toContain('in active development');
-      expect(text).toContain('A TestFlight beta is coming');
-      expect(text).toContain('Nothing is on the App Store yet');
-      expect(text).toContain('open source under the MIT license');
+      const status = sec.locator('p', { hasText: 'active development' });
+      await expect(status).toHaveText('It’s in active development. A TestFlight beta is coming. Nothing is on the App Store yet.');
+      await expect(status).toBeVisible();
+      await expect(sec).toContainText('open source under the MIT license');
       // Truth rules: no money, no email, no counts or badges.
+      const text = ((await sec.textContent()) ?? '').replace(/\s+/g, ' ');
       expect(text).not.toMatch(/\$|@|App Store badge|download/i);
 
       // Where it stands: the honest status rail.
@@ -85,7 +91,7 @@ for (const mode of ['reduced', 'motion'] as const) {
       // The terminal card says the command to screen readers and on screen.
       const term = sec.locator('[data-open-term]');
       await expect(term).toBeVisible();
-      await expect(term.locator('.sr-only')).toHaveText(COMMAND);
+      await expect(term.locator('[data-term-sr]')).toHaveText(COMMAND);
       await expect(term.locator('[data-term-cmd]')).toHaveText(COMMAND);
 
       // One clear call to action; every link in the section goes to the repo.
@@ -137,7 +143,7 @@ test.describe('reduced motion', () => {
       const nodes = [document.getElementById('open')!, document.querySelector('body > footer')!];
       return nodes
         .flatMap((n) => [n, ...Array.from(n.querySelectorAll('*'))])
-        .filter((el) => !el.closest('.sr-only'))
+        .filter((el) => !el.closest('.sr-only, [data-transient]'))
         .map((el) => ({ el: el.outerHTML.slice(0, 60), r: el.getBoundingClientRect() }))
         .filter(({ r }) => r.width > 0 && (r.right > vw + 0.5 || r.left < -0.5))
         .map(({ el, r }) => `${Math.round(r.left)}–${Math.round(r.right)}: ${el}`);
@@ -181,8 +187,24 @@ test.describe('motion', () => {
     await page.goto('/#open');
     await page.evaluate(() => document.fonts.ready);
     await page.waitForTimeout(600);
-    expect(await finalState(page)).toEqual([]);
+    // Whatever is on screen is already final: no flash of hidden copy, no replayed intro.
+    expect(await finalState(page, true)).toEqual([]);
     expect(problems).toEqual([]);
+  });
+
+  test('pressing a button here never jumps the page (so the click lands)', async ({ page }) => {
+    await page.goto('/');
+    await arrive(page);
+    const primary = page.locator('#open').getByRole('link', { name: 'Follow along on GitHub' });
+    await primary.scrollIntoViewIfNeeded();
+    await page.waitForTimeout(1200);
+    const box = (await primary.boundingBox())!;
+    const before = await page.evaluate(() => scrollY);
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.waitForTimeout(200);
+    expect(await page.evaluate(() => scrollY)).toBe(before);
+    await expect(primary).toBeFocused();
   });
 
   test('the copy button copies the command', async ({ page, browserName, context }) => {
@@ -191,6 +213,8 @@ test.describe('motion', () => {
     await page.goto('/');
     await arrive(page);
     const copy = page.locator('#open').getByRole('button', { name: /copy/i });
+    await copy.scrollIntoViewIfNeeded();
+    await page.waitForTimeout(1200); // the card fades up 16px as it arrives
     await copy.click();
     await expect(page.locator('#open [data-copy-status]')).toHaveText('Copied');
     expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(COMMAND);
