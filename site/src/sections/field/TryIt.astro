@@ -228,10 +228,11 @@ const modes = [
       0 4px 12px rgba(0, 0, 0, 0.25);
     transform: translateX(0);
   }
-  .tryit-seg:has(input[value='fill']:checked) .tryit-thumb {
+  /* The controller mirrors the picked mode on the root (no :has() rules on the page). */
+  .tryit[data-mode='fill'] .tryit-thumb {
     transform: translateX(100%);
   }
-  .tryit-seg:has(input[value='erase']:checked) .tryit-thumb {
+  .tryit[data-mode='erase'] .tryit-thumb {
     transform: translateX(200%);
   }
   :global(html.motion) .tryit-thumb {
@@ -257,13 +258,20 @@ const modes = [
     cursor: pointer;
   }
   .tryit-opt span {
-    position: relative;
     pointer-events: none;
   }
-  .tryit-opt:has(input:checked) {
+  /* The whole option's ring, drawn by its label text's ::after (the label is positioned). */
+  .tryit-opt span::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 11px;
+    pointer-events: none;
+  }
+  .tryit-opt input:checked + span {
     color: var(--on-stage);
   }
-  .tryit-opt:has(input:focus-visible) {
+  .tryit-opt input:focus-visible + span::after {
     outline: 3px solid var(--gold-lit);
     outline-offset: 2px;
   }
@@ -608,7 +616,7 @@ const modes = [
       outline: 2px solid Highlight;
       outline-offset: -2px;
     }
-    .tryit-opt:has(input:checked) {
+    .tryit-opt input:checked + span::after {
       outline: 2px solid Highlight;
       outline-offset: -2px;
     }

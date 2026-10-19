@@ -288,17 +288,17 @@ Layout: nothing crosses the camera cutout (the rest island, x 133.5–259.5 pt).
 Expanded: the badge and the solid 'On the clock' pill (#2E7A4E, white, like the Live
 Activity's) sit on the camera's centre line, y 29.5 pt; the pill starts right of x 265.5.
 
-**The status bar yields.** Put the island in the same `<Screen>` layer as the status bar.
-In a layer whose island is compact or expanded, the status-bar time (`[data-statusbar]
-[data-clock]`) moves 30 pt left (`translate`), from the left ear's centre (x 68) to the outer
-ear's (x 38), clear of the island; the signal bars, `[data-wifi]` and `[data-no-service]`
-fade, leaving the battery; expanded, the whole status bar fades (the island covers it). All
-of it follows the custom property `--island-yield` on the layer: 0 rest, 1 compact,
-2 expanded (the static value follows `data-size`). Scenes that morph the island tween
-`--island-yield` on the `[data-screen]` layer in step with the width, e.g.
-`tl.fromTo(layer, { '--island-yield': 0 }, { '--island-yield': 1 }, at)`.
-Relies on StatusBar's hooks `[data-statusbar]`, `[data-clock]`, `[data-bar]`, `[data-wifi]`,
-`[data-no-service]`.
+**The status bar yields.** Give the status bar in the same `<Screen>` layer the island's
+size: `<StatusBar island="compact" />` (or `"expanded"`; `AppChrome` passes its own `island`
+prop through). That status bar's time (`[data-clock]`) moves 30 pt left (`translate`), from
+the left ear's centre (x 68) to the outer ear's (x 38), clear of the island; the signal bars
+(`[data-bars]`), `[data-wifi]` and `[data-no-service]` fade, leaving the battery; expanded,
+the whole status bar fades (the island covers it). All of it follows the custom property
+`--island-yield`: 0 rest, 1 compact, 2 expanded (without one, the prop's size). Scenes that
+morph the island tween `--island-yield` on that status bar (`[data-island-yield]`) in step
+with the width, e.g. `tl.fromTo(bar, { '--island-yield': 0 }, { '--island-yield': 1 }, at)`;
+set on an ancestor it inherits. (It used to be a `:has()` rule on the layer, which re-checked
+the whole layer every time a clock inside it ticked.)
 
 ### `phone/SiriSnippet.astro`
 
@@ -321,9 +321,10 @@ gold "tapped" outline: opacity 0 → 1). Header: 20 pt app icon + 'TIME CARD' 11
 The reply wraps greedily (`text-wrap: pretty`) and keeps numbers with their units ('block 2',
 'row 14', '10 trees', '34 an hour', '8 hours 30 minutes').
 
-**Siri covers the lock screen's clock.** A `[data-lock]` holding a `[data-snippet]` or a
-`[data-wave]` hides its own `[data-date]`, big `[data-clock]` and padlock (opacity 0; the
-static final state). Scenes that drop the card in fade those three from 1 to 0 over the same
+**Siri covers the lock screen's clock.** A `[data-lock]` whose `top` slot holds a
+`[data-snippet]` or a `[data-wave]` hides its own `[data-date]`, big `[data-clock]` and
+padlock (opacity 0; the static final state). LockScreen marks it `data-siri` when it renders
+(no `:has()` rule). Scenes that drop the card in fade those three from 1 to 0 over the same
 span as the `[data-snippet]`/`[data-wave]` drop-in (`tl.fromTo(chrome, { opacity: 1 },
 { opacity: 0 }, at)`). The padlock is LockScreen's `[data-padlock]`.
 

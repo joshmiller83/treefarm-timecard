@@ -31,7 +31,17 @@ export const odometerShape = (text: string) => Array.from(text, (ch) => (isDigit
 interface OdoHost {
   dataset: DOMStringMap;
   innerHTML: string;
-  querySelectorAll(sel: string): ArrayLike<{ style: { transform: string } }>;
+  querySelectorAll(sel: string): ArrayLike<{ style: { transform: string; transition?: string } }>;
+}
+
+/**
+ * While the reader scrolls, digits jump instead of rolling (the scroll position drives them
+ * already). The motion core flips this on scrollStart/scrollEnd; each column that moves
+ * carries it inline, so no class on a chapter or <html> restyles the page around it.
+ */
+let instant = false;
+export function setOdometerInstant(on: boolean): void {
+  instant = on;
 }
 
 /** Update an element rendered with odometerHTML (rebuilds only when the shape changes). */
@@ -44,9 +54,14 @@ export function setOdometer(el: OdoHost, text: string): void {
     el.innerHTML = odometerHTML(text);
     return;
   }
+  const transition = instant ? 'none' : '';
   digitsOf(text).forEach((d, i) => {
     const c = cols[i];
-    if (c) c.style.transform = `translateY(${-d * 10}%)`;
+    if (!c) return;
+    const transform = `translateY(${-d * 10}%)`;
+    if (c.style.transform === transform) return;
+    if ((c.style.transition ?? '') !== transition) c.style.transition = transition;
+    c.style.transform = transform;
   });
 }
 

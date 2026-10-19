@@ -420,7 +420,6 @@ q::after {
 html.motion .odo-col {
   transition: transform 0.12s var(--ease-out);
 }
-.scrubbing .odo-col,
 html.paused .odo-col {
   transition: none;
 }

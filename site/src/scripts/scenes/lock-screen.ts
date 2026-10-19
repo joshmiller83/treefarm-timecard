@@ -336,6 +336,9 @@ registerScene(
     const island = inHome('[data-island]');
     const compact = inHome('[data-island-compact]');
     const expanded = inHome('[data-island-expanded]');
+    // The status bar yields as the island widens (StatusBar: --island-yield on the bar itself,
+    // so only its few elements restyle each frame, not the whole home screen).
+    const homeBar = inHome('[data-island-yield]');
     if (island) {
       // The morph tweens three numbers (pt) that shape a clip-path on a box fixed at the
       // expanded size, so nothing relayouts while it plays (no layout shift: only transform,
@@ -376,18 +379,18 @@ registerScene(
     // rest island with no content, and ScrollTrigger re-renders exactly those after the revert
     // its refresh does on a resize, so the island is never left without a size.
     fromTo(island, size('rest'), { ...size('compact'), duration: span(I.compact.size), ease: 'power3.inOut', immediateRender: true }, I.compact.size[0]);
-    fromTo(home, { '--island-yield': 0 }, { '--island-yield': 1, duration: span(I.compact.size), ease: 'power3.inOut', immediateRender: true }, I.compact.size[0]);
+    fromTo(homeBar, { '--island-yield': 0 }, { '--island-yield': 1, duration: span(I.compact.size), ease: 'power3.inOut', immediateRender: true }, I.compact.size[0]);
     fromTo(compact, { opacity: 0 }, { opacity: 1, duration: span(I.compact.content), ease: 'none', immediateRender: true }, I.compact.content[0]);
 
     to(island, { ...size('expanded'), duration: span(I.expanded.size), ease: 'power3.inOut' }, I.expanded.size[0]);
-    to(home, { '--island-yield': 2, duration: span(I.expanded.size), ease: 'power3.inOut' }, I.expanded.size[0]);
+    to(homeBar, { '--island-yield': 2, duration: span(I.expanded.size), ease: 'power3.inOut' }, I.expanded.size[0]);
     to(compact, { opacity: 0, duration: span(I.compact.out), ease: 'none' }, I.compact.out[0]);
     fromTo(expanded, { opacity: 0 }, { opacity: 1, duration: span(I.expanded.content), ease: 'none', immediateRender: true }, I.expanded.content[0]);
 
     // ---- [.85, .95] the island collapses, the lock screen returns, the controls ----
     to(expanded, { opacity: 0, duration: span(I.expanded.out), ease: 'none' }, I.expanded.out[0]);
     to(island, { ...size('rest'), duration: span(I.rest), ease: 'power3.inOut' }, I.rest[0]);
-    to(home, { '--island-yield': 0, duration: span(I.rest), ease: 'power3.inOut' }, I.rest[0]);
+    to(homeBar, { '--island-yield': 0, duration: span(I.rest), ease: 'power3.inOut' }, I.rest[0]);
     if (phone) {
       to(phone, { scale: 1, y: 0, duration: span(I.zoomOut), ease: 'power2.inOut' }, I.zoomOut[0]);
       set(phone, { transformOrigin: '50% 50%' }, I.zoomOut[1] + 0.0005);

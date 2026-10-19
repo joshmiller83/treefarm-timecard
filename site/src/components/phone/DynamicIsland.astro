@@ -22,12 +22,13 @@
  *   [data-island-row="37"]…, [data-island-break]   the expanded buttons (util.tap targets)
  *   [data-island-lens]       the front camera, drawn at x 241, y 29.5 pt whatever the size
  *
- * The status bar yields to a wide island. In the same <Screen> layer as a compact (or
- * expanded) island, the status-bar time moves from the left ear's centre (x 68 pt) to the
- * outer ear's (x 38 pt) and the cellular, Wi-Fi and No Service glyphs fade, leaving the
+ * The status bar yields to a wide island: give the StatusBar in the same <Screen> layer
+ * `island="compact"` (or "expanded"). Its time moves from the left ear's centre (x 68 pt) to
+ * the outer ear's (x 38 pt) and the cellular, Wi-Fi and No Service glyphs fade, leaving the
  * battery; expanded, the whole status bar fades (the island covers it). All of it follows
- * `--island-yield` on the layer: 0 rest, 1 compact, 2 expanded (the static value follows
- * data-size), so a scene morphing the island tweens `--island-yield` with the width.
+ * `--island-yield` (0 rest, 1 compact, 2 expanded; the prop is the static value), so a scene
+ * morphing the island tweens `--island-yield` on that status bar with the width. (Not a
+ * :has() rule on the layer: that re-checked the whole layer on every text change inside it.)
  *
  * Positioning: y 11 pt from the screen's top, horizontally centred with left/right 0 and
  * auto margins (no transform), so a width tween stays centred and transforms stay free.
@@ -338,32 +339,5 @@ const compactText = live ? `${time}:${timer.slice(-2)}` : time;
   .isl-btn--break {
     box-shadow: inset 0 0 0 calc(1.5 * var(--isl-pt)) rgba(255, 255, 255, 0.4);
     color: #fff;
-  }
-
-  /* ---------- The status bar yields to a wide island (same <Screen> layer) ----------
-     --island-yield: 0 rest, 1 compact, 2 expanded (the static value follows data-size; scenes
-     tween it on the layer with the morph). Rest → compact: the time slides 30 pt left, from
-     the left ear's centre (x 68) to the outer ear's (x 38), clear of the island's left end
-     (x 71.5), while the signal bars' holder, Wi-Fi and No Service fade, leaving the battery.
-     Compact → expanded: the island covers the bar; it fades out over the first 40%.
-     `translate` composes with any transform the status bar or GSAP sets. */
-  :global([data-screen]:has([data-island][data-size='compact'])) {
-    --island-yield: 1;
-  }
-  :global([data-screen]:has([data-island][data-size='expanded'])) {
-    --island-yield: 2;
-  }
-  :global([data-screen]:has([data-island]:not([data-size='rest'])) [data-statusbar]) {
-    opacity: calc(1 - clamp(0, (var(--island-yield, 1) - 1) * 2.5, 1));
-  }
-  :global([data-screen]:has([data-island]:not([data-size='rest'])) [data-statusbar] [data-clock]) {
-    translate: calc(min(var(--island-yield, 1), 1) * -30 * var(--pt, 1px)) 0;
-  }
-  :global(
-      [data-screen]:has([data-island]:not([data-size='rest']))
-        [data-statusbar]
-        :is(:has(> [data-bar]), [data-wifi], [data-no-service])
-    ) {
-    opacity: calc(1 - min(var(--island-yield, 1), 1));
   }
 </style>

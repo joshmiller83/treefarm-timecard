@@ -35,6 +35,8 @@ interface Props {
   time?: string;
   /** Status bar: no service (the crew's offline beat). */
   noService?: boolean;
+  /** A Dynamic Island wider than at rest over this screen: the status bar yields to it. */
+  island?: 'compact' | 'expanded';
   leading?: ToolButton[];
   trailing?: ToolButton[];
   /** A small accent line under the large title, e.g. 'North field' with a chevron. */
@@ -42,7 +44,7 @@ interface Props {
   class?: string;
 }
 
-const { title, tab, admin = true, time, noService = false, leading = [], trailing = [], subtitle, class: cls } = Astro.props;
+const { title, tab, admin = true, time, noService = false, island, leading = [], trailing = [], subtitle, class: cls } = Astro.props;
 
 const TABS: Array<{ id: AppTab; label: string; icon: IconName; active: IconName }> = [
   { id: 'clock', label: 'Clock', icon: 'clock', active: 'clock.fill' },
@@ -56,7 +58,7 @@ const tabs = admin ? TABS : TABS.filter((t) => t.id !== 'team');
 
 <div class:list={['app', cls]} data-app={tab}>
   <div class="app-status">
-    <StatusBar tone="dark" time={time} noService={noService} />
+    <StatusBar tone="dark" time={time} noService={noService} island={island} />
   </div>
 
   <div class="app-toolbar">
