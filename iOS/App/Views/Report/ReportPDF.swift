@@ -64,7 +64,7 @@ enum ReportPDF {
         static let bandGap: CGFloat = 10
         static let slimHeaderHeight: CGFloat = 34
         static let columnHeaderHeight: CGFloat = 26
-        static let rowLineHeight: CGFloat = 26
+        static let rowLineHeight: CGFloat = 24
         static let footerHeight: CGFloat = 28
         static let totalsHeight: CGFloat = 70
         static let emptyHeight: CGFloat = 44
@@ -129,26 +129,35 @@ enum ReportPDF {
         static func rowHeight(_ row: PaperTimeCard.Row) -> CGFloat {
             var h = rowLineHeight
             for detail in row.details {
-                h += detailText(detail).boundingRect(with: CGSize(width: detailWidth, height: .greatestFiniteMagnitude),
-                                                      options: [.usesLineFragmentOrigin, .usesFontLeading], context: nil).height.rounded(.up) + 3
+                h += detailHeight(detail) + detailGap
             }
-            return h + (row.details.isEmpty ? 0 : 7)
+            return h + (row.details.isEmpty ? 0 : 6)
         }
 
+        static let detailGap: CGFloat = 2
+
+        static func detailHeight(_ detail: PaperTimeCard.Detail) -> CGFloat {
+            detailText(detail).boundingRect(with: CGSize(width: detailWidth, height: .greatestFiniteMagnitude),
+                                            options: [.usesLineFragmentOrigin, .usesFontLeading], context: nil).height.rounded(.up)
+        }
+
+        /// "Breaks  Lunch 30 min", with long notes wrapping under their text, not under the label.
         static func detailText(_ detail: PaperTimeCard.Detail) -> NSAttributedString {
             let paragraph = NSMutableParagraphStyle()
             paragraph.lineSpacing = 1.5
             let text = NSMutableAttributedString()
             if let label = detail.label {
-                text.append(NSAttributedString(string: label + "  ", attributes: [
-                    .font: Face.body(9, .semibold), .foregroundColor: Ink.ink, .paragraphStyle: paragraph, .kern: 0.2,
-                ]))
+                let labelText = NSAttributedString(string: label + "  ", attributes: [
+                    .font: Face.body(9, .semibold), .foregroundColor: Ink.ink, .kern: 0.2,
+                ])
+                paragraph.headIndent = labelText.size().width
+                text.append(labelText)
             }
             text.append(NSAttributedString(string: detail.text, attributes: [
                 .font: detail.kind == .open ? Face.body(9.5, .medium) : Face.body(9.5),
                 .foregroundColor: detail.kind == .open ? Ink.sap : Ink.muted,
-                .paragraphStyle: paragraph,
             ]))
+            text.addAttribute(.paragraphStyle, value: paragraph, range: NSRange(location: 0, length: text.length))
             return text
         }
 
@@ -168,7 +177,7 @@ enum ReportPDF {
                 y += columnHeaderHeight
             }
             if card.rows.isEmpty && number == 1 {
-                text(PaperTimeCard.empty, font: Face.body(11), color: Ink.muted, at: CGPoint(x: left, y: y + 14))
+                text(PaperTimeCard.empty, font: Face.body(11), color: Ink.muted, x: left, baseline: y + 26)
                 y += Self.emptyHeight
                 line(at: y, color: Ink.ink, width: 0.75)
             }
@@ -188,92 +197,100 @@ enum ReportPDF {
             Ink.fir.setFill()
             UIBezierPath(roundedRect: band, cornerRadius: 6).fill()
 
-            text(PaperTimeCard.title, font: Face.heading(27), color: Ink.onFir, at: CGPoint(x: band.minX + 22, y: band.minY + 15), kern: 1.6)
-            text(card.whoLine, font: Face.number(10.5), color: Ink.onFirSoft, at: CGPoint(x: band.minX + 22, y: band.maxY - 26))
-            text(card.farm, font: Face.body(10.5, .semibold), color: Ink.onFir, rightAt: band.maxX - 22, y: band.minY + 22)
-            text(card.range, font: Face.number(10.5), color: Ink.onFirSoft, rightAt: band.maxX - 22, y: band.maxY - 26)
+            let titleBaseline = band.minY + 41
+            text(PaperTimeCard.title, font: Face.heading(27), color: Ink.onFir, x: band.minX + 22, baseline: titleBaseline, kern: 1.6)
+            text(card.farm, font: Face.body(10.5, .semibold), color: Ink.onFir, rightAt: band.maxX - 22, baseline: titleBaseline)
+            let lineBaseline = band.maxY - 16
+            text(card.whoLine, font: Face.number(10.5), color: Ink.onFirSoft, x: band.minX + 22, baseline: lineBaseline)
+            text(card.range, font: Face.number(10.5), color: Ink.onFirSoft, rightAt: band.maxX - 22, baseline: lineBaseline)
         }
 
         private func drawSlimHeader() {
-            text(PaperTimeCard.title, font: Face.heading(13), color: Ink.fir, at: CGPoint(x: left, y: margin), kern: 1.2)
+            let baseline = margin + 13
+            text(PaperTimeCard.title, font: Face.heading(13), color: Ink.fir, x: left, baseline: baseline, kern: 1.2)
             let title = NSAttributedString(string: PaperTimeCard.title, attributes: [.font: Face.heading(13), .kern: 1.2])
-            text(card.whoLine, font: Face.body(9.5), color: Ink.muted, at: CGPoint(x: left + title.size().width + 12, y: margin + 2.5))
-            text(card.range, font: Face.number(9.5), color: Ink.muted, rightAt: right, y: margin + 2.5)
+            text(card.whoLine, font: Face.body(9.5), color: Ink.muted, x: left + title.size().width + 12, baseline: baseline)
+            text(card.range, font: Face.number(9.5), color: Ink.muted, rightAt: right, baseline: baseline)
         }
 
         private func drawColumnHeader(at y: CGFloat) {
             let font = Face.number(8)
-            let baseline = y + 10
-            text("DATE", font: font, color: Ink.muted, at: CGPoint(x: left, y: baseline), kern: 1)
-            text("IN", font: font, color: Ink.muted, at: CGPoint(x: inX, y: baseline), kern: 1)
-            text("OUT", font: font, color: Ink.muted, at: CGPoint(x: outX, y: baseline), kern: 1)
-            text("TREES", font: font, color: Ink.muted, rightAt: treesRight, y: baseline, kern: 1)
-            text("HOURS", font: font, color: Ink.muted, rightAt: hoursRight, y: baseline, kern: 1)
+            let baseline = y + 17
+            text("DATE", font: font, color: Ink.muted, x: left, baseline: baseline, kern: 1)
+            text("IN", font: font, color: Ink.muted, x: inX, baseline: baseline, kern: 1)
+            text("OUT", font: font, color: Ink.muted, x: outX, baseline: baseline, kern: 1)
+            text("TREES", font: font, color: Ink.muted, rightAt: treesRight, baseline: baseline, kern: 1)
+            text("HOURS", font: font, color: Ink.muted, rightAt: hoursRight, baseline: baseline, kern: 1)
             line(at: y + columnHeaderHeight - 2, color: Ink.ink, width: 0.75)
         }
 
         private func drawRow(_ row: PaperTimeCard.Row, at y: CGFloat, height: CGFloat, lastOnCard: Bool, lastOnPage: Bool) {
-            let top = y + 8
-            text(row.date, font: Face.body(10.5, .semibold), color: Ink.ink, at: CGPoint(x: left, y: top))
-            text(row.clockIn, font: Face.number(10.5), color: Ink.ink, at: CGPoint(x: inX, y: top))
-            let out = NSMutableAttributedString(string: row.clockOut, attributes: [.font: Face.number(10.5), .foregroundColor: row.clockOut == "—" ? Ink.muted : Ink.ink])
+            // Every cell of the row sits on one baseline, whatever its font.
+            let baseline = y + 16.5
+            let number = Face.number(10.5)
+            text(row.date, font: Face.body(10.5, .semibold), color: Ink.ink, x: left, baseline: baseline)
+            text(row.clockIn, font: number, color: Ink.ink, x: inX, baseline: baseline)
+            let out = NSMutableAttributedString(string: row.clockOut, attributes: [.font: number, .foregroundColor: row.clockOut == "—" ? Ink.muted : Ink.ink])
             if row.nextDay {
                 out.append(NSAttributedString(string: " +1 day", attributes: [.font: Face.body(8, .medium), .foregroundColor: Ink.muted]))
             }
-            out.draw(at: CGPoint(x: outX, y: top))
-            text(row.trees, font: Face.number(10.5), color: row.trees == "–" ? Ink.muted : Ink.ink, rightAt: treesRight, y: top)
-            text(row.hours, font: Face.number(10.5, semibold: true), color: Ink.ink, rightAt: hoursRight, y: top)
+            out.draw(at: CGPoint(x: outX, y: baseline - number.ascender))
+            text(row.trees, font: number, color: row.trees == "–" ? Ink.muted : Ink.ink, rightAt: treesRight, baseline: baseline)
+            text(row.hours, font: Face.number(10.5, semibold: true), color: Ink.ink, rightAt: hoursRight, baseline: baseline)
 
             var dy = y + rowLineHeight
             for detail in row.details {
-                let attributed = Self.detailText(detail)
-                let rect = attributed.boundingRect(with: CGSize(width: detailWidth, height: .greatestFiniteMagnitude),
-                                                   options: [.usesLineFragmentOrigin, .usesFontLeading], context: nil)
-                attributed.draw(with: CGRect(x: inX, y: dy, width: detailWidth, height: rect.height.rounded(.up)),
-                                options: [.usesLineFragmentOrigin, .usesFontLeading], context: nil)
-                dy += rect.height.rounded(.up) + 3
+                let height = Self.detailHeight(detail)
+                Self.detailText(detail).draw(with: CGRect(x: inX, y: dy, width: detailWidth, height: height),
+                                             options: [.usesLineFragmentOrigin, .usesFontLeading], context: nil)
+                dy += height + Self.detailGap
             }
             line(at: y + height, color: lastOnCard ? Ink.ink : Ink.rule, width: lastOnCard ? 0.75 : 0.5)
         }
 
         private func drawTotals(at y: CGFloat) {
             let top = y + 12
+            let baseline = top + 15
+            let big = Face.number(13, semibold: true)
             let total = NSMutableAttributedString(string: "Total", attributes: [.font: Face.body(11.5, .semibold), .foregroundColor: Ink.ink])
             total.append(NSAttributedString(string: "   " + card.days, attributes: [.font: Face.body(10), .foregroundColor: Ink.muted]))
-            total.draw(at: CGPoint(x: left, y: top + 2))
+            total.draw(at: CGPoint(x: left, y: baseline - Face.body(11.5, .semibold).ascender))
 
             let sum = NSMutableAttributedString()
             sum.append(NSAttributedString(string: card.totalHours, attributes: [.font: Face.number(13, semibold: true), .foregroundColor: Ink.ink]))
             sum.append(NSAttributedString(string: " hours  ·  ", attributes: [.font: Face.body(10.5), .foregroundColor: Ink.muted]))
             sum.append(NSAttributedString(string: card.totalTrees, attributes: [.font: Face.number(13, semibold: true), .foregroundColor: Ink.ink]))
             sum.append(NSAttributedString(string: " trees", attributes: [.font: Face.body(10.5), .foregroundColor: Ink.muted]))
-            sum.draw(at: CGPoint(x: right - sum.size().width, y: top))
+            sum.draw(at: CGPoint(x: right - sum.size().width, y: baseline - big.ascender))
 
             // The double rule under the totals, as on a ledger.
             line(at: top + 24, color: Ink.ink, width: 0.75)
             line(at: top + 27.5, color: Ink.ink, width: 0.75)
 
-            text(PaperTimeCard.footnote, font: Face.body(9.5), color: Ink.muted, at: CGPoint(x: left, y: top + 38))
-            text(card.prepared, font: Face.body(9.5), color: Ink.muted, rightAt: right, y: top + 38)
+            text(PaperTimeCard.footnote, font: Face.body(9.5), color: Ink.muted, x: left, baseline: top + 47)
+            text(card.prepared, font: Face.body(9.5), color: Ink.muted, rightAt: right, baseline: top + 47)
         }
 
         private func drawFooter(number: Int, of count: Int) {
-            let y = pageSize.height - margin - 10
-            line(at: y - 8, color: Ink.rule, width: 0.5)
+            let baseline = pageSize.height - margin
+            line(at: baseline - 16, color: Ink.rule, width: 0.5)
             let who = [card.farm, card.worker].filter { !$0.isEmpty }.joined(separator: " · ")
-            text(who, font: Face.body(8.5), color: Ink.muted, at: CGPoint(x: left, y: y))
-            text("Page \(number) of \(count)", font: Face.number(8.5), color: Ink.muted, rightAt: right, y: y)
+            text(who, font: Face.body(8.5), color: Ink.muted, x: left, baseline: baseline)
+            text("Page \(number) of \(count)", font: Face.number(8.5), color: Ink.muted, rightAt: right, baseline: baseline)
         }
 
         // MARK: Primitives
 
-        private func text(_ string: String, font: UIFont, color: UIColor, at point: CGPoint, kern: CGFloat = 0) {
-            NSAttributedString(string: string, attributes: [.font: font, .foregroundColor: color, .kern: kern]).draw(at: point)
+        /// Text whose baseline sits at `baseline`, so different fonts line up.
+        private func text(_ string: String, font: UIFont, color: UIColor, x: CGFloat, baseline: CGFloat, kern: CGFloat = 0) {
+            NSAttributedString(string: string, attributes: [.font: font, .foregroundColor: color, .kern: kern])
+                .draw(at: CGPoint(x: x, y: baseline - font.ascender))
         }
 
-        private func text(_ string: String, font: UIFont, color: UIColor, rightAt x: CGFloat, y: CGFloat, kern: CGFloat = 0) {
+        /// The same, ending at `x` (the trailing letter-space doesn't count).
+        private func text(_ string: String, font: UIFont, color: UIColor, rightAt x: CGFloat, baseline: CGFloat, kern: CGFloat = 0) {
             let s = NSAttributedString(string: string, attributes: [.font: font, .foregroundColor: color, .kern: kern])
-            s.draw(at: CGPoint(x: x - s.size().width + (kern > 0 ? kern : 0), y: y))
+            s.draw(at: CGPoint(x: x - s.size().width + kern, y: baseline - font.ascender))
         }
 
         private func line(at y: CGFloat, color: UIColor, width: CGFloat) {
