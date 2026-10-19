@@ -208,6 +208,29 @@ final class TreesUITests: XCTestCase {
         attach(app, "Trees – tree card")
         app.buttons["tree-card-done"].tap()
 
+        app.buttons["mode-fill"].tap()
+        tree(3, inRow: app.buttons["map-row-1-8"]).tap()
+        XCTAssertTrue(app.buttons["trees-message-action"].waitForExistence(timeout: 5))
+        attach(app, "Trees – fill, first tree picked")
+        app.buttons["trees-message-action"].tap()
+        app.buttons["mode-one"].tap()
+
+        app.buttons["type-numbers"].tap()
+        XCTAssertTrue(app.textFields["type-fromRow"].waitForExistence(timeout: 5))
+        app.textFields["type-fromRow"].typeText("12")
+        app.buttons["type-mark"].tap()
+        XCTAssertTrue(app.staticTexts["type-message"].waitForExistence(timeout: 5))
+        attach(app, "Trees – type numbers")
+        app.navigationBars.buttons["Done"].tap()
+
+        app.buttons["marking-for"].tap()
+        let yesterday = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "120 trees")).firstMatch
+        XCTAssertTrue(yesterday.waitForExistence(timeout: 5))
+        yesterday.tap()
+        XCTAssertTrue(app.buttons["use-open-shift"].waitForExistence(timeout: 5))
+        attach(app, "Trees – marking an earlier shift")
+        app.buttons["use-open-shift"].tap()
+
         app.buttons["trees-list-toggle"].tap()
         XCTAssertTrue(app.buttons["row-1-5"].waitForExistence(timeout: 5))
         attach(app, "Trees – row list")
