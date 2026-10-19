@@ -180,10 +180,13 @@ struct NewSeasonSheet: View {
     }
 
     private func point(_ icon: String, _ text: String) -> some View {
-        Label {
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
+            Image(systemName: icon)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(Palette.sapInk)
+                .frame(width: 22)
+                .accessibilityHidden(true)
             Text(text).font(.subheadline).foregroundStyle(Palette.ink).fixedSize(horizontal: false, vertical: true)
-        } icon: {
-            Image(systemName: icon).foregroundStyle(Palette.sapInk)
         }
     }
 

@@ -19,6 +19,8 @@ struct GloveSegmented<Value: Hashable>: View {
                         .font(.headline)
                         .lineLimit(1)
                         .minimumScaleFactor(0.7)
+                        // Every segment the same size, even at the largest text sizes.
+                        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
                         .foregroundStyle(selected ? Palette.firInk : Palette.ink)
                         .frame(maxWidth: .infinity, minHeight: GloveButtonStyle.minHeight)
                         .background {
@@ -216,6 +218,20 @@ struct TeamStat: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(label)
         .accessibilityValue(accessibilityValue ?? [value, unit].compactMap { $0 }.joined(separator: " "))
+    }
+}
+
+/// Stats side by side, or one above the other at the largest text sizes.
+struct TeamStatRow<Content: View>: View {
+    @ViewBuilder var content: Content
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    var body: some View {
+        if typeSize.isAccessibilitySize {
+            VStack(alignment: .leading, spacing: 12) { content }
+        } else {
+            HStack(alignment: .top, spacing: 16) { content }
+        }
     }
 }
 

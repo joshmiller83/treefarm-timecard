@@ -43,7 +43,7 @@ struct MemberDetailView: View {
         VStack(alignment: .leading, spacing: 16) {
             header(member, row: row, calendar: calendar, isYou: isYou)
             if let row {
-                HStack(alignment: .top, spacing: 12) {
+                TeamStatRow {
                     TeamStat(label: "This week", value: Fmt.decimalHours(row.week), unit: "h", accessibilityValue: Fmt.spokenDuration(row.week))
                     TeamStat(label: "Today", value: Fmt.decimalHours(row.today), unit: "h", accessibilityValue: Fmt.spokenDuration(row.today))
                     TeamStat(label: "Trees", value: Fmt.count(row.weekTrees), unit: nil, accessibilityValue: "\(Fmt.plural(row.weekTrees, "tree")) this week")

@@ -76,15 +76,22 @@ struct MiniMapView: View {
             } else {
                 context.stroke(outline, with: .color(Palette.blockLine), lineWidth: 1)
             }
-            // The block's name in the space above it, when it fits.
-            let header = CGRect(x: rect.minX, y: g.toView(frame.frame).minY, width: max(rect.width, 14), height: rect.minY - g.toView(frame.frame).minY)
-            guard header.height >= 9 else { continue }
+        }
+        // Names last, on a small tag in the middle of each block, so shaped trees never hide them.
+        for frame in layout.frames {
+            let rect = g.toView(frame.outline)
+            let size = min(13, rect.width * 0.42, rect.height * 0.42)
+            guard size >= 7 else { continue }
+            let selected = frame.block.id == highlight
             let text = context.resolve(Text(frame.block.name)
-                .font(.system(size: min(12, header.height - 2), weight: .semibold))
-                .foregroundStyle(selected ? Palette.sapInk : Palette.muted))
-            let size = text.measure(in: CGSize(width: 400, height: header.height))
-            guard size.width <= header.width + 6 else { continue }
-            context.draw(text, at: CGPoint(x: header.minX + 1, y: header.midY), anchor: .leading)
+                .font(.system(size: size, weight: .bold))
+                .foregroundStyle(selected ? Palette.sapInk : Palette.ink))
+            let measured = text.measure(in: CGSize(width: rect.width, height: rect.height))
+            guard measured.width <= rect.width - 4 else { continue }
+            let tag = CGRect(x: rect.midX - measured.width / 2 - 4, y: rect.midY - measured.height / 2 - 1,
+                             width: measured.width + 8, height: measured.height + 2)
+            context.fill(Path(roundedRect: tag, cornerRadius: min(5, tag.height / 2)), with: .color(Palette.surface.opacity(0.85)))
+            context.draw(text, at: CGPoint(x: rect.midX, y: rect.midY), anchor: .center)
         }
     }
 

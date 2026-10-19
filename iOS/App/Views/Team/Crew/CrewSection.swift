@@ -77,7 +77,7 @@ private struct WeekSummary: View {
                 SectionLabel("This week")
                 Text(roster.weekLabel).font(.subheadline).foregroundStyle(Palette.muted)
             }
-            HStack(alignment: .top, spacing: 16) {
+            TeamStatRow {
                 TeamStat(label: "Crew hours", value: Fmt.decimalHours(roster.weekTotal), unit: "h",
                          accessibilityValue: Fmt.spokenDuration(roster.weekTotal))
                 TeamStat(label: "On the clock", value: "\(roster.onTheClock)", unit: "of \(roster.current.count)",

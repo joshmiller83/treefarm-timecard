@@ -220,7 +220,7 @@ final class TeamUITests: XCTestCase {
         app.swipeUp()
         shot("13-block-new-bottom", app)
         app.navigationBars.buttons["Cancel"].tap()
-        XCTAssertTrue(app.buttons["member-edit"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["block-add"].waitForExistence(timeout: 5))
         app.navigationBars.buttons.firstMatch.tap()
 
         XCTAssertTrue(app.navigationBars["Team"].waitForExistence(timeout: 5))
