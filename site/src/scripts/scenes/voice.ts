@@ -291,6 +291,12 @@ registerScene(
       t.ft(L3.backBtn, { clipPath: 'inset(0% 100% 0% 0%)' }, { clipPath: 'inset(0% 0% 0% 0%)' }, [0.56, 0.68], 'power2.out');
       // No reply: the gold lock screen is the answer. Siri lets go.
       t.ft(L3.glow, { opacity: 1 }, { opacity: 0 }, [0.62, 0.76]);
+      // Desktop: the 'On lunch · 30 min' marker between the halves appears as lunch starts.
+      const between = one(article('lunch'), '[data-between]');
+      if (between && isDesk) {
+        gsap.set(between, { opacity: 0 });
+        t.ft(between, { opacity: 0 }, { opacity: 1 }, [0.5, 0.62]);
+      }
     }
 
     // ---- 12:31 · back to work ----

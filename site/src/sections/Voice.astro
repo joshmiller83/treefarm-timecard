@@ -67,12 +67,16 @@ const pieces = (w: string) => w.split(/(\d+(?:,\d{3})*)/).filter(Boolean);
 
   {
     EXCHANGES.map((x) => (
-      <article class:list={['beat', 'beat-bare', 'exchange', `x-${x.id}`]} data-x={x.id}>
+      <article
+        class:list={['beat', 'beat-bare', 'exchange', `x-${x.id}`]}
+        data-x={x.id}
+        aria-labelledby={x.parts.map((p) => `voice-t-${p.id}`).join(' ')}
+      >
         <div class="x-inner">
           {x.parts.map((p, pi) => (
             <>
               {pi > 0 && (
-                <div class="x-between" aria-hidden="true">
+                <div class="x-between" aria-hidden="true" data-between>
                   <span class="x-between-line">
                     <i class="x-between-fill" data-lunch-fill />
                   </span>
@@ -80,7 +84,7 @@ const pieces = (w: string) => w.split(/(\d+(?:,\d{3})*)/).filter(Boolean);
                 </div>
               )}
               <div class="x-part" data-part={p.id}>
-                <p class="x-time">
+                <p class="x-time" id={`voice-t-${p.id}`}>
                   <time datetime={p.datetime}>{p.stamp}</time>
                 </p>
                 {p.turns.map((t) =>
