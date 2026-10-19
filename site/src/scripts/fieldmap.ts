@@ -551,7 +551,7 @@ export function createTryIt(target: ZoomTarget = ZOOM_TARGET, at: Minute = MOMEN
   const ledger = treeStatus({ at });
   for (let r = 0; r < n; r += 1)
     for (let t = 0; t < ACROSS; t += 1) start[r * ACROSS + t] = statusOf(ledger, target.block, target.from + r, t + 1);
-  let cells = start.slice();
+  let cells: Uint8Array = start.slice();
   const history: Uint8Array[] = [];
   let anchor: { row: number; tree: number } | null = null;
   const at0 = (row: number, tree: number) => (row - target.from) * ACROSS + tree - 1;
