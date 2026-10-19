@@ -246,7 +246,7 @@ final class TreeMapScrollView: UIScrollView, UIScrollViewDelegate {
                 .intersection(CGRect(origin: .zero, size: size))
             let tile = MapTileView(frame: frame)
             tile.map = self
-            tile.contentScaleFactor = window?.screen.scale ?? UIScreen.main.scale
+            tile.contentScaleFactor = max(1, traitCollection.displayScale)
             content.addSubview(tile)
             tiles[key] = tile
         }

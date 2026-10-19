@@ -14,6 +14,7 @@
 		1C89058F02093C6506330C83 /* LiveActivityButtons.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97460A95F1CA9E6D45762BFE /* LiveActivityButtons.swift */; };
 		1E1B26C4A40FF877A255E691 /* AppEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = C130C9D6D6E12A2BCD39E059 /* AppEnvironment.swift */; };
 		210A451BC06E8FF049CC8269 /* TimeCardUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C111B64C0C07020B9DCCDD2 /* TimeCardUITests.swift */; };
+		24FE6C012C5C7977CD4C703A /* MapPainterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF2B33447FD168C2FAAB023D /* MapPainterTests.swift */; };
 		3B3E0A8E54FB630EFF4F45D1 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF7548AC9CE7DC4BC309E713 /* SettingsView.swift */; };
 		3DFDFC60E9F3DEFA8A73D693 /* LiveActivityController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 265B9098E1A69BDACEBA441D /* LiveActivityController.swift */; };
 		4C4F9F482F05AA8C690EADED /* ReportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 165D9CB59A2B73311DD924DB /* ReportView.swift */; };
@@ -161,6 +162,7 @@
 		E687D581925CC7F2691A1045 /* TreeMapModel+Details.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TreeMapModel+Details.swift"; sourceTree = "<group>"; };
 		E9889E7910F184D691D439FD /* TreeMapModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TreeMapModelTests.swift; sourceTree = "<group>"; };
 		ED1E5603217835C939822825 /* TreeMapModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TreeMapModel.swift; sourceTree = "<group>"; };
+		EF2B33447FD168C2FAAB023D /* MapPainterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapPainterTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -347,6 +349,7 @@
 		9F3D12A41C3246F1C077B3E3 /* Trees */ = {
 			isa = PBXGroup;
 			children = (
+				EF2B33447FD168C2FAAB023D /* MapPainterTests.swift */,
 				9B2E026F3FE222DBD13E9164 /* TreeMapFixture.swift */,
 				E9889E7910F184D691D439FD /* TreeMapModelTests.swift */,
 			);
@@ -595,6 +598,7 @@
 			files = (
 				A11346CECD3BFC51BA365381 /* AppModelTests.swift in Sources */,
 				6E021FFA63E1736E7099AF2B /* DesignTests.swift in Sources */,
+				24FE6C012C5C7977CD4C703A /* MapPainterTests.swift in Sources */,
 				5840091B8188A4BF57AD73A8 /* PlatformTests.swift in Sources */,
 				9B53FC1A2C3610865B0340C3 /* TreeMapFixture.swift in Sources */,
 				4F4A9E4954CAAC0B5F4A6699 /* TreeMapModelTests.swift in Sources */,

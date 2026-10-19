@@ -56,11 +56,14 @@ struct TreesView: View {
     // MARK: Screens
 
     @ViewBuilder private var content: some View {
-        if model.data == nil {
+        if model.data == nil || (model.fields.isEmpty && session.snapshot.farm == nil) {
+            // Nothing pulled from the server yet (a first sign-in), so "no fields" would be wrong.
             ContentUnavailableView {
                 Label("Loading the farm", systemImage: "tree")
             } description: {
-                Text("The field map shows up as soon as this phone has the farm.")
+                Text(session.syncStatus.phase == .offline
+                     ? "This phone hasn’t downloaded the farm yet. The map shows up when it’s back online."
+                     : "The field map shows up as soon as this phone has the farm.")
             }
         } else if model.fields.isEmpty {
             emptyFarm(title: "No fields yet",

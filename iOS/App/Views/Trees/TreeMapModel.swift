@@ -150,7 +150,9 @@ final class TreeMapModel {
             markDirty(dirty)
         }
         if let id = chosenShiftId, current.shift(id) == nil { chosenShiftId = nil }
-        undoStack.removeAll { current.shift($0.shiftId) == nil }
+        if undoStack.entries.contains(where: { current.shift($0.shiftId) == nil }) {
+            undoStack.removeAll { current.shift($0.shiftId) == nil }
+        }
     }
 
     /// The rows to redraw since the last call; nil means all of them.
