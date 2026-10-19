@@ -211,7 +211,7 @@ final class IntentShellTests {
         #expect(reply.speech == "Marked trees 1 to 6 in row 5.")
     }
 
-    @Test func aFarRowForTreesIsCheckedLast() async throws {
+    @Test func aFarRowForTreesIsCheckedRightAfterTheRow() async throws {
         _ = await IntentRunner.perform(.clockIn(fieldId: nil))
         let state = try Demo.state(model)
         let far = try #require(VoiceCatalog.rows(matching: "row 18", state: state).first)
@@ -219,8 +219,42 @@ final class IntentShellTests {
         let reply = try await SiriFlows.markTrees(row: nil, first: nil, last: nil,
                                                   askRow: asked.row("row"), askFirst: asked.int("first", 1), askLast: asked.int("last", 6),
                                                   confirm: asked.yes("confirm"))
-        #expect(asked.questions == ["row", "first", "last", "confirm: Row 18 in block 1? That’s 13 rows ahead."])
+        #expect(asked.questions == ["row", "confirm: Row 18 in block 1? That’s 13 rows ahead."])
         #expect(reply.speech == "Okay, nothing marked.")
+    }
+
+    @Test func aRowOutsideTheBlockForTreesIsSaidBeforeTheTrees() async throws {
+        _ = await IntentRunner.perform(.clockIn(fieldId: nil))
+        let state = try Demo.state(model)
+        let outside = try #require(VoiceCatalog.rows(matching: "row 40", state: state).first)
+        let asked = Asked(row: outside, confirms: true)
+        let reply = try await SiriFlows.markTrees(row: nil, first: nil, last: nil,
+                                                  askRow: asked.row("row"), askFirst: asked.int("first", 1), askLast: asked.int("last", 6),
+                                                  confirm: asked.yes("confirm"))
+        #expect(asked.questions == ["row"])
+        #expect(reply.speech == "Block 1 has rows 1 to 20.")
+    }
+
+    @Test func aTreePastTheEndIsSaidBeforeTheNote() async throws {
+        let asked = Asked()
+        let reply = try await SiriFlows.noteTree(row: nil, tree: nil, note: nil, flag: nil,
+                                                 askRow: asked.row("row"), askTree: asked.int("tree", 13),
+                                                 askNote: asked.text("note", "Leader broken"), askFlag: asked.flag("flag", .replant),
+                                                 confirm: asked.yes("confirm"))
+        #expect(asked.questions == ["tree"], "the note isn't dictated for nothing")
+        #expect(reply.speech == "Block 1 has 12 trees in each row.")
+        #expect(model.snapshot.notes.isEmpty)
+    }
+
+    @Test func aFirstTreePastTheEndIsSaidBeforeTheLast() async throws {
+        _ = await IntentRunner.perform(.clockIn(fieldId: nil))
+        let asked = Asked()
+        let row = try #require(VoiceCatalog.rows(matching: "row 5", state: try Demo.state(model)).first)
+        let reply = try await SiriFlows.markTrees(row: row, first: nil, last: nil,
+                                                  askRow: asked.row("row"), askFirst: asked.int("first", 30), askLast: asked.int("last", 31),
+                                                  confirm: asked.yes("confirm"))
+        #expect(asked.questions == ["first"])
+        #expect(reply.speech == "Block 1 has 12 trees in each row.")
     }
 
     @Test func aTreeNoteNeedsOnlyTheTreeNumberTheNoteAndAFlag() async throws {

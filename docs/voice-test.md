@@ -21,7 +21,9 @@ Setup: a farm with a field of at least two blocks; you're signed in; you're not 
 | 10 | "Add a note in Time Card" → "Fuel low on the shears" | Asks: What's the note? Then: Added to today's notes. | Note on today's shift |
 | 11 | "Note a tree in Time Card" → "6" → "Leader broken" → "Needs attention" | Asks: Which tree? What's the note? Any flag? Needs attention, dead, replant, or none. Then: Noted on block 1, row <r>, tree 6. | Marker on that tree on the map |
 | 12 | "Mark trees in Time Card" → "row 5" → "1" → "6" | Asks: Which row? First tree? Last tree? Then: Marked trees 1 to 6 in row 5. | Six trees gold in row 5 |
-| 12b | "Mark trees in Time Card" → "row 40" → "1" → "2" → "No" | Asks the three questions, then: Row 40 in block 1? That's <n> rows ahead. Then: Okay, nothing marked. (A row more than 5 away or in another block is checked, as for Mark a row and Note a tree.) | Nothing changed |
+| 12b | "Mark trees in Time Card" → "row 15" → "No" | Asks: Which row? Then right away: Row 15 in block 1? That's <n> rows ahead. Then: Okay, nothing marked. (A row more than 5 away or in another block is checked before the trees are asked, as for Mark a row and Note a tree.) | Nothing changed |
+| 12c | "Mark trees in Time Card" → "row 40" | Asks: Which row? Then right away: Block 1 has rows 1 to 20. (No tree questions.) | Nothing changed |
+| 12d | "Note a tree in Time Card" → "13" | Asks: Which tree? Then right away: Block 1 has 12 trees in each row. (No note is asked for.) | Nothing changed |
 | 13 | "I'm in block 2 in Time Card" | Okay, block 2, row 1 is next. | Buttons show block 2 rows |
 | 14 | "How long have I worked in Time Card?" | <h> hours <m> minutes today, <x> this week. | Card shows the same |
 | 15 | "How many trees in Time Card?" | <n> trees today, <r> an hour. You're on block 2, row 1. | Card shows the same, trees in front |

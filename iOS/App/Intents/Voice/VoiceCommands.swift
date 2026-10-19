@@ -139,6 +139,29 @@ struct VoiceCommands {
         actions.state()?.nextRows(1).first
     }
 
+    /// Nil when `row` is in its block; otherwise what Siri says ("Block 1 has rows 1 to 20."),
+    /// as soon as the row is known, before asking anything else.
+    func problem(row: RowRef) -> String? {
+        guard let state = actions.state() else { return FieldActions.signedOut }
+        guard let block = state.block(row.blockId) else { return Speech.blockGone }
+        return block.contains(row) ? nil : Speech.rowsRange(block)
+    }
+
+    /// Nil when tree number `tree` (counting from 1) is in the row's block; otherwise
+    /// "Block 1 has 12 trees in each row.", before the note or the next number is asked.
+    func problem(tree: Int, in row: RowRef) -> String? {
+        guard let state = actions.state() else { return FieldActions.signedOut }
+        guard let block = state.block(row.blockId) else { return Speech.blockGone }
+        return (1...max(1, block.treesPerRow)).contains(tree) ? nil : Speech.treesRange(block)
+    }
+
+    /// Asks before working on a row far from where you are, or in another block, in case Siri
+    /// misheard ("forty" for "fourteen"). True: go ahead. Flows ask right after the row is said.
+    func checked(_ row: RowRef, confirm: Confirm) async -> Bool {
+        guard let question = actions.confirmation(for: .markRow(row)) else { return true }
+        return await confirm(question)
+    }
+
     // MARK: Clock
 
     func clockIn(field: UUID?) async -> VoiceReply {
@@ -187,10 +210,15 @@ struct VoiceCommands {
     }
 
     /// Trees `first` through `last` (counting from 1, either order) in one row. The row was
-    /// said out loud, so one far away or in another block is checked first, as for a row.
-    func markTrees(row: RowRef, first: Int, last: Int?, confirm: Confirm) async -> VoiceReply {
+    /// said out loud, so one outside its block is refused and one far away or in another block
+    /// is checked first, as for a row; then each tree number. `confirm` nil: already asked.
+    func markTrees(row: RowRef, first: Int, last: Int?, confirm: Confirm?) async -> VoiceReply {
         if let stop = await problem(before: .marking) { return .failed(stop) }
-        guard await checked(row, confirm: confirm) else { return .failed(VoiceText.nothingMarked) }
+        if let out = problem(row: row) { return .failed(out) }
+        if let confirm, !(await checked(row, confirm: confirm)) { return .failed(VoiceText.nothingMarked) }
+        for tree in [first, last ?? first] {
+            if let out = problem(tree: tree, in: row) { return .failed(out) }
+        }
         let a = first - 1, b = (last ?? first) - 1
         return await run(.markTrees(row, positions: min(a, b)...max(a, b)))
     }
@@ -214,7 +242,9 @@ struct VoiceCommands {
     /// than the one you're on) is checked first when it's far away or in another block.
     func noteTree(row: RowRef, tree: Int, body: String, flag: NoteFlag, confirm: Confirm? = nil) async -> VoiceReply {
         if let blocked = await blocker() { return .failed(blocked) }
+        if let out = problem(row: row) { return .failed(out) }
         if let confirm, !(await checked(row, confirm: confirm)) { return .failed(VoiceText.nothingNoted) }
+        if let out = problem(tree: tree, in: row) { return .failed(out) }
         return await run(.addTreeNote(TreeRef(blockId: row.blockId, row: row.row, position: tree - 1), body: body, flag: flag))
     }
 
@@ -248,13 +278,6 @@ struct VoiceCommands {
     }
 
     // MARK: Plumbing
-
-    /// Asks before working on a row far from where you are, or in another block, in case Siri
-    /// misheard ("forty" for "fourteen"). True: go ahead.
-    private func checked(_ row: RowRef, confirm: Confirm) async -> Bool {
-        guard let question = actions.confirmation(for: .markRow(row)) else { return true }
-        return await confirm(question)
-    }
 
     private func run(_ command: FieldCommand) async -> VoiceReply {
         if let blocked = await blocker() { return .failed(blocked) }
