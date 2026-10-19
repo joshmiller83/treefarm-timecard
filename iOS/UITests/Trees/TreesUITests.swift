@@ -143,6 +143,57 @@ final class TreesUITests: XCTestCase {
         XCTAssertEqual(app.buttons["row-1-5"].value as? String, "12 of 12 shaped, 12 on this shift")
     }
 
+    // MARK: Zoom
+
+    func testPinchingSnapsToASize() {
+        let app = launch()
+        let map = app.scrollViews["tree-map"]
+        XCTAssertTrue(map.waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["zoom-m"].isSelected)
+        map.pinch(withScale: 2.2, velocity: 2)
+        XCTAssertTrue(app.buttons["zoom-l"].waitForSelection(timeout: 5))
+        map.pinch(withScale: 0.3, velocity: -2)
+        XCTAssertFalse(app.buttons["zoom-l"].isSelected)
+    }
+
+    func testTheWholeFieldZoomsIntoATappedBlock() {
+        let app = launch()
+        let allSizes = app.buttons["zoom-all"]
+        XCTAssertTrue(allSizes.waitForExistence(timeout: 10))
+        allSizes.tap()
+        waitForMessage(app, "This is the whole field. Tap a block to zoom in and mark trees.")
+        // Block 1 is the top-left block.
+        app.scrollViews["tree-map"].coordinate(withNormalizedOffset: CGVector(dx: 0.2, dy: 0.25)).tap()
+        waitForMessage(app, "Showing Block 1. Tap All to see the whole field again.")
+        XCTAssertTrue(app.buttons["zoom-m"].isSelected)
+        XCTAssertTrue(app.buttons["map-row-1-1"].waitForExistence(timeout: 5))
+    }
+
+    // MARK: Earlier shifts
+
+    func testMarkingTreesForAnEarlierShift() {
+        let app = launch(["-UITestTreesSeed"])
+        let picker = app.buttons["marking-for"]
+        XCTAssertTrue(picker.waitForExistence(timeout: 10))
+        // Wait for the seed: today's shift with rows 5 and 6.
+        let seeded = expectation(for: NSPredicate(format: "value CONTAINS %@", "24 trees"), evaluatedWith: picker)
+        XCTAssertEqual(XCTWaiter().wait(for: [seeded], timeout: 10), .completed)
+        picker.tap()
+        let yesterday = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "120 trees")).firstMatch
+        XCTAssertTrue(yesterday.waitForExistence(timeout: 5))
+        yesterday.tap()
+        let back = app.buttons["use-open-shift"]
+        XCTAssertTrue(back.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["This is an earlier shift, not the one you’re clocked in on."].exists)
+
+        // Row 5 was marked on today's shift, so it's someone else's day now.
+        app.buttons["map-row-1-5"].tap()
+        waitForMessage(app, "Every tree in Block 1, row 5 was shaped on another day.")
+
+        back.tap()
+        XCTAssertFalse(app.buttons["use-open-shift"].waitForExistence(timeout: 1))
+    }
+
     // MARK: Pictures for review
 
     func testScreenshotsOfTheTreesTab() {
@@ -167,5 +218,12 @@ final class TreesUITests: XCTestCase {
         shot.name = name
         shot.lifetime = .keepAlways
         add(shot)
+    }
+}
+
+private extension XCUIElement {
+    func waitForSelection(timeout: TimeInterval) -> Bool {
+        let selected = XCTNSPredicateExpectation(predicate: NSPredicate(format: "isSelected == true"), object: self)
+        return XCTWaiter().wait(for: [selected], timeout: timeout) == .completed
     }
 }

@@ -36,6 +36,7 @@ struct ModePicker: View {
         .frame(minHeight: GloveButtonStyle.minHeight)
         .background(Palette.surface, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Palette.line, lineWidth: 1))
+        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
         .sensoryFeedback(.selection, trigger: model.mode)
         .accessibilityElement(children: .contain)
         .accessibilityLabel("What a tap does")

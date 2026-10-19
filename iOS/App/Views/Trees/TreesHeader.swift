@@ -95,6 +95,7 @@ private struct ProgressLine: View {
                 .foregroundStyle(Palette.muted)
                 .fixedSize(horizontal: false, vertical: true)
         }
+        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Field progress")
         .accessibilityValue("\(progress.percent) percent. " + [progress.summary, progress.timeLeft].compactMap { $0 }.joined(separator: " "))
@@ -105,22 +106,37 @@ private struct ProgressLine: View {
 /// What the dots mean.
 struct MapLegend: View {
     var body: some View {
-        HStack(spacing: 14) {
-            item("Not yet") { Circle().strokeBorder(Palette.treeEmpty, lineWidth: 1.5) }
-            item("Earlier") { Circle().fill(Palette.fir) }
-            item("This shift") { Circle().fill(Palette.sap) }
-            item("Note") { NoteCorner().fill(Palette.rust).padding(1) }
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 14) { items }
+            Grid(alignment: .leading, horizontalSpacing: 14, verticalSpacing: 4) {
+                GridRow { notYet; earlier }
+                GridRow { thisShift; note }
+            }
         }
         .font(.caption)
         .foregroundStyle(Palette.muted)
+        .dynamicTypeSize(...DynamicTypeSize.accessibility1)
+        .padding(.vertical, 6)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Legend: rings are not shaped yet, green dots were shaped earlier, gold dots on this shift, and a red corner means the tree has notes.")
     }
 
+    @ViewBuilder private var items: some View {
+        notYet
+        earlier
+        thisShift
+        note
+    }
+
+    private var notYet: some View { item("Not yet") { Circle().strokeBorder(Palette.treeEmpty, lineWidth: 1.5) } }
+    private var earlier: some View { item("Earlier") { Circle().fill(Palette.fir) } }
+    private var thisShift: some View { item("This shift") { Circle().fill(Palette.sap) } }
+    private var note: some View { item("Note") { NoteCorner().fill(Palette.rust).padding(1) } }
+
     private func item<S: View>(_ title: String, @ViewBuilder swatch: () -> S) -> some View {
         HStack(spacing: 5) {
             swatch().frame(width: 11, height: 11)
-            Text(title).lineLimit(1)
+            Text(title).lineLimit(1).fixedSize()
         }
     }
 }
@@ -173,6 +189,8 @@ struct MarkingForBar: View {
                     Text("MARKING TREES FOR")
                         .font(.caption2.weight(.semibold))
                         .tracking(0.8)
+                        .lineLimit(1)
+                        .dynamicTypeSize(...DynamicTypeSize.xxLarge)
                         .foregroundStyle(model.isMarkingEarlierShift ? Palette.sapInk : Palette.muted)
                     Text(model.shiftTitle(shift))
                         .font(.callout.weight(.semibold))
