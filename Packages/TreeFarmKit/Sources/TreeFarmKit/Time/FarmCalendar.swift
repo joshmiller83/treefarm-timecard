@@ -50,6 +50,28 @@ public struct FarmCalendar: Sendable {
         calendar.date(byAdding: .day, value: n, to: date) ?? date.addingTimeInterval(TimeInterval(n) * 86_400)
     }
 
+    /// Midnight on the farm's first weekday on or before `date`.
+    public func startOfWeek(containing date: Date) -> Date {
+        let day = startOfDay(date)
+        let weekday = calendar.component(.weekday, from: day)
+        let back = (weekday - calendar.firstWeekday + 7) % 7
+        return startOfDay(addDays(day, -back))
+    }
+
+    /// The week's eight day boundaries: the start of each of its 7 days, then the start of the next week (exclusive end).
+    public func weekBounds(containing date: Date) -> [Date] {
+        let first = startOfWeek(containing: date)
+        return (0...7).map { startOfDay(addDays(first, $0)) }
+    }
+
+    /// Midnight on the 1st of the month, and midnight on the 1st of the next (exclusive end).
+    public func monthBounds(containing date: Date) -> (start: Date, end: Date) {
+        let key = dayKey(date)
+        let start = startOfDay(DayKey(year: key.year, month: key.month, day: 1))
+        let next = key.month == 12 ? DayKey(year: key.year + 1, month: 1, day: 1) : DayKey(year: key.year, month: key.month + 1, day: 1)
+        return (start, startOfDay(next))
+    }
+
     /// That wall-clock time on that day. A time that doesn't exist (2:30 on spring-forward
     /// day) comes back as whatever Foundation picks, which stays on the same day.
     public func date(on key: DayKey, hour: Int, minute: Int) -> Date {
