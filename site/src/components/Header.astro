@@ -318,6 +318,10 @@ const n = CHAPTERS.length - 1;
       background: #0e2117;
       border: 1px solid var(--stage-line);
       box-shadow: 0 18px 48px rgba(0, 0, 0, 0.45);
+      /* Landscape phones: the panel never runs off the bottom of the screen. */
+      max-height: calc(100svh - var(--chrome-h) - 56px);
+      overflow-y: auto;
+      overscroll-behavior: contain;
     }
     [data-theme='light'] .shift-list {
       background: var(--surface);
@@ -354,6 +358,19 @@ const n = CHAPTERS.length - 1;
     }
     .lbl {
       font-size: 0.875rem;
+    }
+  }
+  /* Short screens (landscape phones): columns, so all nine chapters fit (the panel scrolls
+     on the smallest). */
+  @media (max-width: 899.98px) and (max-height: 500px) {
+    .shift.is-open .shift-list {
+      grid-template-columns: 1fr 1fr;
+      column-gap: 4px;
+    }
+  }
+  @media (min-width: 640px) and (max-width: 899.98px) and (max-height: 500px) {
+    .shift.is-open .shift-list {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
     }
   }
   @media (max-width: 599.98px) {

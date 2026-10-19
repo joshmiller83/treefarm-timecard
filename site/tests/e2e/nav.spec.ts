@@ -106,3 +106,28 @@ test.describe('reduced motion (the static page)', () => {
     expect(Math.abs(top - pad)).toBeLessThan(24);
   });
 });
+
+for (const name of ['iPhone 15 landscape', 'iPhone SE landscape'] as const) {
+  test(`${name}: every chapter in the open panel can be reached`, async ({ page, browserName }, info) => {
+    test.skip(!/mobile/.test(info.project.name), 'phone projects');
+    const { devices } = await import('@playwright/test');
+    await page.setViewportSize(devices[name].viewport);
+    await page.goto('/');
+    await page.evaluate(() => document.fonts.ready);
+    const toggle = page.locator('.shift-toggle');
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    const last = page.locator('a[data-chapter-link]').last();
+    await last.scrollIntoViewIfNeeded();
+    const box = (await last.boundingBox())!;
+    const vh = devices[name].viewport.height;
+    expect(box.y + box.height, `${browserName}: the last chapter link ends inside the screen`).toBeLessThanOrEqual(vh);
+    if (name === 'iPhone 15 landscape') {
+      // No scrolling needed on the larger phone: all nine show at once.
+      const all = await page.locator('a[data-chapter-link]').evaluateAll((els) => els.map((e) => e.getBoundingClientRect().bottom));
+      expect(Math.max(...all)).toBeLessThanOrEqual(vh);
+    }
+    await last.click();
+    await expect(page).toHaveURL(/#open$/);
+  });
+}
