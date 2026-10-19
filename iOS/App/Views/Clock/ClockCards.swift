@@ -236,6 +236,9 @@ struct ShiftNotesCardView: View {
                 }
                 .accessibilityLabel("Shift notes")
                 .accessibilityIdentifier("shift-notes")
+            if let failure = editor.failure, editor.status == .failed {
+                ErrorMessage(text: failure)
+            }
             HStack(alignment: .firstTextBaseline) {
                 Text("Notes go on the report next to this shift.")
                 Spacer(minLength: 8)

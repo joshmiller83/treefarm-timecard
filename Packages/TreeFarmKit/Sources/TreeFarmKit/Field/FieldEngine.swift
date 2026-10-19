@@ -65,20 +65,22 @@ public struct UndoEntry: Equatable, Sendable {
         return true
     }
 
-    /// The restore records stamped with the time of the undo, so they win over what they replace.
+    /// The restore records stamped with the time of the undo, after the versions they replace
+    /// (what the action wrote), so they win over them even on a phone whose clock is behind.
     public func records(at now: Date) -> [SyncRecord] {
         restore.map { record in
+            let stamp = RecordMetadata.stamp(now, after: written[record.key] ?? record.updatedAt)
             switch record {
             case .treeMark(var m):
-                m.updatedAt = now
-                if m.deletedAt != nil { m.deletedAt = now }
+                m.updatedAt = stamp
+                if m.deletedAt != nil { m.deletedAt = stamp }
                 return .treeMark(m)
             case .treeNote(var n):
-                n.updatedAt = now
-                if n.deletedAt != nil { n.deletedAt = now }
+                n.updatedAt = stamp
+                if n.deletedAt != nil { n.deletedAt = stamp }
                 return .treeNote(n)
             case .shift(var s):
-                s.updatedAt = now
+                s.updatedAt = stamp
                 return .shift(s)
             default:
                 return record
@@ -439,7 +441,7 @@ public enum FieldEngine {
         guard kept != target.notes else { throw FieldFailure("Today’s notes are full, so nothing was added.") }
         var updated = target
         updated.notes = kept
-        updated.updatedAt = now
+        updated.updatedAt = RecordMetadata.stamp(now, after: target.updatedAt)
         try check(updated, state, now)
         let speech = kept.count < combined.count ? "Added to today’s notes, but it was cut short to fit." : "Added to today’s notes."
         return FieldOutcome(records: [.shift(updated)], position: nil,
@@ -472,7 +474,7 @@ public enum FieldEngine {
         }
         var updated = open
         updated.start = start
-        updated.updatedAt = now
+        updated.updatedAt = RecordMetadata.stamp(now, after: open.updatedAt)
         return FieldOutcome(records: [.shift(updated)], position: nil,
                             undo: UndoEntry(label: "the start time", restore: [.shift(open)], position: state.position, after: [.shift(updated)]),
                             speech: "Start time changed to \(Fmt.spokenTime(start, state.calendar)).", lastAction: "Start time changed")

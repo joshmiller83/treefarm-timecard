@@ -199,7 +199,7 @@ final class ShiftEditorModel {
             return nil
         }
         recountTrees()
-        let at = now().roundedToMillisecond
+        let at = RecordMetadata.stamp(now(), after: stored.updatedAt)
         let trees = self.trees
         var shift = stored
         shift.deletedAt = at

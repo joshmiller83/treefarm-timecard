@@ -113,7 +113,7 @@ extension TreeMapModel {
         guard text != note.body || flag != note.flag else { return nil }
         note.body = text
         note.flag = flag
-        note.updatedAt = currentTime()
+        note.updatedAt = RecordMetadata.stamp(currentTime(), after: note.updatedAt)
         return saveNote(note)
     }
 
@@ -121,7 +121,7 @@ extension TreeMapModel {
     func deleteNote(_ id: UUID) -> String? {
         guard let data, var note = data.notes[id], note.isLive else { return MarkMessages.noteGone }
         guard note.authorId == data.me.userId || data.isAdmin else { return MarkMessages.notePermission(.delete) }
-        let at = currentTime()
+        let at = RecordMetadata.stamp(currentTime(), after: note.updatedAt)
         note.deletedAt = at
         note.updatedAt = at
         return saveNote(note)

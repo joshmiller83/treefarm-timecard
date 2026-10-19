@@ -18,6 +18,11 @@ final class ShiftNotesEditor {
 
     var text = ""
     private(set) var status: Status = .idle
+    /// Why the last save failed, to show under the notes.
+    private(set) var failure: String?
+
+    /// The shift was deleted (in the Log, or on another phone) while its notes were open.
+    struct ShiftGone: Error {}
     /// Writes the notes onto that shift (the view saves through the session).
     @ObservationIgnored var save: ((UUID, String) throws -> Void)?
 
@@ -99,18 +104,31 @@ final class ShiftNotesEditor {
             lastSaved = text
             incoming = nil
             status = .saved
+            failure = nil
+        } catch is ShiftGone {
+            status = .failed
+            failure = ShiftMessages.missing
         } catch {
             status = .failed
+            failure = Speech.saveFailed
         }
     }
 
     /// The shift with these notes, stamped now; nil when nothing changed.
+    /// Writes `text` onto the shift through the session. Throws `ShiftGone` when the shift isn't
+    /// on this phone or was deleted, so the card says so instead of "Saved".
+    static func write(_ text: String, to shiftId: UUID, in session: TimeCardSession, now: Date) throws {
+        guard let shift = session.snapshot.shifts[shiftId], shift.isLive else { throw ShiftGone() }
+        guard let updated = updated(shift, notes: text, now: now) else { return }
+        try session.save([.shift(updated)])
+    }
+
     static func updated(_ shift: Shift, notes: String, now: Date) -> Shift? {
         let kept = String(notes.prefix(Limits.notes))
         guard kept != shift.notes else { return nil }
         var s = shift
         s.notes = kept
-        s.updatedAt = now.roundedToMillisecond
+        s.updatedAt = RecordMetadata.stamp(now, after: shift.updatedAt)
         return s
     }
 }

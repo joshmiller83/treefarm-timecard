@@ -216,7 +216,8 @@ struct ShiftDraft: Hashable {
             Break(id: b.id, kind: b.kind, start: date(b.start, calendar), end: b.end.map { date($0, breakStart: b.start, calendar) }, reason: b.reason)
         }
         shift.notes = notes
-        shift.updatedAt = now.roundedToMillisecond
+        // After the version it replaces, even if this phone's clock is behind the last writer's.
+        shift.updatedAt = original.map { RecordMetadata.stamp(now, after: $0.updatedAt) } ?? now.roundedToMillisecond
         return shift
     }
 

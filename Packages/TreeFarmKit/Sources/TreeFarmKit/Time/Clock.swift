@@ -45,7 +45,7 @@ public enum Clock {
         if let b = shift.openBreak { throw .alreadyOnBreak(b) }
         var s = shift
         s.breaks.append(Break(kind: kind, start: now, reason: Limits.clampReason(reason)))
-        s.updatedAt = now
+        s.updatedAt = RecordMetadata.stamp(now, after: shift.updatedAt)
         return s
     }
 
@@ -60,7 +60,7 @@ public enum Clock {
         } else {
             s.breaks[s.breaks.count - 1].end = now
         }
-        s.updatedAt = now
+        s.updatedAt = RecordMetadata.stamp(now, after: shift.updatedAt)
         return s
     }
 
@@ -72,7 +72,7 @@ public enum Clock {
             if s.breaks[s.breaks.count - 1].start >= now { s.breaks.removeLast() } else { s.breaks[s.breaks.count - 1].end = now }
         }
         s.end = now
-        s.updatedAt = now
+        s.updatedAt = RecordMetadata.stamp(now, after: shift.updatedAt)
         return s
     }
 

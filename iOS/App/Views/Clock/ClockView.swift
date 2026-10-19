@@ -299,9 +299,7 @@ struct ClockView: View {
     private func connectNotes() {
         let session = self.session
         notes.save = { shiftId, text in
-            guard let shift = session.snapshot.shifts[shiftId],
-                  let updated = ShiftNotesEditor.updated(shift, notes: text, now: Date()) else { return }
-            try session.save([.shift(updated)])
+            try ShiftNotesEditor.write(text, to: shiftId, in: session, now: Date())
         }
     }
 }

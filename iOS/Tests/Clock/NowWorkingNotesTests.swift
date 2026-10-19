@@ -154,6 +154,34 @@ struct ShiftNotesTests {
         #expect(editor.status == .failed)
     }
 
+    /// Deleted in the Log (or on another phone) while its notes were open: the card says so
+    /// instead of "Saved".
+    @Test func notesForADeletedShiftSayItsGone() async throws {
+        var shift = LogReportFixture.shift(10, 19, from: (7, 0), to: nil)
+        let session = try await LogReportFixture.session(shifts: [shift])
+        defer { Task { await session.stop() } }
+        shift.deletedAt = shift.start.addingTimeInterval(60)
+        shift.updatedAt = shift.deletedAt!
+        try session.save([.shift(shift)])
+        let editor = ShiftNotesEditor(debounce: .seconds(5))
+        editor.load(shiftId: shift.id, notes: "")
+        editor.save = { id, text in try ShiftNotesEditor.write(text, to: id, in: session, now: Date()) }
+        editor.text = "Wet rows"
+        editor.edited()
+        editor.flush()
+        #expect(editor.status == .failed)
+        #expect(editor.failure == ShiftMessages.missing)
+        #expect(session.snapshot.shifts[shift.id] == nil, "the deleted shift came back")
+    }
+
+    /// An edit is stamped after the version it replaces, even when this phone's clock is behind.
+    @Test func anEditIsStampedAfterTheLastWrite() throws {
+        var shift = f.shift(f.today(7, 0))
+        shift.updatedAt = f.today(10, 0)
+        let updated = try #require(ShiftNotesEditor.updated(shift, notes: "Late clock", now: f.today(9, 0)))
+        #expect(updated.updatedAt > shift.updatedAt)
+    }
+
     @Test func notesAddedElsewhereShowUpUnlessYouAreTyping() {
         let id = UUID()
         let editor = ShiftNotesEditor(debounce: .seconds(5))
