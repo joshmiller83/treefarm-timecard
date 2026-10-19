@@ -113,6 +113,11 @@ final class LiveActivityController {
         }
     }
 
+    /// True while a Live Activity is on the lock screen to carry a message.
+    var isShowing: Bool {
+        host.areActivitiesEnabled && host.activities().contains { $0.state == .active || $0.state == .stale }
+    }
+
     /// Waits until every update so far has reached ActivityKit. `IntentRunner.afterChange`
     /// waits for it inside a background task, so iOS doesn't suspend the app between saving a
     /// row and showing it.

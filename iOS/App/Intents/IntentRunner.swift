@@ -72,6 +72,21 @@ enum IntentRunner {
         return reply
     }
 
+    /// A Control Center or lock-screen control press. Controls can show a dialog, but iOS may
+    /// not; and with no Live Activity on the lock screen a refused press would look like
+    /// nothing happened. Then a quiet notification says why ("You’re not clocked in. …").
+    @discardableResult
+    static func controlPress(_ command: FieldCommand) async -> FieldReply {
+        let reply = await press(command)
+        guard !reply.succeeded else { return reply }
+        let model = makeVoice().model
+        if !model.liveActivity.isShowing { postQuietNotice(reply.speech) }
+        return reply
+    }
+
+    /// Shows a refused control press when nothing else can. Tests replace it.
+    static var postQuietNotice: @MainActor (String) -> Void = { QuietNotice.post($0) }
+
     /// The first sentence, which is all the lock screen has room for:
     /// "Row 14 was shaped by Sam on Oct 16. Next open row is 15." → "Row 14 was shaped by Sam on Oct 16."
     nonisolated static func lockScreenNote(_ speech: String) -> String {

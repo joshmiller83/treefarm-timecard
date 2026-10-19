@@ -35,6 +35,22 @@ final class IntentShellTests {
         #expect(try model.session.store.pendingCount() == 0, "still waiting for the 1.5 s pause")
     }
 
+    // MARK: Controls
+
+    @Test func aRefusedControlPressSaysWhyWhenNothingElseCan() async throws {
+        var posted: [String] = []
+        IntentRunner.postQuietNotice = { posted.append($0) }
+        defer { IntentRunner.postQuietNotice = { QuietNotice.post($0) } }
+        let reply = await IntentRunner.controlPress(.markNextRow)
+        #expect(!reply.succeeded)
+        #expect(posted == [reply.speech])
+        #expect(reply.speech == Speech.notClockedIn)
+
+        let ok = await IntentRunner.controlPress(.clockIn(fieldId: nil))
+        #expect(ok.succeeded)
+        #expect(posted.count == 1)
+    }
+
     // MARK: Lock-screen buttons
 
     @Test func theLockScreenButtonsRunTheFieldActions() async throws {

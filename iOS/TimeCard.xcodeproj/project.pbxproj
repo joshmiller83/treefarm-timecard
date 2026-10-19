@@ -70,6 +70,7 @@
 		5FE1436C2232590A373A6C7A /* LogView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8590FEBE4E0A048FDFC91F7 /* LogView.swift */; };
 		60490B43B49AC432175A0F2A /* TeamFixture.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4C1F57D53C9E998F28FC056 /* TeamFixture.swift */; };
 		618B9907BE87D4087CF8B019 /* Fonts in Resources */ = {isa = PBXBuildFile; fileRef = 4533B607361861A2BBFEC580 /* Fonts */; };
+		61B510E46D001F1D97D48C08 /* ControlIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 875193D9B2BD8D0159F0681B /* ControlIntents.swift */; };
 		64473E39C0A8872F9B82ECB7 /* TeamModelsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E6F5621531D63D6F950C3E9 /* TeamModelsTests.swift */; };
 		66D8154FA1A61F124D958732 /* FieldEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B14AC507F05B6862E8A7B44C /* FieldEditorView.swift */; };
 		6A265E8C34294AE0BF363700 /* MemberDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 54FF44A725331B73B1F493BC /* MemberDetailView.swift */; };
@@ -90,6 +91,7 @@
 		88B5179544A9F99E5F445BCA /* ShiftDraft.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3D5A2D3A7DB4E6374DCB6A6 /* ShiftDraft.swift */; };
 		8A9FCFC444829B9B8BEF9C59 /* CrewRoster.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2328766C739E85CA22130473 /* CrewRoster.swift */; };
 		8B061B5A9EA8360F7B808C1F /* TimeCardShortcuts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97313E8FA51B7FD0FC1071AA /* TimeCardShortcuts.swift */; };
+		8B879B7C34FA0FA1E4D89BA5 /* ControlIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 875193D9B2BD8D0159F0681B /* ControlIntents.swift */; };
 		8D457847218411DA14307832 /* TreeCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 178A486A3A7F9EE7F4495318 /* TreeCardView.swift */; };
 		8EB4B8C0543506D785998774 /* LiveActivityHosting.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2877EF49D9830B22D5631380 /* LiveActivityHosting.swift */; };
 		904DC96DF54580278D189DA6 /* SpokenNumberTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5852DDF9A8C7AC498ED1E6AC /* SpokenNumberTests.swift */; };
@@ -291,6 +293,7 @@
 		81FBE92288D6414B8ABFCBF2 /* CrewSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CrewSection.swift; sourceTree = "<group>"; };
 		826D885FD8A7F7F5BAE9AD44 /* LogReportUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogReportUITests.swift; sourceTree = "<group>"; };
 		87281864A7B6C79D025F7336 /* MainTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainTabView.swift; sourceTree = "<group>"; };
+		875193D9B2BD8D0159F0681B /* ControlIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ControlIntents.swift; sourceTree = "<group>"; };
 		89BB4908B8B3DD180F31B13F /* SeasonPlans.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SeasonPlans.swift; sourceTree = "<group>"; };
 		8C42AEC580754A7C4570AB15 /* TimeCard.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = TimeCard.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		8E864DB04DC3F59AB6209228 /* TeamModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeamModels.swift; sourceTree = "<group>"; };
@@ -571,6 +574,7 @@
 		5E15AAD02E82F97B8D92FD9F /* Intents */ = {
 			isa = PBXGroup;
 			children = (
+				875193D9B2BD8D0159F0681B /* ControlIntents.swift */,
 				97460A95F1CA9E6D45762BFE /* LiveActivityButtons.swift */,
 			);
 			path = Intents;
@@ -1159,6 +1163,7 @@
 				9ABF6503163CD2383CE3F4C1 /* ClockView.swift in Sources */,
 				C45756FFBF00741DA803EEEA /* CodeCard.swift in Sources */,
 				11875192E9EAFECC79DABA39 /* Components.swift in Sources */,
+				8B879B7C34FA0FA1E4D89BA5 /* ControlIntents.swift in Sources */,
 				8A9FCFC444829B9B8BEF9C59 /* CrewRoster.swift in Sources */,
 				17822E8103F927F62EBA763B /* CrewSection.swift in Sources */,
 				E299322A522196BD44C9EBE4 /* DayCard.swift in Sources */,
@@ -1257,6 +1262,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				61B510E46D001F1D97D48C08 /* ControlIntents.swift in Sources */,
 				1C89058F02093C6506330C83 /* LiveActivityButtons.swift in Sources */,
 				853E6B295C661EBD1530782A /* LiveActivityDisplay.swift in Sources */,
 				4E4376B0B83BA6C33E01C406 /* LiveActivityStyle.swift in Sources */,

@@ -3,8 +3,8 @@ import SwiftUI
 import WidgetKit
 
 // Control Center and lock-screen controls (iOS 18): Clock in, Next row and Break.
-// Each runs the same intent as the Live Activity's buttons, which runs in the app's
-// process through FieldActions, so a control says and does what Siri does.
+// Each runs in the app's process through FieldActions, as the Live Activity's buttons do,
+// so a control says and does what Siri does; a refused press says why (ControlIntents.swift).
 // There's no clock-out control on purpose: a stray tap shouldn't end a shift.
 
 @available(iOS 18.0, *)
@@ -13,7 +13,7 @@ struct ClockInControl: ControlWidget {
 
     var body: some ControlWidgetConfiguration {
         StaticControlConfiguration(kind: Self.kind) {
-            ControlWidgetButton(action: ClockInButtonIntent()) {
+            ControlWidgetButton(action: ClockInControlIntent()) {
                 Label("Clock In", systemImage: "clock.badge.checkmark")
             }
         }
@@ -28,7 +28,7 @@ struct NextRowControl: ControlWidget {
 
     var body: some ControlWidgetConfiguration {
         StaticControlConfiguration(kind: Self.kind) {
-            ControlWidgetButton(action: NextRowButtonIntent()) {
+            ControlWidgetButton(action: NextRowControlIntent()) {
                 Label("Next Row", systemImage: "scissors")
             }
         }
@@ -43,7 +43,7 @@ struct BreakControl: ControlWidget {
 
     var body: some ControlWidgetConfiguration {
         StaticControlConfiguration(kind: Self.kind) {
-            ControlWidgetButton(action: StartBreakButtonIntent()) {
+            ControlWidgetButton(action: BreakControlIntent()) {
                 Label("Break", systemImage: "cup.and.saucer.fill")
             }
         }

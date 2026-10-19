@@ -129,6 +129,29 @@ final class BackgroundTask {
     }
 }
 
+/// A notification with no sound or banner interruption, for a refused control press when
+/// there's no Live Activity to show it. Only if notifications are already allowed: a control
+/// press never asks for permission.
+@MainActor
+enum QuietNotice {
+    static let identifier = "timecard.control-refused"
+
+    static func post(_ text: String) {
+        guard LaunchMode.current() == .live else { return }
+        Task {
+            let center = UNUserNotificationCenter.current()
+            let settings = await center.notificationSettings()
+            guard settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional else { return }
+            let content = UNMutableNotificationContent()
+            content.title = "Time Card"
+            content.body = text
+            content.interruptionLevel = .passive
+            // Replaces the last one, so a few refused presses don't pile up.
+            try? await center.add(UNNotificationRequest(identifier: identifier, content: content, trigger: nil))
+        }
+    }
+}
+
 @MainActor
 final class NotificationReminders: LiveActivityReminding {
     static let identifier = "timecard.live-activity.ending"

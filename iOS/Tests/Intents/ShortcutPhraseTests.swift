@@ -78,7 +78,7 @@ struct ShortcutPhraseTests {
 
     /// Field actions run with the phone locked in a pocket, and never open the app.
     @Test func everyIntentRunsLockedWithoutOpeningTheApp() {
-        #expect(actions.count == 20)
+        #expect(actions.count == 23)
         for (name, action) in actions {
             #expect(action["openAppWhenRun"] as? Bool == false, "\(name) opens the app")
             // 0 is IntentAuthenticationPolicy.alwaysAllowed, set explicitly.
@@ -89,7 +89,8 @@ struct ShortcutPhraseTests {
 
     /// The lock-screen buttons aren't offered in Shortcuts; Siri's commands are.
     @Test func onlyTheVoiceCommandsShowInShortcuts() {
-        let buttons: Set = ["MarkRowIntent", "StartBreakButtonIntent", "BackToWorkButtonIntent", "UndoButtonIntent", "NextRowButtonIntent", "ClockInButtonIntent"]
+        let buttons: Set = ["MarkRowIntent", "StartBreakButtonIntent", "BackToWorkButtonIntent", "UndoButtonIntent", "NextRowButtonIntent", "ClockInButtonIntent",
+                            "ClockInControlIntent", "NextRowControlIntent", "BreakControlIntent"]
         for (name, action) in actions {
             #expect(action["isDiscoverable"] as? Bool == !buttons.contains(name), "\(name)")
         }
