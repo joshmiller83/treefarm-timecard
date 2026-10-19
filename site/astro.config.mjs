@@ -6,7 +6,7 @@ import sitemap from '@astrojs/sitemap';
  * Lab and Open Graph template routes are tools, not pages: keep them out of the sitemap.
  * @param {string} page
  */
-const isToolRoute = (page) => /\/(lab|og)(\/|$)/.test(new URL(page).pathname);
+const isToolRoute = (page) => /\/(lab|og|404)(\/|$)/.test(new URL(page).pathname);
 
 /**
  * Prints the Siri lines that are not yet confirmed against the app's dialog strings.

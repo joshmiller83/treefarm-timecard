@@ -64,3 +64,12 @@ test('has the meta, social and structured data', async ({ page }) => {
   expect(sitemap).not.toContain('/lab');
   expect(sitemap).not.toContain('/og');
 });
+
+test('a bad URL gets the page’s own 404, with the ways back', async ({ page }) => {
+  const res = await page.goto('/no-such-row/');
+  expect(res?.status()).toBe(404);
+  await expect(page.locator('h1')).toHaveText('This row isn’t on the map.');
+  await expect(page.getByRole('link', { name: 'Back to Time Card' })).toHaveAttribute('href', '/');
+  await expect(page.getByRole('link', { name: /The code on GitHub/ })).toHaveAttribute('href', 'https://github.com/joshmiller83/treefarm-timecard');
+  await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'noindex, nofollow');
+});
