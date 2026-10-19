@@ -1,0 +1,136 @@
+/*
+ * DESIGN TOKENS (brief.designSystem). The page has a fixed art direction, dark stage into
+ * light paper, whatever the OS theme. Sections set color-scheme themselves.
+ * Contrast notes are against the surface named beside each pair.
+ */
+:root {
+  /* ---- Stage (dark) ---- */
+  --stage: #08140d;
+  --stage-2: #0e2117;
+  --stage-line: rgba(136, 207, 164, 0.14);
+  --on-stage: #f2f5ef; /* ~17:1 on stage */
+  --on-stage-muted: #a8bbae; /* ~9.5:1 on stage */
+  --gold-lit: #e2a644; /* ~9:1: eyebrows, quotes, callouts, focus on dark, primary CTA fill */
+  --fir-lit: #88cfa4; /* pills and links on dark */
+  --fir-mid: #2e7a4e; /* key-light glow, progress fills; white on it 5.2:1 */
+  --card-dark: #10221a;
+
+  /* ---- Paper (light) ---- */
+  --bg: #ecf1ec;
+  --surface: #fafcf9;
+  --paper: #ffffff;
+  --ink: #14221a; /* ~14:1 on bg */
+  --muted: #556a5c; /* ~5.1:1 on bg */
+  --line: #cfdacf;
+  --fir: #1d5b3a; /* links, eyebrows, focus on light; ~6.9:1 */
+  --gold: #b57a12; /* fills, or bold text 24px+ only */
+  --sap-soft: #f5e6c6;
+  --sap-ink: #573803;
+  --rust: #a2391f; /* white on rust 6.6:1 */
+  --tree-empty: #a9c2af;
+
+  /* ---- System surfaces ---- */
+  --la-material: rgba(16, 30, 22, 0.86);
+  --la-material-break: rgba(58, 42, 12, 0.88);
+  --pill-clock-bg: #2e7a4e;
+  --pill-clock-fg: #ffffff;
+  --pill-break-bg: #e2a644;
+  --pill-break-fg: #2a1c04;
+  --siri-card: rgba(28, 32, 30, 0.92);
+  --siri-1: #88cfa4;
+  --siri-2: #7fb2d9;
+  --siri-3: #c9a0e0;
+  --siri-4: #e2a644;
+
+  /* ---- Map dots ---- */
+  --dot-today: #e2a644; /* page map: this shift (20% larger) */
+  --dot-earlier: #2e7a4e; /* shaped earlier */
+  --dot-ring: #6f8f7a; /* not yet: 1.5px ring */
+  --app-dot-today: #b57a12; /* in-phone maps (light) */
+  --app-dot-earlier: #1d5b3a;
+  --app-dot-ring: #a9c2af;
+
+  /* ---- Paper time card ---- */
+  --tc-paper: #ffffff;
+  --tc-ink: #1b1f1c;
+  --tc-band: #1d5b3a;
+  --tc-rule: #dde4dd;
+
+  /* ---- Stage tints (one per section; two fixed layers crossfade by opacity) ---- */
+  --tint-dawn: radial-gradient(70% 30% at 62% 100%, rgba(226, 166, 68, 0.16), transparent 100%),
+    linear-gradient(180deg, #0a1620, #12261c);
+  --tint-morning: linear-gradient(180deg, #0b1a14, #12281c);
+  --tint-focus: linear-gradient(180deg, #08140d, #0e2117);
+  --tint-field: linear-gradient(180deg, #07120c, #0c1d14);
+  --tint-afternoon: radial-gradient(80% 50% at 70% 100%, rgba(226, 166, 68, 0.1), transparent 100%),
+    linear-gradient(180deg, #0e1a12, #1a2614);
+  --tint-pace: radial-gradient(80% 55% at 72% 100%, rgba(226, 166, 68, 0.12), transparent 100%),
+    linear-gradient(180deg, #0f1a10, #2a2210);
+  --tint-dusk: radial-gradient(90% 32% at 50% 100%, rgba(224, 138, 78, 0.22), transparent 100%),
+    linear-gradient(180deg, #16131c, #3a2418);
+  --tint-lights-up: linear-gradient(180deg, #ecf1ec, #ecf1ec);
+
+  /* ---- Type ---- */
+  --font-display: var(--font-zilla, 'Zilla Slab', Georgia, serif);
+  --font-body: var(--font-public, 'Public Sans', Arial, sans-serif);
+  --font-mono: var(--font-plex, 'IBM Plex Mono', 'Courier New', monospace);
+  --font-system: -apple-system, BlinkMacSystemFont, var(--font-body);
+  --font-rounded: ui-rounded, -apple-system, BlinkMacSystemFont, var(--font-body);
+
+  --text-xl: clamp(2.75rem, 1.4rem + 5.6vw, 6.5rem); /* H1 */
+  --text-l: clamp(2.25rem, 1.5rem + 3.6vw, 4.5rem); /* H2 */
+  --text-m: clamp(1.6rem, 1.15rem + 2vw, 2.75rem); /* spoken lines, H3 */
+  --text-body: clamp(1.0625rem, 1rem + 0.35vw, 1.3125rem);
+  --text-small: 0.875rem;
+  --text-eyebrow: 0.8125rem;
+  --text-siri: 1.25rem;
+  --text-stat: clamp(3rem, 1.8rem + 6vw, 7rem);
+
+  /* ---- Layout ---- */
+  --maxw: 1240px;
+  --gutter: 16px;
+  --col-gap: 16px;
+  --header-h: 56px;
+  --ribbon-h: 3px;
+  --chrome-h: calc(var(--header-h) + var(--ribbon-h));
+  /* Mobile sticky phones sit under the header and its riding chapter chip. */
+  --sticky-top-mob: calc(var(--chrome-h) + 46px);
+  --space-1: 8px;
+  --space-2: 16px;
+  --space-3: 24px;
+  --space-4: 32px;
+  --space-5: 48px;
+  --space-6: 64px;
+  --space-7: 96px;
+  --space-8: 120px;
+  --radius-card: 20px;
+  --radius-btn: 14px;
+
+  /* Phones: 393 × 852 pt, stage height min(78svh, 760px), section phones min(52svh, 460px) on mobile. */
+  --phone-ratio: 393 / 852;
+  --phone-h-desk: min(78svh, 760px);
+  --phone-h-mob: min(52svh, 460px);
+
+  /* Written by stage.ts on resize: the stage phone's rect (desktop with motion). */
+  --stage-x: 0px;
+  --stage-y: 0px;
+  --stage-w: 0px;
+  --stage-h: 0px;
+
+  /* ---- Motion: "a well-made tool: confident, short, no wobble" ---- */
+  --ease-out: cubic-bezier(0.215, 0.61, 0.355, 1); /* power3.out */
+  --ease-in-out: cubic-bezier(0.645, 0.045, 0.355, 1);
+  --ease-ios: cubic-bezier(0.32, 0.72, 0, 1); /* sheets, island */
+  --ease-back: cubic-bezier(0.34, 1.56, 0.64, 1); /* release after a press */
+  --dur-1: 0.15s;
+  --dur-2: 0.35s;
+  --dur-3: 0.5s;
+  --dur-4: 0.8s; /* tint crossfade */
+}
+
+@media (min-width: 900px) {
+  :root {
+    --gutter: 24px;
+    --col-gap: 24px;
+  }
+}

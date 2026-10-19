@@ -1,0 +1,61 @@
+---
+/**
+ * CLOCK OUT · 4:31 PM, then the lights come up for the paper time card. PLACEHOLDER from
+ * the foundation: the section team owns this file and src/scripts/scenes/clock-out.ts.
+ * Spec: jq '.sections[] | select(.id=="clock-out")' docs/landing/brief.json
+ */
+import SectionShell from '../components/SectionShell.astro';
+import Phone from '../components/phone/Phone.astro';
+import Screen from '../components/phone/Screen.astro';
+import ReportTab from '../components/app/ReportTab.astro';
+import PaperTimeCard from '../components/PaperTimeCard.astro';
+import { SIRI } from '../data/siri';
+
+const label = 'Time Card Report tab with This week selected, a paper time card preview, and buttons to export a PDF or a CSV.';
+---
+
+<SectionShell id="clock-out">
+  <Fragment slot="intro">
+    <p>Say “Clock out with Time Card.” Siri asks first, so a stray word can’t end your day. Say yes, and the timer stops.</p>
+  </Fragment>
+  <div class="beat" data-beat="1" style="--at:.2">
+    <p class="speaker">Siri</p>
+    <p class="siri-reply">{SIRI.clockOutAsk.reply}</p>
+    <p class="speaker">You</p>
+    <p class="spoken"><q>{SIRI.clockOutAsk.answer}</q></p>
+    <p class="speaker">Siri</p>
+    <p class="siri-reply">{SIRI.clockOut.reply}</p>
+  </div>
+  <div class="beat" data-beat="2" style="--at:.5">
+    <p>Forget to clock out? Time Card warns you about a shift left open overnight. Clocked in late, or forgot to clock in? Change your start time.</p>
+  </div>
+  <div class="beat" data-beat="3" style="--at:.75">
+    <h3 class="display-m">A time card you can hand in.</h3>
+    <p>Pick this week, last week, this month or any dates. You get a clean, paper-style time card with the date, in, out, trees, hours, breaks and notes.</p>
+    <p>Breaks are listed so everyone can see them. They never count as hours. Share it as a PDF, or export a CSV for your spreadsheet.</p>
+  </div>
+
+  <figure class="shot" data-stage-shot slot="figure">
+    <Phone label={label}>
+      <div class="screens" data-screens>
+        <Screen stateId="report-week" alt={label} tone="light" final>
+          <ReportTab />
+        </Screen>
+      </div>
+    </Phone>
+    <figcaption>The Report tab: pick a range, then share a PDF or a CSV.</figcaption>
+  </figure>
+
+  <div slot="after" class="wrap paper-slot">
+    <PaperTimeCard />
+    <p class="small muted">No pay on the report. Ever.</p>
+  </div>
+</SectionShell>
+
+<style>
+  .paper-slot {
+    padding-block: 24px 96px;
+    display: grid;
+    gap: 12px;
+  }
+</style>

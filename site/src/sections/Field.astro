@@ -1,0 +1,43 @@
+---
+/**
+ * THE FIELD · 2:15 PM. PLACEHOLDER from the foundation: the section team owns this file
+ * and src/scripts/scenes/field.ts. Spec: jq '.sections[] | select(.id=="field")' docs/landing/brief.json
+ */
+import SectionShell from '../components/SectionShell.astro';
+import FieldMap from '../components/FieldMap.astro';
+import { FIELD_TREES, MOMENTS, fieldShapedAt, fmtCount, treesAt } from '../data/ledger';
+---
+
+<SectionShell id="field">
+  <Fragment slot="intro">
+    <p>
+      A farm has fields. A field has blocks, laid out in rows like the ground. This one has 14 blocks of 61 rows, with 10
+      trees to a row. That’s {fmtCount(FIELD_TREES)} trees. Gold is what you shaped this shift. Green was shaped earlier.
+      Rings are still to do.
+    </p>
+    <p class="mono counter">
+      {fmtCount(FIELD_TREES)} trees · {fmtCount(fieldShapedAt(MOMENTS.field))} shaped · {treesAt(MOMENTS.field)} today
+    </p>
+  </Fragment>
+  <div class="beat" data-beat="1" style="--at:.45"><p>Tap a row number to mark the whole row.</p></div>
+  <div class="beat" data-beat="2" style="--at:.65"><p>Mark one tree, fill between two trees, or erase. Undo is one tap.</p></div>
+  <div class="beat" data-beat="3" style="--at:.85"><p>Marks start fresh each season. Notes stay with the tree.</p></div>
+
+  <figure class="shot" slot="figure">
+    <FieldMap />
+    <figcaption>The whole field: gold for this shift, green for earlier, rings still to do.</figcaption>
+  </figure>
+
+  <div slot="after" class="wrap tryit-slot">
+    <h3 class="display-m">Try it. Tap a row number.</h3>
+    <p class="muted">This is a small copy of the map. Nothing you do here is saved.</p>
+  </div>
+</SectionShell>
+
+<style>
+  .tryit-slot {
+    padding-block: 48px 96px;
+    display: grid;
+    gap: 12px;
+  }
+</style>

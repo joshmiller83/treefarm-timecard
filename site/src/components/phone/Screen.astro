@@ -1,0 +1,53 @@
+---
+/**
+ * A screen state layer with real-capture swap-in. (device-a owns it; this version already
+ * implements the contract: when public/screens/<stateId>.{avif,webp,png} exists, it renders
+ * the capture instead of the HTML recreation.)
+ */
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
+
+export interface Props {
+  stateId: string;
+  alt: string;
+  final?: boolean;
+  tone?: 'dark' | 'light';
+  class?: string;
+}
+
+const { stateId, alt, final = false, tone = 'dark', class: cls } = Astro.props;
+// Astro runs from site/, so public/ is relative to the working directory at build time.
+const publicDir = join(process.cwd(), 'public', 'screens');
+const capture = ['avif', 'webp', 'png'].map((ext) => `${stateId}.${ext}`).find((f) => existsSync(join(publicDir, f)));
+---
+
+<div
+  class:list={['layer', `layer--${tone}`, cls]}
+  data-state={stateId}
+  data-screen={stateId}
+  data-final={final ? '' : undefined}
+>
+  {
+    capture ? (
+      <img class="capture" src={`/screens/${capture}`} width="1179" height="2556" alt={alt} loading="lazy" decoding="async" />
+    ) : (
+      <slot />
+    )
+  }
+</div>
+
+<style>
+  .layer--dark {
+    background: #000;
+  }
+  .layer--light {
+    background: var(--surface);
+  }
+  .capture {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+</style>

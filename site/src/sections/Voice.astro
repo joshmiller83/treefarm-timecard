@@ -1,0 +1,75 @@
+---
+/**
+ * VOICE · Say it. PLACEHOLDER from the foundation: the section team owns this file and
+ * src/scripts/scenes/voice.ts. Spec: jq '.sections[] | select(.id=="voice")' docs/landing/brief.json
+ */
+import SectionShell from '../components/SectionShell.astro';
+import Phone from '../components/phone/Phone.astro';
+import Screen from '../components/phone/Screen.astro';
+import LockScreen from '../components/phone/LockScreen.astro';
+import LiveActivity from '../components/phone/LiveActivity.astro';
+import SiriSnippet from '../components/phone/SiriSnippet.astro';
+import { MOMENTS, fmtClock, fmtTime } from '../data/ledger';
+import { MORE_TO_SAY, SIRI } from '../data/siri';
+
+const exchanges = [SIRI.misheard, SIRI.nextRow, SIRI.takeLunch, SIRI.backToWork, SIRI.howMany];
+const label = `iPhone lock screen at 2:01 PM, in a pocket. Siri says: ${SIRI.howMany.reply}`;
+---
+
+<SectionShell id="voice" layout="flow">
+  <Fragment slot="intro">
+    <p>
+      Every command has the app’s name in it, so Siri knows where it goes. It works with your phone locked in your
+      pocket, or through AirPods. The answers are short, so you’re back on the shears fast.
+    </p>
+  </Fragment>
+
+  {
+    exchanges.map((x, i) => (
+      <article class="beat exchange" data-beat={i + 1}>
+        <p class="eyebrow"><time>{fmtTime(x.at)}</time></p>
+        <p class="speaker">You</p>
+        <p class="spoken"><q>{x.said}</q></p>
+        {x.reply && (
+          <>
+            <p class="speaker">Siri</p>
+            <p class="siri-reply">{x.reply}</p>
+          </>
+        )}
+      </article>
+    ))
+  }
+  <div class="beat beat-bare more" data-beat="6">
+    <p class="speaker">More to say:</p>
+    <ul class="chips">{MORE_TO_SAY.map((m) => <li class="chip">“{m}”</li>)}</ul>
+  </div>
+
+  <figure class="shot" data-stage-shot slot="figure">
+    <Phone label={label}>
+      <div class="screens" data-screens>
+        <Screen stateId="lock-1401-status" alt={label} final>
+          <LockScreen time={fmtClock(MOMENTS.status)}>
+            <SiriSnippet slot="top" text={SIRI.howMany.reply} />
+            <LiveActivity at={MOMENTS.status} />
+          </LockScreen>
+        </Screen>
+      </div>
+    </Phone>
+    <figcaption>At 2:01 PM, Siri answers from a locked phone: “{SIRI.howMany.reply}”</figcaption>
+  </figure>
+</SectionShell>
+
+<style>
+  .exchange {
+    display: grid;
+    gap: 10px;
+  }
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 0;
+    list-style: none;
+    margin-top: 10px;
+  }
+</style>

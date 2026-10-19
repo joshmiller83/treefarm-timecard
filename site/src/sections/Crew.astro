@@ -1,0 +1,43 @@
+---
+/**
+ * THE CREW · 2:47 PM. PLACEHOLDER from the foundation: the section team owns this file and
+ * src/scripts/scenes/crew.ts. Spec: jq '.sections[] | select(.id=="crew")' docs/landing/brief.json
+ */
+import SectionShell from '../components/SectionShell.astro';
+import Phone from '../components/phone/Phone.astro';
+import Screen from '../components/phone/Screen.astro';
+import TreesTab from '../components/app/TreesTab.astro';
+import { CONFLICT_MESSAGE, MOMENTS } from '../data/ledger';
+
+const label = `Two phones. Your map shows the message: ${CONFLICT_MESSAGE} Synced. The owner’s phone shows the Team tab with this week’s hours for Alex, Sam and Rosa and an Invite someone button.`;
+---
+
+<SectionShell id="crew">
+  <Fragment slot="intro">
+    <p>Everyone on the crew shares one live map. When Sam marks a row, it shows up on your phone too.</p>
+  </Fragment>
+  <div class="beat" data-beat="1" style="--at:.25">
+    <p>No signal at the back of the field? Keep working. Time Card saves your marks on your phone and syncs when you’re back in range.</p>
+  </div>
+  <div class="beat" data-beat="2" style="--at:.45">
+    <p>If two people mark the same tree, the first one counts, and the other phone says so:</p>
+    <p class="siri-reply">{CONFLICT_MESSAGE}</p>
+  </div>
+  <div class="beat" data-beat="3" style="--at:.7">
+    <p>Farm owners and crew leads are admins. They invite people with a code, set up fields and blocks, and see everyone’s hours and reports.</p>
+  </div>
+  <div class="beat" data-beat="4" style="--at:.88">
+    <p>Workers see only their own hours and pay. The crew shares one small server that your farm runs itself.</p>
+  </div>
+
+  <figure class="shot" data-stage-shot slot="figure">
+    <Phone label={label}>
+      <div class="screens" data-screens>
+        <Screen stateId="trees-1500-synced" alt={label} tone="light" final>
+          <TreesTab at={MOMENTS.synced} block={3} rows={[6, 16]} zoom="L" syncLine="Synced" banner={CONFLICT_MESSAGE} />
+        </Screen>
+      </div>
+    </Phone>
+    <figcaption>First mark wins, and the other phone says so: “{CONFLICT_MESSAGE}”</figcaption>
+  </figure>
+</SectionShell>

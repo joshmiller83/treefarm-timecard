@@ -1,0 +1,72 @@
+---
+/** STUB (device-b): replace the look, keep the Props and hooks in CONTRACT.md. */
+export interface Props {
+  text: string;
+  choices?: readonly string[];
+  chosen?: string;
+}
+const { text, choices = [], chosen } = Astro.props;
+---
+
+<div class="snip" data-snippet>
+  <div class="snip-hd">TIME CARD <span class="snip-stub">· SiriSnippet stub · device-b</span></div>
+  <div class="snip-text" data-snippet-text>{text}</div>
+  {
+    choices.length > 0 && (
+      <div class="snip-choices">
+        {choices.map((c) => (
+          <span class:list={['chip', c === chosen && 'is-chosen']} data-choice={c}>
+            {c}
+          </span>
+        ))}
+      </div>
+    )
+  }
+</div>
+
+<style>
+  .snip {
+    position: absolute;
+    left: calc(16 * var(--pt));
+    top: calc(64 * var(--pt));
+    width: calc(361 * var(--pt));
+    padding: calc(14 * var(--pt));
+    border-radius: calc(26 * var(--pt));
+    background: rgba(28, 32, 30, 0.92);
+    color: #fff;
+    font-family: var(--font-system);
+    z-index: 5;
+    outline: 1px dashed rgba(226, 166, 68, 0.6);
+  }
+  .snip-hd {
+    font-size: calc(11 * var(--pt));
+    letter-spacing: 0.08em;
+    opacity: 0.7;
+  }
+  .snip-stub {
+    letter-spacing: 0;
+  }
+  .snip-text {
+    margin-top: calc(6 * var(--pt));
+    font-size: calc(17 * var(--pt));
+    line-height: 1.3;
+  }
+  .snip-choices {
+    display: flex;
+    gap: calc(8 * var(--pt));
+    margin-top: calc(10 * var(--pt));
+  }
+  .chip {
+    flex: 1;
+    height: calc(40 * var(--pt));
+    display: grid;
+    place-items: center;
+    border-radius: 999px;
+    border: 1.5px solid rgba(255, 255, 255, 0.5);
+    font-size: calc(16 * var(--pt));
+  }
+  .chip:first-child {
+    background: #2e7a4e;
+    border-color: #2e7a4e;
+  }
+</style>

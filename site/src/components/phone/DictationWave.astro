@@ -1,0 +1,58 @@
+---
+/** STUB (device-b): replace the look, keep the Props and hooks in CONTRACT.md. */
+import { waveHeights } from '../../scripts/wave';
+
+export interface Props {
+  bars?: number;
+  seed?: number;
+  progress?: number;
+  transcript?: string;
+}
+const { bars = 24, seed = 7, progress = 0.5, transcript } = Astro.props;
+const heights = waveHeights(progress, seed, bars);
+---
+
+<div class="wave" data-wave>
+  <div class="wave-bars">
+    {heights.map((h) => <i data-wave-bar style={`transform:scaleY(${h.toFixed(3)})`} />)}
+  </div>
+  {transcript && <div class="wave-text" data-transcript>{transcript}</div>}
+  <span class="wave-stub">DictationWave · stub · device-b</span>
+</div>
+
+<style>
+  .wave {
+    position: absolute;
+    left: calc(16 * var(--pt));
+    right: calc(16 * var(--pt));
+    top: calc(300 * var(--pt));
+    display: grid;
+    justify-items: center;
+    gap: calc(12 * var(--pt));
+    color: #fff;
+    font-family: var(--font-system);
+    z-index: 5;
+    outline: 1px dashed rgba(226, 166, 68, 0.6);
+  }
+  .wave-bars {
+    display: flex;
+    gap: calc(2 * var(--pt));
+    height: calc(40 * var(--pt));
+    align-items: center;
+  }
+  .wave-bars i {
+    width: calc(3 * var(--pt));
+    height: 100%;
+    border-radius: 999px;
+    background: #fff;
+  }
+  .wave-text {
+    font-size: calc(17 * var(--pt));
+    text-align: center;
+  }
+  .wave-stub {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    opacity: 0.6;
+  }
+</style>

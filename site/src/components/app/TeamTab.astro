@@ -1,0 +1,24 @@
+---
+/** STUB (screens): replace the content, keep the Props and hooks in CONTRACT.md. */
+import AppChrome from './AppChrome.astro';
+import Stub from '../dev/Stub.astro';
+import { TEAM, fmtCount } from '../../data/ledger';
+
+export interface Props {
+  rows?: ReadonlyArray<{ name: string; hours: string; trees: number }>;
+}
+const { rows = TEAM } = Astro.props;
+---
+
+<AppChrome title="Team" tab="team">
+  {
+    rows.map((r) => (
+      <div data-team-row={r.name}>
+        {r.name} <span data-hours>{r.hours} h</span> <span data-trees>{fmtCount(r.trees)} trees</span>
+      </div>
+    ))
+  }
+  <div data-invite>Invite someone</div>
+  <div data-fields-row>Fields &amp; blocks ›</div>
+  <Stub name="TeamTab" owner="screens" tone="light" box="height:calc(240*var(--pt));margin-top:calc(12*var(--pt));" />
+</AppChrome>

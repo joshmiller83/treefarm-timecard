@@ -1,0 +1,71 @@
+---
+/** STUB (device-a): replace the look, keep the Props, slots and hooks in CONTRACT.md. */
+import Stub from '../dev/Stub.astro';
+import StatusBar from './StatusBar.astro';
+import { DAY } from '../../data/ledger';
+
+export interface Props {
+  date?: string;
+  time: string;
+  live?: boolean;
+  wallpaper?: 'dawn-rows';
+  dim?: boolean;
+}
+const { date = DAY.date, time, live = true, wallpaper = 'dawn-rows', dim = false } = Astro.props;
+---
+
+<div class="lock" data-lock data-wallpaper={wallpaper}>
+  <StatusBar tone="light" time={time} live={live} />
+  <div class="lock-date" data-date>{date}</div>
+  <div class="lock-clock" data-clock={live ? '' : 'fixed'}>{time}</div>
+  <div class="lock-top"><slot name="top" /></div>
+  <div class="lock-dim" data-dim style={dim ? 'opacity:.45' : undefined}></div>
+  <div class="lock-activity" data-activity-slot><slot /></div>
+  <slot name="overlay" />
+  <Stub name="LockScreen" owner="device-a" note="wallpaper, flashlight, camera" box="position:absolute;left:calc(16*var(--pt));right:calc(16*var(--pt));top:calc(230*var(--pt));height:calc(120*var(--pt));" />
+</div>
+
+<style>
+  .lock {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, #0d2418, #29483a 62%, #c79a5e);
+    color: #fff;
+    font-family: var(--font-system);
+  }
+  .lock-date {
+    position: absolute;
+    top: calc(70 * var(--pt));
+    width: 100%;
+    text-align: center;
+    font-weight: 600;
+    font-size: calc(20 * var(--pt));
+  }
+  .lock-clock {
+    position: absolute;
+    top: calc(92 * var(--pt));
+    width: 100%;
+    text-align: center;
+    font-family: var(--font-rounded);
+    font-weight: 600;
+    font-size: calc(92 * var(--pt));
+    line-height: 1;
+  }
+  .lock-top {
+    position: absolute;
+    inset: 0 0 auto;
+    z-index: 4;
+  }
+  .lock-dim {
+    position: absolute;
+    inset: 0;
+    background: #000;
+    opacity: 0;
+    z-index: 2;
+  }
+  .lock-activity {
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+  }
+</style>

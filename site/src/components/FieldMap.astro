@@ -1,0 +1,19 @@
+---
+/** STUB (map): replace with the canvas map, keep the Props and hooks in CONTRACT.md. */
+import Stub from './dev/Stub.astro';
+import { MOMENTS } from '../data/ledger';
+import { FIELD_SUMMARY } from '../scripts/fieldmap';
+
+export interface Props {
+  at?: number;
+  view?: 'overview' | 'zoom';
+  zoom?: { block: number; from: number; to: number };
+  label?: string;
+  class?: string;
+}
+const { at = MOMENTS.field, view = 'overview', label = FIELD_SUMMARY, class: cls } = Astro.props;
+---
+
+<div class:list={['fieldmap', cls]} role="img" aria-label={label} data-fieldmap data-view={view} data-at={at}>
+  <Stub name="FieldMap" owner="map" note="8,540 dots on Canvas 2D" box="aspect-ratio:1.55;width:100%;" />
+</div>

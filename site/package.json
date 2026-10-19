@@ -18,7 +18,7 @@
     "test:all": "npm run check && npm test && npm run build && npm run test:e2e",
     "shoot": "node scripts/shoot.ts",
     "og": "node scripts/og.ts",
-    "icons": "sh scripts/icons.sh"
+    "icons": "node scripts/icons.ts"
   },
   "dependencies": {
     "@astrojs/sitemap": "3.7.4",

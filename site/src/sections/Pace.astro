@@ -1,0 +1,59 @@
+---
+/**
+ * PACE · 3:40 PM. PLACEHOLDER from the foundation: the section team owns this file and
+ * src/scripts/scenes/pace.ts. Spec: jq '.sections[] | select(.id=="pace")' docs/landing/brief.json
+ */
+import SectionShell from '../components/SectionShell.astro';
+import Phone from '../components/phone/Phone.astro';
+import Screen from '../components/phone/Screen.astro';
+import ClockTab from '../components/app/ClockTab.astro';
+import { BEST_DAY, MOMENTS, fmtPerTree, hoursLeftAt, paceAt, perTreeAt } from '../data/ledger';
+
+const at = MOMENTS.pace;
+const label = `Time Card Clock tab at 3:40 PM: on the clock 7 hours 39 minutes, 260 trees this shift, ${paceAt(at)} trees an hour, 1 minute 46 seconds a tree, best day ${BEST_DAY.long} with ${BEST_DAY.trees} trees, about ${hoursLeftAt(at)} hours left in North field, and a week chart of hours with pay hidden.`;
+---
+
+<SectionShell id="pace">
+  <Fragment slot="intro">
+    <p>Open the app and the Clock tab has your day. Today’s hours. Trees this shift. Your pace, worked out for you.</p>
+  </Fragment>
+  <div class="beat beat-bare" data-beat="1" style="--at:.4">
+    <dl class="stats">
+      <div><dt class="stat-unit">trees an hour</dt><dd class="stat">{paceAt(at)}</dd></div>
+      <div><dt class="stat-unit">a tree</dt><dd class="stat">{fmtPerTree(perTreeAt(at))}</dd></div>
+      <div><dt class="stat-unit">hours of work left in this field at your pace</dt><dd class="stat">{hoursLeftAt(at)}</dd></div>
+    </dl>
+  </div>
+  <div class="beat" data-beat="2" style="--at:.8">
+    <p>Trees an hour, time per tree and pay per tree, for today, this week and the season. Your best day: {BEST_DAY.long}, {BEST_DAY.trees} trees.</p>
+    <p class="small muted">Pay is hidden in every screen on this page, the way you can hide it in the app.</p>
+  </div>
+
+  <figure class="shot" data-stage-shot slot="figure">
+    <Phone label={label}>
+      <div class="screens" data-screens>
+        <Screen stateId="clock-1540" alt={label} tone="light" final>
+          <ClockTab at={at} />
+        </Screen>
+      </div>
+    </Phone>
+    <figcaption>The Clock tab at 3:40 PM, with pay hidden.</figcaption>
+  </figure>
+</SectionShell>
+
+<style>
+  .stats {
+    display: grid;
+    gap: 20px;
+  }
+  .stats div {
+    display: flex;
+    flex-direction: column-reverse;
+    gap: 4px;
+    padding-top: 16px;
+    border-top: 1px solid var(--stage-line);
+  }
+  .stats dd {
+    margin: 0;
+  }
+</style>

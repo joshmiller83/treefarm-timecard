@@ -1,0 +1,30 @@
+---
+/**
+ * <Icon name="clock" /> — an original SF-Symbols-like glyph from the shared sprite.
+ * Size it with `size` (any CSS length; default 1em) or CSS. Color is currentColor.
+ * Decorative by default (aria-hidden). Pass `label` when the icon carries meaning alone.
+ */
+import type { IconName } from './icons.ts';
+
+interface Props {
+  name: IconName;
+  size?: string;
+  label?: string;
+  class?: string;
+  /** Stroke weight override for stroked glyphs (default 1.75 at 24 × 24). */
+  weight?: number;
+}
+
+const { name, size = '1em', label, class: cls, weight } = Astro.props;
+const style = [`width:${size}`, `height:${size}`, weight ? `--icon-weight:${weight}` : ''].filter(Boolean).join(';');
+---
+
+<svg
+  class:list={['icon', cls]}
+  viewBox="0 0 24 24"
+  style={style}
+  aria-hidden={label ? undefined : 'true'}
+  role={label ? 'img' : undefined}
+  aria-label={label}
+  focusable="false"><use href={`#i-${name}`}></use></svg
+>

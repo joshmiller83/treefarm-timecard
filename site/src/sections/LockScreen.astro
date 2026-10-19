@@ -1,0 +1,52 @@
+---
+/**
+ * LOCK SCREEN · 2:14 PM. PLACEHOLDER from the foundation: the section team owns this file
+ * and src/scripts/scenes/lock-screen.ts. Spec: jq '.sections[] | select(.id=="lock-screen")' docs/landing/brief.json
+ */
+import SectionShell from '../components/SectionShell.astro';
+import Phone from '../components/phone/Phone.astro';
+import Screen from '../components/phone/Screen.astro';
+import LockScreenMock from '../components/phone/LockScreen.astro';
+import LiveActivity from '../components/phone/LiveActivity.astro';
+import ControlsCard from '../components/ControlsCard.astro';
+import { MOMENTS, fmtClock } from '../data/ledger';
+
+const label =
+  'iPhone lock screen at 2:14 PM. The Time Card Live Activity shows On the clock, 6 hours 27 minutes worked, North field, Block 2, 230 trees this shift, Row 36 marked with Undo, and buttons for row 37, row 38, row 39 and Break. There is no clock-out button.';
+---
+
+<SectionShell id="lock-screen">
+  <Fragment slot="intro">
+    <p>
+      Clock in and a big timer sits on your lock screen. It counts your worked time on its own. When a row is done, tap
+      it. The whole row is marked, and the buttons move on to the next rows.
+    </p>
+  </Fragment>
+  <div class="beat" data-beat="1" style="--at:.7">
+    <p>Using another app? Your timer and your row stay up top in the Dynamic Island.</p>
+  </div>
+  <div class="beat" data-beat="2" style="--at:.9">
+    <p>
+      Rather press than talk? Put Next row on the Action button, or use Time Card’s controls in Control Center. They run
+      the same commands as Siri.
+    </p>
+    <ControlsCard />
+    <p class="small muted">
+      A Live Activity can stay up for 8 hours. Time Card reminds you before it runs out. The Action button is on iPhones
+      that have one. Control Center controls need iOS 18 or later.
+    </p>
+  </div>
+
+  <figure class="shot" data-stage-shot slot="figure">
+    <Phone label={label}>
+      <div class="screens" data-screens>
+        <Screen stateId="lock-1414-tapped" alt={label} final>
+          <LockScreenMock time={fmtClock(MOMENTS.lockScreen)}>
+            <LiveActivity at={MOMENTS.tapped} />
+          </LockScreenMock>
+        </Screen>
+      </div>
+    </Phone>
+    <figcaption>One tap marks the whole row. Wrong row? Undo is right there. No clock-out button, on purpose.</figcaption>
+  </figure>
+</SectionShell>

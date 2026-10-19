@@ -1,0 +1,59 @@
+---
+/**
+ * THE PAGE: one phone, one shift. Header + nine chapters in brief order + footer.
+ * Each chapter is src/sections/<PascalCaseId>.astro with a scene in src/scripts/scenes/<id>.ts.
+ */
+import Base from '../layouts/Base.astro';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+import Phone from '../components/phone/Phone.astro';
+import Hero from '../sections/Hero.astro';
+import Voice from '../sections/Voice.astro';
+import LockScreenSection from '../sections/LockScreen.astro';
+import Field from '../sections/Field.astro';
+import Notes from '../sections/Notes.astro';
+import Crew from '../sections/Crew.astro';
+import Pace from '../sections/Pace.astro';
+import ClockOut from '../sections/ClockOut.astro';
+import Open from '../sections/Open.astro';
+---
+
+<Base>
+  <Header />
+  <main id="content" tabindex="-1">
+    <Hero />
+    <Voice />
+    <LockScreenSection />
+    <Field />
+    <Notes />
+    <Crew />
+    <Pace />
+    <ClockOut />
+    <Open />
+  </main>
+  <Footer />
+
+  <!-- Motion-only fixed layers: the stage tints and the desktop stage phone. -->
+  <div class="tints" aria-hidden="true">
+    <div class="tint" data-tint="dawn"></div>
+    <div class="tint" data-tint="dawn"></div>
+    <div class="tint-light" data-tint-light></div>
+  </div>
+  <div class="stage" data-stage aria-hidden="true">
+    <div class="stage-grid">
+      <div class="stage-slot">
+        <Phone variant="stage" decorative />
+      </div>
+    </div>
+  </div>
+</Base>
+
+<script>
+  import '../scripts/main.ts';
+</script>
+
+<style>
+  main:focus {
+    outline: none;
+  }
+</style>

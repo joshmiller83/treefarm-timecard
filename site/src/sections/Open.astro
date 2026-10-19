@@ -1,0 +1,70 @@
+---
+/**
+ * BUILT IN THE OPEN. PLACEHOLDER from the foundation: the section team owns this file,
+ * src/components/Footer.astro and src/scripts/scenes/open.ts.
+ * Spec: jq '.sections[] | select(.id=="open")' docs/landing/brief.json
+ */
+import SectionShell from '../components/SectionShell.astro';
+import AppIcon from '../components/AppIcon.astro';
+
+const REPO = 'https://github.com/joshmiller83/treefarm-timecard';
+const DOCS = `${REPO}/tree/main/docs`;
+const stack = ['SwiftUI', 'App Intents', 'ActivityKit', 'Vapor', 'SQLite', 'Cloudflare Tunnel', 'MIT'];
+---
+
+<SectionShell id="open">
+  <Fragment slot="intro">
+    <p>
+      Time Card grew out of a simple web time card used on a working Christmas tree farm in Indiana. The iPhone app is
+      the next step.
+    </p>
+    <p>It’s in active development. A TestFlight beta is coming. Nothing is on the App Store yet.</p>
+    <p>
+      The code is open source under the MIT license. It’s Swift all the way through: a SwiftUI app that works with Siri
+      through App Intents and puts your timer on the lock screen with ActivityKit, plus a small Vapor and SQLite server
+      your farm runs itself. Ours runs on a Mac at home behind a Cloudflare Tunnel. Every rule is written test-first.
+    </p>
+    <ul class="stack">{stack.map((s) => <li class="chip">{s}</li>)}</ul>
+    <p class="term mono"><span class="prompt" aria-hidden="true">$</span> swift test --package-path Packages/TreeFarmKit</p>
+    <div class="cta">
+      <a class="btn btn-fir" href={REPO} rel="noopener">Follow along on GitHub</a>
+      <a class="btn btn-ghost" href={DOCS} rel="noopener">Read the docs</a>
+    </div>
+    <p class="small muted">Follow along on GitHub for news about the beta.</p>
+  </Fragment>
+
+  <div slot="figure" class="icon-wrap">
+    <AppIcon size="clamp(128px, 14vw, 192px)" />
+  </div>
+</SectionShell>
+
+<style>
+  .stack {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 0;
+    list-style: none;
+  }
+  .term {
+    padding: 14px 18px;
+    border-radius: 12px;
+    background: #14221a;
+    color: #f2f5ef;
+    font-size: 0.875rem;
+    overflow-wrap: anywhere;
+  }
+  .prompt {
+    color: var(--gold-lit);
+    margin-right: 8px;
+  }
+  .cta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .icon-wrap {
+    display: grid;
+    place-items: center;
+  }
+</style>

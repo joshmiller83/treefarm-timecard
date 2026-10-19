@@ -1,0 +1,39 @@
+---
+/** STUB (device-b): replace the look, keep the Props and hooks in CONTRACT.md. Real text, page level. */
+import Stub from './dev/Stub.astro';
+
+export interface Props {
+  highlightAction?: boolean;
+}
+const { highlightAction = true } = Astro.props;
+---
+
+<div class="controls card-dark" data-controls data-highlight={highlightAction ? 'action' : undefined}>
+  <ul class="tiles">
+    <li data-control="next-row">Next row</li>
+    <li data-control="break">Break</li>
+    <li data-control="clock-in">Clock in</li>
+  </ul>
+  <p data-action-button>Action button → Next row</p>
+  <Stub name="ControlsCard" owner="device-b" />
+</div>
+
+<style>
+  .controls {
+    display: grid;
+    gap: 12px;
+    max-width: 30rem;
+  }
+  .tiles {
+    display: flex;
+    gap: 12px;
+    padding: 0;
+    list-style: none;
+    font-size: 0.875rem;
+  }
+  .tiles li {
+    padding: 8px 12px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.06);
+  }
+</style>

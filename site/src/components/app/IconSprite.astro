@@ -1,0 +1,28 @@
+---
+/**
+ * Renders every glyph once as an SVG <symbol>, plus the hero's fir silhouette (#fir).
+ * Base.astro includes it at the top of <body>, so <Icon> and <use href="#fir"> work on
+ * every page and inside screens that move into the stage phone.
+ */
+import { GLYPHS } from './icons.ts';
+import { firTiers, ICON } from '../../data/icon.ts';
+
+const symbols = Object.entries(GLYPHS)
+  .map(([name, g]) => {
+    const paint = 'fill' in g && g.fill
+      ? 'fill="currentColor" stroke="none"'
+      : 'fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="stroke-width:var(--icon-weight,1.75)"';
+    return `<symbol id="i-${name}" viewBox="0 0 24 24"><g ${paint}>${g.body}</g></symbol>`;
+  })
+  .join('');
+
+// The app icon's three-tier rounded fir with its trunk, filled with currentColor.
+// viewBox crops to the tree (x 262–762, y 228–812 in icon space).
+const fir = `<symbol id="fir" viewBox="262 220 500 600"><rect x="${ICON.trunk.x}" y="${ICON.trunk.y}" width="${ICON.trunk.w}" height="${ICON.trunk.h}" rx="${ICON.trunk.r}"/>${firTiers()
+  .map((t) => `<path d="${t.d}"/>`)
+  .join('')}</symbol>`;
+---
+
+<svg width="0" height="0" style="position:absolute;width:0;height:0;overflow:hidden" aria-hidden="true" focusable="false">
+  <defs set:html={symbols + fir} />
+</svg>

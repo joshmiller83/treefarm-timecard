@@ -1,0 +1,117 @@
+---
+/**
+ * The document shell: meta, social cards, JSON-LD, fonts and the motion gate.
+ * Every page (the landing page, lab pages, the OG template) renders inside this.
+ */
+import { Font } from 'astro:assets';
+import '../styles/tokens.css';
+import '../styles/global.css';
+import '../styles/shell.css';
+import IconSprite from '../components/app/IconSprite.astro';
+
+interface Props {
+  title?: string;
+  description?: string;
+  /** Lab and template pages: keep them out of search. */
+  noindex?: boolean;
+  /** Skip the motion gate (static tool pages like the OG template). */
+  noMotion?: boolean;
+}
+
+const SITE = 'https://treefarm.joshnliz.com';
+const REPO = 'https://github.com/joshmiller83/treefarm-timecard';
+const DEFAULT_TITLE = 'Time Card · A hands-free time card for Christmas tree trimmers';
+const DEFAULT_DESCRIPTION =
+  'Time Card is an iPhone time card for people who shape Christmas trees. Clock in, mark rows and take lunch by voice or from the lock screen. Open source, in development, TestFlight beta coming.';
+
+const { title = DEFAULT_TITLE, description = DEFAULT_DESCRIPTION, noindex = false, noMotion = false } = Astro.props;
+const canonical = new URL(Astro.url.pathname, SITE).href;
+const ogImage = `${SITE}/og.png`;
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@type': 'SoftwareSourceCode',
+      name: 'Tree Farm Time Card',
+      codeRepository: REPO,
+      license: 'https://opensource.org/licenses/MIT',
+      programmingLanguage: 'Swift',
+      description:
+        'An open-source iPhone time card for Christmas tree trimmers: Siri and lock-screen controls, a shared field map, and a small self-hosted server.',
+    },
+    {
+      '@type': 'SoftwareApplication',
+      name: 'Time Card',
+      alternateName: 'Tree Farm Time Card',
+      url: `${SITE}/`,
+      operatingSystem: 'iOS',
+      applicationCategory: 'BusinessApplication',
+      creativeWorkStatus: 'In development',
+      description: DEFAULT_DESCRIPTION,
+      sameAs: REPO,
+    },
+  ],
+};
+
+/*
+ * The motion gate (inline, before first paint). html.motion only when motion is allowed,
+ * the window is at least 560px tall and Save-Data is off. ?motion=off forces the static page
+ * (handy for screenshots). If the motion bundle has not booted within 4 s, .motion comes off
+ * again so the page falls back to its complete static state.
+ */
+const gate = `(function(d){var r=d.documentElement,ok=false,q=location.search;try{var c=navigator.connection;ok=matchMedia('(prefers-reduced-motion: no-preference)').matches&&innerHeight>=560&&!(c&&c.saveData);}catch(e){}if(/[?&]motion=off/.test(q))ok=false;if(/[?&]motion=on/.test(q))ok=true;r.classList.add('js');if(!ok)return;r.classList.add('motion','intro-wait');try{if(localStorage.getItem('tf-pause')==='1')r.classList.add('paused')}catch(e){}window.__tfGate=setTimeout(function(){if(!r.classList.contains('motion-ready')){r.classList.remove('motion','intro-wait');r.classList.add('motion-failed')}},4000)})(document)`;
+---
+
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    {noindex && <meta name="robots" content="noindex, nofollow" />}
+    <meta name="theme-color" content="#08140D" />
+    <meta name="color-scheme" content="dark light" />
+    {!noMotion && <script is:inline set:html={gate} />}
+
+    <Font cssVariable="--font-zilla" preload={[{ weight: 700 }]} />
+    <Font cssVariable="--font-public" preload={[{ weight: 400 }]} />
+    <Font cssVariable="--font-plex" />
+
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Time Card" />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:title" content="Time Card: Keep your gloves on." />
+    <meta
+      property="og:description"
+      content="An iPhone time card for Christmas tree trimmers. Voice-first, with a big lock-screen timer. Open source and in development."
+    />
+    <meta property="og:image" content={ogImage} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="The Time Card app icon and the headline Keep your gloves on, beside an iPhone lock-screen Live Activity reading On the clock, North field, Block 2, with buttons for rows 36, 37 and 38 and Break."
+    />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Time Card: Keep your gloves on." />
+    <meta
+      name="twitter:description"
+      content="An iPhone time card for Christmas tree trimmers. Voice-first, with a big lock-screen timer. Open source and in development."
+    />
+    <meta name="twitter:image" content={ogImage} />
+
+    <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+    <slot name="head" />
+  </head>
+  <body>
+    <IconSprite />
+    <slot />
+  </body>
+</html>

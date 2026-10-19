@@ -1,0 +1,80 @@
+---
+/**
+ * DAYMARK: the header's 28px app icon as a live clock. The cream fir is the hand.
+ * DayClock sets --angle (12-hour dial, 7:02 = 211deg) and --ring (gold arc from 7 AM).
+ * Without motion it is the app icon as designed: tree upright, ring full.
+ */
+import { firTiers, ICON } from '../data/icon.ts';
+
+interface Props {
+  size?: number;
+  class?: string;
+}
+const { size = 28, class: cls } = Astro.props;
+const tiers = firTiers();
+const { center: c, ringR, trunk, colors } = ICON;
+const uid = 'dm';
+---
+
+<svg
+  class:list={['daymark', cls]}
+  data-daymark
+  width={size}
+  height={size}
+  viewBox="0 0 1024 1024"
+  aria-hidden="true"
+  focusable="false"
+>
+  <defs>
+    <linearGradient id={`${uid}-bg`} x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color={colors.bgTop}></stop>
+      <stop offset="1" stop-color={colors.bgBottom}></stop>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="230" fill={`url(#${uid}-bg)`}></rect>
+  <circle class="dm-track" cx={c.x} cy={c.y} r={ringR} fill="none" stroke={colors.ring} stroke-width="44"></circle>
+  <circle
+    class="dm-arc"
+    cx={c.x}
+    cy={c.y}
+    r={ringR}
+    fill="none"
+    stroke={colors.ring}
+    stroke-width="44"
+    pathLength="100"
+    stroke-dasharray="100"
+    transform={`rotate(120 ${c.x} ${c.y})`}></circle>
+  <g class="dm-hand">
+    <rect x={trunk.x} y={trunk.y} width={trunk.w} height={trunk.h} rx={trunk.r} fill={colors.trunk}></rect>
+    {tiers.map((t) => <path d={t.d} fill={t.fill} />)}
+  </g>
+</svg>
+
+<style>
+  .daymark {
+    flex: none;
+    border-radius: 22.5%;
+    box-shadow: 0 0 0 1px rgba(242, 245, 239, 0.12);
+    --angle: 0deg;
+    --ring: 1;
+  }
+  .dm-hand {
+    transform-box: view-box;
+    transform-origin: 512px 520px;
+    transform: rotate(var(--angle));
+  }
+  .dm-track {
+    opacity: 0;
+  }
+  .dm-arc {
+    stroke-dashoffset: calc(100 * (1 - var(--ring)));
+  }
+  /* With motion the mark starts at 7:02 and DayClock drives it. */
+  :global(html.motion) .daymark {
+    --angle: 211deg;
+    --ring: 0.003;
+  }
+  :global(html.motion) .dm-track {
+    opacity: 0.28;
+  }
+</style>

@@ -1,0 +1,67 @@
+---
+/** STUB (report): replace the look, keep the Props, the table semantics and hooks in CONTRACT.md. */
+import { WEEK, WEEK_RANGE, breaksText, fmtHM, fmtTime, weekTotals, type Day } from '../data/ledger';
+
+export interface Props {
+  days?: readonly Day[];
+  worker?: string;
+  range?: string;
+}
+const { days = WEEK, worker = 'Alex', range = WEEK_RANGE } = Astro.props;
+const totals = weekTotals(days);
+---
+
+<div class="paper" data-paper>
+  <table>
+    <caption>Example time card for {worker}, {range} <small>(PaperTimeCard stub · report)</small></caption>
+    <thead>
+      <tr><th scope="col">Date</th><th scope="col">In</th><th scope="col">Out</th><th scope="col">Trees</th><th scope="col">Hours</th><th scope="col">Breaks</th><th scope="col">Notes</th></tr>
+    </thead>
+    <tbody>
+      {
+        days.map((d) => (
+          <tr data-day={d.key}>
+            <td>{d.date}</td><td>{fmtTime(d.in)}</td><td>{fmtTime(d.out)}</td>
+            <td data-cell={`${d.key}-trees`}>{d.trees}</td><td data-cell={`${d.key}-hours`}>{fmtHM(d.worked)}</td>
+            <td>{breaksText(d.breaks)}</td><td>{d.note ?? ''}</td>
+          </tr>
+        ))
+      }
+    </tbody>
+    <tfoot>
+      <tr><td colspan="7" data-totals>{totals.label}</td></tr>
+    </tfoot>
+  </table>
+  <p>Breaks are listed, not counted.</p>
+</div>
+
+<style>
+  .paper {
+    background: #fff;
+    color: #1b1f1c;
+    border-radius: 6px;
+    padding: 16px;
+    font-size: 14px;
+    overflow: hidden;
+    max-width: 100%;
+  }
+  table {
+    width: 100%;
+  }
+  th,
+  td {
+    text-align: left;
+    padding: 4px 6px;
+    border-bottom: 1px solid #dde4dd;
+  }
+  @media (max-width: 599.98px) {
+    tr,
+    td,
+    th {
+      display: block;
+    }
+    thead {
+      display: none;
+    }
+  }
+</style>

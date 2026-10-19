@@ -1,0 +1,26 @@
+---
+/** STUB (screens): replace the content, keep the Props and hooks in CONTRACT.md. */
+import AppChrome from './AppChrome.astro';
+import Stub from '../dev/Stub.astro';
+import { MOMENTS, fmtHMS, fmtPerTree, hoursLeftAt, paceAt, perTreeAt, treesAt, workedAt } from '../../data/ledger';
+
+export interface Props {
+  at?: number;
+  range?: 'today' | 'week' | 'season';
+}
+const { at = MOMENTS.pace, range = 'today' } = Astro.props;
+---
+
+<AppChrome title="Clock" tab="clock" trailing={[{ icon: 'gear', id: 'settings' }]}>
+  <div data-status-card data-range={range}>
+    On the clock <span data-timer="worked">{fmtHMS(workedAt(at))}</span>
+  </div>
+  <div data-trees>{treesAt(at)}</div>
+  <div data-pace-card>
+    <span data-pace-row="trees-hour">{paceAt(at)} trees an hour</span>
+    <span data-pace-row="per-tree">{fmtPerTree(perTreeAt(at))} a tree</span>
+    <span data-pace-row="pay">Pay per tree <span data-pay>•••</span></span>
+    <span data-pace-row="left">About {hoursLeftAt(at)} hours left</span>
+  </div>
+  <Stub name="ClockTab" owner="screens" tone="light" note="status, now working, pace, hours & pay" box="height:calc(420*var(--pt));margin-top:calc(12*var(--pt));" />
+</AppChrome>

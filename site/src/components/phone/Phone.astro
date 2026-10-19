@@ -1,0 +1,94 @@
+---
+/**
+ * STUB (device-a): replace the look, keep the Props and the DOM contract in CONTRACT.md.
+ * This stub already implements the contract (root, .screen with --pt, rest island, rim,
+ * sheen, shadow) so sections and the stage work while the real frame is built.
+ */
+export interface Props {
+  /** aria-label for the role="img" root (required unless decorative). */
+  label?: string;
+  /** CSS length for the height; width follows 393/852. Default: var(--phone-h). */
+  height?: string;
+  variant?: 'stage' | 'inline' | 'peek';
+  /** aria-hidden instead of role="img" (the stage phone repeats the section figures). */
+  decorative?: boolean;
+  class?: string;
+}
+
+const { label, height, variant = 'inline', decorative = false, class: cls } = Astro.props;
+const a11y = decorative || !label ? { 'aria-hidden': 'true' as const } : { role: 'img', 'aria-label': label };
+---
+
+<div
+  class:list={['phone', `phone--${variant}`, cls]}
+  data-phone
+  data-variant={variant}
+  style={height ? `--phone-h:${height}` : undefined}
+  {...a11y}
+>
+  <div class="phone-body" aria-hidden="true">
+    <div class="screen">
+      <slot />
+    </div>
+    <div class="phone-island" data-island-rest></div>
+    <div class="phone-rim" data-rim></div>
+    <div class="phone-sheen sheen" data-sheen></div>
+  </div>
+  <div class="phone-shadow" data-shadow aria-hidden="true"></div>
+</div>
+
+<style>
+  .phone {
+    position: relative;
+    height: var(--phone-h, min(52svh, 460px));
+    aspect-ratio: 393 / 852;
+    flex: none;
+  }
+  .phone-body {
+    position: absolute;
+    inset: 0;
+    border-radius: 13.99% / 6.455%;
+    padding: 3.2%;
+    background: linear-gradient(145deg, #3a3f3c, #8c928e 45%, #2a2e2c);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+  }
+  .screen {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    border-radius: 11.8% / 5.45%;
+    background: #000;
+    container-type: inline-size;
+    --pt: calc(100cqw / 393);
+  }
+  .phone-island {
+    position: absolute;
+    left: 50%;
+    top: calc(3.2% + 1.29%);
+    width: 32%;
+    height: 4.34%;
+    transform: translateX(-50%);
+    border-radius: 999px;
+    background: #000;
+    pointer-events: none;
+  }
+  .phone-rim,
+  .phone-sheen {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    opacity: 0;
+  }
+  .phone-shadow {
+    position: absolute;
+    left: 8%;
+    right: 8%;
+    bottom: -3%;
+    height: 5%;
+    border-radius: 50%;
+    background: radial-gradient(closest-side, rgba(0, 0, 0, 0.55), transparent);
+    z-index: -1;
+  }
+</style>

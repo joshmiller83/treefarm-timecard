@@ -1,0 +1,76 @@
+---
+/**
+ * HERO · 7:02 Clock in. PLACEHOLDER from the foundation: the section team owns this file
+ * and src/scripts/scenes/hero.ts. Spec: jq '.sections[] | select(.id=="hero")' docs/landing/brief.json
+ * The H1 is the LCP element: never hide it, never put data-intro on it.
+ */
+import SectionShell from '../components/SectionShell.astro';
+import Phone from '../components/phone/Phone.astro';
+import Screen from '../components/phone/Screen.astro';
+import LockScreen from '../components/phone/LockScreen.astro';
+import LiveActivity from '../components/phone/LiveActivity.astro';
+import SiriSnippet from '../components/phone/SiriSnippet.astro';
+import SiriGlow from '../components/phone/SiriGlow.astro';
+import { MOMENTS, fmtClock } from '../data/ledger';
+import { SIRI } from '../data/siri';
+
+const REPO = 'https://github.com/joshmiller83/treefarm-timecard';
+const label = `iPhone lock screen at 7:02 AM. Siri says: ${SIRI.clockIn.reply} The Time Card Live Activity shows On the clock, North field, Block 2, 0 trees this shift, and buttons for row 14, row 15, row 16 and Break.`;
+---
+
+<SectionShell id="hero" headingLevel={1}>
+  <Fragment slot="intro">
+    <p class="body" data-intro>
+      Time Card is an iPhone time card for people who shape Christmas trees. Clock in, mark your rows and take lunch
+      by voice, with your phone locked in your pocket. The lock screen does the rest.
+    </p>
+    <p data-intro><span class="pill-status">In development · TestFlight beta coming</span></p>
+    <div class="cta" data-intro>
+      <a class="btn btn-gold" href={REPO} rel="noopener">Follow along on GitHub</a>
+      <a class="link-arrow" href="#voice">Walk through a shift <span aria-hidden="true">↓</span></a>
+    </div>
+    <p class="small muted" data-intro>Open source, MIT licensed. Not on the App Store yet.</p>
+  </Fragment>
+
+  <figure class="shot" data-stage-shot slot="figure">
+    <p class="spoken" aria-hidden="true"><q>{SIRI.clockIn.said.replace(/\.$/, '')}</q></p>
+    <Phone label={label}>
+      <div class="screens" data-screens>
+        <Screen stateId="lock-0702-clockin" alt={label} final>
+          <LockScreen time={fmtClock(MOMENTS.clockIn)}>
+            <Fragment slot="top">
+              <SiriGlow />
+              <SiriSnippet text={SIRI.clockIn.reply} />
+            </Fragment>
+            <LiveActivity at={MOMENTS.clockIn} />
+          </LockScreen>
+        </Screen>
+      </div>
+    </Phone>
+    <figcaption>You: “{SIRI.clockIn.said}” Siri: “{SIRI.clockIn.reply}” The Live Activity rises onto the lock screen.</figcaption>
+  </figure>
+</SectionShell>
+
+<style>
+  .cta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px 24px;
+  }
+  .spoken {
+    text-align: center;
+  }
+  @media (max-width: 599.98px) {
+    .cta {
+      flex-direction: column;
+      align-items: stretch;
+    }
+    .cta .btn {
+      min-height: 48px;
+    }
+    .cta .link-arrow {
+      justify-content: center;
+    }
+  }
+</style>

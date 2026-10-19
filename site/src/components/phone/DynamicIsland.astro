@@ -1,0 +1,78 @@
+---
+/** STUB (device-b): replace the look, keep the Props and hooks in CONTRACT.md. */
+export interface Props {
+  size?: 'rest' | 'compact' | 'expanded';
+  row?: number;
+  time?: string;
+  timer?: string;
+  field?: string;
+  block?: string;
+  rows?: [number, number];
+}
+const { size = 'rest', row = 37, time = '6:29', timer = '6:29:10', field = 'North field', block = 'Block 2', rows = [37, 38] } = Astro.props;
+---
+
+<div class="island" data-island data-size={size}>
+  <div class="isl-compact" data-island-compact><span>Row {row}</span><span class="mono">{time}</span></div>
+  <div class="isl-expanded" data-island-expanded>
+    <span>{field} · {block}</span>
+    <span class="mono" data-timer="fixed">{timer}</span>
+    <span>[Row {rows[0]}] [Row {rows[1]}] [Break]</span>
+    <span class="isl-stub">DynamicIsland · stub · device-b</span>
+  </div>
+</div>
+
+<style>
+  .island {
+    position: absolute;
+    left: 50%;
+    top: calc(11 * var(--pt));
+    transform: translateX(-50%);
+    width: calc(126 * var(--pt));
+    height: calc(37 * var(--pt));
+    border-radius: calc(19 * var(--pt));
+    background: #000;
+    color: #fff;
+    font-family: var(--font-system);
+    font-size: calc(13 * var(--pt));
+    contain: layout;
+    overflow: hidden;
+    z-index: 8;
+    outline: 1px dashed rgba(226, 166, 68, 0.6);
+  }
+  .island[data-size='compact'] {
+    width: calc(250 * var(--pt));
+  }
+  .island[data-size='expanded'] {
+    width: calc(371 * var(--pt));
+    height: calc(160 * var(--pt));
+    border-radius: calc(44 * var(--pt));
+  }
+  .isl-compact,
+  .isl-expanded {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    padding: 0 calc(14 * var(--pt));
+    align-items: center;
+    justify-content: space-between;
+    opacity: 0;
+  }
+  .isl-expanded {
+    flex-direction: column;
+    justify-content: center;
+    gap: calc(4 * var(--pt));
+  }
+  .island[data-size='compact'] .isl-compact,
+  .island[data-size='expanded'] .isl-expanded {
+    opacity: 1;
+  }
+  .mono {
+    font-family: var(--font-mono);
+  }
+  .isl-stub {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    opacity: 0.6;
+  }
+</style>

@@ -1,0 +1,29 @@
+---
+/** STUB (device-b): replace the look, keep the Props and hooks in CONTRACT.md. */
+export interface Props {
+  still?: boolean;
+}
+const { still = false } = Astro.props;
+---
+
+<div class:list={['glow', still && 'glow--still']} data-glow>
+  <div class="glow-ring" data-glow-ring></div>
+</div>
+
+<style>
+  .glow {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    z-index: 6;
+    box-shadow: inset 0 0 0 calc(6 * var(--pt)) rgba(136, 207, 164, 0.5);
+  }
+  .glow--still {
+    box-shadow: inset 0 0 0 calc(2 * var(--pt)) rgba(136, 207, 164, 0.4);
+  }
+  .glow-ring {
+    position: absolute;
+    inset: 0;
+  }
+</style>

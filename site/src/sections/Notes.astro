@@ -1,0 +1,50 @@
+---
+/**
+ * NOTES · 2:30 PM, on a break. PLACEHOLDER from the foundation: the section team owns this
+ * file and src/scripts/scenes/notes.ts. Spec: jq '.sections[] | select(.id=="notes")' docs/landing/brief.json
+ */
+import SectionShell from '../components/SectionShell.astro';
+import Phone from '../components/phone/Phone.astro';
+import Screen from '../components/phone/Screen.astro';
+import TreesTab from '../components/app/TreesTab.astro';
+import TreeNoteSheet from '../components/app/TreeNoteSheet.astro';
+import { OLD_NOTE, TREE_NOTE } from '../data/ledger';
+import { SIRI } from '../data/siri';
+
+const label = `Time Card tree note for block 2, row 36, tree 7: ${TREE_NOTE.flag}. ${TREE_NOTE.text} Alex, today 2:33 PM. The map shows a flag on that tree.`;
+---
+
+<SectionShell id="notes">
+  <Fragment slot="intro">
+    <p>
+      Tap Break when you stop. The lock screen turns gold, with a break timer and one big button: Back to work. Breaks
+      can carry a reason, like water or sharpening shears.
+    </p>
+  </Fragment>
+  <div class="beat" data-beat="1" style="--at:.2">
+    <p class="spoken"><q>{SIRI.treeNote.said}</q></p>
+    <p>Give the row and the tree, say what’s wrong, and add a flag: needs attention, dead or replant.</p>
+    <p class="siri-reply">{SIRI.treeNote.reply}</p>
+  </div>
+  <div class="beat" data-beat="2" style="--at:.45">
+    <p>The whole crew sees tree notes, and the tree gets a marker on the map. Next season the marks reset. The notes stay with the tree.</p>
+  </div>
+  <div class="beat" data-beat="3" style="--at:.72">
+    <p class="spoken"><q>{SIRI.shiftNote.said}</q></p>
+    <p class="speaker">You</p>
+    <p class="spoken"><q>{SIRI.shiftNote.answer}</q></p>
+    <p class="siri-reply">{SIRI.shiftNote.reply}</p>
+  </div>
+
+  <figure class="shot" data-stage-shot slot="figure">
+    <Phone label={label}>
+      <div class="screens" data-screens>
+        <Screen stateId="trees-1433-note" alt={label} tone="light" final>
+          <TreesTab block={2} rows={[30, 40]} zoom="L" notes={[TREE_NOTE, OLD_NOTE]} />
+          <TreeNoteSheet />
+        </Screen>
+      </div>
+    </Phone>
+    <figcaption>A tree note with a flag, shared with the crew and kept across seasons.</figcaption>
+  </figure>
+</SectionShell>

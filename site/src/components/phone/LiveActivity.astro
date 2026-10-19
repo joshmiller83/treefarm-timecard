@@ -1,0 +1,166 @@
+---
+/** STUB (device-a): replace the look, keep the Props and every hook in CONTRACT.md. */
+import { liveActivityAt, MOMENTS, type ActivityState } from '../../data/ledger';
+import { odometerHTML } from '../../scripts/odometer';
+
+export interface Props {
+  at?: number;
+  state?: ActivityState;
+  worked?: string;
+  breakTime?: string;
+  breakReason?: string | null;
+  trees?: number;
+  field?: string;
+  block?: string;
+  fieldPct?: number;
+  rows?: [number, number, number];
+  nextRow?: number;
+  undoRow?: number | null;
+  fixed?: boolean;
+}
+
+const base = liveActivityAt(Astro.props.at ?? MOMENTS.clockIn);
+const p = { ...base, ...Object.fromEntries(Object.entries(Astro.props).filter(([, v]) => v !== undefined)) } as typeof base & Props;
+const onBreak = p.state === 'lunch' || p.state === 'break';
+const pill = !onBreak ? 'On the clock' : p.state === 'lunch' ? 'On lunch' : `On break${p.breakReason ? ` · ${p.breakReason}` : ''}`;
+const timer = onBreak ? p.breakTime : p.worked;
+const rows = [...p.rows, p.nextRow ?? p.rows[2] + 1];
+---
+
+<div class="la" data-la data-state={p.state}>
+  <div class="la-mat" data-la-material></div>
+  <div class="la-mat la-brk" data-la-break style={onBreak ? 'opacity:1' : undefined}></div>
+  <div class="la-row1">
+    <span class="la-pill" data-pill><span data-pill-text>{pill}</span></span>
+    <span data-place>{p.field} · {p.block}</span>
+  </div>
+  <div class="odo la-timer" data-timer={p.fixed ? 'fixed' : 'auto'} data-odo data-odo-text={timer} set:html={odometerHTML(timer)} />
+  {onBreak && <div data-worked-line>{p.worked} worked</div>}
+  <div class="la-row3">
+    <span><span class="odo" data-trees data-odo data-odo-text={String(p.trees)} set:html={odometerHTML(String(p.trees))} /> trees this shift</span>
+    {p.undoRow ? <span data-undo>Row {p.undoRow} marked · <u>Undo</u></span> : <span class="la-bar"><i data-fieldbar style={`transform:scaleX(${p.fieldPct})`} /></span>}
+  </div>
+  <div class="la-btns">
+    {
+      onBreak ? (
+        <span class="la-back" data-back-btn>Back to work</span>
+      ) : (
+        <>
+          <span class="la-strip" data-strip>
+            <span class="la-track" data-strip-track>
+              {rows.map((r) => (
+                <span class="la-row" data-row={r}>Row {r}</span>
+              ))}
+            </span>
+          </span>
+          <span class="la-break" data-break-btn>Break</span>
+        </>
+      )
+    }
+  </div>
+  <span class="la-stub">LiveActivity · stub · device-a</span>
+</div>
+
+<style>
+  .la {
+    position: absolute;
+    left: calc(16 * var(--pt));
+    width: calc(361 * var(--pt));
+    bottom: calc(92 * var(--pt));
+    height: calc(160 * var(--pt));
+    padding: calc(12 * var(--pt)) calc(14 * var(--pt));
+    border-radius: calc(24 * var(--pt));
+    overflow: hidden;
+    color: #fff;
+    font-family: var(--font-system);
+    font-size: calc(13 * var(--pt));
+    outline: 1.5px dashed rgba(226, 166, 68, 0.75);
+  }
+  .la-mat {
+    position: absolute;
+    inset: 0;
+    background: rgba(16, 30, 22, 0.86);
+    z-index: -1;
+  }
+  .la-brk {
+    background: rgba(58, 42, 12, 0.88);
+    opacity: 0;
+  }
+  .la-row1,
+  .la-row3 {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .la-pill {
+    padding: 0 calc(8 * var(--pt));
+    border-radius: calc(11 * var(--pt));
+    background: #2e7a4e;
+    font-weight: 600;
+  }
+  .la[data-state='lunch'] .la-pill,
+  .la[data-state='break'] .la-pill {
+    background: #e2a644;
+    color: #2a1c04;
+  }
+  .la-timer {
+    font-family: var(--font-mono);
+    font-weight: 600;
+    font-size: calc(38 * var(--pt));
+    line-height: 1.15;
+  }
+  .la-bar {
+    width: calc(120 * var(--pt));
+    height: calc(4 * var(--pt));
+    background: #1c3125;
+  }
+  .la-bar i {
+    display: block;
+    height: 100%;
+    background: #e2a644;
+    transform-origin: left;
+  }
+  .la-btns {
+    display: flex;
+    gap: calc(8 * var(--pt));
+    margin-top: calc(8 * var(--pt));
+  }
+  .la-strip {
+    flex: 3;
+    overflow: hidden;
+  }
+  .la-track {
+    display: flex;
+    gap: calc(8 * var(--pt));
+  }
+  .la-row,
+  .la-break,
+  .la-back {
+    flex: none;
+    width: calc(77 * var(--pt));
+    height: calc(46 * var(--pt));
+    display: grid;
+    place-items: center;
+    border-radius: calc(14 * var(--pt));
+    background: #1d5b3a;
+    font-weight: 600;
+    font-size: calc(16 * var(--pt));
+  }
+  .la-break {
+    background: none;
+    outline: 1.5px solid rgba(242, 245, 239, 0.5);
+  }
+  .la-back {
+    flex: 1;
+    background: #e2a644;
+    color: #2a1c04;
+  }
+  .la-stub {
+    position: absolute;
+    right: calc(10 * var(--pt));
+    bottom: calc(2 * var(--pt));
+    font-family: var(--font-mono);
+    font-size: 9px;
+    opacity: 0.6;
+  }
+</style>

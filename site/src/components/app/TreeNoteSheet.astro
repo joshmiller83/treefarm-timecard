@@ -1,0 +1,40 @@
+---
+/** STUB (screens): replace the look, keep the Props and hooks in CONTRACT.md. */
+import Stub from '../dev/Stub.astro';
+import { TREE_NOTE, type TreeNote } from '../../data/ledger';
+
+export interface Props {
+  note?: TreeNote;
+  height?: number;
+}
+const { note = TREE_NOTE, height = 0.55 } = Astro.props;
+---
+
+<div class="sheet" data-sheet style={`height:${height * 100}%`}>
+  <div>Block {note.block} · Row {note.row} · Tree {note.tree}</div>
+  <span data-flag-chip>{note.flag}</span>
+  <p data-note-text>{note.text}</p>
+  <div>{note.byline}</div>
+  <div data-add-note>Add note</div>
+  <Stub name="TreeNoteSheet" owner="screens" tone="light" box="flex:1;" />
+</div>
+
+<style>
+  .sheet {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 7;
+    display: flex;
+    flex-direction: column;
+    gap: calc(6 * var(--pt));
+    padding: calc(16 * var(--pt));
+    border-radius: calc(32 * var(--pt)) calc(32 * var(--pt)) 0 0;
+    background: #fff;
+    color: var(--ink);
+    font-family: var(--font-system);
+    font-size: calc(15 * var(--pt));
+    box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.12);
+  }
+</style>
