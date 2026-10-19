@@ -198,7 +198,7 @@ struct ShiftEditorModelTests {
         try session.save([.shift(gone)])
         model.draft.notes = "Late edit"
         #expect(model.save() == nil)
-        #expect(model.visibleProblem == LogWording.missing)
+        #expect(model.visibleProblem == ShiftMessages.missing)
         #expect(session.snapshot.shifts[mine.id] == nil)
     }
 
@@ -259,7 +259,7 @@ struct ShiftEditorModelTests {
         model.draft.notes = "Typed here."
         model.draft.start = WallClock(hour: 7, minute: 30)
         #expect(model.save() == nil)
-        #expect(model.visibleProblem == LogWording.changedElsewhere)
+        #expect(model.visibleProblem == ShiftMessages.changedElsewhere)
         // Nothing was written; the editor now shows the stored notes and keeps the other edit.
         #expect(session.snapshot.shifts[mine.id]?.notes == "Said to Siri.")
         #expect(session.snapshot.shifts[mine.id]?.start == mine.start)
@@ -280,7 +280,7 @@ struct ShiftEditorModelTests {
         defer { Task { await session.stop() } }
         let model = try #require(ShiftEditorModel(session: session, shiftId: mine.id, now: { now }))
         let before = try session.store.pendingCount()
-        #expect(model.save() == LogWording.unchanged)
+        #expect(model.save() == ShiftMessages.unchanged)
         #expect(try session.store.pendingCount() == before)
         #expect(session.snapshot.shifts[mine.id]?.updatedAt == mine.updatedAt)
     }

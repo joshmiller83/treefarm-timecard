@@ -72,7 +72,7 @@ public final class FieldActions {
             do {
                 if !outcome.records.isEmpty { try session.save(outcome.records) }
             } catch {
-                return FieldReply(speech: "Couldn’t save that on this phone. Try again.", succeeded: false)
+                return FieldReply(speech: Speech.saveFailed, succeeded: false)
             }
             if outcome.position != state.position {
                 save(outcome.position, "position", farm: farmId, user: userId)

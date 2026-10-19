@@ -94,8 +94,8 @@ final class ShiftEditorModel {
         treeSummary = held.summary(draft.id)
     }
 
-    var deleteQuestion: String { LogWording.deleteQuestion(trees: trees, isOpen: draft.original?.isOpen == true) }
-    var deleteButton: String { LogWording.deleteButton(trees: trees) }
+    var deleteQuestion: String { ShiftMessages.deleteQuestion(trees: trees, isOpen: draft.original?.isOpen == true) }
+    var deleteButton: String { ShiftMessages.deleteButton(trees: trees) }
 
     /// The same person's other shifts, which the rules check for overlaps.
     private var others: [Shift] {
@@ -139,7 +139,7 @@ final class ShiftEditorModel {
         if !isNew {
             // Deleted on another device while this was open: don't bring it back.
             guard let stored = session.snapshot.shifts[draft.id], stored.isLive else {
-                saveError = LogWording.missing
+                saveError = ShiftMessages.missing
                 return nil
             }
             if stored != initialDraft.original {
@@ -150,7 +150,7 @@ final class ShiftEditorModel {
                 initialDraft = current
                 recountTrees()
                 if merged.conflict {
-                    saveError = LogWording.changedElsewhere
+                    saveError = ShiftMessages.changedElsewhere
                     return nil
                 }
             }
@@ -159,14 +159,14 @@ final class ShiftEditorModel {
         let shift = draft.shift(calendar: calendar, now: at)
         if ShiftRules.validate(shift, others: others, now: at, calendar: calendar) != nil { return nil }
         // Nothing the person changed: nothing to write (and no new `updatedAt` to win a sync).
-        if !isNew && draft == initialDraft { return LogWording.unchanged }
+        if !isNew && draft == initialDraft { return ShiftMessages.unchanged }
         do {
             try session.save([.shift(ShiftRules.normalized(shift))])
         } catch {
-            saveError = "Couldn’t save that on this phone. Try again."
+            saveError = Speech.saveFailed
             return nil
         }
-        return isNew ? LogWording.added : LogWording.saved
+        return isNew ? ShiftMessages.added : ShiftMessages.saved
     }
 
     /// A storage failure, shown like a rule problem.
@@ -187,7 +187,7 @@ final class ShiftEditorModel {
         guard !isNew else { return nil }
         guard let stored = session.snapshot.shifts[draft.id], stored.isLive else {
             stage = .editing
-            saveError = LogWording.missing
+            saveError = ShiftMessages.missing
             return nil
         }
         recountTrees()
@@ -209,6 +209,6 @@ final class ShiftEditorModel {
             saveError = "Couldn’t delete that on this phone. Try again."
             return nil
         }
-        return LogWording.deleted(trees: trees)
+        return ShiftMessages.deleted(trees: trees)
     }
 }

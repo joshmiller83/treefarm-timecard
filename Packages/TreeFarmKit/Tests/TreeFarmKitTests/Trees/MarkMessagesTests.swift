@@ -79,4 +79,22 @@ struct MarkMessagesTests {
         #expect(MarkMessages.checkRange(block: north, rows: -1...3, positions: 0...9) == "Rows in North go from 1 to 61.")
         #expect(MarkMessages.checkRange(block: north, rows: 0...3, positions: 0...10) == "Trees go from 1 to 10 in each row of North.")
     }
+
+    // MARK: The map's other lines (moved here from the app)
+
+    @Test func fillAndZoomHints() {
+        #expect(MarkMessages.fillStart(F.tree(block, 13, 3), in: block) == "Start: Block 2, row 14, tree 4. Now tap the last tree.")
+        #expect(MarkMessages.zoomedInto(block) == "Showing Block 2. Tap All to see the whole field again.")
+    }
+
+    @Test func notesSomeoneElseOwnsOrDeleted() {
+        #expect(MarkMessages.noteGone == "That note was deleted.")
+        #expect(MarkMessages.notePermission(.edit) == "Only the person who wrote a note, or an admin, can change it.")
+        #expect(MarkMessages.notePermission(.delete) == "Only the person who wrote a note, or an admin, can delete it.")
+    }
+
+    @Test func aRowsStatusForVoiceOver() {
+        #expect(MarkMessages.rowStatus(F.row(block, 13), in: block, "all 10 trees shaped") == "Block 2, row 14: all 10 trees shaped.")
+    }
 }
+

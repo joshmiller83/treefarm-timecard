@@ -3,43 +3,6 @@ import Foundation
 import Observation
 import TimeCardCore
 
-/// The few sentences the Trees tab needs that TreeFarmKit doesn't have yet, kept in one
-/// place until the Kit gains them (each says where it belongs). Everything else the tab
-/// says comes from `MarkMessages`, `Speech` and `FieldEngine`.
-enum TreesWording {
-    /// Kit: `MarkMessages.fillStart(_:)`. Fill mode, after the first tree.
-    static func fillStart(_ tree: TreeRef, in block: Block) -> String {
-        "Start: \(block.label(tree)). Now tap the last tree."
-    }
-
-    /// Kit: `MarkMessages.zoomedInto(_:)`. After a tap on a block in the whole-field view.
-    static func zoomedInto(_ block: Block) -> String {
-        "Showing \(block.displayName). Tap All to see the whole field again."
-    }
-
-    /// Kit: `Speech.clockedInSince(_:calendar:)`. The Clock tab's stale-shift warning says the same.
-    static func clockedInSince(_ shift: Shift, calendar: FarmCalendar) -> String {
-        "You’ve been clocked in since \(Fmt.day(shift.start, calendar)) at \(Fmt.time(shift.start, calendar))."
-    }
-
-    /// Kit: with `clockedInSince`. The Clock tab adds the same advice.
-    static let fixTheTimes = "If you forgot to clock out, fix the times."
-
-    /// Kit: `MarkMessages.noteGone`. Editing or deleting a note someone deleted on another phone.
-    static let noteGone = "That note was deleted."
-    /// Kit: `MarkMessages.notePermission(.edit)`.
-    static let onlyAuthorEdits = "Only the person who wrote a note, or an admin, can change it."
-    /// Kit: `MarkMessages.notePermission(.delete)`.
-    static let onlyAuthorDeletes = "Only the person who wrote a note, or an admin, can delete it."
-    /// Kit: `Speech.saveFailed`. FieldActions says the same when its save fails.
-    static let saveFailed = "Couldn’t save that on this phone. Try again."
-
-    /// Kit: `MarkMessages.rowStatus(_:)`. A VoiceOver swipe up on a row with no free tree.
-    static func rowStatus(_ row: RowRef, in block: Block, _ summary: String) -> String {
-        "\(block.label(row: row.row)): \(summary)."
-    }
-}
-
 /// The line under the mode picker: a hint, what the last tap did, or why it did nothing.
 struct MapMessage: Equatable, Sendable {
     enum Tone: Equatable, Sendable {
@@ -275,7 +238,7 @@ final class TreeMapModel {
     /// "You’ve been clocked in since Sun, Oct 18 at 8:00 AM." when `isMarkingStaleShift`.
     var staleShiftNote: String? {
         guard isMarkingStaleShift, let shift = markingShift, let data else { return nil }
-        return TreesWording.clockedInSince(shift, calendar: data.calendar)
+        return Speech.clockedInSince(shift, calendar: data.calendar)
     }
 
     /// The "Marking trees for" menu: my latest shifts, plus the one picked if it's older.
@@ -415,7 +378,7 @@ final class TreeMapModel {
         scrollToken += 1
         scrollRequest = MapScrollRequest(blockId: blockId, token: scrollToken)
         typingBlockId = blockId
-        message = MapMessage(TreesWording.zoomedInto(block), tone: .hint)
+        message = MapMessage(MarkMessages.zoomedInto(block), tone: .hint)
     }
 
     func tapRow(_ row: RowRef) {
@@ -475,7 +438,7 @@ final class TreeMapModel {
         guard let anchor else {
             guard markContext() != nil else { return }
             setAnchor(tree)
-            message = MapMessage(TreesWording.fillStart(tree, in: block), tone: .hint, action: .cancelFill)
+            message = MapMessage(MarkMessages.fillStart(tree, in: block), tone: .hint, action: .cancelFill)
             return
         }
         setAnchor(nil)
@@ -600,7 +563,7 @@ final class TreeMapModel {
         do {
             try save(records)
         } catch {
-            message = MapMessage(TreesWording.saveFailed, tone: .warning)
+            message = MapMessage(Speech.saveFailed, tone: .warning)
             return false
         }
         if var current = data {

@@ -54,5 +54,34 @@ public enum MarkMessages {
         return nil
     }
 
+    /// Fill mode, after the first tree: "Start: Block 2, row 14, tree 4. Now tap the last tree."
+    public static func fillStart(_ tree: TreeRef, in block: Block) -> String {
+        "Start: \(block.label(tree)). Now tap the last tree."
+    }
+
+    /// After a tap on a block in the whole-field view.
+    public static func zoomedInto(_ block: Block) -> String {
+        "Showing \(block.displayName). Tap All to see the whole field again."
+    }
+
+    /// Editing or deleting a note someone deleted on another phone.
+    public static let noteGone = "That note was deleted."
+
+    /// What someone tried to do to a note that isn't theirs.
+    public enum NoteChange: Sendable {
+        case edit, delete
+    }
+
+    /// Only a note's author, or an admin, may change or delete it.
+    public static func notePermission(_ change: NoteChange) -> String {
+        "Only the person who wrote a note, or an admin, can \(change == .edit ? "change" : "delete") it."
+    }
+
+    /// A row's state for VoiceOver: "Block 2, row 14: all 10 trees shaped." `summary` is the
+    /// row's `TreeSummary` line.
+    public static func rowStatus(_ row: RowRef, in block: Block, _ summary: String) -> String {
+        "\(block.label(row: row.row)): \(summary)."
+    }
+
     static func trees(_ n: Int) -> String { "\(n) tree\(n == 1 ? "" : "s")" }
 }

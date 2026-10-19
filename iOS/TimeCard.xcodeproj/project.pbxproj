@@ -42,7 +42,6 @@
 		28D1B4362FD4AA2D0B415F07 /* TeamUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D7506ABDC7DE18A14E2EFC2 /* TeamUITests.swift */; };
 		2B0D928BDC4C0BBE97302A71 /* IntentTestSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB65973F2655D3BF684FAD8C /* IntentTestSupport.swift */; };
 		2E41B0EDB79C1FF6F54E10D3 /* LogBuilderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0EC4977D6D7D7BFFFA305D14 /* LogBuilderTests.swift */; };
-		35A25F41DFB49A532890883B /* LogWording.swift in Sources */ = {isa = PBXBuildFile; fileRef = 377EF56158A674B7498DB738 /* LogWording.swift */; };
 		390140C0B40787DABEE5964B /* ClockStatusTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE706B521FDE4D5D4F38A4B7 /* ClockStatusTests.swift */; };
 		3B3E0A8E54FB630EFF4F45D1 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF7548AC9CE7DC4BC309E713 /* SettingsView.swift */; };
 		3BC88F39E7E90B47A4F892B2 /* FieldsSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31066D7CB166A23A1209BFCB /* FieldsSection.swift */; };
@@ -150,6 +149,7 @@
 		E0B03D5A5C903A53DE4C5503 /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87281864A7B6C79D025F7336 /* MainTabView.swift */; };
 		E0D1FB91C0FD52264C43A582 /* IntentDonations.swift in Sources */ = {isa = PBXBuildFile; fileRef = E463BC54336CEB6A881010E1 /* IntentDonations.swift */; };
 		E299322A522196BD44C9EBE4 /* DayCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6AC0B02FC296D93E3F1452CD /* DayCard.swift */; };
+		E2E1F25BCF2A97279C69637D /* AppTourUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B63F50BB7E194A72AE0E1FF9 /* AppTourUITests.swift */; };
 		E2F0087D56FC1F75ED8F6864 /* ReportCSV.swift in Sources */ = {isa = PBXBuildFile; fileRef = C5D5A8FEDD7DAD3EBE68327A /* ReportCSV.swift */; };
 		E6F31FAEBD253EBC55C70E33 /* TreesHeader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39D93A82BB9D4479F54F5DC8 /* TreesHeader.swift */; };
 		E74615502C9AB7850BA4377D /* TreeMapData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 770C951EE55399070D8A364A /* TreeMapData.swift */; };
@@ -244,7 +244,6 @@
 		31130F6FC7731C1A1DED1F21 /* StatusIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusIntent.swift; sourceTree = "<group>"; };
 		368D5BA8D4E266B0865F6DB2 /* ClockCards.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClockCards.swift; sourceTree = "<group>"; };
 		3759E7FDBE2DBB6FD394D128 /* ShiftEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShiftEditorView.swift; sourceTree = "<group>"; };
-		377EF56158A674B7498DB738 /* LogWording.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogWording.swift; sourceTree = "<group>"; };
 		39D93A82BB9D4479F54F5DC8 /* TreesHeader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TreesHeader.swift; sourceTree = "<group>"; };
 		3AFAABF051810F9845A8AC16 /* LiveActivityFixtures.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityFixtures.swift; sourceTree = "<group>"; };
 		3E8ADE5EA509E495FED67FC8 /* VoiceCatalogTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceCatalogTests.swift; sourceTree = "<group>"; };
@@ -325,6 +324,7 @@
 		B3B8690597D28839E47CF952 /* InviteText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InviteText.swift; sourceTree = "<group>"; };
 		B4623FF7D02E7144959C7D79 /* ShiftEditorModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShiftEditorModelTests.swift; sourceTree = "<group>"; };
 		B5F3CB7223DCD5F08AB88368 /* LiveActivityDisplayTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityDisplayTests.swift; sourceTree = "<group>"; };
+		B63F50BB7E194A72AE0E1FF9 /* AppTourUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppTourUITests.swift; sourceTree = "<group>"; };
 		B8192A0C6A92B08C41F565C7 /* LiveActivityStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityStyle.swift; sourceTree = "<group>"; };
 		B8E1BE571647BE20FD5982C9 /* LogReportFixture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogReportFixture.swift; sourceTree = "<group>"; };
 		B9BFB687B47602C4EA8F2002 /* LogComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogComponents.swift; sourceTree = "<group>"; };
@@ -521,7 +521,6 @@
 				C5569F51A2E419461179C401 /* LogModel.swift */,
 				98FCA95A3EB0589F02E5A545 /* LogScenario.swift */,
 				D8590FEBE4E0A048FDFC91F7 /* LogView.swift */,
-				377EF56158A674B7498DB738 /* LogWording.swift */,
 				D3D5A2D3A7DB4E6374DCB6A6 /* ShiftDraft.swift */,
 				A6A8FB32F6AAEA21AA74AEE7 /* ShiftEditorModel.swift */,
 				3759E7FDBE2DBB6FD394D128 /* ShiftEditorView.swift */,
@@ -637,6 +636,7 @@
 			children = (
 				7C111B64C0C07020B9DCCDD2 /* TimeCardUITests.swift */,
 				A91872FA180589C0A3E50380 /* Clock */,
+				91EFE18303082927054CF022 /* Integration */,
 				C280E5962FB60731D2B95AE1 /* Intents */,
 				BC450B847D170EF613D07642 /* LiveActivity */,
 				C86DB9037F57D480F2260DAB /* LogReport */,
@@ -704,6 +704,14 @@
 				046C540C6248C9D5FB7A3E5D /* Voice */,
 			);
 			path = Intents;
+			sourceTree = "<group>";
+		};
+		91EFE18303082927054CF022 /* Integration */ = {
+			isa = PBXGroup;
+			children = (
+				B63F50BB7E194A72AE0E1FF9 /* AppTourUITests.swift */,
+			);
+			path = Integration;
 			sourceTree = "<group>";
 		};
 		921F82DA2104EF0E61437A4A /* Entities */ = {
@@ -1123,6 +1131,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E2E1F25BCF2A97279C69637D /* AppTourUITests.swift in Sources */,
 				56196C19D16D487B1AA1A347 /* ClockFlowUITests.swift in Sources */,
 				0A0CF0700206A6ABB115235F /* LiveActivityUITests.swift in Sources */,
 				546524BE757180C96C7AFE87 /* LogReportUITests.swift in Sources */,
@@ -1179,7 +1188,6 @@
 				F2B14E77FAB5501077E11CF3 /* LogModel.swift in Sources */,
 				03BFDC8A888EC537C0AB5C8E /* LogScenario.swift in Sources */,
 				5FE1436C2232590A373A6C7A /* LogView.swift in Sources */,
-				35A25F41DFB49A532890883B /* LogWording.swift in Sources */,
 				E0B03D5A5C903A53DE4C5503 /* MainTabView.swift in Sources */,
 				B310673E955C50C41CC35114 /* MapControls.swift in Sources */,
 				A2EB037CB8220C1F65A9D32B /* MapPainter.swift in Sources */,

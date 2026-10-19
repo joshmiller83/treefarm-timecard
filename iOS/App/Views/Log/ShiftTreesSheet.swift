@@ -14,7 +14,7 @@ struct ShiftTreesSheet: View {
                     if let shift = session.snapshot.shifts[shiftId], let farm = session.farm {
                         content(shift: shift, calendar: FarmCalendar(farm: farm))
                     } else {
-                        Text(LogWording.missing)
+                        Text(ShiftMessages.missing)
                             .font(.body)
                             .foregroundStyle(Palette.ink)
                             .card()

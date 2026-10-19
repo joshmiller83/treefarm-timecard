@@ -143,7 +143,7 @@ private struct EditorForm: View {
         }
         .interactiveDismissDisabled(hasChanges)
         // An alert, not a popover: both answers stay on screen as big targets.
-        .alert(LogWording.discardQuestion, isPresented: $confirmingDiscard) {
+        .alert(ShiftMessages.discardQuestion, isPresented: $confirmingDiscard) {
             Button("Discard changes", role: .destructive) { dismiss() }
             Button("Keep editing", role: .cancel) {}
         }
@@ -613,7 +613,7 @@ private struct MissingShift: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text(LogWording.missing)
+            Text(ShiftMessages.missing)
                 .font(.body)
                 .foregroundStyle(Palette.ink)
                 .fixedSize(horizontal: false, vertical: true)

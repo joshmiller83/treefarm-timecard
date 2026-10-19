@@ -55,7 +55,7 @@ struct ClockStatus: Equatable {
         let earlierDay = Hours.isStale(open, now: now, calendar: cal)
         let label = earlierDay ? "worked this shift" : "worked today"
         if earlierDay || Hours.forgotToClockOut(open, now: now) {
-            stale = "You’ve been clocked in since \(Fmt.day(open.start, cal)) at \(Fmt.time(open.start, cal))."
+            stale = Speech.clockedInSince(open, calendar: cal)
         }
         // A shift from an earlier day names the day, so 7:00 AM can't read as later today.
         let clockedIn = earlierDay

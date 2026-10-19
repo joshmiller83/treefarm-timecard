@@ -395,7 +395,7 @@ struct TreeMapModelTests {
         let f = TreeMapFixture()
         f.failSaves = true
         f.model.tap(at: f.rowNumber(f.block1, row: 5))
-        #expect(f.model.message == MapMessage(TreesWording.saveFailed, tone: .warning))
+        #expect(f.model.message == MapMessage(Speech.saveFailed, tone: .warning))
         #expect(!f.model.canUndo)
         #expect(f.model.rowSummary(RowRef(blockId: f.block1.id, row: 4))?.shaped == 0)
     }
@@ -581,8 +581,8 @@ struct TreeMapModelTests {
         note.deletedAt = f.now
         f.snapshot.apply(.treeNote(note))
         f.sync()
-        #expect(f.model.editNote(note.id, body: "Staked it twice", flag: .none) == TreesWording.noteGone)
-        #expect(f.model.deleteNote(note.id) == TreesWording.noteGone)
+        #expect(f.model.editNote(note.id, body: "Staked it twice", flag: .none) == MarkMessages.noteGone)
+        #expect(f.model.deleteNote(note.id) == MarkMessages.noteGone)
         #expect(f.saved.isEmpty)
     }
 

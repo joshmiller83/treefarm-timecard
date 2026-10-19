@@ -188,7 +188,7 @@ struct MarkingForBar: View {
                         model.useOpenShift()
                     }
                 } else if let stale = model.staleShiftNote {
-                    note("\(stale) \(TreesWording.fixTheTimes)", button: "Fix the times", id: "trees-fix-times", icon: "exclamationmark.triangle.fill") {
+                    note("\(stale) \(Speech.fixTheTimes)", button: "Fix the times", id: "trees-fix-times", icon: "exclamationmark.triangle.fill") {
                         fixShift(shift.id)
                     }
                     .accessibilityIdentifier("trees-stale-shift")

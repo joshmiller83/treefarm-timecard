@@ -147,7 +147,7 @@ struct StatusCardView: View {
     private func staleWarning(_ text: String) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             Label {
-                Text("\(text) If you forgot to clock out, fix the times.")
+                Text("\(text) \(Speech.fixTheTimes)")
                     .fixedSize(horizontal: false, vertical: true)
             } icon: {
                 Image(systemName: "exclamationmark.triangle.fill")

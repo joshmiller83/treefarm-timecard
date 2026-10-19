@@ -283,7 +283,7 @@ struct NoteEditorView: View {
     private func save() {
         if let id = draft.noteId {
             if let problem = model.editNote(id, body: draft.body, flag: draft.flag) {
-                if problem == TreesWording.noteGone {
+                if problem == MarkMessages.noteGone {
                     onGone(problem)
                     dismiss()
                 } else {

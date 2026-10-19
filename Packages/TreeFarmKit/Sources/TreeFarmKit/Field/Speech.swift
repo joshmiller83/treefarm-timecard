@@ -8,6 +8,16 @@ public enum Speech {
     public static let blockGone = "That block isn’t on the map anymore."
     public static let emptyNote = "The note was empty, so nothing was saved."
     public static let nothingToUndo = "There’s nothing to undo."
+    /// The phone couldn't write the change (the app, Siri and the lock screen say the same).
+    public static let saveFailed = "Couldn’t save that on this phone. Try again."
+
+    /// A shift left open from an earlier day: "You’ve been clocked in since Sat, Oct 17 at 7:00 AM."
+    public static func clockedInSince(_ shift: Shift, calendar: FarmCalendar) -> String {
+        "You’ve been clocked in since \(Fmt.day(shift.start, calendar)) at \(Fmt.time(shift.start, calendar))."
+    }
+
+    /// Follows `clockedInSince` where the times can be fixed.
+    public static let fixTheTimes = "If you forgot to clock out, fix the times."
 
     /// "Block 2" for short names like "2" or "A"; longer names ("North 3") as they are.
     public static func blockTitle(_ block: Block) -> String {

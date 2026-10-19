@@ -216,7 +216,7 @@ struct VoiceCard: View {
                 try new.save(to: session.store)
                 problem = nil
             } catch {
-                problem = "Couldn’t save that on this phone. Try again."
+                problem = Speech.saveFailed
             }
         }
     }
