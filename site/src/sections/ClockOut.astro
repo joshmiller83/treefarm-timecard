@@ -262,8 +262,13 @@ const alt = {
       );
       io.observe(t);
     };
-    watch();
-    addEventListener('resize', watch, { passive: true });
+    // After parsing: reading innerHeight mid-parse forces a layout of the partial document.
+    var start = function () {
+      watch();
+      addEventListener('resize', watch, { passive: true });
+    };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true });
+    else start();
   })();
 </script>
 
