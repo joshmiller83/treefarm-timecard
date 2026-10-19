@@ -1,43 +1,862 @@
 ---
 /**
- * THE FIELD · 2:15 PM. PLACEHOLDER from the foundation: the section team owns this file
- * and src/scripts/scenes/field.ts. Spec: jq '.sections[] | select(.id=="field")' docs/landing/brief.json
+ * THE FIELD · 2:15 PM. The awe beat: 8,540 trees as dots, then what the map means and how to
+ * use it, then a working copy to try.
+ * Spec: jq '.sections[] | select(.id=="field")' docs/landing/brief.json (and decisions.md).
+ *
+ * MOTION (scene: src/scripts/scenes/field.ts, timing: ./field/plan.ts + BEATS in fieldstate.ts)
+ *   A full-bleed sticky frame. The stage phone leaves, the field arrives tilted to the horizon,
+ *   flattens, the counters roll, today's rows flip to gold, the camera zooms to block 2 rows
+ *   28–40 for the row 37 demo (tap, fill, Undo), the season flips (notes stay), the camera pulls
+ *   out and the phone comes back on the Trees tab. Three cards fade in at their beats.
+ * STATIC (reduced motion, no JS): the copy, the Trees tab, the whole field with its counter strip
+ *   and legend, the close-up with row numbers and the note flag, and the three points as text.
+ * AFTER THE TRACK: Try it (./field/TryIt.astro).
  */
 import SectionShell from '../components/SectionShell.astro';
 import FieldMap from '../components/FieldMap.astro';
-import { FIELD_TREES, MOMENTS, fieldShapedAt, fmtCount, treesAt } from '../data/ledger';
+import Phone from '../components/phone/Phone.astro';
+import Screen from '../components/phone/Screen.astro';
+import TreesTab from '../components/app/TreesTab.astro';
+import Icon from '../components/app/Icon.astro';
+import TryIt from './field/TryIt.astro';
+import { FIELD, FIELD_TREES, MOMENTS, OLD_NOTE, fmtCount, fmtTime, positionAt } from '../data/ledger';
+import { FLAG_PATH, ZOOM_TARGET, zoomSummary } from '../scripts/fieldstate';
+import { odometerHTML } from '../scripts/odometer';
+import { COUNTS, stripText, zoomEdgeFade } from './field/plan';
+import { MAX_ZOOM_PITCH } from '../scripts/fieldmap';
+
+const Z = ZOOM_TARGET;
+/** The row the demo taps: the next row at 2:15 PM (37). */
+const nextRow = positionAt(MOMENTS.field).row;
+const counts = [
+  { key: 'trees', value: COUNTS.trees, label: 'trees' },
+  { key: 'shaped', value: COUNTS.shaped, label: 'shaped' },
+  { key: 'today', value: COUNTS.today, label: 'today' },
+] as const;
+const phoneLabel = `Time Card’s Trees tab at ${fmtTime(MOMENTS.field)}, ${FIELD.name}, zoom L, One mode. ${zoomSummary(Z, MOMENTS.field)}`;
+/** The static close-up's soft edges, in pitches (CSS turns them into px at its drawn scale). */
+const ef = zoomEdgeFade(Z);
+const zoomVars = [
+  `--tw:${ef.w}`,
+  `--th:${ef.h}`,
+  `--cap:${MAX_ZOOM_PITCH}px`,
+  `--l0:${ef.left.clear}`,
+  `--l1:${ef.left.solid.toFixed(3)}`,
+  `--r1:${ef.right.solid.toFixed(3)}`,
+  `--r0:${ef.right.clear}`,
+  `--t0:${ef.top.clear}`,
+  `--t1:${ef.top.solid.toFixed(3)}`,
+  `--b1:${ef.bottom.solid.toFixed(3)}`,
+  `--b0:${ef.bottom.clear}`,
+].join(';');
 ---
 
 <SectionShell id="field">
   <Fragment slot="intro">
     <p>
-      A farm has fields. A field has blocks, laid out in rows like the ground. This one has 14 blocks of 61 rows, with 10
-      trees to a row. That’s {fmtCount(FIELD_TREES)} trees. Gold is what you shaped this shift. Green was shaped earlier.
-      Rings are still to do.
-    </p>
-    <p class="mono counter">
-      {fmtCount(FIELD_TREES)} trees · {fmtCount(fieldShapedAt(MOMENTS.field))} shaped · {treesAt(MOMENTS.field)} today
+      A farm has fields. A field has blocks, laid out in rows like the ground. This one has {FIELD.blocks} blocks of {
+        FIELD.rowsPerBlock
+      } rows, with {FIELD.treesPerRow} trees to a row. That’s {fmtCount(FIELD_TREES)} trees.
+      <span class="fm-key"><span class="sw sw-today" aria-hidden="true"></span>Gold is what you shaped this shift.</span>{' '}
+      <span class="fm-key"><span class="sw sw-earlier" aria-hidden="true"></span>Green was shaped earlier.</span>{' '}
+      <span class="fm-key"><span class="sw sw-ring" aria-hidden="true"></span>Rings are still to do.</span>
     </p>
   </Fragment>
-  <div class="beat" data-beat="1" style="--at:.45"><p>Tap a row number to mark the whole row.</p></div>
-  <div class="beat" data-beat="2" style="--at:.65"><p>Mark one tree, fill between two trees, or erase. Undo is one tap.</p></div>
-  <div class="beat" data-beat="3" style="--at:.85"><p>Marks start fresh each season. Notes stay with the tree.</p></div>
 
-  <figure class="shot" slot="figure">
-    <FieldMap />
-    <figcaption>The whole field: gold for this shift, green for earlier, rings still to do.</figcaption>
-  </figure>
+  <Fragment slot="figure">
+    <figure class="fm-fig fm-overview" data-field-fig>
+      <div class="fm-top">
+        <p class="fm-counts" data-field-counts>
+          <span class="sr-only">{stripText(COUNTS)}</span>
+          {
+            counts.map((c, i) => (
+              <Fragment>
+                {i > 0 && (
+                  <span class="fm-sep" aria-hidden="true">
+                    ·
+                  </span>
+                )}
+                <span class={`fm-count fm-count--${c.key}`} aria-hidden="true">
+                  <span
+                    class="fm-n odo"
+                    data-field-count={c.key}
+                    data-odo-text={fmtCount(c.value)}
+                    style={`--w:${fmtCount(c.value).length}`}
+                    set:html={odometerHTML(fmtCount(c.value))}
+                  />
+                  <span class="fm-l">{c.label}</span>
+                </span>
+              </Fragment>
+            ))
+          }
+        </p>
+        <span class="fm-season" aria-hidden="true" data-field-season>
+          <Icon name="leaf" size="15px" />
+          <span class="fm-season-clip">
+            <span class="fm-season-col" data-field-season-col>
+              <span>This season</span>
+              <span>Next season</span>
+            </span>
+          </span>
+        </span>
+      </div>
 
-  <div slot="after" class="wrap tryit-slot">
-    <h3 class="display-m">Try it. Tap a row number.</h3>
-    <p class="muted">This is a small copy of the map. Nothing you do here is saved.</p>
+      <div class="fm-cam" data-field-cam>
+        <FieldMap class="fm-map" />
+        <div class="fm-edges motion-only" aria-hidden="true" data-field-edges></div>
+        <div class="fm-overlay motion-only" aria-hidden="true">
+          <span class="fm-undo" data-field-undo aria-hidden="true">
+            <Icon name="undo" size="16px" />
+            Undo
+          </span>
+        </div>
+      </div>
+
+      <div class="fm-sheet motion-only" aria-hidden="true" data-field-sheet></div>
+      <div class="fm-foot">
+        <ul class="fm-legend" aria-label="Map key" data-field-legend>
+          <li><span class="sw sw-today" aria-hidden="true"></span>Today</li>
+          <li><span class="sw sw-earlier" aria-hidden="true"></span>Shaped earlier</li>
+          <li><span class="sw sw-ring" aria-hidden="true"></span>Not yet</li>
+          <li data-field-legend-note>
+            <svg class="sw-flag" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d={FLAG_PATH}></path></svg>
+            Note
+          </li>
+        </ul>
+      </div>
+      <figcaption>
+        {FIELD.name} at {fmtTime(MOMENTS.field)}, this season: gold for this shift, green for earlier, rings still to do.
+      </figcaption>
+    </figure>
+    <script is:inline>
+      // Phones always get the upright overview: the map's data-orientation hook, set before its renderer starts.
+      (function () {
+        var c = document.querySelector('#field [data-field-fig] canvas[data-fieldmap]');
+        if (c && matchMedia('(max-width: 599.98px)').matches) c.setAttribute('data-orientation', 'portrait');
+      })();
+    </script>
+
+    <figure class="fm-fig fm-zoomfig static-only" style={zoomVars}>
+      <FieldMap view="zoom" class="fm-zoommap" />
+      <figcaption>
+        Up close: block {Z.block}, rows {Z.from} to {Z.to}, with row numbers on the left. The flag on row {OLD_NOTE.row}{' '}
+        is an older note, and it stays when next season’s marks start fresh.
+      </figcaption>
+    </figure>
+
+    <figure class="shot fm-shot" data-stage-shot>
+      <Phone label={phoneLabel}>
+        <div class="screens" data-screens>
+          <Screen stateId="trees-1415-block2" alt={phoneLabel} tone="light" final>
+            <TreesTab block={Z.block} rows={[Z.from, Z.to]} />
+          </Screen>
+        </div>
+      </Phone>
+      <figcaption>The same rows in the Trees tab. Tap a row number, or pick One, Fill or Erase.</figcaption>
+    </figure>
+
+    <div class="fm-haze motion-only" aria-hidden="true" data-field-haze></div>
+  </Fragment>
+
+  <ul slot="extras" class="fm-cards" data-field-cards>
+    <li class="fm-card" data-field-card="1">
+      <span class="fm-card-icon num" aria-hidden="true">{nextRow}</span>
+      <p>Tap a row number to mark the whole row.</p>
+    </li>
+    <li class="fm-card" data-field-card="2">
+      <span class="fm-card-icon" aria-hidden="true"><Icon name="undo" size="20px" /></span>
+      <p>
+        Zoom from the whole field down to big dots that are easy to hit. Mark one tree, fill between two trees, or erase.
+        Undo is one tap.
+      </p>
+    </li>
+    <li class="fm-card" data-field-card="3">
+      <span class="fm-card-icon" aria-hidden="true">
+        <svg class="sw-flag" viewBox="0 0 24 24" focusable="false"><path d={FLAG_PATH}></path></svg>
+      </span>
+      <p>Marks start fresh each season. Notes stay with the tree.</p>
+    </li>
+  </ul>
+
+  <div slot="after" class="wrap fm-after">
+    <TryIt />
   </div>
 </SectionShell>
 
 <style>
-  .tryit-slot {
-    padding-block: 48px 96px;
+  /* ---------- Shared pieces ---------- */
+  .fm-fig {
+    margin: 0;
+    min-width: 0;
+    position: relative;
+  }
+  .fm-fig figcaption {
+    margin-top: 14px;
+    max-width: 52ch;
+    font-size: var(--text-small);
+    line-height: 1.5;
+    color: var(--on-stage-muted);
+  }
+
+  /* Legend swatches: the page map's dots (gold 20% larger, a 1.5px ring), and the rust flag. */
+  .sw {
+    display: inline-block;
+    flex: none;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    vertical-align: 0.02em;
+  }
+  .sw-today {
+    width: 12px;
+    height: 12px;
+    background: var(--dot-today);
+  }
+  .sw-earlier {
+    background: var(--dot-earlier);
+  }
+  .sw-ring {
+    box-shadow: inset 0 0 0 1.5px var(--dot-ring);
+  }
+  .sw-flag {
+    flex: none;
+    width: 16px;
+    height: 16px;
+    fill: #c2462a;
+    stroke: var(--on-stage);
+    stroke-width: 1.6px;
+    stroke-linejoin: round;
+    paint-order: stroke;
+  }
+  /* The colour key: one line each, swatches centred in one column so the words line up. */
+  .fm-key {
     display: grid;
-    gap: 12px;
+    grid-template-columns: 14px auto;
+    align-items: center;
+    justify-content: start;
+    column-gap: 0.55em;
+  }
+  .fm-key:first-of-type {
+    margin-top: 0.45em;
+  }
+  .fm-key .sw {
+    justify-self: center;
+  }
+
+  .fm-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px 20px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+  }
+  .fm-counts {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 12px;
+    font-family: var(--font-mono);
+    font-weight: 500;
+    font-size: 18px;
+    line-height: 1.2;
+    color: var(--on-stage);
+    font-variant-numeric: tabular-nums;
+  }
+  .fm-count {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.5ch;
+    white-space: nowrap;
+  }
+  .fm-n {
+    justify-content: flex-end;
+    min-width: calc(var(--w) * 1ch);
+  }
+  .fm-count--today .fm-n {
+    color: var(--gold-lit);
+  }
+  .fm-l {
+    color: var(--on-stage-muted);
+  }
+  .fm-sep {
+    color: var(--on-stage-muted);
+  }
+
+  .fm-season {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 34px;
+    padding: 0 14px 0 12px;
+    border-radius: 999px;
+    background: var(--card-dark);
+    border: 1px solid var(--stage-line);
+    font-family: var(--font-mono);
+    font-weight: 500;
+    font-size: 13px;
+    color: var(--on-stage);
+  }
+  .fm-season :global(.icon) {
+    color: var(--fir-lit);
+  }
+  .fm-season-clip {
+    display: inline-block;
+    height: 1.3em;
+    line-height: 1.3em;
+    overflow: hidden;
+  }
+  .fm-season-col {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .fm-cam {
+    position: relative;
+    min-width: 0;
+  }
+  /* The close-up's vignette: the stage tint itself over the box's edges, so the dimmed context
+     fades into the page (the scene aligns the gradient to the viewport; opacity follows the camera). */
+  .fm-edges {
+    position: absolute;
+    inset: -1px;
+    pointer-events: none;
+    opacity: 0;
+    background-image: var(--tint-field);
+    background-repeat: no-repeat;
+    background-size: 100% var(--edge-vh, 100svh);
+    background-position: 0 calc(var(--edge-y, 0px) + var(--rise, 0px));
+    --ex: 112px;
+    --ey: 72px;
+    -webkit-mask-image:
+      linear-gradient(90deg, #000, transparent var(--ex), transparent calc(100% - var(--ex)), #000),
+      linear-gradient(180deg, #000, transparent var(--ey), transparent calc(100% - var(--ey)), #000);
+    mask-image:
+      linear-gradient(90deg, #000, transparent var(--ex), transparent calc(100% - var(--ex)), #000),
+      linear-gradient(180deg, #000, transparent var(--ey), transparent calc(100% - var(--ey)), #000);
+  }
+
+  .fm-overlay {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+  .fm-undo {
+    position: absolute;
+    left: var(--ux, 75%);
+    top: var(--uy, 50%);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 36px;
+    padding: 0 14px 0 11px;
+    margin-top: -18px;
+    border-radius: 999px;
+    background: #f2f5ef;
+    color: var(--ink);
+    font-weight: 600;
+    font-size: 15px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+    opacity: 0;
+    white-space: nowrap;
+  }
+
+  .fm-foot {
+    position: relative;
+    margin-top: 16px;
+  }
+  /* The Undo toast takes the legend's place for a moment (the scene tweens --toast-dim). */
+  .fm-overview[data-toast] .fm-legend {
+    opacity: calc(1 - var(--toast-dim, 0));
+  }
+  /* Phones only: the scrim under the card sheet. */
+  .fm-sheet {
+    display: none;
+  }
+  .fm-legend {
+    list-style: none;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 18px;
+    font-size: 14px;
+    line-height: 1.3;
+    color: var(--on-stage);
+  }
+  .fm-legend li {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 24px;
+  }
+  .fm-legend .sw {
+    margin-inline: 1px;
+  }
+
+  /* The three points (cards under motion, a plain list without). */
+  .fm-cards {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    gap: 20px;
+  }
+  .fm-card {
+    display: grid;
+    grid-template-columns: 40px minmax(0, 1fr);
+    gap: 14px;
+    align-items: start;
+  }
+  .fm-card p {
+    color: var(--on-stage);
+    font-size: 1.0625rem;
+    line-height: 1.5;
+    max-width: 40ch;
+  }
+  .fm-card-icon {
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    background: rgba(136, 207, 164, 0.1);
+    color: var(--gold-lit);
+    font-size: 15px;
+    font-weight: 600;
+  }
+  .fm-card-icon .sw-flag {
+    width: 20px;
+    height: 20px;
+  }
+
+  .fm-after {
+    padding-block: 24px 112px;
+  }
+
+  /* Narrow screens: the counter strip becomes three stats, the legend tightens. */
+  @media (max-width: 599.98px) {
+    .fm-counts {
+      display: grid;
+      grid-template-columns: repeat(3, auto);
+      justify-content: space-between;
+      width: 100%;
+      gap: 0;
+      font-size: 20px;
+    }
+    .fm-sep {
+      display: none;
+    }
+    .fm-count {
+      display: grid;
+      gap: 2px;
+    }
+    .fm-n {
+      justify-content: flex-start;
+    }
+    .fm-l {
+      font-family: var(--font-body);
+      font-size: 12px;
+    }
+    .fm-season {
+      margin-left: auto;
+    }
+    .fm-legend {
+      gap: 6px 14px;
+      font-size: 12.5px;
+      justify-content: center;
+    }
+  }
+
+  /* ---------- STATIC: no motion (reduced motion, no JS) ---------- */
+  :global(html:not(.motion) #field .frame),
+  :global(html:not(.motion) #field .frame-grid),
+  :global(html:not(.motion) #field .figure-slot),
+  :global(html:not(.motion) #field .extras) {
+    display: contents;
+  }
+  :global(html:not(.motion)) .fm-overview {
+    order: 1;
+  }
+  :global(html:not(.motion)) .fm-zoomfig {
+    order: 2;
+    width: min(100%, 420px);
+    justify-self: center;
+  }
+  :global(html:not(.motion)) .fm-cards {
+    order: 3;
+    padding-left: 2px;
+  }
+  :global(html:not(.motion)) .fm-shot {
+    order: 4;
+  }
+  /*
+   * The close-up's dimmed context (block 1's last column, rows 27 and 41) fades out at the edges
+   * instead of stopping at a hard line; rows 28–40, tree 10 and the row numbers stay whole. The
+   * stops are pitches from plan.ts (zoomEdgeFade) at the scale the map draws: the box has the
+   * close-up's aspect, so the pitch is min(24px, width / rect width), centred.
+   */
+  .fm-zoomfig {
+    container-type: inline-size;
+  }
+  :global(html:not(.motion)) .fm-zoomfig :global(.fieldmap) {
+    --s: min(var(--cap), 100cqw / var(--tw));
+    --mx: calc((100cqw - var(--tw) * var(--s)) / 2);
+    --my: calc((100cqw * var(--th) / var(--tw) - var(--th) * var(--s)) / 2);
+    --fx: linear-gradient(
+      90deg,
+      transparent calc(var(--mx) + var(--l0) * var(--s)),
+      #000 calc(var(--mx) + var(--l1) * var(--s)),
+      #000 calc(100% - var(--mx) - var(--r1) * var(--s)),
+      transparent calc(100% - var(--mx) - var(--r0) * var(--s))
+    );
+    --fy: linear-gradient(
+      180deg,
+      transparent calc(var(--my) + var(--t0) * var(--s)),
+      #000 calc(var(--my) + var(--t1) * var(--s)),
+      #000 calc(100% - var(--my) - var(--b1) * var(--s)),
+      transparent calc(100% - var(--my) - var(--b0) * var(--s))
+    );
+    -webkit-mask-image: var(--fx), var(--fy);
+    -webkit-mask-composite: source-in;
+    mask-image: var(--fx), var(--fy);
+    mask-composite: intersect;
+  }
+  @media (min-width: 900px) {
+    :global(html:not(.motion) #field .beats) {
+      grid-row: 1;
+    }
+    :global(html:not(.motion)) .fm-shot {
+      grid-column: 7 / -1;
+      grid-row: 1;
+    }
+    :global(html:not(.motion)) .fm-overview {
+      grid-column: 1 / -1;
+      grid-row: 2;
+      margin-top: 24px;
+    }
+    :global(html:not(.motion)) .fm-zoomfig {
+      grid-column: 1 / span 5;
+      grid-row: 3;
+      width: 100%;
+    }
+    :global(html:not(.motion)) .fm-cards {
+      grid-column: 7 / -1;
+      grid-row: 3;
+      align-self: center;
+      gap: 28px;
+    }
+  }
+
+  /* ---------- MOTION, both layouts ---------- */
+  :global(html.motion #field .frame) {
+    overflow: clip;
+  }
+  :global(html.motion) .fm-fig figcaption {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  :global(html.motion) .fm-cam {
+    transform-origin: 50% 100%;
+  }
+  /* The heading fades line by line just before it reaches the field's own content (the scene sets
+     --cut from its position: plan.ts headCut), so nothing runs under the header, rail or strip. */
+  :global(html.motion #field .beat-head) {
+    -webkit-mask-image: linear-gradient(180deg, transparent calc(var(--cut, 0px) - 64px), #000 var(--cut, 0px));
+    mask-image: linear-gradient(180deg, transparent calc(var(--cut, 0px) - 64px), #000 var(--cut, 0px));
+  }
+  /* The moving layers are promoted only while the section is near (the scene toggles .fm-live). */
+  :global(html.motion #field.fm-live) .fm-overview {
+    will-change: opacity, transform;
+  }
+  :global(html.motion #field.fm-live) .fm-haze,
+  :global(html.motion #field.fm-live) .fm-edges,
+  :global(html.motion #field.fm-live) .fm-shot {
+    will-change: opacity;
+  }
+  :global(html.motion #field.fm-live) .fm-sheet {
+    will-change: opacity, translate;
+  }
+  :global(html.motion) .fm-cam :global(.fieldmap) {
+    height: 100%;
+    aspect-ratio: auto;
+  }
+  :global(html.motion) .fm-top {
+    margin: 0;
+  }
+  :global(html.motion) .fm-foot {
+    margin: 0;
+  }
+  /* The horizon haze over the tilted field's far rows: a flat mid-tint with soft edges, so it never
+     shows a seam wherever the frame sits (on phones it rises with the frame). */
+  .fm-haze {
+    position: absolute;
+    inset: 0 calc(-1 * var(--gutter));
+    pointer-events: none;
+    background: #08140d;
+    -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 12%, #000 36%, transparent 64%);
+    mask-image: linear-gradient(180deg, transparent 0%, #000 12%, #000 36%, transparent 64%);
+  }
+  :global(html.motion) .fm-card {
+    background: var(--card-dark);
+    border: 1px solid var(--stage-line);
+    border-radius: var(--radius-card);
+    padding: 16px 18px;
+    box-shadow: 0 18px 40px rgba(2, 8, 5, 0.45);
+    align-items: center;
+  }
+  :global(html.motion) .fm-card p {
+    font-size: 1rem;
+  }
+  /* The scene fades each card in at its beat. */
+  :global(html.motion) .fm-card {
+    opacity: 0;
+  }
+  :global(html.motion) .fm-cards {
+    z-index: 3;
+  }
+
+  /* ---------- MOTION, desktop (≥900px): the full-bleed field ---------- */
+  @media (min-width: 900px) {
+    /* The heading starts just under where it begins to fade, whatever its height. */
+    :global(html.motion #field .beat-head) {
+      --anchor: calc(var(--chrome-h) + 150px);
+      translate: 0 0;
+    }
+    /* The tilted field's far rows sit lower on a desktop screen: haze them into the horizon, and
+       its sides too, so the wide tilted field fades out before the viewport cuts its labels. */
+    .fm-haze {
+      /* The stage tint itself (the frame is the viewport here), so its side bands never show. */
+      background: var(--tint-field);
+      -webkit-mask-image:
+        linear-gradient(180deg, transparent 0%, #000 10%, #000 58%, transparent 80%),
+        linear-gradient(90deg, #000, transparent 9%, transparent 91%, #000);
+      mask-image:
+        linear-gradient(180deg, transparent 0%, #000 10%, #000 58%, transparent 80%),
+        linear-gradient(90deg, #000, transparent 9%, transparent 91%, #000);
+    }
+    :global(html.motion #field .frame-grid) {
+      display: block;
+      max-width: none;
+      height: 100%;
+      padding: 0;
+    }
+    :global(html.motion #field .figure-slot) {
+      display: block;
+      position: absolute;
+      inset: 0;
+    }
+    :global(html.motion) .fm-overview {
+      --foot-h: 112px;
+      position: absolute;
+      top: calc(var(--chrome-h) + 44px);
+      bottom: 24px;
+      left: 0;
+      right: 0;
+      margin-inline: auto;
+      width: min(1180px, 92%);
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr) var(--foot-h);
+      row-gap: 16px;
+    }
+    :global(html.motion) .fm-cards {
+      position: absolute;
+      right: calc((100% - min(1180px, 92%)) / 2);
+      bottom: 24px;
+      width: min(470px, 42%);
+      height: 112px;
+      display: block;
+    }
+    :global(html.motion) .fm-card {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 0;
+    }
+    /* Try it sits in the left columns, beside the stage phone (back on the Trees tab). */
+    :global(html.motion) .fm-after {
+      display: grid;
+      grid-template-columns: repeat(12, minmax(0, 1fr));
+      column-gap: var(--col-gap);
+    }
+    :global(html.motion) .fm-after > :global(*) {
+      grid-column: 1 / span 6;
+    }
+  }
+
+  /* ---------- MOTION, mobile (<900px): the map owns the sticky frame ----------
+     The counter strip on top; the map from there to the frame's foot (portrait, as wide as the
+     height allows); the legend at the foot and the card sheet above it lie over the map's last
+     rows with a scrim. The scene lifts the close-up clear of the cards and places the season chip. */
+  @media (max-width: 899.98px) {
+    :global(html.motion #field .frame) {
+      height: calc(100svh - var(--sticky-top-mob));
+    }
+    :global(html.motion #field .frame-grid),
+    :global(html.motion #field .figure-slot) {
+      display: block;
+      position: relative;
+      height: 100%;
+    }
+    :global(html.motion) .fm-overview {
+      width: 100%;
+      height: 100%;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      row-gap: 10px;
+    }
+    /* The strip keeps a solid ground of its own: the risen close-up's context slides under it. */
+    :global(html.motion) .fm-top {
+      display: block;
+      position: relative;
+      z-index: 2;
+    }
+    :global(html.motion) .fm-top::before {
+      content: '';
+      position: absolute;
+      z-index: -1;
+      left: calc(-1 * var(--gutter));
+      right: calc(-1 * var(--gutter));
+      top: -4px;
+      bottom: -9px;
+      background: linear-gradient(180deg, #08140e calc(100% - 9px), rgba(8, 20, 14, 0));
+      pointer-events: none;
+    }
+    :global(html.motion) .fm-cam {
+      grid-row: 2;
+      min-height: 0;
+    }
+    /* The close-up rises clear of the card sheet (the scene sets --rise; the camera's own transform
+       belongs to GSAP, so the rise moves what is inside it). */
+    :global(html.motion) .fm-cam > :global(*) {
+      translate: 0 calc(-1 * var(--rise, 0px));
+    }
+    :global(html.motion) .fm-counts {
+      display: grid;
+      grid-template-columns: repeat(3, auto);
+      justify-content: space-between;
+      gap: 0;
+      font-size: 20px;
+    }
+    :global(html.motion) .fm-sep {
+      display: none;
+    }
+    :global(html.motion) .fm-count {
+      display: grid;
+      gap: 2px;
+    }
+    :global(html.motion) .fm-n {
+      justify-content: flex-start;
+    }
+    :global(html.motion) .fm-l {
+      font-family: var(--font-body);
+      font-size: 12px;
+    }
+    /* The season chip shows only for the season beat, just above row 28 (the scene sets --season-top). */
+    :global(html.motion) .fm-season {
+      position: absolute;
+      top: var(--season-top, 72px);
+      right: 0;
+      z-index: 2;
+      min-height: 30px;
+      font-size: 12px;
+      opacity: 0;
+    }
+    /* The legend at the frame's foot, over a short scrim of its own. */
+    :global(html.motion) .fm-foot {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 8px;
+      z-index: 2;
+      min-height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    :global(html.motion) .fm-foot::before {
+      content: '';
+      position: absolute;
+      z-index: -1;
+      left: calc(-1 * var(--gutter));
+      right: calc(-1 * var(--gutter));
+      bottom: -8px;
+      height: calc(100% + 8px + 22px);
+      background: linear-gradient(0deg, #0c1d14 calc(100% - 22px), rgba(12, 29, 20, 0));
+      pointer-events: none;
+    }
+    :global(html.motion) .fm-legend {
+      gap: 6px 14px;
+      font-size: 12.5px;
+      justify-content: center;
+    }
+    /* The scrim under the card sheet: up while a card shows, a little above the tallest card. */
+    :global(html.motion) .fm-sheet {
+      display: block;
+      position: absolute;
+      z-index: 1;
+      left: calc(-1 * var(--gutter));
+      right: calc(-1 * var(--gutter));
+      bottom: 0;
+      height: var(--sheet-h, 200px);
+      background: linear-gradient(0deg, #0c1d14 calc(100% - 34px), rgba(12, 29, 20, 0.8) calc(100% - 20px), rgba(12, 29, 20, 0));
+      opacity: 0;
+      pointer-events: none;
+    }
+    /* The cards sit just above the legend, one at a time. */
+    :global(html.motion) .fm-cards {
+      position: absolute;
+      left: var(--gutter);
+      right: var(--gutter);
+      bottom: calc(16px + var(--fm-foot, 28px));
+      height: 0;
+      display: block;
+    }
+    :global(html.motion) .fm-card {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+    }
+    /* The frame rises into place on phones: the haze sits lower in the viewport, so a touch lighter. */
+    .fm-haze {
+      background: #0a1810;
+    }
+    /* The smallest phones: a one-line legend and tighter cards, so the close-up still clears them. */
+    @media (max-width: 359.98px) {
+      :global(html.motion) .fm-legend {
+        gap: 4px 10px;
+        font-size: 11.5px;
+      }
+      :global(html.motion) .fm-legend li {
+        gap: 6px;
+      }
+      :global(html.motion) .fm-card {
+        grid-template-columns: 32px minmax(0, 1fr);
+        gap: 12px;
+        padding: 14px 16px;
+      }
+      :global(html.motion) .fm-card-icon {
+        width: 32px;
+        height: 32px;
+        border-radius: 10px;
+      }
+      :global(html.motion) .fm-card p {
+        font-size: 0.9375rem;
+      }
+    }
+    /* The section's own phone comes back over the map at the end. */
+    :global(html.motion) .fm-shot {
+      position: absolute;
+      inset: 0 0 12px;
+      display: grid;
+      place-items: center;
+      opacity: 0;
+      pointer-events: none;
+    }
   }
 </style>

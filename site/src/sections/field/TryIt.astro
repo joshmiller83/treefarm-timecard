@@ -1,0 +1,580 @@
+---
+/**
+ * TRY IT (field section, after the track): a working copy of block 2, rows 28–40.
+ * Server markup is the 2:15 PM ledger state; tryit.ts (loaded when the strip comes near)
+ * makes it work. Brief: sections.field (bullets, layout "AFTER THE TRACK", visuals "TRY IT").
+ */
+import Icon from '../../components/app/Icon.astro';
+import { FIELD, MOMENTS, fmtCount, positionAt, treesAt } from '../../data/ledger';
+import { FLAG_PATH, ZOOM_TARGET, createTryIt } from '../../scripts/fieldstate';
+import { GRID, STATE_ATTR, cellLabel, notesHere, rowLabel } from './tryit';
+
+const t = createTryIt();
+const notes = new Map(notesHere().map((n) => [`${n.row}-${n.tree}`, n.flag] as const));
+const rows = Array.from({ length: GRID.rows }, (_, i) => GRID.from + i);
+const trees = Array.from({ length: FIELD.treesPerRow }, (_, i) => i + 1);
+const next = positionAt(MOMENTS.field).row;
+const modes = [
+  { value: 'one', label: 'One' },
+  { value: 'fill', label: 'Fill' },
+  { value: 'erase', label: 'Erase' },
+] as const;
+---
+
+<div class="tryit-c">
+<div class="tryit" data-tryit data-mode="one">
+  <div class="tryit-head">
+    <h3 id="field-try-h" class="display-m">Try it. Tap a row number.</h3>
+    <p id="field-try-help" class="tryit-help">This is a small copy of the map. Nothing you do here is saved.</p>
+  </div>
+
+  <div class="tryit-side">
+    <div class="tryit-controls">
+      <fieldset class="tryit-seg">
+        <legend class="sr-only">Tap mode</legend>
+        <span class="tryit-thumb" aria-hidden="true"></span>
+        {
+          modes.map((m) => (
+            <label class="tryit-opt">
+              <input type="radio" name="field-try-mode" value={m.value} data-try-mode checked={m.value === 'one'} />
+              <span>{m.label}</span>
+            </label>
+          ))
+        }
+      </fieldset>
+      <div class="tryit-actions">
+        <button type="button" class="tryit-btn" data-try-undo aria-disabled="true">
+          <Icon name="undo" size="18px" />
+          Undo
+        </button>
+        <button type="button" class="tryit-btn" data-try-reset>Reset</button>
+      </div>
+    </div>
+    <div class="tryit-readout">
+      <p class="tryit-status" role="status" data-try-status>Row {next} is next.</p>
+      <dl class="tryit-how">
+        <div><dt>Row number</dt><dd>marks the whole row</dd></div>
+        <div><dt>One</dt><dd>one tree at a time</dd></div>
+        <div><dt>Fill</dt><dd>tap the first tree, then the last</dd></div>
+        <div><dt>Erase</dt><dd>clears what you tap</dd></div>
+      </dl>
+      <p class="tryit-today">
+        <span class="tryit-today-n num" data-try-today>{fmtCount(treesAt(MOMENTS.field))}</span>
+        <span class="tryit-today-l">trees today</span>
+      </p>
+    </div>
+  </div>
+
+  <div class="tryit-map">
+    <div
+      role="grid"
+      class="tryit-grid"
+      data-try-grid
+      aria-label={`Block ${ZOOM_TARGET.block}, rows ${GRID.from} to ${GRID.to}`}
+      aria-describedby="field-try-help"
+      aria-rowcount={GRID.rows}
+      aria-colcount={GRID.cols}
+    >
+      {
+        rows.map((row, r) => (
+          <div role="row" class="tryit-row" aria-rowindex={r + 1}>
+            <span role="rowheader" class="tryit-rh" aria-colindex="1">
+              <button
+                type="button"
+                class="tryit-num num"
+                data-try-row={row}
+                data-next={row === next ? '' : undefined}
+                aria-label={rowLabel(t, row)}
+                tabindex={r === 0 ? '0' : '-1'}
+              >
+                {row}
+              </button>
+            </span>
+            {trees.map((tree) => {
+              const s = t.get(row, tree);
+              const note = notes.get(`${row}-${tree}`);
+              return (
+                <span role="gridcell" class="tryit-cell" aria-colindex={tree + 1}>
+                  <button
+                    type="button"
+                    class="tryit-tree"
+                    data-try-tree={`${row}-${tree}`}
+                    data-s={STATE_ATTR[s]}
+                    data-note={note ? '' : undefined}
+                    aria-label={cellLabel(row, tree, s, note)}
+                    aria-disabled={s === 1 ? 'true' : undefined}
+                    tabindex="-1"
+                    style={`--i:${tree - 1}`}
+                  >
+                    {note && (
+                      <svg class="tryit-flag" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                        <path d={FLAG_PATH} />
+                      </svg>
+                    )}
+                  </button>
+                </span>
+              );
+            })}
+          </div>
+        ))
+      }
+    </div>
+  </div>
+  <noscript><p class="tryit-noscript">Try it needs JavaScript. The map above shows the same rows.</p></noscript>
+</div>
+</div>
+
+<script>
+  // Load the controller when the strip comes within a viewport (or on first focus/tap).
+  const root = document.querySelector<HTMLElement>('[data-tryit]');
+  if (root) {
+    let started = false;
+    const start = () => {
+      if (started) return;
+      started = true;
+      import('./tryit.ts').then((m) => m.initTryIt(root)).catch((e) => console.warn('[tryit]', e));
+    };
+    if ('IntersectionObserver' in window) {
+      const io = new IntersectionObserver(
+        (entries) => {
+          if (entries.some((e) => e.isIntersecting)) {
+            io.disconnect();
+            start();
+          }
+        },
+        { rootMargin: '100% 0px' },
+      );
+      io.observe(root);
+    } else start();
+    root.addEventListener('focusin', start, { once: true });
+    root.addEventListener('pointerdown', start, { once: true });
+  }
+</script>
+
+<style>
+  /* The panel lays itself out by its own width (it sits beside the stage phone on desktop). */
+  .tryit-c {
+    container: tryit / inline-size;
+    min-width: 0;
+  }
+  .tryit {
+    --dot-pitch: 40px;
+    --dot: 22px;
+    position: relative;
+    width: 100%;
+    max-width: 760px;
+    margin-inline: auto;
+    /* Phones: a 12px inset and the grid out to 2px from the border, so each tree gets a 30px cell. */
+    padding: 28px 12px 24px;
+    background: var(--card-dark);
+    border: 1px solid var(--stage-line);
+    border-radius: 24px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: 'head' 'side' 'map';
+    row-gap: 20px;
+    color: var(--on-stage);
+  }
+  .tryit-head {
+    grid-area: head;
+    display: grid;
+    gap: 8px;
+    padding-inline: 4px;
+  }
+  .tryit-head h3 {
+    color: var(--on-stage);
+    text-wrap: balance;
+  }
+  .tryit-help {
+    color: var(--on-stage-muted);
+    font-size: var(--text-small);
+    line-height: 1.5;
+    max-width: 40ch;
+  }
+  .tryit-side {
+    grid-area: side;
+    display: grid;
+    gap: 14px;
+    min-width: 0;
+  }
+  .tryit-controls {
+    display: grid;
+    gap: 10px;
+  }
+
+  /* One | Fill | Erase: native radios under a sliding thumb */
+  .tryit-seg {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    border: 0;
+    padding: 3px;
+    margin: 0;
+    min-inline-size: 0;
+    border-radius: 14px;
+    background: rgba(136, 207, 164, 0.08);
+    box-shadow: inset 0 0 0 1px var(--stage-line);
+  }
+  .tryit-thumb {
+    position: absolute;
+    top: 3px;
+    bottom: 3px;
+    left: 3px;
+    width: calc((100% - 6px) / 3);
+    border-radius: 11px;
+    background: #24402f;
+    box-shadow:
+      0 1px 0 rgba(242, 245, 239, 0.08) inset,
+      0 4px 12px rgba(0, 0, 0, 0.25);
+    transform: translateX(0);
+  }
+  .tryit-seg:has(input[value='fill']:checked) .tryit-thumb {
+    transform: translateX(100%);
+  }
+  .tryit-seg:has(input[value='erase']:checked) .tryit-thumb {
+    transform: translateX(200%);
+  }
+  :global(html.motion) .tryit-thumb {
+    transition: transform 0.22s var(--ease-ios);
+  }
+  .tryit-opt {
+    position: relative;
+    display: grid;
+    place-items: center;
+    min-height: 48px;
+    border-radius: 11px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.9375rem;
+    color: var(--on-stage-muted);
+    -webkit-tap-highlight-color: transparent;
+  }
+  .tryit-opt input {
+    position: absolute;
+    inset: 0;
+    margin: 0;
+    opacity: 0;
+    cursor: pointer;
+  }
+  .tryit-opt span {
+    position: relative;
+    pointer-events: none;
+  }
+  .tryit-opt:has(input:checked) {
+    color: var(--on-stage);
+  }
+  .tryit-opt:has(input:focus-visible) {
+    outline: 3px solid var(--gold-lit);
+    outline-offset: 2px;
+  }
+
+  .tryit-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .tryit-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 48px;
+    padding: 0 16px;
+    border-radius: 14px;
+    border: 1px solid rgba(136, 207, 164, 0.24);
+    background: transparent;
+    color: var(--on-stage);
+    font-weight: 600;
+    font-size: 0.9375rem;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .tryit-btn:hover {
+    background: rgba(136, 207, 164, 0.08);
+  }
+  .tryit-btn[aria-disabled='true'] {
+    color: var(--on-stage-muted);
+    border-color: rgba(136, 207, 164, 0.12);
+    cursor: default;
+  }
+  .tryit-btn[aria-disabled='true']:hover {
+    background: transparent;
+  }
+  :global(html.motion) .tryit-btn {
+    transition:
+      transform var(--dur-1) var(--ease-out),
+      opacity var(--dur-1) linear;
+  }
+  :global(html.motion) .tryit-btn:active {
+    transform: scale(0.97);
+  }
+
+  .tryit-readout {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 4px 0;
+    border-top: 1px solid var(--stage-line);
+  }
+  .tryit-status {
+    font-size: var(--text-small);
+    line-height: 1.45;
+    color: var(--on-stage);
+    min-height: 2.9em;
+    min-width: 0;
+  }
+  .tryit-today {
+    display: grid;
+    justify-items: end;
+    flex: none;
+    line-height: 1.1;
+  }
+  .tryit-today-n {
+    font-size: 1.5rem;
+    color: var(--gold-lit);
+    font-weight: 600;
+  }
+  .tryit-today-l {
+    font-size: 0.75rem;
+    color: var(--on-stage-muted);
+  }
+
+  /* How each control works: only in the wide layout, where the side column has room. */
+  .tryit-how {
+    display: none;
+    margin: 0;
+    font-size: 0.8125rem;
+    line-height: 1.4;
+  }
+  .tryit-how div {
+    padding: 7px 0;
+    border-top: 1px solid var(--stage-line);
+  }
+  .tryit-how dt {
+    font-weight: 600;
+    color: var(--on-stage);
+  }
+  .tryit-how dd {
+    margin: 0;
+    color: var(--on-stage-muted);
+  }
+
+  /* The grid: a row-number column plus 10 trees. */
+  .tryit-map {
+    grid-area: map;
+    min-width: 0;
+    /* On phones the grid takes the card's edges too (13 rows × 10 trees at a 30px pitch in 343px). */
+    margin-inline: -10px;
+  }
+  .tryit-grid {
+    display: grid;
+    gap: 0;
+  }
+  .tryit-row {
+    display: grid;
+    grid-template-columns: 36px repeat(10, minmax(0, 1fr));
+    align-items: stretch;
+  }
+  .tryit-row:nth-child(odd) .tryit-cell {
+    background: rgba(136, 207, 164, 0.035);
+  }
+  .tryit-rh,
+  .tryit-cell {
+    display: grid;
+    min-width: 0;
+  }
+  /* Row numbers are buttons, and look it: a resting pill (the whole cell is the target). The next
+     row to do (37) wears the Trees tab's gold pill until the first tap. */
+  .tryit-num {
+    position: relative;
+    isolation: isolate;
+    min-height: 100%;
+    aspect-ratio: auto;
+    padding: 0 4px 0 0;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--on-stage);
+    font-size: 13px;
+    text-align: center;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .tryit-num::before {
+    content: '';
+    position: absolute;
+    z-index: -1;
+    inset: 3px 4px 3px 0;
+    border-radius: 8px;
+    background: rgba(136, 207, 164, 0.1);
+  }
+  .tryit-num:hover::before {
+    background: rgba(136, 207, 164, 0.18);
+  }
+  .tryit-num[data-next] {
+    color: var(--gold-lit);
+  }
+  .tryit-num[data-next]::before {
+    background: rgba(226, 166, 68, 0.16);
+    box-shadow: inset 0 0 0 1px rgba(226, 166, 68, 0.5);
+  }
+  /* One gentle pulse, twice, when the strip first comes into view (motion only). */
+  :global(html.motion) .tryit[data-cue] .tryit-num[data-next]::before {
+    animation: tryit-cue 1.2s var(--ease-out) 0.2s 2;
+  }
+  @keyframes tryit-cue {
+    50% {
+      box-shadow:
+        inset 0 0 0 1px rgba(226, 166, 68, 0.7),
+        0 0 0 5px rgba(226, 166, 68, 0.2);
+    }
+  }
+  .tryit-tree {
+    --d: min(var(--dot), 58%);
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .tryit-tree::before,
+  .tryit-tree::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: var(--d);
+    aspect-ratio: 1;
+    border-radius: 50%;
+    translate: -50% -50%;
+  }
+  /* Not yet: a 1.5px ring. */
+  .tryit-tree::before {
+    border: 1.5px solid var(--dot-ring);
+  }
+  /* Shaped: a fill that grows in (gold 20% larger than green). */
+  .tryit-tree::after {
+    background: var(--dot-today);
+    transform: scale(0);
+    opacity: 0;
+  }
+  .tryit-tree[data-s='today']::after {
+    transform: scale(1.2);
+    opacity: 1;
+  }
+  .tryit-tree[data-s='earlier']::after {
+    background: var(--dot-earlier);
+    transform: scale(1);
+    opacity: 1;
+  }
+  .tryit-tree[data-s='today']::before,
+  .tryit-tree[data-s='earlier']::before {
+    opacity: 0;
+  }
+  .tryit-tree[data-s='earlier'] {
+    cursor: not-allowed;
+  }
+  .tryit-tree:not([data-s='earlier']):hover::before {
+    border-color: var(--gold-lit);
+  }
+  /* Fill mode's first tree: a gold dashed ring until the second tap. */
+  .tryit-tree[data-anchor]::before {
+    opacity: 1;
+    border: 2px dashed var(--gold-lit);
+    transform: scale(1.55);
+  }
+  /* The note flag: its pole's foot on the tree's centre, flying up and to the right (like the map's). */
+  .tryit-flag {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: calc(var(--d) * 1.05);
+    height: calc(var(--d) * 1.05);
+    transform: translate(-23%, -88%);
+    z-index: 1;
+    fill: #c2462a;
+    stroke: var(--on-stage);
+    stroke-width: 1.6px;
+    stroke-linejoin: round;
+    paint-order: stroke;
+    pointer-events: none;
+  }
+  :global(html.motion) .tryit-tree::after,
+  :global(html.motion) .tryit-tree::before {
+    transition:
+      transform 150ms var(--ease-out),
+      opacity 150ms linear;
+  }
+  :global(html.motion) .tryit-grid[data-last='row'] .tryit-tree::after {
+    transition-delay: calc(var(--i) * 14ms);
+  }
+  .tryit-noscript {
+    grid-column: 1 / -1;
+    font-size: var(--text-small);
+    color: var(--on-stage-muted);
+  }
+
+  @container tryit (min-width: 520px) {
+    .tryit {
+      padding: 32px;
+      row-gap: 24px;
+    }
+    .tryit-map {
+      margin-inline: 0;
+      justify-self: center;
+    }
+    .tryit-controls {
+      grid-template-columns: minmax(0, 1fr) auto;
+    }
+    .tryit-actions {
+      grid-template-columns: auto auto;
+    }
+    .tryit-row {
+      grid-template-columns: 48px repeat(10, var(--dot-pitch));
+    }
+    .tryit-tree {
+      width: var(--dot-pitch);
+      height: var(--dot-pitch);
+    }
+  }
+  @container tryit (min-width: 740px) {
+    .tryit {
+      grid-template-columns: minmax(0, 1fr) auto;
+      grid-template-areas: 'head head' 'side map';
+      column-gap: 32px;
+      align-items: start;
+    }
+    .tryit-side {
+      height: 100%;
+      grid-template-rows: auto 1fr;
+      gap: 20px;
+    }
+    .tryit-controls {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .tryit-actions {
+      grid-template-columns: 1fr 1fr;
+    }
+    /* The status line under the controls; the day's count at the foot, level with the last row. */
+    .tryit-readout {
+      flex-direction: column;
+      align-items: stretch;
+      justify-content: flex-start;
+      padding: 16px 4px 2px;
+    }
+    .tryit-how {
+      display: block;
+      margin-top: 18px;
+      margin-bottom: auto;
+    }
+    .tryit-today {
+      justify-items: start;
+      margin-top: 18px;
+    }
+    .tryit-today-n {
+      font-size: 2.25rem;
+    }
+  }
+</style>
