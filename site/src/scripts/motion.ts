@@ -201,11 +201,14 @@ export function boot(): void {
         tint: setTint,
       };
       let cleanup: void | (() => void) = undefined;
+      const t0 = performance.now();
       try {
         cleanup = sceneBuild(ctx);
       } catch (err) {
         console.warn(`[motion] scene ${id} failed to build`, err);
       }
+      // In the performance timeline (DevTools, and the perf spec): how long each build took.
+      performance.measure(`tf:scene:${id}`, { start: t0, end: performance.now() });
       const tr = day.peek(tl);
       if (tr) {
         sectionTracks.set(section, tr);
@@ -279,6 +282,62 @@ export function boot(): void {
       { rootMargin: '150% 0px 150% 0px' },
     );
     sections.forEach((s) => io.observe(s));
+
+    // ---- Pre-build: the rest of the page's scenes, one per idle period ----
+    // Building a scene measures and styles a large subtree, which costs a long frame. Done
+    // while the reader scrolls (the observer above) that frame is a visible stutter, so once
+    // the first view is ready and the load is well over (or the reader first stops
+    // scrolling), every remaining scene builds in its own idle callback, nearest first,
+    // never during a scroll. The observer stays as the fallback for a reader who outruns it.
+    const whenStill = () =>
+      new Promise<void>((r) => {
+        if (!root.classList.contains('scrubbing')) return r();
+        const done = () => (ScrollTrigger.removeEventListener('scrollEnd', done), r());
+        ScrollTrigger.addEventListener('scrollEnd', done);
+      });
+    const idleSlot = () =>
+      new Promise<void>((r) => ('requestIdleCallback' in window ? requestIdleCallback(() => r(), { timeout: 2000 }) : setTimeout(r, 50)));
+    const loaded = new Promise<void>((r) => (document.readyState === 'complete' ? r() : addEventListener('load', () => r(), { once: true })));
+    void ready
+      .then(() =>
+        Promise.race([
+          loaded.then(() => new Promise<void>((r) => setTimeout(r, 4000))),
+          new Promise<void>((r) => {
+            const go = () => (ScrollTrigger.removeEventListener('scrollEnd', go), r());
+            ScrollTrigger.addEventListener('scrollEnd', go);
+          }),
+        ]),
+      )
+      .then(async () => {
+        const mid = innerHeight / 2;
+        const queue = sections
+          .filter((s) => !built.has(s))
+          .sort((a, b) => {
+            const d = (el: HTMLElement) => {
+              const r = el.getBoundingClientRect();
+              return r.top > mid ? r.top - mid : r.bottom < mid ? mid - r.bottom : 0;
+            };
+            return d(a) - d(b);
+          });
+        for (const s of queue) {
+          if (!alive) return;
+          if (built.has(s)) continue;
+          const loader = sceneLoaders[`./scenes/${s.id}.ts`];
+          try {
+            if (loader) await loader();
+          } catch {
+            /* build() reports it */
+          }
+          // An idle moment while the page is still (never mid-scroll).
+          do {
+            await whenStill();
+            await idleSlot();
+          } while (root.classList.contains('scrubbing'));
+          if (!alive || built.has(s)) continue;
+          io.unobserve(s);
+          await build(s);
+        }
+      });
 
     // Re-claim the stage for whatever is active now.
     const now = sections.find((s) => {
