@@ -96,9 +96,11 @@ const n = (v: number) => String(Math.round(v * 10) / 10).replace(/^(-?)0\./, '$1
 /** The fir in the icon's 1024 space (tiers and a short trunk), for <symbol viewBox>. */
 function firPath(): { d: string; viewBox: string } {
   const tiers = firTiers().map((t) => t.d.replace(/\d+\.\d+/g, (v) => String(Math.round(Number(v)))));
-  const { x, y, w } = ICON.trunk;
-  // A sheared farm tree shows a short clean stem, not the icon's long trunk.
-  const bottom = 754;
+  const { y } = ICON.trunk;
+  // A sheared farm tree shows a short, slim stem, not the icon's long, wide trunk.
+  const w = 44;
+  const x = ICON.center.x - w / 2;
+  const bottom = 756;
   const trunk = `M${x} ${y}h${w}V${bottom}H${x}z`;
   const left = ICON.center.x - ICON.tiers[0].half;
   const top = ICON.tiers[2].apexY;

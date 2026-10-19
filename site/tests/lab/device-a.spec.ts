@@ -221,6 +221,10 @@ test('states read from the ledger', async ({ page }) => {
 
   await expect(la('lab-a-1430').locator('[data-pill-face="break"]')).toHaveText('On break · Sharpening shears');
   await expect(la('lab-a-1430').locator('[data-worked-line]')).toHaveText('6:43:00 worked');
+  // The long reason pill and the place share row 1 without truncating.
+  await expect(la('lab-a-1430').locator('[data-place]')).toHaveText('North field · Block 2');
+  expect(await la('lab-a-1430').locator('[data-place]').evaluate((el) => el.scrollWidth <= el.clientWidth + 0.5)).toBe(true);
+  expect(await la('lab-a-0702').locator('[data-place]').evaluate((el) => el.scrollWidth <= el.clientWidth + 0.5)).toBe(true);
 
   await expect(timer('lab-a-1631')).toHaveAttribute('data-odo-text', '8:30:00');
   await expect(la('lab-a-1631').locator('[data-trees]')).toHaveAttribute('data-odo-text', '290');

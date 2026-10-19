@@ -55,7 +55,7 @@ const hide = 'opacity:0';
           <span data-pill-text="break">{v.pillBreak}</span>
         </span>
       </span>
-      <span class="la-place" data-place>{v.place}</span>
+      <span class="la-place" data-place><span class="la-place-field">{v.field} · </span>{v.block}</span>
     </div>
 
     <div class="la-r2">
@@ -207,6 +207,10 @@ const hide = 'opacity:0';
   .la-face--break {
     background: var(--pill-break-bg, #e2a644);
     color: var(--pill-break-fg, #2a1c04);
+  }
+  /* On a break the pill carries the reason; the block alone keeps the row on one line. */
+  .la[data-state='break'] .la-place-field {
+    display: none;
   }
   .la-place {
     min-width: 0;
