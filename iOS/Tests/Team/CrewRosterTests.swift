@@ -63,6 +63,15 @@ struct CrewRosterTests {
         #expect(roster.current.first { $0.member.userId == f.sam.userId }?.weekTrees == 2)
     }
 
+    @Test func statusLinesSayTheDayWhenItIsNotToday() {
+        let f = TeamFixture()
+        #expect(CrewStatusText.line(.working(since: f.at(21, 7, 2)), calendar: f.calendar, now: f.now) == "Working since 7:02 AM")
+        #expect(CrewStatusText.line(.onBreak(.lunch, since: f.at(21, 11, 45)), calendar: f.calendar, now: f.now) == "On lunch since 11:45 AM")
+        #expect(CrewStatusText.line(.onBreak(.break, since: f.at(21, 10)), calendar: f.calendar, now: f.now) == "On a break since 10:00 AM")
+        #expect(CrewStatusText.line(.working(since: f.at(20, 23, 52)), calendar: f.calendar, now: f.now) == "Working since Tue, Oct 20 at 11:52 PM")
+        #expect(CrewStatusText.line(.off, calendar: f.calendar, now: f.now) == nil)
+    }
+
     @Test func recentShiftsComeNewestFirstWithTreeCounts() {
         var f = TeamFixture()
         let block = f.addBlock("1", row: 0, column: 0)

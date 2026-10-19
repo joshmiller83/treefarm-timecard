@@ -10,7 +10,7 @@ struct MemberDraft: Equatable {
     init(_ member: Member) {
         role = member.role
         jobTitle = member.jobTitle
-        rateText = MemberRules.rateText(member.rateCents)
+        rateText = member.rateCents == 0 ? "" : MemberRules.rateText(member.rateCents)
     }
 }
 

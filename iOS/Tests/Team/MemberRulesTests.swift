@@ -40,6 +40,13 @@ struct MemberRulesTests {
         #expect(saved.email == f.sam.email)
     }
 
+    @Test func anUnsetRateStartsEmpty() {
+        let f = TeamFixture()
+        #expect(MemberDraft(f.jo).rateText == "")
+        #expect(MemberDraft(f.sam).rateText == "16.50")
+        #expect(MemberRules.save(MemberDraft(f.jo), for: f.jo, members: [f.alex, f.sam, f.jo], now: f.now) == .unchanged)
+    }
+
     @Test func nothingChangedSavesNothing() {
         let f = TeamFixture()
         let members = [f.alex, f.sam, f.jo]
