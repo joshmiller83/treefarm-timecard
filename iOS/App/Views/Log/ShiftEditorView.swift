@@ -129,11 +129,7 @@ private struct EditorForm: View {
                 }
                 .accessibilityIdentifier("editor-cancel")
             }
-            ToolbarItem(placement: .confirmationAction) {
-                Button("Save") { save() }
-                    .fontWeight(.semibold)
-                    .accessibilityIdentifier("editor-save-top")
-            }
+            // One Save: the glove-sized "Save shift" at the bottom.
             ToolbarItemGroup(placement: .keyboard) {
                 Spacer()
                 Button("Done") { typing = false }
