@@ -142,10 +142,9 @@ registerScene(
       const seps = roll ? Array.from(roll.querySelectorAll<HTMLElement>('.roll-s')) : [];
       const t = gsap.timeline({ paused: true, defaults: { ease: 'power3.out' } });
       if (line) t.fromTo(line, { scaleX: 0 }, { scaleX: 1, duration: 0.5, ease: 'power2.inOut' }, 0);
-      // Desktop: the tile rises in. Below 900px its card is already on screen, so the unit
-      // stays and the number is simply not there yet (blank columns, no ghost zeros that
-      // would contradict the phone), then rolls up into place.
-      if (isDesk && face) t.fromTo(face, { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.5 }, 0.06);
+      // The tile rises in as it lights, its number rolling up from blank (no ghost zeros that
+      // would contradict the phone): a label never waits beside an empty number slot.
+      if (face) t.fromTo(face, { opacity: 0, y: isDesk ? 16 : 8 }, { opacity: 1, y: 0, duration: 0.5 }, 0.06);
       // Every column spins from its blank rest to its digit in the second cycle: no counting.
       if (cols.length) t.fromTo(cols, { y: 0, yPercent: ROLL_REST }, { y: 0, yPercent: (k: number) => stops[k] ?? 0, duration: 0.8, stagger: 0.07 }, 0.06);
       // The colon comes in with the digits around it.
@@ -153,6 +152,11 @@ registerScene(
       if (rules.length) t.fromTo(rules, { scaleY: 0 }, { scaleY: 1, duration: 0.4, ease: 'power2.out' }, 0.16);
       lights.push(t);
     }
+
+    // Below 900px the tiles share one card: it comes in with the first tile, so it never
+    // scrolls up empty.
+    const statsCard = isDesk ? null : q1<HTMLElement>('.pace-stats');
+    if (statsCard) tl.fromTo(statsCard, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.035, ease: 'power1.out' }, BEATS.tiles[0] - 0.035);
 
     // ---- Hours & pay: the bars grow from the baseline (triggered), Friday last ----
     const bars = $$(`${CLOCK} [data-hours-card] [data-bar]`);
