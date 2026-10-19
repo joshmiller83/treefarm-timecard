@@ -41,15 +41,25 @@ final class AppModel {
     let storageError: String?
     @ObservationIgnored let actions: FieldActions
     @ObservationIgnored let liveActivity = LiveActivityController()
+    /// The Apple Watch link. Made and activated here, not in a view: a watch message can launch
+    /// the app in the background with no scene, and the window's `.task` would never run.
+    @ObservationIgnored private(set) var watch: PhoneWatchBridge!
 
     @ObservationIgnored private var started = false
-    @ObservationIgnored private var starting: Task<Void, Never>?
+    /// The one start every caller awaits (the window, Siri, the watch bridge), so a second
+    /// caller never runs on a session that is still loading.
+    @ObservationIgnored private var startTask: Task<Void, Never>?
+    /// The person the watch last heard about, to tell a sign-in or sign-out from a sync.
+    @ObservationIgnored private var watchFollowedUser: UUID??
     @ObservationIgnored private var lastForegroundRefresh: Date?
     @ObservationIgnored private var networkWatcher: Task<Void, Never>?
 
     nonisolated static let backgroundRefreshID = (Bundle.main.bundleIdentifier ?? "com.joshmiller83.timecard") + ".sync"
 
-    init(session: TimeCardSession, mode: LaunchMode, storageError: String? = nil) {
+    /// `watchTransport` and `watchLauncher` default to the real WatchConnectivity and HealthKit
+    /// ones for a live launch, and to ones with no watch behind them for UI tests and test hosts.
+    init(session: TimeCardSession, mode: LaunchMode, storageError: String? = nil,
+         watchTransport: (any WatchTransport)? = nil, watchLauncher: (any WatchWorkoutLauncher)? = nil) {
         self.session = session
         self.mode = mode
         self.storageError = storageError
@@ -62,12 +72,42 @@ final class AppModel {
         session.onNotice = { [weak self] notice in
             self?.actions.noteRefusal(notice)
         }
+        let realWatch = mode == .live && !LaunchMode.isTestHost
+        let desk = WatchDesk(actions: actions, store: session.store, settings: { [session] in
+            WatchSettings.load(from: session.store, userId: session.me?.user.id)
+        })
+        watch = PhoneWatchBridge(model: self,
+                                 transport: watchTransport ?? (realWatch ? WCSessionTransport() : DisconnectedWatchTransport()),
+                                 launcher: watchLauncher ?? (realWatch ? HealthKitWatchLauncher() : UnavailableWatchLauncher()),
+                                 desk: desk)
+        watch.activate()
+        followSessionForWatch()
     }
 
-    /// The lock screen's Live Activity follows every change.
+    /// The lock screen's Live Activity and the watch follow every change.
     func liveSnapshotChanged(_ snapshot: LiveSnapshot?) {
         // Once the session has opened, no snapshot really means off the clock.
         liveActivity.update(snapshot, attributes: activityAttributes, sessionLoaded: session.hasOpened)
+        watch.publish(reason: .fieldAction)
+    }
+
+    /// Syncs, sign-ins and sign-outs reach the watch: reads the session's records and who is
+    /// signed in, and hears about the next change to either.
+    private func followSessionForWatch() {
+        let user = withObservationTracking {
+            _ = session.snapshot
+            return session.auth.me?.user.id
+        } onChange: { [weak self] in
+            Task { @MainActor in self?.sessionChangedForWatch() }
+        }
+        watchFollowedUser = .some(user)
+    }
+
+    private func sessionChangedForWatch() {
+        let before = watchFollowedUser ?? nil
+        followSessionForWatch()
+        let after = watchFollowedUser ?? nil
+        watch.publish(reason: before == after ? .sync : (after == nil ? .signOut : .signIn))
     }
 
     var activityAttributes: TimeCardActivityAttributes? {
@@ -90,8 +130,8 @@ final class AppModel {
     /// isn't loaded yet.
     func start() async {
         guard storageError == nil else { return }
-        if let starting {
-            await starting.value
+        if let startTask {
+            await startTask.value
             return
         }
         started = true
@@ -99,14 +139,16 @@ final class AppModel {
         let task = Task { @MainActor in
             await self.session.start()
             if self.mode == .live { self.watchNetwork() }
+            self.watch.publish(reason: .started)
         }
-        starting = task
+        startTask = task
         await task.value
     }
 
     func sceneBecameActive() async {
         guard started else { return }
         actions.publishLiveSnapshot()
+        watch.publish(reason: .sceneActive)
         await session.requestSync(.foreground)
         // Refresh farms and roles now and then, not on every glance at the phone.
         if let last = lastForegroundRefresh, Date().timeIntervalSince(last) < 5 * 60 { return }

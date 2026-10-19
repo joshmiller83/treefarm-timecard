@@ -30,7 +30,8 @@ enum LaunchMode: Equatable {
 /// Builds the app's object graph for a launch mode.
 @MainActor
 enum AppEnvironment {
-    static func makeModel(mode: LaunchMode = .current()) -> AppModel {
+    /// `watchTransport` replaces the watch link's transport (tests use a `FakeWatchTransport`).
+    static func makeModel(mode: LaunchMode = .current(), watchTransport: (any WatchTransport)? = nil) -> AppModel {
         switch mode {
         case .live:
             return makeLive()
@@ -43,7 +44,7 @@ enum AppEnvironment {
                 try? store.setValue(me, forKey: AuthService.meKey)
             }
             let session = TimeCardSession(store: store, api: demo.server, tokens: tokens, deviceName: "UI Test iPhone")
-            return AppModel(session: session, mode: mode)
+            return AppModel(session: session, mode: mode, watchTransport: watchTransport)
         }
     }
 
