@@ -58,7 +58,7 @@ final class ShortcutsUITests: XCTestCase {
         run("Clock Out")
         let question = answer(startingWith: "You’ve worked")
         XCTAssertTrue(question.hasSuffix("Clock out?"), question)
-        save("3-clock-out-question")
+        save("3-clock-out-question", settledOn: "No")
         tapSystemButton(["No"])
         XCTAssertEqual(answer(startingWith: "Okay"), "Okay, you’re still clocked in.")
         done()
@@ -72,49 +72,84 @@ final class ShortcutsUITests: XCTestCase {
     }
 
     // MARK: Driving the Shortcuts app
+    //
+    // Found by what the Shortcuts app names its pages and sections (accessibility identifiers
+    // and labels), and scrolled until a tile sits between its own navigation bar and tab bar,
+    // so it works at any text size, where tiles grow and pages get longer.
+
+    /// The App Shortcuts page of an app is "<bundle id>_auto_shortcuts".
+    private var timeCardPage: XCUIElement {
+        shortcuts.otherElements.matching(NSPredicate(format: "identifier ENDSWITH '.timecard_auto_shortcuts'")).firstMatch
+    }
 
     private func openTimeCardShortcuts() throws {
         shortcuts.activate()
         guard shortcuts.wait(for: .runningForeground, timeout: 10) else { throw XCTSkip("The Shortcuts app isn't available") }
         dismissLeftoverAnswer()
-        if shortcuts.navigationBars["Time Card"].waitForExistence(timeout: 2) {
-            for _ in 0..<4 { scroll(by: -0.4) }
-            return
+        if !timeCardPage.waitForExistence(timeout: 2) {
+            // Back to All Shortcuts, where each app has a header button that opens its page.
+            let library = shortcuts.tabBars.buttons["Library"].firstMatch
+            if library.exists { library.tap() }
+            let allShortcuts = shortcuts.otherElements["all_shortcuts_library"].firstMatch
+            for _ in 0..<3 where !allShortcuts.exists {
+                let back = shortcuts.navigationBars.buttons["BackButton"].firstMatch
+                guard back.exists else { break }
+                back.tap()
+            }
+            if !allShortcuts.waitForExistence(timeout: 5) {
+                // The Library's top level lists All Shortcuts first.
+                shortcuts.buttons["All Shortcuts"].firstMatch.tap()
+            }
+            XCTAssertTrue(allShortcuts.waitForExistence(timeout: 10), "no All Shortcuts page")
+            let header = allShortcuts.buttons["Time Card"].firstMatch
+            XCTAssertTrue(bringIntoView(header), "Time Card's App Shortcuts aren't in the Shortcuts app")
+            header.tap()
+            XCTAssertTrue(timeCardPage.waitForExistence(timeout: 10))
         }
-        let library = shortcuts.buttons["Library"].firstMatch
-        if library.exists { library.tap() }
-        let back = shortcuts.navigationBars.buttons["BackButton"].firstMatch
-        if back.exists, back.label == "All Shortcuts" || back.label == "Library" { back.tap() }
-        let header = shortcuts.buttons["Time Card"].firstMatch
-        XCTAssertTrue(header.waitForExistence(timeout: 10), "Time Card's App Shortcuts aren't in the Shortcuts app")
-        header.tap()
-        XCTAssertTrue(shortcuts.navigationBars["Time Card"].waitForExistence(timeout: 10))
     }
 
-    /// Taps an App Shortcut tile by its title, scrolling until it sits clear of the bars.
+    /// Taps an App Shortcut tile by its title, on its icon (the same size at every text size).
     private func run(_ title: String) {
-        let tile = shortcuts.otherElements[title].firstMatch
-        let screen = shortcuts.windows.firstMatch.frame
-        func clear() -> Bool {
-            tile.exists && tile.frame.minY > screen.minY + 240 && tile.frame.maxY < screen.maxY - 120
+        let icon = timeCardPage.otherElements[title].firstMatch.buttons.firstMatch
+        XCTAssertTrue(bringIntoView(icon), "no “\(title)” shortcut")
+        icon.tap()
+    }
+
+    /// Scrolls the page until `element` exists and sits clear of the navigation and tab bars,
+    /// from the top of the page if it isn't there yet (the page keeps its place between runs).
+    /// Each look at the page reads its whole accessibility tree, which is slow at the largest
+    /// text sizes, so the bars are read once and each step looks only at the element.
+    private func bringIntoView(_ element: XCUIElement) -> Bool {
+        let tabs = shortcuts.tabBars.firstMatch
+        let screen = shortcuts.windows.firstMatch.frame.height
+        let top = shortcuts.navigationBars.firstMatch.frame.maxY + 8
+        let bottom = (tabs.exists ? tabs.frame.minY : screen) - 8
+        func place() -> CGRect? { element.exists ? element.frame : nil }
+        var frame = place()
+        if frame == nil {
+            for _ in 0..<6 { scroll(by: -0.5) }
+            frame = place()
         }
-        if !clear() {
-            // From the top of the page, work down to the tile.
-            for _ in 0..<5 { scroll(by: -0.45) }
-            var tries = 0
-            while !clear() && tries < 16 {
-                scroll(by: tile.exists && tile.frame.minY <= screen.minY + 240 ? -0.15 : 0.25)
-                tries += 1
+        for _ in 0..<24 {
+            guard let f = frame else {
+                // Not loaded yet: further down.
+                scroll(by: 0.4)
+                frame = place()
+                continue
             }
+            if f.minY >= top && f.maxY <= bottom { return true }
+            // Move it just past the bar it's under, with some room.
+            let distance = f.minY < top ? -(top - f.minY + 40) : f.maxY - bottom + 40
+            scroll(by: max(-0.5, min(0.5, distance / screen)))
+            frame = place()
         }
-        XCTAssertTrue(clear(), "no “\(title)” shortcut")
-        tile.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.3)).tap()
+        return false
     }
 
     /// Drags the page by a fraction of the screen: positive moves the content up.
     private func scroll(by fraction: CGFloat) {
-        let from = shortcuts.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.6))
-        let to = shortcuts.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.6 - fraction))
+        let from = shortcuts.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.55))
+        let to = shortcuts.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.55 - fraction))
         from.press(forDuration: 0.05, thenDragTo: to, withVelocity: .slow, thenHoldForDuration: 0.3)
     }
 
@@ -197,7 +232,15 @@ final class ShortcutsUITests: XCTestCase {
         if button.waitForExistence(timeout: 1) { button.tap() }
     }
 
-    private func save(_ name: String) {
+    /// Saves what's on screen once iOS's answer sheet has finished sliding up (its `button`,
+    /// Done unless it's asking a question, can be tapped), so no shot is caught mid-animation.
+    private func save(_ name: String, settledOn button: String = "Done") {
+        let done = springboard.buttons[button].firstMatch
+        let deadline = Date().addingTimeInterval(5)
+        while !(done.exists && done.isHittable) && Date() < deadline {
+            Thread.sleep(forTimeInterval: 0.2)
+        }
+        Thread.sleep(forTimeInterval: 0.6)
         let shot = XCUIScreen.main.screenshot()
         let attachment = XCTAttachment(screenshot: shot)
         attachment.name = name
