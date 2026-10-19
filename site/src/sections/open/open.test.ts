@@ -9,6 +9,7 @@ import {
   handDrop,
   readmeHasCommand,
   railFill,
+  showsNote,
   tickOrder,
   typeTimes,
 } from './open.ts';
@@ -100,6 +101,10 @@ describe('the status rail', () => {
       ['TestFlight beta', 'Coming', 'next'],
       ['App Store', 'Not yet', 'next'],
     ]);
+  });
+  it('shows only the “now” note; the sentence above already says the rest (screen readers still hear every note)', () => {
+    expect(STATUS.filter(showsNote).map((s) => s.note)).toEqual(['In active development']);
+    expect(STATUS.every((s) => s.note.length > 0)).toBe(true);
   });
   it('has exactly one “now”', () => {
     expect(STATUS.filter((s) => s.state === 'now')).toHaveLength(1);

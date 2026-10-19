@@ -22,6 +22,7 @@ export interface Step {
 /**
  * Where the project stands, in the page map's own language: green = done, gold = now,
  * ring = not yet. Every line restates the body copy; nothing here is a date or a promise.
+ * Only the "now" note is shown (see showsNote); screen readers hear every note.
  */
 export const STATUS: readonly Step[] = [
   { title: 'Web time card', note: 'Used on the farm', state: 'done' },
@@ -29,6 +30,14 @@ export const STATUS: readonly Step[] = [
   { title: 'TestFlight beta', note: 'Coming', state: 'next' },
   { title: 'App Store', note: 'Not yet', state: 'next' },
 ];
+
+/**
+ * The sentence above the rail already states all three facts, so on screen the rail stays a
+ * quiet picture: the dots say done and not yet, and only "now" carries its words.
+ */
+export function showsNote(step: { state: StepState }): boolean {
+  return step.state === 'now';
+}
 
 /** How much of the rail's line is filled: from the first step to the 'now' step (0–1). */
 export function railFill(steps: ReadonlyArray<{ state: StepState }>): number {

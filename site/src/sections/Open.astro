@@ -17,7 +17,7 @@ import { join } from 'node:path';
 import SectionShell from '../components/SectionShell.astro';
 import AppIcon from '../components/AppIcon.astro';
 import Icon from '../components/app/Icon.astro';
-import { COMMAND, DOCS, REPO, STACK, STATUS, commandTokens, railFill, readmeHasCommand } from './open/open.ts';
+import { COMMAND, DOCS, REPO, STACK, STATUS, commandTokens, railFill, readmeHasCommand, showsNote } from './open/open.ts';
 
 // The terminal card renders only if the repo README really shows the command (brief: open).
 // The build runs in site/, so the README is one level up.
@@ -29,9 +29,11 @@ try {
 }
 const tokens = commandTokens(COMMAND);
 const fill = railFill(STATUS);
+// The chapter's headline, with "Out in the open." held together so balance never strands "Out".
+const headline = 'Built on a working tree farm. Out\u00a0in\u00a0the\u00a0open.';
 ---
 
-<SectionShell id="open">
+<SectionShell id="open" headline={headline}>
   <Fragment slot="intro">
     <p class="lede" data-reveal>
       Time Card grew out of a simple web time card used on a working Christmas tree farm in Indiana. The iPhone app is
@@ -46,9 +48,11 @@ const fill = railFill(STATUS);
           STATUS.map((s) => (
             <li class="step" data-step={s.state}>
               <span class="dot" aria-hidden="true" data-dot />
-              <span class="step-title">{s.title}</span>
-              <span class="sr-only">: </span>
-              <span class="step-note">{s.note}</span>
+              <span class="step-text">
+                <span class="step-title">{s.title}</span>
+                <span class="sr-only">: </span>
+                <span class:list={['step-note', !showsNote(s) && 'sr-only']}>{s.note}</span>
+              </span>
             </li>
           ))
         }
@@ -166,6 +170,14 @@ const fill = railFill(STATUS);
       order: -1;
     }
   }
+  @media (min-width: 600px) and (max-width: 899.98px) {
+    /* Tablet: the copy is one centred column, so the centred icon sits over it. */
+    :global(#open .beats) {
+      width: 100%;
+      max-width: 36rem;
+      margin-inline: auto;
+    }
+  }
   @media (min-width: 900px) {
     :global(#open) {
       --icon: 192px;
@@ -185,12 +197,16 @@ const fill = railFill(STATUS);
       grid-row: 1;
       max-width: none;
     }
-    :global(#open .beat-intro > p) {
-      max-width: 36ch;
-    }
   }
+  /* One measure for the whole copy column: paragraphs, the rail, the rule, the chips and the
+     terminal all end on the same right edge. */
   :global(#open .beat-intro) {
     gap: 22px;
+    max-width: 36rem;
+  }
+  :global(#open .beat-intro > p),
+  .dev > p {
+    max-width: none;
   }
 
   /* SplitText's line masks (motion only): room for descenders while the lines rise. */
@@ -204,14 +220,12 @@ const fill = railFill(STATUS);
   .status {
     color: var(--ink);
   }
-  :global(#open .beat-intro > p.follow) {
-    max-width: none;
-  }
   .follow {
     font-size: var(--text-small);
     line-height: 1.5;
     color: var(--muted);
     margin-top: -6px;
+    text-wrap: balance;
   }
 
   /* ---------- The lockup: icon, name, audience ---------- */
@@ -281,7 +295,7 @@ const fill = railFill(STATUS);
   /* ---------- Where it stands: the status rail ---------- */
   .rail {
     --dot: 12px;
-    --row: 56px;
+    --row: 40px;
     position: relative;
     margin-block: 6px 4px;
   }
@@ -316,8 +330,14 @@ const fill = railFill(STATUS);
     column-gap: 16px;
     align-content: start;
   }
+  /* Down the page (phones): title and the one note share a line, so the rail stays short. */
+  .step-text {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    column-gap: 10px;
+  }
   .dot {
-    grid-row: 1 / span 2;
     position: relative;
     z-index: 1;
     margin-top: 6px;
@@ -388,8 +408,10 @@ const fill = railFill(STATUS);
       grid-template-columns: minmax(0, 1fr);
       row-gap: 0;
     }
+    .step-text {
+      display: grid;
+    }
     .dot {
-      grid-row: auto;
       justify-self: start;
       margin-top: 0;
       margin-bottom: 14px;
@@ -410,7 +432,6 @@ const fill = railFill(STATUS);
     border-top: 1px solid var(--line);
   }
   .dev > p {
-    max-width: 38ch;
     color: var(--muted);
   }
   .dev-h {
@@ -438,7 +459,6 @@ const fill = railFill(STATUS);
 
   /* ---------- The terminal card ---------- */
   .term {
-    max-width: 34rem;
     border-radius: 12px;
     background: #14221a;
     color: #f2f5ef;
