@@ -54,3 +54,20 @@ struct RecordMetadataTests {
         #expect(back == entry)
     }
 }
+
+@Suite("Wire dates")
+struct WireDateTests {
+    @Test func datesGoOutAsWholeMilliseconds() throws {
+        let shift = Shift(userId: UUID(), farmId: UUID(), start: Date(timeIntervalSince1970: 1_760_000_000.123_6), rateCents: 0,
+                          updatedAt: Date(timeIntervalSince1970: 1_760_000_000))
+        let json = String(decoding: try JSONCoding.encoder().encode(shift), as: UTF8.self)
+        #expect(json.contains("\"start\":1760000000124"))
+        #expect(!json.contains("1760000000123.6"))
+    }
+
+    @Test func fractionalMillisecondsFromOlderWritersStillDecode() throws {
+        let json = #"{"id":"6F36AC4A-2482-43AB-93EB-D015C1503B1B","userId":"6F36AC4A-2482-43AB-93EB-D015C1503B1C","farmId":"6F36AC4A-2482-43AB-93EB-D015C1503B1D","start":1760000000123.4,"breaks":[],"notes":"","rateCents":0,"updatedAt":1760000000000}"#
+        let shift = try JSONCoding.decoder().decode(Shift.self, from: Data(json.utf8))
+        #expect(abs(shift.start.timeIntervalSince1970 - 1_760_000_000.1234) < 0.000_01)
+    }
+}

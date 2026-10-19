@@ -176,11 +176,15 @@ public struct PullResponse: Codable, Hashable, Sendable {
     }
 }
 
-/// The JSON settings both ends use. Dates travel as milliseconds since 1970.
+/// The JSON settings both ends use. Dates travel as whole milliseconds since 1970,
+/// so a record reads back exactly as it was written. Older fractional values still decode.
 public enum JSONCoding {
     public static func encoder() -> JSONEncoder {
         let e = JSONEncoder()
-        e.dateEncodingStrategy = .millisecondsSince1970
+        e.dateEncodingStrategy = .custom { date, encoder in
+            var c = encoder.singleValueContainer()
+            try c.encode(Int64((date.timeIntervalSince1970 * 1000).rounded()))
+        }
         e.outputFormatting = [.sortedKeys]
         return e
     }
