@@ -44,7 +44,8 @@ export const CHAPTERS: readonly Chapter[] = [
     eyebrow: 'Time Card · For Christmas tree trimmers',
     headline: 'Keep your gloves on.',
     tint: 'dawn',
-    track: { desk: '160vh', mob: 'auto' },
+    // 130vh: the exit is a short lift, not a long empty frame.
+    track: { desk: '130vh', mob: 'auto' },
     theme: 'dark',
   },
   {
@@ -80,7 +81,8 @@ export const CHAPTERS: readonly Chapter[] = [
     eyebrow: '2:16 PM · The trees map',
     headline: 'Every tree is a dot.',
     tint: 'field',
-    track: { desk: '300vh', mob: '240vh' },
+    // Phones: 215vh, so the outro (the map fading, the phone back) is no long empty frame.
+    track: { desk: '300vh', mob: '215vh' },
     theme: 'dark',
   },
   {

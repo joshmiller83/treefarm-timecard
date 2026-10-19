@@ -72,7 +72,7 @@ export const INTRO_END = Math.max(...Object.values(INTRO).map(cueEnd));
 export const introEnd = (scale = 1) => INTRO_END * scale;
 
 // ---------------------------------------------------------------------------
-// The scrubbed scene (progress 0–1 of the 160vh desktop track)
+// The scrubbed scene (progress 0–1 of the 130vh desktop track)
 
 export const SCROLL = {
   /** The spoken line fades and lifts 20px. */

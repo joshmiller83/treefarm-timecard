@@ -11,7 +11,7 @@
  *    It is skipped (final state at once) when the page opens scrolled away, when Pause motion
  *    is on, or when the scene is rebuilt; Pause during the sequence ends it at once.
  *
- * 2) THE SCROLL SCENE (scrub .6, progress 0–1 of the 160vh desktop track; SCROLL in hero.ts):
+ * 2) THE SCROLL SCENE (scrub .6, progress 0–1 of the 130vh desktop track; SCROLL in hero.ts):
  *    the spoken line lifts away, the copy lifts and fades, the fir rows sink (the near rows
  *    most: depth), the far rows thin into the haze, the stars fade with the morning, and the
  *    header's shift ribbon and '7:02 AM · Clock in' tag fade in. The day holds at 7:02.
