@@ -56,6 +56,43 @@ export function initHeader(): void {
     });
   }
 
+  // ---- Chapter links and deep links on the static page ----
+  // Without motion, far sections skip rendering (content-visibility: auto, 1100px stand-ins),
+  // so a native jump lands on a guess of where the target will be. Render everything first
+  // (html.cv-all, kept for the rest of the visit), then scroll once layout is real.
+  const jump = (id: string, push: boolean): boolean => {
+    if (root.classList.contains('motion')) return false;
+    const target = document.getElementById(id);
+    if (!target?.matches('section.sec')) return false;
+    root.classList.add('cv-all');
+    const land = () => target.scrollIntoView({ block: 'start', behavior: 'auto' });
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        if (push && location.hash !== `#${id}`) history.pushState(null, '', `#${id}`);
+        land();
+        // Keyboard and screen-reader users continue from the chapter, as with a native jump.
+        if (!target.hasAttribute('tabindex')) target.setAttribute('tabindex', '-1');
+        target.focus({ preventScroll: true });
+        // Fonts or late layout can still move things a little: land again after it settles.
+        requestAnimationFrame(() => requestAnimationFrame(land));
+      }),
+    );
+    return true;
+  };
+  document.addEventListener('click', (e) => {
+    if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    const a = (e.target as Element).closest<HTMLAnchorElement>('a[href^="#"]');
+    const id = a?.getAttribute('href')!.slice(1);
+    if (id && jump(id, true)) e.preventDefault();
+  });
+  addEventListener('hashchange', () => jump(location.hash.slice(1), false));
+  addEventListener('popstate', () => jump(location.hash.slice(1), false));
+  if (location.hash.length > 1) {
+    const initial = location.hash.slice(1);
+    jump(initial, false);
+    addEventListener('load', () => jump(initial, false), { once: true });
+  }
+
   // ---- Which section is under the header ----
   const sections = Array.from(document.querySelectorAll<HTMLElement>('main section[data-ribbon-tag]'));
   const links = new Map(

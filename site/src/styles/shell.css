@@ -453,10 +453,18 @@ html.stage-on .sec .shot[data-stage-shot] {
   clip-path: inset(50%);
 }
 
-/* In reduced-motion mode far sections skip rendering until they are near. */
+/* In reduced-motion mode far sections skip rendering until they are near. A chapter link or
+   a deep link renders them all first (header.ts adds html.cv-all), so it lands exactly. */
 html:not(.motion) .sec:not(:first-of-type) {
   content-visibility: auto;
   contain-intrinsic-size: auto 1100px;
+}
+html.cv-all .sec {
+  content-visibility: visible !important;
+}
+/* A chapter that takes focus after a jump shows no ring around the whole chapter. */
+.sec[tabindex='-1']:focus {
+  outline: none;
 }
 
 /* ---------- Screen layers inside a phone (see Screen.astro) ---------- */
