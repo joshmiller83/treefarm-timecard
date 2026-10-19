@@ -54,8 +54,8 @@ struct MemberDetailView: View {
             }
             if let row {
                 TeamStatRow {
-                    TeamStat(label: "This week", value: Fmt.decimalHours(row.week), unit: "h", accessibilityValue: CrewStatusText.spokenHours(row.week))
-                    TeamStat(label: "Today", value: Fmt.decimalHours(row.today), unit: "h", accessibilityValue: CrewStatusText.spokenHours(row.today))
+                    TeamStat(label: "This week", value: Fmt.decimalHours(row.week), unit: "hrs", accessibilityValue: CrewStatusText.spokenHours(row.week))
+                    TeamStat(label: "Today", value: Fmt.decimalHours(row.today), unit: "hrs", accessibilityValue: CrewStatusText.spokenHours(row.today))
                     TeamStat(label: "Trees this week", value: Fmt.count(row.weekTrees), unit: nil, accessibilityValue: Fmt.plural(row.weekTrees, "tree"))
                 }
                 .card()

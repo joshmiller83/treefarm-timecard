@@ -356,6 +356,17 @@ final class TeamUITests: XCTestCase {
 
     // MARK: A look at every screen
 
+    /// At the largest text size a crew row drops the initials, keeps each name whole and puts
+    /// "You" under it when they don't fit side by side.
+    func testCrewRowsAtTheLargestTextSize() {
+        let app = launch(["-UITestTeamWeek", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"])
+        let me = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "crew-")).firstMatch
+        XCTAssertTrue(me.waitForExistence(timeout: 10))
+        reveal(me, in: app)
+        XCTAssertTrue(me.isHittable)
+        shot("crew-ax5", app)
+    }
+
     func testWalkThroughEveryTeamScreen() {
         let app = launch(["-UITestTeamWeek"])
         XCTAssertTrue(app.navigationBars["Team"].waitForExistence(timeout: 10))

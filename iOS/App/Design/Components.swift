@@ -99,6 +99,9 @@ struct SectionLabel: View {
             .font(.caption.weight(.semibold))
             .tracking(0.8)
             .foregroundStyle(Palette.muted)
+            // All caps grow loud fast: they stop at AX2, with the Large Content Viewer past it.
+            .dynamicTypeSize(...DynamicTypeSize.accessibility2)
+            .accessibilityShowsLargeContentViewer()
             .accessibilityAddTraits(.isHeader)
     }
 }

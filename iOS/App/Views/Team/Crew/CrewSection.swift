@@ -80,7 +80,7 @@ private struct WeekSummary: View {
                 Text(roster.weekLabel.wrappingOnlyAtDash).font(.subheadline).foregroundStyle(Palette.muted)
             }
             TeamStatRow {
-                TeamStat(label: "Crew hours", value: Fmt.decimalHours(roster.weekTotal), unit: "h",
+                TeamStat(label: "Crew hours", value: Fmt.decimalHours(roster.weekTotal), unit: "hrs",
                          accessibilityValue: Fmt.spokenDuration(roster.weekTotal))
                 TeamStat(label: "On the clock", value: "\(roster.onTheClock)", unit: "of \(roster.current.count)",
                          accessibilityValue: "\(roster.onTheClock) of \(Fmt.plural(roster.current.count, "person"))")
@@ -114,7 +114,10 @@ private struct CrewRowLink: View {
     var body: some View {
         NavigationLink(value: TeamView.Route.member(row.id)) {
             HStack(alignment: .center, spacing: 14) {
-                Avatar(name: row.member.displayName, dimmed: row.member.removedAt != nil)
+                // At the largest sizes the initials step aside so the name has the width.
+                if !typeSize.isAccessibilitySize {
+                    Avatar(name: row.member.displayName, dimmed: row.member.removedAt != nil)
+                }
                 if typeSize.isAccessibilitySize {
                     VStack(alignment: .leading, spacing: 6) {
                         details
@@ -143,17 +146,15 @@ private struct CrewRowLink: View {
 
     private var details: some View {
         VStack(alignment: .leading, spacing: 3) {
-            HStack(spacing: 6) {
-                Text(row.member.displayName)
-                    .font(.headline)
-                    .foregroundStyle(row.member.removedAt == nil ? Palette.ink : Palette.muted)
-                if row.isYou {
-                    Text("You")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(Palette.firText)
-                        .padding(.horizontal, 7)
-                        .padding(.vertical, 2)
-                        .background(Palette.firSoft, in: Capsule())
+            // The name and "You" side by side when they fit; never a name broken mid-word.
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 6) {
+                    name.fixedSize()
+                    youBadge
+                }
+                VStack(alignment: .leading, spacing: 4) {
+                    name.fixedSize(horizontal: false, vertical: true)
+                    youBadge
                 }
             }
             Text(roleLine).font(.subheadline).foregroundStyle(Palette.muted)
@@ -179,10 +180,28 @@ private struct CrewRowLink: View {
         }
     }
 
+    private var name: some View {
+        Text(row.member.displayName)
+            .font(.headline)
+            .foregroundStyle(row.member.removedAt == nil ? Palette.ink : Palette.muted)
+    }
+
+    @ViewBuilder private var youBadge: some View {
+        if row.isYou {
+            Text("You")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(Palette.firText)
+                .padding(.horizontal, 7)
+                .padding(.vertical, 2)
+                .background(Palette.firSoft, in: Capsule())
+                .fixedSize()
+        }
+    }
+
     private var hours: some View {
         VStack(alignment: typeSize.isAccessibilitySize ? .leading : .trailing, spacing: 1) {
             Text(Fmt.decimalHours(row.week)).numberStyle(.body).foregroundStyle(Palette.ink)
-            Text("h this week").font(.caption).foregroundStyle(Palette.muted)
+            Text("hrs this week").font(.caption).foregroundStyle(Palette.muted)
         }
     }
 
