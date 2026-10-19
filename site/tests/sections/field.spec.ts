@@ -27,27 +27,33 @@ async function goTo(page: Page, p: number) {
   await page.waitForTimeout(1100);
 }
 
-/** Goes to p and waits until the scrub has caught up (the camera, the canvas box and the chips stop moving). */
-async function goToStill(page: Page, p: number) {
-  await goTo(page, p);
-  const snap = () =>
-    page.evaluate(() => {
-      const c = document.querySelector<HTMLCanvasElement>('#field [data-field-fig] canvas[data-fieldmap]');
-      const m = (c as (HTMLCanvasElement & { fieldMap?: { state: { camera: number } } }) | null)?.fieldMap;
-      const r = c?.getBoundingClientRect();
-      const ops = ['[data-field-undo]', '[data-field-season]', '[data-field-card="2"]'].map((s) => getComputedStyle(document.querySelector(s)!).opacity);
-      return JSON.stringify([m?.state.camera, r?.left, r?.top, r?.width, ops]);
-    });
+/**
+ * Scrolls to p and polls until the scene shows what `ready` expects there. Every try measures the
+ * track again and arrives with a small scroll, as a reader would: on a busy machine a
+ * ScrollTrigger.refresh() can land mid-scrub after a jump (fonts, content-visibility of the
+ * sections above) and leave the timeline short of the trigger until the next scroll event.
+ */
+async function goUntil(page: Page, p: number, ready: (g: Geometry) => boolean) {
+  let last: Geometry | null = null;
   await expect
     .poll(
       async () => {
-        const a = await snap();
-        await page.waitForTimeout(300);
-        return a === (await snap());
+        const [a, b] = await trackRange(page);
+        const y = Math.round(a + p * (b - a));
+        await page.evaluate((y) => window.scrollTo(0, y - 3), y);
+        await page.waitForTimeout(50);
+        await page.evaluate((y) => window.scrollTo(0, y), y);
+        await page.waitForTimeout(900);
+        last = await geometry(page);
+        return ready(last);
       },
-      { timeout: 15_000 },
+      { timeout: 30_000, intervals: [200, 500, 1000], message: `the scene at ${p}` },
     )
-    .toBe(true);
+    .toBe(true)
+    .catch((e: Error) => {
+      throw new Error(`${e.message}\nlast geometry: ${JSON.stringify(last)}`);
+    });
+  return geometry(page);
 }
 
 type Box = { top: number; bottom: number; left: number; right: number; opacity: number };
@@ -83,8 +89,12 @@ const geometry = (page: Page) =>
       strip: box('#field [data-field-counts]'),
       undo: box('[data-field-undo]'),
       toast: !!document.querySelector('#field [data-field-fig][data-toast]'),
+      /** The camera box's width at rest (the canvas's, before the tilt's scale). */
+      restWidth: c.offsetWidth,
+      motion: document.documentElement.className,
     };
   });
+type Geometry = Awaited<ReturnType<typeof geometry>>;
 
 async function serious(page: Page) {
   const results = await new AxeBuilder({ page })
@@ -159,9 +169,7 @@ test.describe('with motion', () => {
   test('the Undo chip sits beside row 37 on a wide canvas, or as a toast in the legend’s place', async ({ page }) => {
     await page.goto('/');
     await settle(page);
-    await goToStill(page, 0.655);
-    const g = await geometry(page);
-    expect(g.undo.opacity).toBeGreaterThan(0.5);
+    const g = await goUntil(page, 0.655, (x) => x.camera === 1 && x.undo.opacity > 0.5);
     if (g.toast) {
       await expect(page.locator('#field .fm-foot [data-field-undo]')).toHaveCount(1);
       expect(g.undo.top).toBeGreaterThanOrEqual(g.card2.bottom - 1);
@@ -204,27 +212,19 @@ for (const [width, height] of [
       await page.goto('/');
       await settle(page);
 
-      await goToStill(page, 0.45);
-      let g = await geometry(page);
+      let g = await goUntil(page, 0.45, (x) => x.camera === 0 && Math.abs(x.canvasWidth - x.restWidth) < 1);
       expect(g.orientation).toBe('portrait');
-      expect(g.camera).toBe(0);
       // Portrait: block 7 is to the right of block 1 on the same row, and the field spans most of the width.
       expect(Math.abs(g.across[1].y - g.across[0].y)).toBeLessThan(1);
       expect(g.across[1].x - g.across[0].x).toBeGreaterThan(0.75 * g.canvasWidth);
 
       // The demo: rows 28–40 sit between the strip and card 2.
-      await goToStill(page, 0.62);
-      g = await geometry(page);
-      expect(g.camera).toBe(1);
-      expect(g.card2.opacity).toBeGreaterThan(0.9);
+      g = await goUntil(page, 0.62, (x) => x.camera === 1 && x.card2.opacity > 0.99);
       expect(g.row40.y + 9).toBeLessThanOrEqual(g.card2.top);
       expect(g.row28.y - 9).toBeGreaterThanOrEqual(g.strip.bottom);
 
       // The season flip: the rows clear card 3, and the chip sits between the strip and row 28.
-      await goToStill(page, 0.8);
-      g = await geometry(page);
-      expect(g.card3.opacity).toBeGreaterThan(0.9);
-      expect(g.chip.opacity).toBeGreaterThan(0.9);
+      g = await goUntil(page, 0.8, (x) => x.card3.opacity > 0.99 && x.chip.opacity > 0.99);
       expect(g.row40.y + 9).toBeLessThanOrEqual(g.card3.top);
       expect(g.chip.top).toBeGreaterThanOrEqual(g.strip.bottom - 1);
       expect(g.chip.bottom).toBeLessThanOrEqual(g.row28.y - 9);

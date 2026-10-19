@@ -826,6 +826,29 @@ const zoomVars = [
     .fm-haze {
       background: #0a1810;
     }
+    /* The smallest phones: a one-line legend and tighter cards, so the close-up still clears them. */
+    @media (max-width: 359.98px) {
+      :global(html.motion) .fm-legend {
+        gap: 4px 10px;
+        font-size: 11.5px;
+      }
+      :global(html.motion) .fm-legend li {
+        gap: 6px;
+      }
+      :global(html.motion) .fm-card {
+        grid-template-columns: 32px minmax(0, 1fr);
+        gap: 12px;
+        padding: 14px 16px;
+      }
+      :global(html.motion) .fm-card-icon {
+        width: 32px;
+        height: 32px;
+        border-radius: 10px;
+      }
+      :global(html.motion) .fm-card p {
+        font-size: 0.9375rem;
+      }
+    }
     /* The section's own phone comes back over the map at the end. */
     :global(html.motion) .fm-shot {
       position: absolute;

@@ -17,10 +17,14 @@
  * strip; the legend and the card sheet lie over its foot (with a scrim), and the close-up rises
  * just enough for rows 28–40 to clear each card.
  *
- * Performance (375×667, 4× CPU throttle, Chromium): the moving layers are promoted only while the
- * section is near (.fm-live: will-change), the phone comes back with opacity only, and the canvas
- * stops redrawing once the figure has faded out. Measured on a heavily loaded build Mac, so the
- * numbers are noisy: see the PR notes.
+ * Performance: the moving layers are promoted only while the section is near (.fm-live:
+ * will-change), the phone comes back with opacity only, the close-up's rise and the sheet's scrim
+ * change only while they move, and the canvas stops redrawing once the figure has faded out.
+ * Per-beat numbers still need a quiet machine: on 2026-10-19 the build Mac's load average was
+ * ~700 and SwiftShader rasterised on the CPU, so a 4× throttled run at 375×667 read 33–140 ms of
+ * main-thread task time a frame (script 3–10 ms) for every section alike, which says nothing
+ * about this scene. Method: CDP Emulation.setCPUThrottlingRate 4, step the track per rAF, read
+ * Performance.getMetrics TaskDuration / frames for [0,.3] [.3,.52] [.52,.72] [.72,.88] [.88,1].
  *
  * Leaves the stage phone at rest (opacity 1, scale 1) at 0 and 1.
  */
