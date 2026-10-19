@@ -81,7 +81,20 @@ const [stepOff, stepSync, stepOwner] = STEPS;
     </div>
 
     <div class="crew-trio">
-      <!-- Alex's phone: first in the DOM (the stage moves its [data-screens]; mobile scenes use it). -->
+      <div class="crew-cell crew-cell--off static-only sr-moving">
+        <Phone label={LABELS.offline}>
+          <div class="screens">
+            <Screen stateId="trees-1456-offline" alt={LABELS.offline} tone="light" final>
+              <TreesTab at={MOMENTS.alexRow12} {...map} syncLine={OFFLINE_LINE} noService />
+            </Screen>
+          </div>
+        </Phone>
+        <p class="crew-step">
+          <span class="crew-step-n">{stepOff.n}</span><time>{stepOff.time}</time><span aria-hidden="true">·</span><span>{stepOff.title}</span>
+        </p>
+      </div>
+
+      <!-- Alex's phone, second as the steps read (the stage moves its [data-screens]; mobile scenes use it). -->
       <div class="crew-cell crew-cell--main">
         <Phone label={LABELS.main}>
           <div class="screens crew-screens" data-screens data-crew-screens>
@@ -96,19 +109,6 @@ const [stepOff, stepSync, stepOwner] = STEPS;
         </Phone>
         <p class="crew-step static-only">
           <span class="crew-step-n">{stepSync.n}</span><time>{stepSync.time}</time><span aria-hidden="true">·</span><span>{stepSync.title}</span>
-        </p>
-      </div>
-
-      <div class="crew-cell crew-cell--off static-only sr-moving">
-        <Phone label={LABELS.offline}>
-          <div class="screens">
-            <Screen stateId="trees-1456-offline" alt={LABELS.offline} tone="light" final>
-              <TreesTab at={MOMENTS.alexRow12} {...map} syncLine={OFFLINE_LINE} noService />
-            </Screen>
-          </div>
-        </Phone>
-        <p class="crew-step">
-          <span class="crew-step-n">{stepOff.n}</span><time>{stepOff.time}</time><span aria-hidden="true">·</span><span>{stepOff.title}</span>
         </p>
       </div>
 
@@ -302,15 +302,6 @@ const [stepOff, stepSync, stepOwner] = STEPS;
     justify-items: center;
     gap: 16px;
     --phone-h: var(--crew-static-h);
-  }
-  .crew-cell--off {
-    order: 1;
-  }
-  .crew-cell--main {
-    order: 2;
-  }
-  .crew-cell--owner {
-    order: 3;
   }
   .crew-step {
     display: flex;

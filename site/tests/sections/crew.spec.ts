@@ -223,7 +223,8 @@ test.describe('at 375 with motion', () => {
     }
     // Mid-story the copy card quotes the message and the section phone is labelled.
     await expect(page.locator('#crew .beats q')).toHaveText(CONFLICT);
-    await expect(page.locator('#crew figure [data-phone][role="img"]').first()).toHaveAttribute('aria-label', /Synced/);
+    // The figure reads in the steps' order: no signal, back in range (synced), the owner.
+    await expect(page.locator('#crew figure [data-phone][role="img"]').nth(1)).toHaveAttribute('aria-label', /Synced/);
     expect(problems).toEqual([]);
   });
 

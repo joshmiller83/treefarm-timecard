@@ -130,10 +130,17 @@ export function boot(): void {
     trackTriggers.set(section, ScrollTrigger.create({ trigger: track, start: 'top top', end: 'bottom bottom' }));
   }
 
+  /** A section's own moving phone: the one holding its [data-screens] (a static figure's
+   *  phone may come first in the DOM, as the crew's no-signal phone does). */
+  const sectionPhone = (section: HTMLElement | null) =>
+    section?.querySelector<HTMLElement>('[data-screens]')?.closest<HTMLElement>('[data-phone]') ??
+    section?.querySelector<HTMLElement>('[data-phone]') ??
+    null;
+
   // ---- Scenes, per breakpoint ----
   const util = createUtil({ gsap, SplitText, phone: () => currentPhone(active), ambients });
   const currentPhone = (section: HTMLElement | null) =>
-    stage && isDesk ? stage.phone : (section?.querySelector<HTMLElement>('[data-phone]') ?? null);
+    stage && isDesk ? stage.phone : sectionPhone(section);
 
   let resolveReady: () => void = () => {};
   const ready = new Promise<void>((r) => (resolveReady = r));
@@ -203,7 +210,7 @@ export function boot(): void {
           id,
           section,
           tl,
-          phone: desk && stage ? stage.phone : section.querySelector<HTMLElement>('[data-phone]'),
+          phone: desk && stage ? stage.phone : sectionPhone(section),
           screens,
           extras: section.querySelector<HTMLElement>('.extras'),
           frame: section.querySelector<HTMLElement>('.frame'),
