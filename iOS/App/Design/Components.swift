@@ -155,6 +155,69 @@ struct StatusPill: View {
     }
 }
 
+// MARK: Segmented choices
+
+/// Two or three big choices side by side (Crew | Fields | Season, Lunch | Break, This week |
+/// Last week | …): glove-sized segments, the chosen one fir green. When the words wouldn't fit
+/// on one line each (the largest text sizes) the segments go one under another, so a word
+/// never breaks ("Lun/ch"). Used by every tab, so a choice looks the same everywhere.
+struct GloveSegmented<Value: Hashable>: View {
+    var options: [(value: Value, title: String, identifier: String)]
+    @Binding var selection: Value
+
+    /// Each option names its own accessibility identifier.
+    init(options: [(value: Value, title: String, identifier: String)], selection: Binding<Value>) {
+        self.options = options
+        self._selection = selection
+    }
+
+    /// Identifiers are "<identifier>-<title>", e.g. "report-range-This week".
+    init(options: [(value: Value, title: String)], selection: Binding<Value>, identifier: String) {
+        self.options = options.map { ($0.value, $0.title, "\(identifier)-\($0.title)") }
+        self._selection = selection
+    }
+
+    var body: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 4) { segments(oneLine: true) }
+            VStack(spacing: 4) { segments(oneLine: false) }
+        }
+        .padding(4)
+        .background(Palette.surface, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Palette.line, lineWidth: 1))
+        .sensoryFeedback(.selection, trigger: selection)
+    }
+
+    private func segments(oneLine: Bool) -> some View {
+        ForEach(options.indices, id: \.self) { i in
+            let option = options[i]
+            let selected = option.value == selection
+            Button {
+                withAnimation(.easeInOut(duration: 0.18)) { selection = option.value }
+            } label: {
+                Text(option.title)
+                    .font(.headline)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(oneLine ? 1 : nil)
+                    .minimumScaleFactor(oneLine ? 0.75 : 1)
+                    .foregroundStyle(selected ? Palette.firInk : Palette.ink)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, oneLine ? 0 : 8)
+                    .frame(maxWidth: .infinity, minHeight: GloveButtonStyle.minHeight)
+                    .background {
+                        if selected {
+                            RoundedRectangle(cornerRadius: 11, style: .continuous).fill(Palette.fir)
+                        }
+                    }
+                    .contentShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
+            }
+            .buttonStyle(.plain)
+            .accessibilityAddTraits(selected ? .isSelected : [])
+            .accessibilityIdentifier(option.identifier)
+        }
+    }
+}
+
 // MARK: Text fields
 
 /// A tall, bordered text field that's easy to hit with a thumb.

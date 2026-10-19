@@ -3,45 +3,6 @@ import TimeCardCore
 
 // Small pieces the Team tab's screens share. Every tap target is glove-sized (54 pt).
 
-/// A segmented choice with glove-sized segments: the selected one is fir green.
-struct GloveSegmented<Value: Hashable>: View {
-    var options: [(value: Value, title: String, identifier: String)]
-    @Binding var selection: Value
-
-    var body: some View {
-        HStack(spacing: 4) {
-            ForEach(options, id: \.value) { option in
-                let selected = option.value == selection
-                Button {
-                    withAnimation(.easeInOut(duration: 0.18)) { selection = option.value }
-                } label: {
-                    Text(option.title)
-                        .font(.headline)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.7)
-                        // Every segment the same size, even at the largest text sizes.
-                        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
-                        .foregroundStyle(selected ? Palette.firInk : Palette.ink)
-                        .frame(maxWidth: .infinity, minHeight: GloveButtonStyle.minHeight)
-                        .background {
-                            if selected {
-                                RoundedRectangle(cornerRadius: 11, style: .continuous).fill(Palette.fir)
-                            }
-                        }
-                        .contentShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
-                }
-                .buttonStyle(.plain)
-                .accessibilityAddTraits(selected ? .isSelected : [])
-                .accessibilityIdentifier(option.identifier)
-            }
-        }
-        .padding(4)
-        .background(Palette.surface, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Palette.line, lineWidth: 1))
-        .sensoryFeedback(.selection, trigger: selection)
-    }
-}
-
 /// A big selectable card: a title, a line of detail, and a check when chosen.
 struct ChoiceTile: View {
     var title: String

@@ -91,54 +91,6 @@ struct PickerRow<Picker: View>: View {
     }
 }
 
-/// Two or three big choices side by side (Lunch | Break, This week | Last week | …), or one
-/// under another when the words wouldn't fit on one line each (the largest text sizes), so a
-/// word never breaks ("Lun/ch").
-struct GloveSegmented<Value: Hashable>: View {
-    var options: [(value: Value, title: String)]
-    @Binding var selection: Value
-    var identifier: String
-
-    var body: some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(spacing: 6) { segments(oneLine: true) }
-            VStack(spacing: 6) { segments(oneLine: false) }
-        }
-        .padding(4)
-        .background(Palette.stripe, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-    }
-
-    private func segments(oneLine: Bool) -> some View {
-        ForEach(options.indices, id: \.self) { i in
-            let option = options[i]
-            let selected = option.value == selection
-            Button {
-                withAnimation(.easeInOut(duration: 0.15)) { selection = option.value }
-            } label: {
-                Text(option.title)
-                    .font(.subheadline.weight(selected ? .semibold : .regular))
-                    .multilineTextAlignment(.center)
-                    .lineLimit(oneLine ? 1 : nil)
-                    .minimumScaleFactor(oneLine ? 0.75 : 1)
-                    .foregroundStyle(selected ? Palette.firText : Palette.ink)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, oneLine ? 0 : 8)
-                    .frame(maxWidth: .infinity, minHeight: GloveButtonStyle.minHeight)
-                    .background(selected ? Palette.firSoft : .clear, in: RoundedRectangle(cornerRadius: 11, style: .continuous))
-                    .overlay {
-                        if selected {
-                            RoundedRectangle(cornerRadius: 11, style: .continuous).strokeBorder(Palette.fir.opacity(0.35), lineWidth: 1)
-                        }
-                    }
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityAddTraits(selected ? [.isSelected] : [])
-            .accessibilityIdentifier("\(identifier)-\(option.title)")
-        }
-    }
-}
-
 extension String {
     /// "Oct 12 – Oct 18, 2026" with no-break spaces inside each date, so a long line wraps
     /// after the dash and never inside a date ("Oct" / "18").
