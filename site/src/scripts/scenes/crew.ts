@@ -101,9 +101,40 @@ registerScene(
       tl.to(els, { ...vars, duration: s * 3, stagger: s, ease: 'power1.out' }, w[0]);
       tl.to(els, { keyframes: { scale: [1, 1.16, 1] }, duration: s * 3, stagger: s, ease: 'none' }, w[0]);
     };
+    /**
+     * A touch indicator (like a screen recording's) held on the row number from the tap until
+     * the row has filled, so the action reads in a still frame and while scrubbing slowly.
+     * util.tap still does the press, the ring and the haptic shake.
+     */
+    const made: Element[] = [];
+    const touch = (el: Element | null, at: number, until: number) => {
+      if (!el) return;
+      const dot = document.createElement('span');
+      dot.className = 'crew-touch';
+      dot.setAttribute('aria-hidden', 'true');
+      el.appendChild(dot);
+      made.push(dot);
+      tl.fromTo(dot, { opacity: 0, scale: 0.55 }, { opacity: 1, scale: 1, duration: 0.008, ease: 'power2.out', immediateRender: false }, at - 0.006);
+      tl.to(dot, { opacity: 0, scale: 1.2, duration: 0.012, ease: 'power1.in' }, until);
+    };
     const pulseAt = (w: Win) => {
       if (pulse) tl.to(pulse, { keyframes: { opacity: [0, 0.95, 0], scale: [0.6, 1.5, 2.8] }, duration: span(w), ease: 'none' }, w[0]);
     };
+
+    // ---- The headline: lines mask-reveal once at 'top 75%' (not scrubbed); then the eyebrow and body ----
+    const heading = one(section, `#${section.id}-h`);
+    if (heading) {
+      const head = heading.closest('.beat-head');
+      const rest = [one(head, '.eyebrow'), one(head, '.beat-intro')].filter(Boolean);
+      const once = { trigger: heading, start: 'top 75%', once: true };
+      ctx.SplitText.create(heading, {
+        type: 'lines',
+        mask: 'lines',
+        autoSplit: true,
+        onSplit: (self) => gsap.from(self.lines, { yPercent: 100, duration: 0.7, stagger: 0.08, ease: 'power3.out', scrollTrigger: once }),
+      });
+      if (rest.length) gsap.from(rest, { opacity: 0, y: 14, duration: 0.6, delay: 0.18, stagger: 0.08, ease: 'power2.out', scrollTrigger: once });
+    }
 
     // ---- Progress 0: block 3 on your phone, Sam's map on his, everything else waiting ----
     util.show(screens, 'trees-1447-block3');
@@ -173,6 +204,7 @@ registerScene(
     const samDots = dots(S, CONFLICT.row);
     dotState(samDots, 'ring');
     util.tap(tl, samLab, AT.tap.sam, { shake: false });
+    touch(samLab, AT.tap.sam, AT.samFill[1]);
     tl.to(peekPhone, { keyframes: { x: [0, 2, -2, 2, -2, 0] }, duration: 0.04, ease: 'none' }, AT.tap.sam);
     fillRow(samDots, AT.samFill, { '--g': 1 });
 
@@ -204,6 +236,7 @@ registerScene(
 
     // ================= [.26, .42] you mark rows 11 and 12 with no signal =================
     util.tap(tl, lab11, AT.tap.row11);
+    touch(lab11, AT.tap.row11, AT.fill11[1]);
     fillRow(d11, AT.fill11, { '--g': 1 });
     if (lab11 && lab12) {
       tl.set(lab11, { attr: { class: plainClass } }, AT.fill11[1]);
@@ -213,6 +246,7 @@ registerScene(
     // Each offline change waits on the wire by your phone.
     if (pkA1) tl.to(pkA1.el, { opacity: 1, duration: span(AT.queue1) }, AT.queue1[0]);
     util.tap(tl, lab12, AT.tap.row12);
+    touch(lab12, AT.tap.row12, AT.fill12[1]);
     fillRow(d12, AT.fill12, { '--g': 1 });
     if (capEnd && lab12) {
       tl.set(lab12, { attr: { class: plainClass } }, AT.fill12[1]);
@@ -358,6 +392,7 @@ registerScene(
       for (const k of ['--crew-sx', '--crew-sy', '--crew-sw', '--crew-sh']) rig.style.removeProperty(k);
       // Put the static markup's values back (the DOM writes GSAP does not revert).
       setCount(WAITING);
+      for (const m of made) m.remove();
       for (const [e, state] of swapped) e.setAttribute('data-s', state);
       for (const [h, text] of hours) setOdometer(h, text);
     };
