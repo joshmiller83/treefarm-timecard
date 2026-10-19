@@ -190,7 +190,7 @@ const tiers = firTiers();
 
   /* Siri's card takes the top of the lock screen: the date, the big clock and the padlock
      give way (only the lock screen's own children, not the status bar's clock). */
-  :global([data-lock]:has([data-snippet], [data-wave]) > :is([data-date], [data-clock], [data-padlock], .lock-padlock)) {
+  :global([data-lock]:has([data-snippet], [data-wave]) > :is([data-date], [data-clock], [data-padlock])) {
     opacity: 0;
   }
 </style>

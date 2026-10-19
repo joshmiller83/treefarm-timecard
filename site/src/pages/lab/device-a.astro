@@ -71,8 +71,9 @@ const pt = (n: number) => `${Math.round(n * 100) / 100} pt`;
   <section class="intro">
     <p>
       The phone frame, status bar, screen layers, lock screen and Live Activity. Phones here are at real device size:
-      one CSS pixel per point, a 393 × 852 screen in a 420 × 879 frame. Drop a 1179 × 2556 simulator capture into{' '}
-      <code>public/screens/&lt;state-id&gt;.png</code> and the matching <code>&lt;Screen&gt;</code> renders it instead.
+      one CSS pixel per point, a 393 × 852 screen in a 420 × 879 frame. Encode a 1179 × 2556 simulator capture as WebP or AVIF
+      (at most 200 KB) into <code>public/screens/&lt;state-id&gt;.webp</code> and the matching <code>&lt;Screen&gt;</code> renders it
+      instead.
     </p>
   </section>
 

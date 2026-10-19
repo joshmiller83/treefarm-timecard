@@ -1,7 +1,7 @@
 ---
 /**
  * Lab: report (owner). Every state of ReportTab and PaperTimeCard, side by side.
- * Phones render at real device size first: a 910px-tall phone has a 393px-wide screen, so one
+ * Phones render at real device size first: an 879px-tall phone has a 393px-wide screen, so one
  * pt is one CSS px, like a 393 × 852 pt iPhone. On a narrow window they scale to fit.
  */
 import Lab from '../../layouts/Lab.astro';
@@ -10,8 +10,8 @@ import Screen from '../../components/phone/Screen.astro';
 import ReportTab from '../../components/app/ReportTab.astro';
 import PaperTimeCard from '../../components/PaperTimeCard.astro';
 
-/** 910px tall = a 393px screen (pt = px); never wider than the window on a phone. */
-const REAL = 'min(910px, calc((100vw - 2 * var(--gutter)) * 852 / 393))';
+/** 879px tall = a 393px screen in the 420 × 879 frame (pt = px); never wider than the window on a phone. */
+const REAL = 'min(879px, calc((100vw - 2 * var(--gutter)) * 879 / 420))';
 
 const states = [
   { id: 'report-week', range: 'This week', picker: false, note: 'This week · the page’s final state (report-week)' },
@@ -26,6 +26,8 @@ const label = (s: (typeof states)[number]) =>
     ? 'Time Card Report tab with a Pick dates sheet: From Mon, Oct 12 to Fri, Oct 16 on an October calendar.'
     : `Time Card Report tab with ${s.range} selected, the totals, a paper time card preview, and buttons to export a PDF or a CSV.`;
 
+/** Each size, shrunk only when the window is narrower than the phone (a 760px-tall frame is 363px wide). */
+const fit = (h: string) => `min(${h}, calc((100vw - 2 * var(--gutter)) * 879 / 420))`;
 const sizes = [
   { h: '760px', note: 'desktop stage · 760px' },
   { h: '460px', note: 'mobile section · 460px' },
@@ -61,7 +63,7 @@ const sizes = [
       {
         sizes.map((s) => (
           <div class="lab-cell">
-            <Phone label={label(states[0])} height={s.h}>
+            <Phone label={label(states[0])} height={fit(s.h)}>
               <div class="screens" data-screens>
                 <Screen stateId={`lab-report-${s.h}`} alt="" tone="light" final>
                   <ReportTab />

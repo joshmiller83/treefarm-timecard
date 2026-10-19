@@ -10,14 +10,13 @@ import Screen from '../../components/phone/Screen.astro';
 import ClockTab from '../../components/app/ClockTab.astro';
 import TeamTab from '../../components/app/TeamTab.astro';
 import TreesTab from '../../components/app/TreesTab.astro';
-import TreeNoteSheet from '../../components/app/TreeNoteSheet.astro';
 import AppKit from '../../components/screens/AppKit.astro';
 import Icon from '../../components/app/Icon.astro';
 import { FLAGS, MOMENTS, OLD_NOTE, TREE_NOTE, fmtTime, t } from '../../data/ledger';
 import { flagTone } from '../../components/screens/notes/notes';
 
-/** The phone is 3.2% bezel on each side, so 910 px tall gives a 393 px wide screen. */
-const H = 'min(910px, calc((100vw - 32px) * 852 / 393))';
+/** The 420 × 879 frame holds a 393 × 852 screen, so 879 px tall gives a 393 px wide screen. */
+const H = 'min(879px, calc((100vw - 32px) * 879 / 420))';
 
 const clockCrops = [
   { id: 'top', crop: 'top', caption: 'Top: status, now working, trees' },
@@ -110,19 +109,17 @@ const moments = [
         <Phone label="Tree note sheet for block 2, row 36, tree 7: Needs attention. Leader’s broken. Needs a stake. Alex, today 2:33 PM" height={H}>
           <div class="screens" data-screens>
             <Screen stateId="lab-note" alt="" tone="light" final>
-              <TreesTab at={MOMENTS.treeNote} block={2} rows={[30, 40]} zoom="L" notes={[TREE_NOTE, OLD_NOTE]} />
-              <TreeNoteSheet at={MOMENTS.treeNote} />
+              <TreesTab at={MOMENTS.treeNote} block={2} rows={[30, 40]} zoom="L" notes={[TREE_NOTE, OLD_NOTE]} sheet={TREE_NOTE} />
             </Screen>
           </div>
         </Phone>
-        <p>TreeNoteSheet over TreesTab (55%), both at 2:33 PM</p>
+        <p>TreeNoteSheet over TreesTab (55%, the tab's <code>sheet</code> prop), both at 2:33 PM</p>
       </div>
       <div class="lab-cell">
         <Phone label="Tree note sheet for block 2, row 31, tree 4: Replant. Lost its top in the wind. Sam, Oct 9" height={H}>
           <div class="screens" data-screens>
             <Screen stateId="lab-note-old" alt="" tone="light" final>
-              <TreesTab at={MOMENTS.treeNote} block={2} rows={[28, 40]} zoom="L" notes={[TREE_NOTE, OLD_NOTE]} />
-              <TreeNoteSheet note={OLD_NOTE} at={MOMENTS.treeNote} />
+              <TreesTab at={MOMENTS.treeNote} block={2} rows={[28, 40]} zoom="L" notes={[TREE_NOTE, OLD_NOTE]} sheet={OLD_NOTE} />
             </Screen>
           </div>
         </Phone>

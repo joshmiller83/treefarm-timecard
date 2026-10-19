@@ -106,8 +106,9 @@
   --radius-card: 20px;
   --radius-btn: 14px;
 
-  /* Phones: 393 × 852 pt, stage height min(78svh, 760px), section phones min(52svh, 460px) on mobile. */
-  --phone-ratio: 393 / 852;
+  /* Phones: a 420 × 879 frame around a 393 × 852 pt screen (width = height × 420 / 879),
+     stage height min(78svh, 760px), section phones min(52svh, 460px) on mobile. */
+  --phone-ratio: 420 / 879;
   --phone-h-desk: min(78svh, 760px);
   --phone-h-mob: min(52svh, 460px);
 

@@ -206,7 +206,16 @@ const modeIndex = MODES.findIndex((m) => m.id === mode);
         </div>
       )
     }
-    {sheet && <TreeNoteSheet note={sheet} />}
+    {
+      sheet && (
+        <TreeNoteSheet
+          note={sheet}
+          notes={[...markers.filter((n) => n !== sheet && n.block === sheet.block && n.row === sheet.row && n.tree === sheet.tree), sheet]}
+          at={at}
+          who={who}
+        />
+      )
+    }
   </Fragment>
 </AppChrome>
 
