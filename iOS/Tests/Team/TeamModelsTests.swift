@@ -87,3 +87,41 @@ struct TeamModelsTests {
         await session.stop()
     }
 }
+
+@Suite("Team: waiting for the farm")
+struct TeamLoadingTests {
+    @Test func waitsUntilTheFarmsSeasonIsHere() {
+        let f = TeamFixture()
+        let synced = SyncStatus(lastSyncedAt: f.now)
+        // Synced, with the active season: ready.
+        #expect(!TeamLoading.isWaitingForFarm(snapshot: f.snapshot, farm: f.farm, syncStatus: synced))
+        // Before the first pull the farm from /me already names its season, but the season isn't here yet.
+        var empty = FarmSnapshot(farmId: f.farm.id)
+        #expect(TeamLoading.isWaitingForFarm(snapshot: empty, farm: f.farm, syncStatus: SyncStatus()))
+        #expect(TeamLoading.isWaitingForFarm(snapshot: empty, farm: f.farm, syncStatus: synced))
+        // A farm without a season yet: wait for the first pull, then believe the empty lists.
+        var bare = f.farm
+        bare.activeSeasonId = nil
+        #expect(TeamLoading.isWaitingForFarm(snapshot: empty, farm: bare, syncStatus: SyncStatus()))
+        #expect(!TeamLoading.isWaitingForFarm(snapshot: empty, farm: bare, syncStatus: synced))
+        // Records already on the phone from an earlier launch count, even before this launch's pull.
+        empty.fields[f.north.id] = f.north
+        #expect(!TeamLoading.isWaitingForFarm(snapshot: empty, farm: bare, syncStatus: SyncStatus()))
+        // No farm open at all.
+        #expect(TeamLoading.isWaitingForFarm(snapshot: f.snapshot, farm: nil, syncStatus: synced))
+    }
+
+    @Test func saysWhyItIsWaiting() {
+        #expect(TeamLoading.detail(SyncStatus()) == "The farm’s fields and seasons show up in a moment.")
+        #expect(TeamLoading.detail(SyncStatus(phase: .offline))
+            == "You’re offline. The farm’s fields and seasons show up once you have signal.")
+        #expect(TeamLoading.detail(SyncStatus(phase: .failed, lastError: "x")) == "The server didn’t answer. Pull down to try again.")
+    }
+
+    @Test func reloadsInvitesThatAreOverHalfAMinuteOld() {
+        let now = Date(timeIntervalSince1970: 1_780_000_000)
+        #expect(InvitesModel.isStale(loadedAt: nil, now: now))
+        #expect(!InvitesModel.isStale(loadedAt: now.addingTimeInterval(-29), now: now))
+        #expect(InvitesModel.isStale(loadedAt: now.addingTimeInterval(-31), now: now))
+    }
+}

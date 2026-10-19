@@ -2,6 +2,27 @@ import Foundation
 import Observation
 import TimeCardCore
 
+/// Whether the farm's records are still on their way from the server. Every farm starts
+/// with a season and "Field 1", so before the first pull an empty list doesn't mean there
+/// are none: the Team tab waits instead of offering to start a season or add a field, which
+/// would move the whole crew to a new season or make a second "Field 1".
+enum TeamLoading {
+    static func isWaitingForFarm(snapshot: FarmSnapshot, farm: Farm?, syncStatus: SyncStatus) -> Bool {
+        guard let farm else { return true }
+        if let season = farm.activeSeasonId, snapshot.seasons[season] == nil { return true }
+        return snapshot.fields.isEmpty && snapshot.seasons.isEmpty && syncStatus.lastSyncedAt == nil
+    }
+
+    /// The line under "Getting the farm from the server…".
+    static func detail(_ status: SyncStatus) -> String {
+        switch status.phase {
+        case .offline: "You’re offline. The farm’s fields and seasons show up once you have signal."
+        case .failed: "The server didn’t answer. Pull down to try again."
+        default: "The farm’s fields and seasons show up in a moment."
+        }
+    }
+}
+
 /// The farm's invites, through the session's admin calls. The list never holds a code:
 /// the server shows each code once, in the answer to making it.
 @MainActor
@@ -15,11 +36,27 @@ final class InvitesModel {
     private(set) var working = false
     /// Why the last make or revoke failed.
     var error: String?
+    /// When the list last came from the server.
+    private(set) var loadedAt: Date?
 
     @ObservationIgnored private let session: TimeCardSession
 
+    /// How old the list can get before coming back to the Crew section reloads it.
+    nonisolated static let maxAge: TimeInterval = 30
+
     init(session: TimeCardSession) {
         self.session = session
+    }
+
+    nonisolated static func isStale(loadedAt: Date?, now: Date) -> Bool {
+        guard let loadedAt else { return true }
+        return now.timeIntervalSince(loadedAt) > maxAge
+    }
+
+    /// Reloads when the list is over half a minute old, so a used invite doesn't linger as open.
+    func refreshIfStale(now: Date = Date()) async {
+        guard Self.isStale(loadedAt: loadedAt, now: now) else { return }
+        await load()
     }
 
     func load() async {
@@ -29,6 +66,7 @@ final class InvitesModel {
         do {
             invites = try await session.listInvites()
             loaded = true
+            loadedAt = Date()
             listError = nil
         } catch {
             listError = TeamErrors.message(error, needs: "The invite list")

@@ -10,6 +10,8 @@ struct MemberDetailView: View {
     @State private var editing = false
     @State private var reset: ResetCodeResponse?
     @State private var confirmingRemove = false
+    /// The shift being fixed in the shift editor (a forgotten clock-out).
+    @State private var fixing: FixShift?
 
     var body: some View {
         TimelineView(.everyMinute) { timeline in
@@ -30,6 +32,10 @@ struct MemberDetailView: View {
         .sheet(item: Binding(get: { reset.map(IdentifiedReset.init) }, set: { reset = $0?.reset })) { item in
             if let member = session.snapshot.members[userId] { ResetCodeSheet(member: member, reset: item.reset) }
         }
+        .sheet(item: $fixing) { item in
+            ShiftEditorView(shiftId: item.id)
+        }
+        .announcing(actions?.error)
     }
 
     @ViewBuilder
@@ -41,18 +47,21 @@ struct MemberDetailView: View {
         let removed = member.removedAt != nil
 
         VStack(alignment: .leading, spacing: 16) {
-            header(member, row: row, calendar: calendar, isYou: isYou)
+            header(member, row: row, calendar: calendar, isYou: isYou, now: now)
+            if let row, let since = row.forgotSince {
+                forgotBox(member, since: since, calendar: calendar, now: now)
+            }
             if let row {
                 TeamStatRow {
-                    TeamStat(label: "This week", value: Fmt.decimalHours(row.week), unit: "h", accessibilityValue: Fmt.spokenDuration(row.week))
-                    TeamStat(label: "Today", value: Fmt.decimalHours(row.today), unit: "h", accessibilityValue: Fmt.spokenDuration(row.today))
-                    TeamStat(label: "Trees", value: Fmt.count(row.weekTrees), unit: nil, accessibilityValue: "\(Fmt.plural(row.weekTrees, "tree")) this week")
+                    TeamStat(label: "This week", value: Fmt.decimalHours(row.week), unit: "h", accessibilityValue: CrewStatusText.spokenHours(row.week))
+                    TeamStat(label: "Today", value: Fmt.decimalHours(row.today), unit: "h", accessibilityValue: CrewStatusText.spokenHours(row.today))
+                    TeamStat(label: "Trees this week", value: Fmt.count(row.weekTrees), unit: nil, accessibilityValue: Fmt.plural(row.weekTrees, "tree"))
                 }
                 .card()
             }
             recentShifts(recent, calendar: calendar, now: now)
             NavigationLink(value: TeamView.Route.memberReport(userId)) {
-                Label("\(firstName(member))’s time card", systemImage: "doc.text")
+                Label("\(member.teamFirstName)’s time card", systemImage: "doc.text")
             }
             .buttonStyle(.gloveSecondary)
             .accessibilityIdentifier("member-report")
@@ -68,7 +77,7 @@ struct MemberDetailView: View {
         }
     }
 
-    private func header(_ member: Member, row: CrewRow?, calendar: FarmCalendar, isYou: Bool) -> some View {
+    private func header(_ member: Member, row: CrewRow?, calendar: FarmCalendar, isYou: Bool, now: Date) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .center, spacing: 14) {
                 Avatar(name: member.displayName, size: 60, dimmed: member.removedAt != nil)
@@ -90,11 +99,37 @@ struct MemberDetailView: View {
             }
             .font(.subheadline)
             .foregroundStyle(Palette.ink)
-            if let row, let status = CrewStatusText.line(row.status, calendar: calendar) {
+            // A forgotten clock-out gets its own warning below, so the pill is for everyday status.
+            if let row, !row.forgotClockOut, let status = CrewStatusText.line(row.status, calendar: calendar, now: now) {
                 StatusPill(text: status, tone: CrewStatusText.tone(row.status))
             }
         }
         .card()
+    }
+
+    /// "Still clocked in since Sun, Oct 18 at 2:55 AM (26 h). Did Sam forget to clock out?"
+    /// with a way into the shift editor to set the real clock-out time.
+    private func forgotBox(_ member: Member, since: Date, calendar: FarmCalendar, now: Date) -> some View {
+        let open = session.snapshot.shifts.values.first { $0.userId == member.userId && $0.isLive && $0.isOpen && $0.start == since }
+        return AlertBox {
+            Text(CrewStatusText.forgotLine(since: since, calendar: calendar, now: now) + ".")
+                .font(.headline)
+                .foregroundStyle(Palette.ink)
+                .fixedSize(horizontal: false, vertical: true)
+            Text("\(CrewStatusText.forgotQuestion(member)) Set the time they really stopped, so the hours and pay are right.")
+                .font(.subheadline)
+                .foregroundStyle(Palette.ink)
+                .fixedSize(horizontal: false, vertical: true)
+            if let open {
+                Button { fixing = FixShift(id: open.id) } label: {
+                    Label("Fix \(member.teamFirstName)’s times", systemImage: "clock.badge.exclamationmark")
+                }
+                .buttonStyle(.glovePrimary)
+                .accessibilityIdentifier("member-fix-shift")
+            }
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("member-forgot")
     }
 
     @ViewBuilder
@@ -129,7 +164,10 @@ struct MemberDetailView: View {
             .buttonStyle(.gloveSecondary)
             .accessibilityIdentifier("member-edit")
             Button {
-                Task { reset = await actions?.resetCode(for: member) }
+                Task {
+                    reset = await actions?.resetCode(for: member)
+                    if reset == nil { TeamAnnounce.say(actions?.error) }
+                }
             } label: {
                 if actions?.working == true {
                     ProgressView()
@@ -152,24 +190,26 @@ struct MemberDetailView: View {
                 .buttonStyle(.gloveDestructive)
                 .disabled(actions?.working == true)
                 .accessibilityIdentifier("member-remove")
+                .confirmationDialog("Remove \(member.displayName)?", isPresented: $confirmingRemove, titleVisibility: .visible) {
+                    Button("Remove \(member.teamFirstName)", role: .destructive) {
+                        Task {
+                            if await actions?.remove(member) == false { TeamAnnounce.say(actions?.error) }
+                        }
+                    }
+                    Button("Keep \(member.teamFirstName)", role: .cancel) {}
+                } message: {
+                    Text("They won’t be able to sign in to \(session.farm?.name ?? "this farm"). Their hours stay on its reports.")
+                }
             }
             if let error = actions?.error {
                 ErrorMessage(text: error)
             }
         }
-        .confirmationDialog("Remove \(member.displayName)?", isPresented: $confirmingRemove, titleVisibility: .visible) {
-            Button("Remove \(firstName(member))", role: .destructive) {
-                Task { _ = await actions?.remove(member) }
-            }
-            Button("Keep \(firstName(member))", role: .cancel) {}
-        } message: {
-            Text("They won’t be able to sign in to \(session.farm?.name ?? "this farm"). Their hours stay on its reports.")
-        }
     }
+}
 
-    private func firstName(_ member: Member) -> String {
-        member.displayName.split(separator: " ").first.map(String.init) ?? member.displayName
-    }
+private struct FixShift: Identifiable {
+    var id: UUID
 }
 
 private struct IdentifiedReset: Identifiable {
@@ -177,14 +217,17 @@ private struct IdentifiedReset: Identifiable {
     var id: String { reset.code }
 }
 
-/// "Mon, Oct 19 · 7:02 AM – 3:31 PM · 8.15 h · 212 trees"
+/// "Mon, Oct 19 · 7:02 AM – 3:31 PM · 8.15 h · 212 trees", stacked at the largest text sizes.
 private struct ShiftLine: View {
     var item: CrewRoster.RecentShift
     var calendar: FarmCalendar
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         let shift = item.shift
-        HStack(alignment: .center, spacing: 12) {
+        let stacked = typeSize.isAccessibilitySize
+        let layout = stacked ? AnyLayout(VStackLayout(alignment: .leading, spacing: 4)) : AnyLayout(HStackLayout(spacing: 12))
+        layout {
             VStack(alignment: .leading, spacing: 3) {
                 Text(Fmt.day(shift.start, calendar)).font(.headline).foregroundStyle(Palette.ink)
                 HStack(spacing: 4) {
@@ -192,6 +235,8 @@ private struct ShiftLine: View {
                     Text("–")
                     if let end = shift.end {
                         Text(Fmt.time(end, calendar))
+                    } else if item.forgotClockOut {
+                        Text("still open").foregroundStyle(Palette.rust).fontWeight(.semibold)
                     } else {
                         Text("now").foregroundStyle(Palette.firText).fontWeight(.semibold)
                     }
@@ -199,9 +244,9 @@ private struct ShiftLine: View {
                 .font(.subheadline)
                 .foregroundStyle(Palette.muted)
             }
-            Spacer(minLength: 8)
-            VStack(alignment: .trailing, spacing: 3) {
-                Text("\(Fmt.decimalHours(item.worked)) h").numberStyle(.body).foregroundStyle(Palette.ink)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            VStack(alignment: stacked ? .leading : .trailing, spacing: 3) {
+                Text("\(Fmt.decimalHours(item.worked)) h").numberStyle(.body).foregroundStyle(item.forgotClockOut ? Palette.rust : Palette.ink)
                 Text(Fmt.plural(item.trees, "tree")).font(.caption).foregroundStyle(Palette.muted)
             }
         }

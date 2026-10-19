@@ -70,6 +70,12 @@ struct MemberEditSheet: View {
                     Button("Save", action: attemptSave)
                         .buttonStyle(.glovePrimary)
                         .accessibilityIdentifier("member-save")
+                        .confirmationDialog("Make yourself crew?", isPresented: $confirmingStepDown, titleVisibility: .visible) {
+                            Button("Make me crew", role: .destructive, action: save)
+                            Button("Stay admin", role: .cancel) {}
+                        } message: {
+                            Text("You’ll lose the Team tab and stop seeing other people’s hours. Another admin can change it back.")
+                        }
                 }
                 .teamPage()
             }
@@ -85,12 +91,6 @@ struct MemberEditSheet: View {
                 }
             }
             .onChange(of: draft) { problem = nil }
-            .confirmationDialog("Make yourself crew?", isPresented: $confirmingStepDown, titleVisibility: .visible) {
-                Button("Make me crew", role: .destructive, action: save)
-                Button("Stay admin", role: .cancel) {}
-            } message: {
-                Text("You’ll lose the Team tab and stop seeing other people’s hours. Another admin can change it back.")
-            }
         }
     }
 
@@ -116,5 +116,7 @@ struct MemberEditSheet: View {
         } catch {
             problem = error.localizedDescription
         }
+        // Said out loud on every refused tap, even when the sentence is already showing.
+        TeamAnnounce.say(problem)
     }
 }

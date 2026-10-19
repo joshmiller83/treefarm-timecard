@@ -72,6 +72,57 @@ struct CrewRosterTests {
         #expect(CrewStatusText.line(.off, calendar: f.calendar, now: f.now) == nil)
     }
 
+    @Test func aShiftOpenMoreThanSixteenHoursLooksForgotten() {
+        var f = TeamFixture()
+        // It's Wednesday at noon. Sam clocked in Tuesday at 10 and never clocked out: 26 hours.
+        let sams = f.addShift(f.sam, from: f.at(20, 10), to: nil)
+        // Alex has been on since 7 this morning: 5 hours, nothing wrong.
+        f.addShift(f.alex, from: f.at(21, 7), to: nil)
+        // Jo was removed; an old open shift of theirs isn't the crew's problem to catch.
+        f.addShift(f.jo, from: f.at(19, 7), to: nil)
+
+        let roster = CrewRoster.build(snapshot: f.snapshot, me: f.alex.userId, now: f.now, calendar: f.calendar)
+        let sam = roster.current.first { $0.member.userId == f.sam.userId }
+        let alex = roster.current.first { $0.member.userId == f.alex.userId }
+        #expect(sam?.forgotSince == f.at(20, 10))
+        #expect(sam?.forgotClockOut == true)
+        #expect(sam?.isOnTheClock == true)
+        #expect(alex?.forgotSince == nil)
+        #expect(roster.forgotClockOut.map(\.member.displayName) == ["Sam Ortiz"])
+        #expect(roster.forgotSummary == "Sam Ortiz may have forgotten to clock out.")
+
+        #expect(CrewStatusText.forgotLine(since: f.at(20, 10), calendar: f.calendar, now: f.now)
+            == "Still clocked in since Tue, Oct 20 at 10:00 AM (26 h)")
+        #expect(CrewStatusText.forgotQuestion(f.sam) == "Did Sam forget to clock out?")
+        #expect(CrewStatusText.tone(sam!) == .alert)
+        #expect(CrewStatusText.tone(alex!) == .working)
+
+        let recent = CrewRoster.recentShifts(of: f.sam.userId, snapshot: f.snapshot, now: f.now, limit: 3)
+        #expect(recent.first?.shift.id == sams.id)
+        #expect(recent.first?.forgotClockOut == true)
+    }
+
+    @Test func sixteenHoursOnTheDotIsStillAShift() {
+        var f = TeamFixture()
+        f.addShift(f.sam, from: f.now.addingTimeInterval(-16 * 3600), to: nil)
+        f.addShift(f.alex, from: f.now.addingTimeInterval(-16 * 3600 - 60), to: nil)
+        let roster = CrewRoster.build(snapshot: f.snapshot, me: nil, now: f.now, calendar: f.calendar)
+        #expect(roster.forgotClockOut.map(\.member.displayName) == ["Alex Rivera"])
+        #expect(roster.forgotSummary == "Alex Rivera may have forgotten to clock out.")
+        // An older shift left open behind the newer one is caught too.
+        f.addShift(f.sam, from: f.at(19, 7), to: nil)
+        let two = CrewRoster.build(snapshot: f.snapshot, me: nil, now: f.now, calendar: f.calendar)
+        #expect(two.forgotSummary == "2 people may have forgotten to clock out.")
+        #expect(CrewRoster.build(snapshot: TeamFixture().snapshot, me: nil, now: f.now, calendar: f.calendar).forgotSummary == nil)
+    }
+
+    @Test func zeroHoursAreSpokenAsNoHours() {
+        #expect(CrewStatusText.spokenWeek(0) == "no hours this week")
+        #expect(CrewStatusText.spokenWeek(7.5 * 3600) == "7 hours 30 minutes this week")
+        #expect(CrewStatusText.spokenHours(0) == "No hours")
+        #expect(CrewStatusText.spokenHours(2 * 3600) == "2 hours")
+    }
+
     @Test func recentShiftsComeNewestFirstWithTreeCounts() {
         var f = TeamFixture()
         let block = f.addBlock("1", row: 0, column: 0)

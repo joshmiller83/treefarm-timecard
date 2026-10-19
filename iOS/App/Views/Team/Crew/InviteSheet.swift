@@ -33,7 +33,8 @@ struct InviteSheet: View {
                         .accessibilityIdentifier("invite-done")
                 }
             }
-            .interactiveDismissDisabled(invites.working)
+            // The code is shown only this once: only Done closes it, never a stray swipe.
+            .interactiveDismissDisabled(invites.working || made != nil)
         }
         .onAppear { invites.error = nil }
     }
@@ -62,6 +63,8 @@ struct InviteSheet: View {
                 Task {
                     if let invite = await invites.create(role: role, note: note) {
                         withAnimation(.easeInOut(duration: 0.25)) { made = invite }
+                    } else {
+                        TeamAnnounce.say(invites.error)
                     }
                 }
             } label: {
@@ -138,6 +141,8 @@ struct ResetCodeSheet: View {
                     Button("Done") { dismiss() }.accessibilityIdentifier("reset-done")
                 }
             }
+            // Shown only this once: only Done closes it.
+            .interactiveDismissDisabled()
         }
     }
 }

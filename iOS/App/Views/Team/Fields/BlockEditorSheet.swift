@@ -56,8 +56,10 @@ struct BlockEditorSheet: View {
                     directionChoice
                     if editing == nil { placementPicker }
                     if attempted, let problem = shownProblem {
-                        // Again by the button, so a refused save is never silent.
+                        // Again by the button, so a refused save is never silent. VoiceOver
+                        // reads the copy above and hears it announced, so it skips this one.
                         ErrorMessage(text: problem)
+                            .accessibilityHidden(true)
                     }
                     if editing == nil, let sheetProblem {
                         ErrorMessage(text: sheetProblem)
@@ -69,7 +71,8 @@ struct BlockEditorSheet: View {
                 }
                 .teamPage()
             }
-            .onChange(of: shownProblem) {
+            .onChange(of: shownProblem) { _, new in
+                TeamAnnounce.say(new)
                 // A message appearing above the sizes pushes them down: keep the one being typed in sight.
                 guard let focus, focus != "name" else { return }
                 withAnimation(.easeInOut(duration: 0.2)) { proxy.scrollTo(focus, anchor: UnitPoint(x: 0.5, y: 0.85)) }
@@ -88,6 +91,8 @@ struct BlockEditorSheet: View {
             }
             .sensoryFeedback(.success, trigger: saved)
             .sensoryFeedback(.warning, trigger: refused)
+            // A refused save or removal is said out loud, even when the sentence was already showing.
+            .onChange(of: refused) { TeamAnnounce.say(sheetProblem ?? shownProblem) }
             .onAppear(perform: load)
             .onChange(of: placementID) { followNeighbor() }
         }
@@ -134,7 +139,7 @@ struct BlockEditorSheet: View {
                        selected: draft.direction == .across) { setDirection(.across) }
                 .accessibilityIdentifier("block-across")
             ChoiceTile(title: "Down", detail: "Each row is a column; row numbers across the top.", systemImage: "line.3.horizontal",
-                       selected: draft.direction == .down) { setDirection(.down) }
+                       iconRotation: .degrees(90), selected: draft.direction == .down) { setDirection(.down) }
                 .accessibilityIdentifier("block-down")
         }
     }
@@ -185,15 +190,15 @@ struct BlockEditorSheet: View {
             }
             .buttonStyle(.gloveDestructive)
             .accessibilityIdentifier("block-remove")
+            .confirmationDialog("Remove \(editing?.displayName ?? "this block")?", isPresented: $confirmingRemove, titleVisibility: .visible) {
+                Button("Remove block", role: .destructive, action: remove)
+                Button("Keep it", role: .cancel) {}
+            } message: {
+                Text("It has no shaped trees or notes. The blocks around it stay where they are.")
+            }
             if let sheetProblem { ErrorMessage(text: sheetProblem) }
         }
         .padding(.top, 8)
-        .confirmationDialog("Remove \(editing?.displayName ?? "this block")?", isPresented: $confirmingRemove, titleVisibility: .visible) {
-            Button("Remove block", role: .destructive, action: remove)
-            Button("Keep it", role: .cancel) {}
-        } message: {
-            Text("It has no shaped trees or notes. The blocks around it stay where they are.")
-        }
     }
 
     // MARK: State

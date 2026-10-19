@@ -97,6 +97,12 @@ struct FieldEditorView: View {
                     }
                     .buttonStyle(.gloveSecondary)
                     .accessibilityIdentifier("field-archive")
+                    .confirmationDialog("Archive \(field.name)?", isPresented: $confirmingArchive, titleVisibility: .visible) {
+                        Button("Archive field") { apply(FieldPlans.archive(field, now: Date())) }
+                        Button("Keep it on the map", role: .cancel) {}
+                    } message: {
+                        Text("It leaves the crew’s map. Its blocks, shaped trees and notes stay, and you can put it back any time.")
+                    }
                 } else {
                     Button { apply(FieldPlans.restore(field, now: Date())) } label: {
                         Label("Put back on the map", systemImage: "arrow.uturn.backward")
@@ -107,12 +113,6 @@ struct FieldEditorView: View {
                 if let problem { ErrorMessage(text: problem) }
             }
         }
-        .confirmationDialog("Archive \(field.name)?", isPresented: $confirmingArchive, titleVisibility: .visible) {
-            Button("Archive field") { apply(FieldPlans.archive(field, now: Date())) }
-            Button("Keep it on the map", role: .cancel) {}
-        } message: {
-            Text("It leaves the crew’s map. Its blocks, shaped trees and notes stay, and you can put it back any time.")
-        }
     }
 
     private func apply(_ edit: TeamEdit) {
@@ -121,6 +121,7 @@ struct FieldEditorView: View {
         } catch {
             problem = error.localizedDescription
         }
+        TeamAnnounce.say(problem)
     }
 }
 
@@ -142,28 +143,44 @@ private struct BlockRow: View {
     var block: Block
     var shaped: Int
     var action: () -> Void
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         Button(action: action) {
             HStack(spacing: 12) {
-                Image(systemName: "line.3.horizontal")
-                    .rotationEffect(block.direction == .down ? .degrees(90) : .zero)
-                    .font(.title3.weight(.semibold))
-                    .foregroundStyle(Palette.firText)
-                    .frame(width: 40, height: 40)
-                    .background(Palette.firSoft, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                    .accessibilityHidden(true)
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(block.displayName).font(.headline).foregroundStyle(Palette.ink)
-                    Text("\(Fmt.plural(block.rowCount, "row")) × \(Fmt.plural(block.treesPerRow, "tree")) · rows run \(block.direction.rawValue)")
-                        .font(.subheadline)
-                        .foregroundStyle(Palette.muted)
-                        .fixedSize(horizontal: false, vertical: true)
+                if !typeSize.isAccessibilitySize {
+                    Image(systemName: "line.3.horizontal")
+                        .rotationEffect(block.direction == .down ? .degrees(90) : .zero)
+                        .font(.title3.weight(.semibold))
+                        .foregroundStyle(Palette.firText)
+                        .frame(width: 40, height: 40)
+                        .background(Palette.firSoft, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        .accessibilityHidden(true)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                VStack(alignment: .trailing, spacing: 1) {
-                    Text(Fmt.count(shaped)).numberStyle(.body).foregroundStyle(shaped > 0 ? Palette.firText : Palette.muted)
-                    Text("of \(Fmt.count(block.treeCount))").font(.caption).foregroundStyle(Palette.muted)
+                // At the largest text sizes the shaped count goes under the size, not beside it.
+                let layout = typeSize.isAccessibilitySize
+                    ? AnyLayout(VStackLayout(alignment: .leading, spacing: 4))
+                    : AnyLayout(HStackLayout(spacing: 12))
+                layout {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(block.displayName).font(.headline).foregroundStyle(Palette.ink)
+                        Text("\(Fmt.plural(block.rowCount, "row")) × \(Fmt.plural(block.treesPerRow, "tree")) · rows run \(block.direction.rawValue)")
+                            .font(.subheadline)
+                            .foregroundStyle(Palette.muted)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    if typeSize.isAccessibilitySize {
+                        Text("\(Fmt.count(shaped)) of \(Fmt.count(block.treeCount)) shaped")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(shaped > 0 ? Palette.firText : Palette.muted)
+                            .fixedSize(horizontal: false, vertical: true)
+                    } else {
+                        VStack(alignment: .trailing, spacing: 1) {
+                            Text(Fmt.count(shaped)).numberStyle(.body).foregroundStyle(shaped > 0 ? Palette.firText : Palette.muted)
+                            Text("of \(Fmt.count(block.treeCount))").font(.caption).foregroundStyle(Palette.muted)
+                        }
+                    }
                 }
                 Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(Palette.muted)
             }

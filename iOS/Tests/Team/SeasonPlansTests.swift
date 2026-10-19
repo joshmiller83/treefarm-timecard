@@ -52,6 +52,50 @@ struct SeasonPlansTests {
         #expect(progress.first?.shaped == 2)
         #expect(progress.first?.total == 100)
     }
+
+    @Test func aSeasonStartedByMistakeCanBeUndoneUntilTreesAreShaped() {
+        var f = TeamFixture()
+        // 2026 has been going since the summer; 2027 was started yesterday.
+        let mistake = Season(farmId: f.farm.id, name: "2027", startedAt: f.at(20, 9), updatedAt: f.at(20, 9))
+        f.snapshot.seasons[mistake.id] = mistake
+        var farm = f.farm
+        farm.activeSeasonId = mistake.id
+        f.snapshot.farm = farm
+        #expect(SeasonPlans.undoTarget(f.snapshot, now: f.now)?.id == f.season.id)
+
+        let edit = SeasonPlans.makeActive(f.season, farm: farm, now: f.now)
+        guard edit.records.count == 1, case .farm(let back) = edit.records[0] else {
+            Issue.record("expected the farm, got \(edit)")
+            return
+        }
+        #expect(back.activeSeasonId == f.season.id)
+        #expect(back.updatedAt == f.now.roundedToMillisecond)
+
+        // Once a tree is shaped in 2027, going back would split the work: no undo.
+        let block = f.addBlock("1", row: 0, column: 0)
+        let shift = f.addShift(f.sam, from: f.at(21, 7), to: nil)
+        let mark = f.mark(block, row: 0, position: 0, shift: shift, season: mistake)
+        #expect(SeasonPlans.undoTarget(f.snapshot, now: f.now) == nil)
+
+        // Nor a week on, when it was surely meant.
+        f.snapshot.marks[mark.id] = nil
+        #expect(SeasonPlans.undoTarget(f.snapshot, now: f.at(28, 9, 1)) == nil)
+        // And the only season has nothing to go back to.
+        #expect(SeasonPlans.undoTarget(TeamFixture().snapshot, now: f.now) == nil)
+    }
+
+    @Test func saysWhoIsOnTheClockBeforeASeasonStarts() {
+        #expect(SeasonPlans.onTheClockLine([]) == "Nobody else is on the clock right now.")
+        #expect(SeasonPlans.onTheClockLine(["Sam Ortiz"]) == "Sam Ortiz is on the clock right now.")
+        #expect(SeasonPlans.onTheClockLine(["Sam Ortiz", "Jo Banks"]) == "Sam Ortiz and Jo Banks are on the clock right now.")
+        #expect(SeasonPlans.onTheClockLine(["A", "B", "C"]) == "3 people are on the clock right now.")
+
+        var f = TeamFixture()
+        f.addShift(f.sam, from: f.at(21, 7), to: nil)
+        f.addShift(f.alex, from: f.at(21, 7), to: nil)
+        // You know you're on the clock; the line is about everyone else.
+        #expect(SeasonPlans.othersOnTheClock(f.snapshot, me: f.alex.userId, now: f.now, calendar: f.calendar) == ["Sam Ortiz"])
+    }
 }
 
 @Suite("Team: invite and reset codes")

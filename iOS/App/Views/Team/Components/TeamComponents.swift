@@ -47,6 +47,8 @@ struct ChoiceTile: View {
     var title: String
     var detail: String?
     var systemImage: String
+    /// Turns the icon, e.g. 90° so "rows run down" shows upright lines.
+    var iconRotation: Angle = .zero
     var selected: Bool
     var action: () -> Void
 
@@ -54,6 +56,7 @@ struct ChoiceTile: View {
         Button(action: action) {
             HStack(alignment: .center, spacing: 14) {
                 Image(systemName: systemImage)
+                    .rotationEffect(iconRotation)
                     .font(.title3.weight(.semibold))
                     .foregroundStyle(selected ? Palette.firText : Palette.muted)
                     .frame(width: 28)
@@ -173,17 +176,23 @@ struct LabeledGloveField: View {
     }
 }
 
-/// A round badge with a person's initials.
+/// A round badge with a person's initials. The circle grows a little with the text size,
+/// up to a third bigger, and the initials always fit inside it.
 struct Avatar: View {
     var name: String
     var size: CGFloat = 44
     var dimmed = false
+    @ScaledMetric(relativeTo: .headline) private var scale: CGFloat = 1
 
     var body: some View {
+        let diameter = size * min(max(scale, 1), 1.35)
         Text(initials)
-            .font(.custom(Typeface.headingBold, size: size * 0.4, relativeTo: .headline))
+            .font(.custom(Typeface.headingBold, fixedSize: diameter * 0.4))
+            .lineLimit(1)
+            .minimumScaleFactor(0.5)
+            .padding(.horizontal, diameter * 0.12)
             .foregroundStyle(dimmed ? Palette.muted : Palette.firText)
-            .frame(width: size, height: size)
+            .frame(width: diameter, height: diameter)
             .background(dimmed ? Palette.stripe : Palette.firSoft, in: Circle())
             .overlay(Circle().strokeBorder((dimmed ? Palette.line : Palette.fir).opacity(0.3), lineWidth: 1))
             .accessibilityHidden(true)
@@ -267,14 +276,28 @@ struct NoticeBox<Content: View>: View {
 enum CrewStatusText {
     /// The day is added when it began before today: "Working since Sun, Oct 18 at 11:52 PM".
     static func line(_ status: CrewRow.Status, calendar: FarmCalendar, now: Date = Date()) -> String? {
-        func since(_ date: Date) -> String {
-            calendar.isSameDay(date, now) ? Fmt.time(date, calendar) : "\(Fmt.day(date, calendar)) at \(Fmt.time(date, calendar))"
-        }
         switch status {
-        case .working(let start): return "Working since \(since(start))"
-        case .onBreak(let kind, let start): return "On \(kind == .lunch ? "lunch" : "a break") since \(since(start))"
+        case .working(let start): return "Working since \(since(start, calendar: calendar, now: now))"
+        case .onBreak(let kind, let start): return "On \(kind == .lunch ? "lunch" : "a break") since \(since(start, calendar: calendar, now: now))"
         case .off: return nil
         }
+    }
+
+    /// The row's line: the forgot-to-clock-out warning when there is one, else its status.
+    static func line(_ row: CrewRow, calendar: FarmCalendar, now: Date = Date()) -> String? {
+        if let start = row.forgotSince { return forgotLine(since: start, calendar: calendar, now: now) }
+        return line(row.status, calendar: calendar, now: now)
+    }
+
+    /// "Still clocked in since Tue, Oct 20 at 10:00 AM (26 h)"
+    static func forgotLine(since start: Date, calendar: FarmCalendar, now: Date = Date()) -> String {
+        let hours = Int(max(0, now.timeIntervalSince(start)) / 3600)
+        return "Still clocked in since \(since(start, calendar: calendar, now: now)) (\(hours) h)"
+    }
+
+    /// "Did Sam forget to clock out?"
+    static func forgotQuestion(_ member: Member) -> String {
+        "Did \(member.teamFirstName) forget to clock out?"
     }
 
     static func tone(_ status: CrewRow.Status) -> StatusPill.Tone {
@@ -284,9 +307,71 @@ enum CrewStatusText {
         case .off: .off
         }
     }
+
+    static func tone(_ row: CrewRow) -> StatusPill.Tone {
+        row.forgotClockOut ? .alert : tone(row.status)
+    }
+
+    /// "7 hours 30 minutes this week", or "no hours this week" rather than "less than a minute".
+    static func spokenWeek(_ worked: TimeInterval) -> String {
+        worked <= 0 ? "no hours this week" : "\(Fmt.spokenDuration(worked)) this week"
+    }
+
+    /// A stat's spoken value: "2 hours", or "No hours".
+    static func spokenHours(_ worked: TimeInterval) -> String {
+        worked <= 0 ? "No hours" : Fmt.spokenDuration(worked)
+    }
+
+    private static func since(_ date: Date, calendar: FarmCalendar, now: Date) -> String {
+        calendar.isSameDay(date, now) ? Fmt.time(date, calendar) : "\(Fmt.day(date, calendar)) at \(Fmt.time(date, calendar))"
+    }
+}
+
+/// Says a refusal or an error out loud with VoiceOver, so a tap on Save is never silent.
+/// The same sentence twice within a second is said once.
+@MainActor
+enum TeamAnnounce {
+    private static var last: (text: String, at: Date)?
+
+    static func say(_ text: String?) {
+        guard let text, !text.isEmpty else { return }
+        let now = Date()
+        if let last, last.text == text, now.timeIntervalSince(last.at) < 1 { return }
+        last = (text, now)
+        Task { @MainActor in
+            // After VoiceOver has read the button that was tapped.
+            try? await Task.sleep(for: .milliseconds(250))
+            AccessibilityNotification.Announcement(text).post()
+        }
+    }
+}
+
+/// A warning in rust: something the admin should look at now, with an optional button.
+struct AlertBox<Content: View>: View {
+    var systemImage: String = "exclamationmark.triangle.fill"
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: systemImage)
+                .font(.title3.weight(.semibold))
+                .foregroundStyle(Palette.rust)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 8) { content }
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(14)
+        .background(Palette.rust.opacity(0.10), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Palette.rust.opacity(0.4), lineWidth: 1))
+    }
 }
 
 extension View {
+    /// Announces `text` with VoiceOver whenever it changes to a new sentence.
+    func announcing(_ text: String?) -> some View {
+        onChange(of: text) { _, new in TeamAnnounce.say(new) }
+    }
+
     /// The Team tab's page width and padding.
     func teamPage() -> some View {
         padding(.horizontal, 16)

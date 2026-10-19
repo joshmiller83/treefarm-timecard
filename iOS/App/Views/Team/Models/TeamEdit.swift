@@ -58,3 +58,10 @@ extension Role {
         }
     }
 }
+
+extension Member {
+    /// "Sam" for "Sam Ortiz": how the Team tab's buttons and questions name someone.
+    var teamFirstName: String {
+        displayName.split(separator: " ").first.map(String.init) ?? displayName
+    }
+}

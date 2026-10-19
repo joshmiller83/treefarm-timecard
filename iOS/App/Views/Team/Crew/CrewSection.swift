@@ -24,13 +24,18 @@ struct CrewSection: View {
         if let farm = session.farm {
             let calendar = FarmCalendar(farm: farm)
             let roster = CrewRoster.build(snapshot: session.snapshot, me: session.me?.user.id, now: now, calendar: calendar)
-            WeekSummary(roster: roster)
+            if roster.current.isEmpty && session.teamIsWaitingForFarm {
+                // Before the first pull there's nobody to list yet, not an empty crew.
+                TeamWaitingCard()
+            } else {
+                WeekSummary(roster: roster)
+            }
             VStack(alignment: .leading, spacing: 8) {
                 SectionLabel("Crew")
                 VStack(spacing: 0) {
                     ForEach(Array(roster.current.enumerated()), id: \.element.id) { index, row in
                         if index > 0 { RowDivider().padding(.leading, 74) }
-                        CrewRowLink(row: row, calendar: calendar)
+                        CrewRowLink(row: row, calendar: calendar, now: now)
                     }
                 }
                 .background(Palette.surface, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
@@ -50,7 +55,7 @@ struct CrewSection: View {
                     VStack(spacing: 0) {
                         ForEach(Array(roster.former.enumerated()), id: \.element.id) { index, row in
                             if index > 0 { RowDivider().padding(.leading, 74) }
-                            CrewRowLink(row: row, calendar: calendar)
+                            CrewRowLink(row: row, calendar: calendar, now: now)
                         }
                     }
                     .background(Palette.surface, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
@@ -80,6 +85,18 @@ private struct WeekSummary: View {
                 TeamStat(label: "On the clock", value: "\(roster.onTheClock)", unit: "of \(roster.current.count)",
                          accessibilityValue: "\(roster.onTheClock) of \(Fmt.plural(roster.current.count, "person"))")
             }
+            if let forgot = roster.forgotSummary {
+                Label {
+                    Text(forgot).fixedSize(horizontal: false, vertical: true)
+                } icon: {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                }
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(Palette.rust)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(forgot)
+                .accessibilityIdentifier("team-forgot")
+            }
         }
         .card()
         .accessibilityElement(children: .contain)
@@ -91,6 +108,7 @@ private struct WeekSummary: View {
 private struct CrewRowLink: View {
     var row: CrewRow
     var calendar: FarmCalendar
+    var now: Date
     @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
@@ -139,12 +157,23 @@ private struct CrewRowLink: View {
                 }
             }
             Text(roleLine).font(.subheadline).foregroundStyle(Palette.muted)
-            if let status = CrewStatusText.line(row.status, calendar: calendar) {
+            if let status = CrewStatusText.line(row, calendar: calendar, now: now) {
+                let tone = CrewStatusText.tone(row)
                 HStack(alignment: .firstTextBaseline, spacing: 6) {
-                    Circle().fill(CrewStatusText.tone(row.status).dot).frame(width: 8, height: 8)
-                        .alignmentGuide(.firstTextBaseline) { $0[.bottom] - 1 }
-                    Text(status).font(.subheadline.weight(.medium)).foregroundStyle(CrewStatusText.tone(row.status).ink)
-                        .fixedSize(horizontal: false, vertical: true)
+                    if row.forgotClockOut {
+                        Image(systemName: "exclamationmark.triangle.fill").font(.caption).foregroundStyle(tone.dot)
+                    } else {
+                        Circle().fill(tone.dot).frame(width: 8, height: 8)
+                            .alignmentGuide(.firstTextBaseline) { $0[.bottom] - 1 }
+                    }
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(status).font(.subheadline.weight(.medium))
+                        if row.forgotClockOut {
+                            Text(CrewStatusText.forgotQuestion(row.member)).font(.subheadline.weight(.semibold))
+                        }
+                    }
+                    .foregroundStyle(tone.ink)
+                    .fixedSize(horizontal: false, vertical: true)
                 }
             }
         }
@@ -164,8 +193,9 @@ private struct CrewRowLink: View {
 
     private var accessibilityText: String {
         var parts = [row.member.displayName + (row.isYou ? ", you" : ""), roleLine]
-        if let status = CrewStatusText.line(row.status, calendar: calendar) { parts.append(status) }
-        parts.append("\(Fmt.spokenDuration(row.week)) this week")
+        if let status = CrewStatusText.line(row, calendar: calendar, now: now) { parts.append(status) }
+        if row.forgotClockOut { parts.append(CrewStatusText.forgotQuestion(row.member)) }
+        parts.append(CrewStatusText.spokenWeek(row.week))
         return parts.joined(separator: ". ")
     }
 }
@@ -185,7 +215,6 @@ private struct InviteList: View {
     var now: Date
     var calendar: FarmCalendar
     @State private var showingOld = false
-    @State private var revoking: InviteInfo?
 
     var body: some View {
         let open = invites.invites.filter { InviteText.status($0, now: now) == .open }
@@ -215,7 +244,9 @@ private struct InviteList: View {
                 } else {
                     ForEach(Array(open.enumerated()), id: \.element.id) { index, invite in
                         if index > 0 { RowDivider().padding(.leading, 16) }
-                        InviteRow(invite: invite, now: now, calendar: calendar) { revoking = invite }
+                        InviteRow(invite: invite, now: now, calendar: calendar) {
+                            if !(await invites.revoke(invite)) { TeamAnnounce.say(invites.error) }
+                        }
                     }
                 }
                 if invites.loaded && !old.isEmpty {
@@ -252,39 +283,32 @@ private struct InviteList: View {
                 ErrorMessage(text: error)
             }
         }
-        .confirmationDialog("Revoke this invite?", isPresented: Binding(get: { revoking != nil }, set: { if !$0 { revoking = nil } }),
-                            titleVisibility: .visible, presenting: revoking) { invite in
-            Button("Revoke invite", role: .destructive) { Task { await invites.revoke(invite) } }
-            Button("Keep it", role: .cancel) {}
-        } message: { _ in
-            Text("The code stops working right away. You can make a new one any time.")
-        }
     }
 }
 
+/// One invite. Its Revoke button asks first, in a dialog that points at that button.
 private struct InviteRow: View {
     var invite: InviteInfo
     var now: Date
     var calendar: FarmCalendar
-    var onRevoke: (() -> Void)?
+    var onRevoke: (() async -> Void)?
+    @Environment(\.dynamicTypeSize) private var typeSize
+    @State private var confirming = false
 
     var body: some View {
         let status = InviteText.status(invite, now: now)
-        ViewThatFits(in: .horizontal) {
-            HStack(spacing: 12) {
-                text(status)
-                Spacer(minLength: 8)
-                revoke
-            }
-            VStack(alignment: .leading, spacing: 10) {
-                text(status)
-                revoke
-            }
+        let layout = typeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 10))
+            : AnyLayout(HStackLayout(spacing: 12))
+        layout {
+            text(status)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .accessibilityIdentifier("invite-\(invite.note.isEmpty ? invite.id.uuidString : invite.note)")
+            revoke
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
         .frame(minHeight: 64)
-        .accessibilityIdentifier("invite-\(invite.note.isEmpty ? invite.id.uuidString : invite.note)")
     }
 
     private func text(_ status: InviteText.Status) -> some View {
@@ -310,7 +334,7 @@ private struct InviteRow: View {
     @ViewBuilder
     private var revoke: some View {
         if let onRevoke {
-            Button("Revoke", action: onRevoke)
+            Button("Revoke") { confirming = true }
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(Palette.rust)
                 .padding(.horizontal, 16)
@@ -320,6 +344,13 @@ private struct InviteRow: View {
                 .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                 .buttonStyle(.plain)
                 .accessibilityLabel("Revoke \(invite.note.isEmpty ? "invite" : "invite for \(invite.note)")")
+                .accessibilityIdentifier("invite-revoke")
+                .confirmationDialog("Revoke this invite?", isPresented: $confirming, titleVisibility: .visible) {
+                    Button("Revoke invite", role: .destructive) { Task { await onRevoke() } }
+                    Button("Keep it", role: .cancel) {}
+                } message: {
+                    Text("The code stops working right away. You can make a new one any time.")
+                }
         }
     }
 }

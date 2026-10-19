@@ -42,6 +42,47 @@ enum SeasonPlans {
         return .save([.season(season), .farm(updated)])
     }
 
+    /// How long a just-started season can be taken back, while nothing is shaped in it.
+    static let undoWindow: TimeInterval = 7 * 86400
+
+    /// The season to go back to when the active one was started by mistake: the one before
+    /// it, offered only while the active season is under a week old and has no shaped trees.
+    static func undoTarget(_ snapshot: FarmSnapshot, now: Date) -> Season? {
+        guard let activeId = snapshot.farm?.activeSeasonId, let active = snapshot.seasons[activeId],
+              now.timeIntervalSince(active.startedAt) < undoWindow,
+              !snapshot.marks.values.contains(where: { $0.isLive && $0.seasonId == activeId }) else { return nil }
+        return snapshot.seasons.values
+            .filter { $0.id != activeId && $0.startedAt <= active.startedAt }
+            .max { ($0.startedAt, $0.id.uuidString) < ($1.startedAt, $1.id.uuidString) }
+    }
+
+    /// The farm pointing at an earlier season again.
+    static func makeActive(_ season: Season, farm: Farm, now: Date) -> TeamEdit {
+        guard farm.activeSeasonId != season.id else { return .unchanged }
+        let stamp = now.roundedToMillisecond
+        var updated = farm
+        updated.activeSeasonId = season.id
+        updated.updatedAt = max(stamp, farm.updatedAt.addingTimeInterval(0.001))
+        return .save([.farm(updated)])
+    }
+
+    /// Everyone but you on the clock now, by name: their phones switch seasons only when they sync.
+    static func othersOnTheClock(_ snapshot: FarmSnapshot, me: UUID?, now: Date, calendar: FarmCalendar) -> [String] {
+        CrewRoster.build(snapshot: snapshot, me: me, now: now, calendar: calendar).current
+            .filter { $0.isOnTheClock && !$0.isYou }
+            .map(\.member.displayName)
+    }
+
+    /// "Sam Ortiz is on the clock right now."
+    static func onTheClockLine(_ names: [String]) -> String {
+        switch names.count {
+        case 0: "Nobody else is on the clock right now."
+        case 1: "\(names[0]) is on the clock right now."
+        case 2: "\(names[0]) and \(names[1]) are on the clock right now."
+        default: "\(names.count) people are on the clock right now."
+        }
+    }
+
     /// Every season, newest first, with the trees shaped in it.
     static func rows(_ snapshot: FarmSnapshot) -> [Row] {
         var shaped: [UUID: Int] = [:]
