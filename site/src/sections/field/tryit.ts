@@ -182,6 +182,8 @@ export function initTryIt(root: HTMLElement): () => void {
 
   const act = (fn: () => string, kind: 'row' | 'tree' | 'other') => {
     grid.dataset.last = kind;
+    // The gold "next row" hint has done its job once anything is tapped.
+    grid.querySelector('[data-next]')?.removeAttribute('data-next');
     say(fn());
     render();
   };
@@ -240,7 +242,22 @@ export function initTryIt(root: HTMLElement): () => void {
   rove({ r: 0, c: 0 }, false);
   render();
 
+  // The next row's pill pulses once (CSS, motion only) when most of the grid is in view.
+  const cue =
+    'IntersectionObserver' in window
+      ? new IntersectionObserver(
+          (entries) => {
+            if (!entries.some((e) => e.isIntersecting)) return;
+            root.dataset.cue = '';
+            cue?.disconnect();
+          },
+          { threshold: 0.6 },
+        )
+      : null;
+  cue?.observe(grid);
+
   return () => {
+    cue?.disconnect();
     grid.removeEventListener('click', onClick);
     grid.removeEventListener('keydown', onKey);
     grid.removeEventListener('focusin', onFocusIn);
