@@ -219,10 +219,20 @@ registerScene(
     }
 
     // ---- Lights up ----
+    // The paper rises from the horizon behind a warm bloom (a transform wipe: dusk above the
+    // edge, paper below it). The dusk copy steps out before the light reaches it and the
+    // section's text turns to ink while nothing is on screen to change colour; the safety-net
+    // notes come back on the paper (desktop). On phones their dark card leaves for good.
     const light = document.querySelector<HTMLElement>('[data-tint-light]');
     const lightSpan = span(B.lights);
-    if (light) tl.fromTo(light, { opacity: 0 }, { opacity: 1, duration: lightSpan, ease: 'power1.inOut', immediateRender: false }, B.lights[0]);
+    // y: 0 in both: the CSS rest (translateY(140%)) must not survive as a px offset under yPercent.
+    if (light) tl.fromTo(light, { y: 0, yPercent: 140 }, { y: 0, yPercent: 0, duration: lightSpan, ease: 'power1.inOut', immediateRender: false }, B.lights[0]);
     if (rim) tl.to(rim, { opacity: 0, duration: lightSpan * 0.75 }, B.lights[0] + lightSpan * 0.1);
+    const duskCopy = all(section, '.co-beat');
+    const forgot = one(section, '.co-forgot');
+    const outAt = B.lights[0] - 0.02;
+    if (duskCopy.length) tl.to(duskCopy, { autoAlpha: 0, duration: 0.02, ease: 'power1.in' }, outAt);
+    if (forgot && isDesk) tl.fromTo(forgot, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.03, ease: 'power1.out', immediateRender: false }, B.lights[1]);
     tl.set(section, { attr: { 'data-theme': 'light' } }, B.theme);
     // Once the light layer is up, the section paints the same light itself (so the page reads
     // as light to anything that looks at the section, like a contrast checker).
