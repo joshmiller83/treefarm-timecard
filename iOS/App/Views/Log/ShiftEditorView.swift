@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import TimeCardCore
 
 /// Edits one shift (or adds one when `shiftId` is nil): date, clock in and out (out may be the
@@ -253,7 +254,7 @@ private struct EditorForm: View {
                     .labelsHidden()
                     // The farm's weeks: Monday first on a Monday farm, as on the Log.
                     .environment(\.calendar, calendar.calendar)
-                    .transition(.opacity.combined(with: .move(edge: .top)))
+                    .transition(.slide(from: .top, reduceMotion: UIAccessibility.isReduceMotionEnabled))
             }
         }
     }
@@ -597,7 +598,7 @@ private struct ConfirmDeleteStyle: ButtonStyle {
             .background(Palette.rustFill, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
             .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             .opacity(configuration.isPressed ? 0.82 : 1)
-            .scaleEffect(configuration.isPressed ? 0.98 : 1)
+            .pressScale(configuration.isPressed, 0.98)
             .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
     }
 }

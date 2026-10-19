@@ -190,7 +190,7 @@ struct TileButtonStyle: ButtonStyle {
                 .strokeBorder((tone == .fir ? Palette.fir : Palette.sap).opacity(0.35), lineWidth: 1))
             .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             .opacity(configuration.isPressed ? 0.8 : 1)
-            .scaleEffect(configuration.isPressed ? 0.96 : 1)
+            .pressScale(configuration.isPressed, 0.96)
             .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
     }
 }

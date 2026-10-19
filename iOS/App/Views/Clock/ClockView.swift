@@ -13,6 +13,7 @@ struct ClockView: View {
     @Environment(\.openTab) private var openTab
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.dynamicTypeSize) private var typeSize
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @AppStorage("clock.showPay") private var showPay = true
 
     @State private var sheet: ClockSheet?
@@ -76,7 +77,7 @@ struct ClockView: View {
                         LinearGradient(colors: [Palette.bg, Palette.bg.opacity(0)], startPoint: .top, endPoint: .bottom)
                             .frame(height: 22)
                     }
-                    .transition(.move(edge: .top).combined(with: .opacity))
+                    .transition(.slide(from: .top, reduceMotion: reduceMotion))
                     .allowsHitTesting(false)
                     .id(toast.id)
                 }
@@ -287,7 +288,9 @@ struct ClockView: View {
         let shownOnCard = reply.succeeded && command.marksTrees
             && model.actions.state().flatMap { NowWorking(state: $0, live: model.actions.liveSnapshot()) } != nil
         if (reply.succeeded || toastFailures) && !shownOnCard {
-            withAnimation(.spring(duration: 0.3)) { toast = ClockToast(text: reply.speech, succeeded: reply.succeeded) }
+            withAnimation(reduceMotion ? .easeInOut(duration: 0.2) : .spring(duration: 0.3)) {
+                toast = ClockToast(text: reply.speech, succeeded: reply.succeeded)
+            }
         }
         if reply.succeeded || toastFailures {
             AccessibilityNotification.Announcement(reply.speech).post()

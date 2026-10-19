@@ -344,7 +344,7 @@ struct QuietDestructiveButtonStyle: ButtonStyle {
             .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Palette.rust.opacity(0.6), lineWidth: 1.5))
             .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             .opacity(isEnabled ? (configuration.isPressed ? 0.8 : 1) : 0.45)
-            .scaleEffect(configuration.isPressed ? 0.98 : 1)
+            .pressScale(configuration.isPressed, 0.98)
             .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
     }
 }

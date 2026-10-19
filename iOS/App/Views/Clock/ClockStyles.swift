@@ -38,7 +38,7 @@ struct CardButtonStyle: ButtonStyle {
             .overlay(shape.strokeBorder(border, lineWidth: 1.5))
             .contentShape(shape)
             .opacity(isEnabled ? (configuration.isPressed ? 0.8 : 1) : 0.45)
-            .scaleEffect(configuration.isPressed ? 0.98 : 1)
+            .pressScale(configuration.isPressed, 0.98)
             .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
     }
 
@@ -117,7 +117,7 @@ struct ClockPill: View {
         HStack(spacing: 8) {
             Circle()
                 .fill(dot)
-                // Grows with the text, up to where the pill stops growing.
+                // Grows with the text, up to where the pill stops growing (AX1).
                 .frame(width: min(dotSize, 14), height: min(dotSize, 14))
                 .background {
                     if showsRing {

@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// A tall row that shows a value and opens a picker under itself when tapped, like the
 /// Calendar app's time rows, sized for gloves.
@@ -51,7 +52,7 @@ struct PickerRow<Picker: View>: View {
             if isExpanded {
                 picker
                     .frame(maxWidth: .infinity)
-                    .transition(.opacity.combined(with: .move(edge: .top)))
+                    .transition(.slide(from: .top, reduceMotion: UIAccessibility.isReduceMotionEnabled))
             }
         }
     }
@@ -132,7 +133,7 @@ extension View {
             if let text = message.wrappedValue {
                 Toast(text: text)
                     .padding(.bottom, 12)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .transition(.slide(from: .bottom, reduceMotion: UIAccessibility.isReduceMotionEnabled))
                     .task(id: text) {
                         AccessibilityNotification.Announcement(text).post()
                         try? await Task.sleep(for: .seconds(3.5))

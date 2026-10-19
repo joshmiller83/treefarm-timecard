@@ -33,23 +33,27 @@ struct GloveButtonStyle: ButtonStyle {
                 }
             }
             .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-            .opacity(isEnabled ? (configuration.isPressed ? 0.82 : 1) : 0.45)
-            .scaleEffect(configuration.isPressed ? 0.98 : 1)
+            .opacity(configuration.isPressed ? 0.82 : 1)
+            .pressScale(configuration.isPressed)
             .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
     }
 
+    /// A disabled button is drawn as one, in both modes: a hairline-grey fill and muted words
+    /// (fir at half opacity still looked like a button you could press in dark mode).
     private var foreground: Color {
+        guard isEnabled else { return Palette.muted }
         switch kind {
-        case .primary, .destructive: Palette.firInk
-        case .secondary: Palette.ink
+        case .primary, .destructive: return Palette.firInk
+        case .secondary: return Palette.ink
         }
     }
 
     private var background: Color {
+        guard isEnabled else { return Palette.line }
         switch kind {
-        case .primary: Palette.fir
-        case .secondary: Palette.surface
-        case .destructive: Palette.rustFill
+        case .primary: return Palette.fir
+        case .secondary: return Palette.surface
+        case .destructive: return Palette.rustFill
         }
     }
 }
@@ -83,6 +87,30 @@ extension View {
     /// The calm green-grey page behind everything.
     func screenBackground() -> some View {
         background(Palette.bg.ignoresSafeArea())
+    }
+}
+
+/// The small shrink of a pressed button, left out with Reduce Motion.
+struct PressScale: ViewModifier {
+    var pressed: Bool
+    var amount: CGFloat
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func body(content: Content) -> some View {
+        content.scaleEffect(pressed && !reduceMotion ? amount : 1)
+    }
+}
+
+extension View {
+    func pressScale(_ pressed: Bool, _ amount: CGFloat = 0.98) -> some View {
+        modifier(PressScale(pressed: pressed, amount: amount))
+    }
+}
+
+extension AnyTransition {
+    /// Slides in from an edge, or only fades with Reduce Motion.
+    static func slide(from edge: Edge, reduceMotion: Bool) -> AnyTransition {
+        reduceMotion ? .opacity : .move(edge: edge).combined(with: .opacity)
     }
 }
 
@@ -172,16 +200,30 @@ struct StatusPill: View {
     var tone: Tone
 
     var body: some View {
-        HStack(spacing: 6) {
-            Circle().fill(tone.dot).frame(width: 8, height: 8)
-            Text(text).font(.subheadline.weight(.semibold))
+        PillContent(text: text, tone: tone)
+            // A pill is a label, not a paragraph: it stops growing at AX2.
+            .dynamicTypeSize(...DynamicTypeSize.accessibility2)
+            .accessibilityElement(children: .combine)
+            .accessibilityShowsLargeContentViewer { Text(text) }
+    }
+
+    /// Inside the size cap, so the dot grows with the words up to where they stop.
+    private struct PillContent: View {
+        var text: String
+        var tone: Tone
+        @ScaledMetric(relativeTo: .subheadline) private var dot: CGFloat = 8
+
+        var body: some View {
+            HStack(spacing: 6) {
+                Circle().fill(tone.dot).frame(width: dot, height: dot)
+                Text(text).font(.subheadline.weight(.semibold))
+            }
+            .foregroundStyle(tone.ink)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(tone.fill, in: Capsule())
+            .overlay(Capsule().strokeBorder(tone.dot.opacity(0.25), lineWidth: 1))
         }
-        .foregroundStyle(tone.ink)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 6)
-        .background(tone.fill, in: Capsule())
-        .overlay(Capsule().strokeBorder(tone.dot.opacity(0.25), lineWidth: 1))
-        .accessibilityElement(children: .combine)
     }
 }
 

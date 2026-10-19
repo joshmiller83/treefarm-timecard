@@ -87,6 +87,7 @@ private struct Banners: View {
 }
 
 struct Banner: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var tone: StatusPill.Tone
     var systemImage: String
     var text: String
@@ -115,6 +116,6 @@ struct Banner: View {
         .padding(.vertical, 6)
         .background(Palette.surface, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(tone.dot.opacity(0.45), lineWidth: 1))
-        .transition(.move(edge: .top).combined(with: .opacity))
+        .transition(.slide(from: .top, reduceMotion: reduceMotion))
     }
 }
