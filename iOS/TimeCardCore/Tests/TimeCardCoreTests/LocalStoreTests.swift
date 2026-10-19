@@ -247,6 +247,15 @@ struct LocalStoreTests {
         #expect(second == StoreChange(origin: .remote, pendingCount: 1))
     }
 
+    @Test func wipeCanKeepChosenValues() throws {
+        let store = try makeStore()
+        try store.setValue(Data([1]), forKey: "keep")
+        try store.setValue(Data([2]), forKey: "drop")
+        try store.wipe(keeping: ["keep"])
+        #expect(try store.value(forKey: "keep") == Data([1]))
+        #expect(try store.value(forKey: "drop") == nil)
+    }
+
     @Test func wipeForgetsEverything() throws {
         let store = try makeStore()
         try store.applyRemote(f.changes(f.layout), farmId: f.farmId, cursor: 5)

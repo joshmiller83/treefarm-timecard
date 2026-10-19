@@ -53,12 +53,18 @@ public actor AuthService {
         self.cache = cache
         self.deviceName = deviceName
 
-        let cached = (try? cache.value(forKey: Self.meKey)).flatMap { try? JSONCoding.decoder().decode(MeResponse.self, from: $0) }
+        state = Self.initialState(tokens: tokens, cache: cache)
+    }
+
+    /// What launch looks like before any network: the cached person, signed in if a token is
+    /// still on the phone.
+    public static func initialState(tokens: any TokenStore, cache: any KeyValueStore) -> AuthState {
+        let cached = (try? cache.value(forKey: meKey)).flatMap { try? JSONCoding.decoder().decode(MeResponse.self, from: $0) }
         let token = (try? tokens.read()) ?? nil
         switch (cached, token) {
-        case (let me?, _?): state = .signedIn(me)
-        case (let me?, nil): state = .expired(me)
-        case (nil, _): state = .signedOut
+        case (let me?, _?): return .signedIn(me)
+        case (let me?, nil): return .expired(me)
+        case (nil, _): return .signedOut
         }
     }
 

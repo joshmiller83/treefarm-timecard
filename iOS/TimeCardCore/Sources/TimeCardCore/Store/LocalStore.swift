@@ -345,13 +345,21 @@ public final class LocalStore: Sendable {
         return stream
     }
 
-    /// Forgets every record, queued change, cursor and stored value (sign-out, or a different
-    /// person signing in on this phone). The active farm stays active, now empty.
-    public func wipe() throws {
+    /// Forgets every record, queued change, cursor and stored value except `keeping`
+    /// (sign-out, or a different person signing in on this phone). The active farm stays
+    /// active, now empty.
+    public func wipe(keeping keys: Set<String> = []) throws {
         try writer.writeWithoutTransaction { db in
             try db.inTransaction {
-                for table in ["records", "outbox", "sync_state", "kv", "refetch"] {
+                for table in ["records", "outbox", "sync_state", "refetch"] {
                     try db.execute(sql: "DELETE FROM \(table)")
+                }
+                let kept = Array(keys)
+                if kept.isEmpty {
+                    try db.execute(sql: "DELETE FROM kv")
+                } else {
+                    let marks = Array(repeating: "?", count: kept.count).joined(separator: ", ")
+                    try db.execute(sql: "DELETE FROM kv WHERE key NOT IN (\(marks))", arguments: StatementArguments(kept))
                 }
                 return .commit
             }

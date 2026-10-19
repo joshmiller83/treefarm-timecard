@@ -156,6 +156,13 @@ public actor SyncEngine {
         generation += 1
     }
 
+    /// Stops syncing as if the server had refused the token (the app opened with an
+    /// expired session). Local saves still queue up.
+    public func markSignedOut() {
+        signedOut = true
+        update { $0.phase = .signedOut }
+    }
+
     /// Call after signing in again: syncing picks up where it stopped.
     public func resume() {
         signedOut = false
