@@ -185,6 +185,10 @@ struct GloveSegmented<Value: Hashable>: View {
         .padding(4)
         .background(Palette.surface, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Palette.line, lineWidth: 1))
+        // Like the system's segmented controls, the words stop growing a step into the
+        // accessibility sizes (a long press shows them large), so short choices such as
+        // Crew | Fields | Season stay side by side instead of filling the screen.
+        .dynamicTypeSize(...DynamicTypeSize.accessibility1)
         .sensoryFeedback(.selection, trigger: selection)
     }
 
@@ -212,6 +216,7 @@ struct GloveSegmented<Value: Hashable>: View {
                     .contentShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
             }
             .buttonStyle(.plain)
+            .accessibilityShowsLargeContentViewer()
             .accessibilityAddTraits(selected ? .isSelected : [])
             .accessibilityIdentifier(option.identifier)
         }

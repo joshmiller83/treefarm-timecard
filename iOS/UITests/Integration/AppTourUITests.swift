@@ -27,8 +27,11 @@ final class AppTourUITests: XCTestCase {
 
         // Clock: on the clock, with the lock screen's row buttons.
         XCTAssertTrue(element("big-timer").waitForExistence(timeout: 15), "No timer on the Clock tab.")
-        XCTAssertTrue(element("next-row-0").waitForExistence(timeout: 10), "No next-row buttons.")
         shot("1-clock")
+        // The row buttons sit in a lazy grid: at the largest text sizes they're made once in view.
+        let nextRow = element("next-row-0")
+        for _ in 0..<4 where !nextRow.waitForExistence(timeout: 2) { app.swipeUp() }
+        XCTAssertTrue(nextRow.exists, "No next-row buttons.")
         app.swipeUp()
         shot("1-clock-lower")
 

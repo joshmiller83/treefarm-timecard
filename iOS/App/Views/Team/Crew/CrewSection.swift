@@ -77,7 +77,7 @@ private struct WeekSummary: View {
         VStack(alignment: .leading, spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
                 SectionLabel("This week")
-                Text(roster.weekLabel).font(.subheadline).foregroundStyle(Palette.muted)
+                Text(roster.weekLabel.wrappingOnlyAtDash).font(.subheadline).foregroundStyle(Palette.muted)
             }
             TeamStatRow {
                 TeamStat(label: "Crew hours", value: Fmt.decimalHours(roster.weekTotal), unit: "h",
