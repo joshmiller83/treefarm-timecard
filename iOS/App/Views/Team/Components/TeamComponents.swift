@@ -122,6 +122,7 @@ struct GloveNumberField: View {
                 stepButton("plus", label: "One more", disabled: value >= range.upperBound) { set(value + 1) }
             }
         }
+        .id(identifier)
         .onAppear { text = value > 0 ? String(value) : "" }
         .onChange(of: value) { _, new in
             if Int(text) != new { text = new > 0 ? String(new) : "" }

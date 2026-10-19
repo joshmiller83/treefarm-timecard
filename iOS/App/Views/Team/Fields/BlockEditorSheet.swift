@@ -41,16 +41,18 @@ struct BlockEditorSheet: View {
 
     var body: some View {
         NavigationStack {
+            ScrollViewReader { proxy in
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) {
                     preview
                     LabeledGloveField(title: "Block name", prompt: BlockPlans.nextName(fieldBlocks), text: $draft.name,
                                       identifier: "block-name", footnote: "A number reads “Block 3”; anything else reads as typed.")
                         .focused($focus, equals: "name")
-                    sizeFields
+                    // Above the sizes, so it stays in sight over the number pad while you type.
                     if let problem = shownProblem {
                         ErrorMessage(text: problem)
                     }
+                    sizeFields
                     directionChoice
                     if editing == nil { placementPicker }
                     if attempted, let problem = shownProblem {
@@ -66,6 +68,12 @@ struct BlockEditorSheet: View {
                     if editing != nil { removeArea }
                 }
                 .teamPage()
+            }
+            .onChange(of: shownProblem) {
+                // A message appearing above the sizes pushes them down: keep the one being typed in sight.
+                guard let focus, focus != "name" else { return }
+                withAnimation(.easeInOut(duration: 0.2)) { proxy.scrollTo(focus, anchor: UnitPoint(x: 0.5, y: 0.85)) }
+            }
             }
             .scrollDismissesKeyboard(.interactively)
             .screenBackground()
