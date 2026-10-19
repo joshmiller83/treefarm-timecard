@@ -54,3 +54,26 @@ struct FarmFixture {
         return try res.decode(AuthResponse.self).token
     }
 }
+
+extension FarmFixture {
+    /// Pushes records as `person` and returns the results, one per record.
+    @discardableResult
+    func push(_ records: [SyncRecord], as person: Person, ids: [UUID]? = nil) async throws -> [MutationResult] {
+        let mutations = records.enumerated().map { i, r in Mutation(id: ids?[i] ?? UUID(), record: r) }
+        let res = try await client.send(.POST, APIPath.push(farm: farmId), token: person.token, json: PushRequest(mutations: mutations))
+        #expect(res.status == .ok, "push: \(res.text)")
+        return try res.decode(PushResponse.self).results
+    }
+
+    func push(_ record: SyncRecord, as person: Person) async throws -> MutationResult {
+        try await push([record], as: person)[0]
+    }
+
+    func shift(for person: Person, start: Date, end: Date? = nil, notes: String = "", updatedAt: Date? = nil) -> Shift {
+        Shift(userId: person.userId, farmId: farmId, start: start, end: end, notes: notes, rateCents: 1500, updatedAt: updatedAt ?? app.now)
+    }
+}
+
+extension MutationResult {
+    var isApplied: Bool { status == .applied }
+}
