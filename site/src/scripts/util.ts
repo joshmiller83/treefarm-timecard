@@ -5,7 +5,7 @@
  *
  *   tap(tl, el, at)                       touch ring + press + 2px haptic shake (~.04)
  *   odometer(tl, el, from, to, at, dur)   roll odometer digits (see odometer.ts)
- *   karaoke(tl, el, at, dur)              words .25 → 1, scrubbed
+ *   karaoke(tl, el, at, dur)              words .4 → 1, scrubbed (a waiting large line stays 3:1)
  *   typeIn(tl, el, at, dur)               characters appear in order
  *   drawLine(tl, path, at, dur)           stroke-dashoffset full → 0
  *   crossfade(tl, a, b, at, dur)          screen change: a → .96/0, b from 1.04/0
@@ -107,7 +107,7 @@ export function createUtil({ gsap, SplitText, phone, ambients }: UtilDeps): Util
       if (!el) return;
       const words = split(el, 'words');
       const each = dur / Math.max(words.length, 1);
-      tl.fromTo(words, { opacity: 0.25 }, { opacity: 1, duration: each, stagger: each, ease: 'none' }, at);
+      tl.fromTo(words, { opacity: 0.4 }, { opacity: 1, duration: each, stagger: each, ease: 'none' }, at);
     },
 
     typeIn(tl, el, at, dur) {

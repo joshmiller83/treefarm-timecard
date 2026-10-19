@@ -326,8 +326,9 @@ registerScene(
       fromTo(islandBeat, { opacity: 0 }, { opacity: 1, duration: 0.045, ease: 'power1.out' }, 0.665);
       const [b0, b1] = CUE.controls.beat;
       fromTo(controlsBeat, { opacity: 0 }, { opacity: 1, duration: b1 - b0, ease: 'power1.out' }, b0);
-      // One message leads: the island line steps back as the controls arrive.
-      to(islandBeat, { opacity: 0.45, duration: b1 - b0, ease: 'power1.inOut' }, b0);
+      // One message leads: the island line goes as the controls arrive (never left dim and
+      // unreadable in the column).
+      to(islandBeat, { autoAlpha: 0, duration: b1 - b0, ease: 'power1.inOut' }, b0);
     }
 
     // ---- [.7, .85] unlock, 2:14 → 2:16, the island ----

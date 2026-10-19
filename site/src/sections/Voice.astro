@@ -318,9 +318,10 @@ const pieces = (w: string) => w.split(/(\d+(?:,\d{3})*)/).filter(Boolean);
   .w {
     display: inline;
   }
-  /* Karaoke: words wait at .25 while their part is on screen (the scene lights them). */
+  /* Karaoke: words wait at .4 while their part is on screen (the scene lights them): still
+     3:1 for these large lines, so a waiting line is never unreadable. */
   :global(html.motion) .x-near .x-said .w {
-    opacity: 0.25;
+    opacity: 0.4;
   }
 
   /* The misheard word: a rust wavy underline (drawn by the scene, static without motion). */

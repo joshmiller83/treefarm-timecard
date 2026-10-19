@@ -251,7 +251,7 @@ registerScene(
       t.ftp(L.sbTime, { opacity: 1 }, { opacity: 0 }, late);
     };
     /**
-     * Your line: karaoke, words .25 → 1. The dim state is a class (.x-near) that is on only
+     * Your line: karaoke, words .4 → 1 (.4 keeps a waiting line at 3:1, large text). The dim state is a class (.x-near) that is on only
      * while the part is on screen, so text at rest far from the reader is never left dim (axe
      * checks the whole page). Once a word's tween has run, its inline opacity rules; when the
      * timeline rewinds to its start, the inline styles are cleared again.
@@ -260,7 +260,7 @@ registerScene(
     const karaoke = (t: TT, els: Els, w: Win) => {
       if (!els.length) return;
       const each = (t.pos(w[1]) - t.pos(w[0])) / els.length;
-      t.m.fromTo(els, { opacity: 0.25 }, { opacity: 1, duration: each, stagger: each, immediateRender: false }, t.pos(w[0]));
+      t.m.fromTo(els, { opacity: 0.4 }, { opacity: 1, duration: each, stagger: each, immediateRender: false }, t.pos(w[0]));
       rewound.set(t.m, [...(rewound.get(t.m) ?? []), ...els]);
     };
     const near = (el: Element | null) =>

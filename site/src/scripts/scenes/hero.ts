@@ -118,7 +118,10 @@ registerScene(
     }
     if (saidWords.length) {
       const c = k(INTRO.words);
-      phoneTl.fromTo(saidWords, { opacity: 0 }, { opacity: 1, duration: c.dur, stagger: c.stagger, ease: 'power1.out' }, c.at);
+      // The spoken line is there from the start at .55 (well over 3:1 for its large type) and
+      // lights word by word; the small 'You' label is never dimmed.
+      const dimFrom = (_: number, el: Element) => (el.classList.contains('hero-said-who') ? 1 : 0.55);
+      phoneTl.fromTo(saidWords, { opacity: dimFrom }, { opacity: 1, duration: c.dur, stagger: c.stagger, ease: 'power1.out' }, c.at);
     }
     if (glow) {
       const c = k(INTRO.glow);

@@ -139,7 +139,9 @@ registerScene(
     });
 
     // ---- Ask: karaoke on the user line, Siri's glow, the question types in ----
-    lightWords(section.querySelector('[data-co-said]'), B.karaoke[0], span(B.karaoke), 0.25);
+    // Your line waits at .4 (3:1 for its large type); Siri's lines type on from nothing, so no
+    // reply ever rests dim and unreadable in the reading area.
+    lightWords(section.querySelector('[data-co-said]'), B.karaoke[0], span(B.karaoke), 0.4);
 
     // When the lapse lands on 4:31 the question layer takes over: the same card, but its timer
     // is fixed at 8:30:00, so the idle tick can't run it on past the ledger while Siri talks.
@@ -164,21 +166,21 @@ registerScene(
     typeIn(one(askCard, '[data-snippet-text]'), typeAt, typeDur);
     reveal(all(askCard, '[data-choice]'), { opacity: 0, y: 6 }, { opacity: 1, y: 0, ease: 'power2.out' }, B.ask[1] - askSpan * 0.22, askSpan * 0.2);
     // The page reveals Siri's question word by word as the phone types it.
-    lightWords(section.querySelector('[data-co-reply="ask"]'), typeAt, typeDur, 0.2);
+    lightWords(section.querySelector('[data-co-reply="ask"]'), typeAt, typeDur, 0);
 
     // ---- Yes: tap the chip, the gold ring, the page's “Yes.” ----
     const yesChip = one(askCard, '[data-choice="Yes"]');
     util.tap(tl, yesChip, B.yes[0]);
     const yesRing = one(yesChip, '[data-choice-ring]');
     if (yesRing) tl.fromTo(yesRing, { opacity: 0 }, { opacity: 1, duration: 0.008 }, B.yes[0] + 0.012);
-    lightWords(section.querySelector('[data-co-yes]'), B.yes[0] + 0.014, 0.012, 0.25);
+    lightWords(section.querySelector('[data-co-yes]'), B.yes[0] + 0.014, 0.012, 0.4);
 
     // ---- Answer: it replaces the question in the same slot and types in ----
     const ansSpan = span(B.answer);
     if (ans) tl.fromTo(ans, { opacity: 0 }, { opacity: 1, duration: ansSpan * 0.25, immediateRender: false }, B.answer[0]);
     if (ask) tl.to(ask, { opacity: 0, duration: ansSpan * 0.25 }, B.answer[0]);
     typeIn(one(ans, '[data-snippet-text]'), B.answer[0] + ansSpan * 0.2, ansSpan * 0.6);
-    lightWords(section.querySelector('[data-co-reply="answer"]'), B.answer[0] + ansSpan * 0.2, ansSpan * 0.6, 0.2);
+    lightWords(section.querySelector('[data-co-reply="answer"]'), B.answer[0] + ansSpan * 0.2, ansSpan * 0.6, 0);
 
     // The timer has stopped (the answer layer's timer is fixed, so the idle tick is off from
     // here): a 1px gold rule sweeps under it.

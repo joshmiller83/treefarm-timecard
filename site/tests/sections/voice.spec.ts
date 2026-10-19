@@ -276,7 +276,7 @@ test.describe('with motion', () => {
     const said = page.locator('[data-part="status"] [data-turn="said"] .w');
     const reply = page.locator('[data-part="status"] .x-reply .w');
     await scrubTo(page, 'status', 0.05);
-    expect(Number(await said.first().evaluate((e) => getComputedStyle(e).opacity))).toBeCloseTo(0.25, 2);
+    expect(Number(await said.first().evaluate((e) => getComputedStyle(e).opacity))).toBeCloseTo(0.4, 2);
     expect(Number(await reply.last().evaluate((e) => getComputedStyle(e).opacity))).toBe(0);
     await scrubTo(page, 'status', 0.9);
     for (const loc of [said.last(), reply.last()]) expect(Number(await loc.evaluate((e) => getComputedStyle(e).opacity))).toBe(1);
