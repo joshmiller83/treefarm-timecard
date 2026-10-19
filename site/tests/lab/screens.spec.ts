@@ -67,7 +67,8 @@ test.describe('Clock tab at 3:40 PM', () => {
     await expect(now.locator('[data-now-row]')).toHaveText(['Row39', 'Row40', 'Row41'].map((t) => new RegExp(t.replace('Row', 'Row\\s*'))));
     await expect(now.locator('[data-now-break]')).toHaveText('Break');
 
-    await expect(s.locator('[data-trees]')).toHaveText('260');
+    // Odometer markup: the reading is in data-odo-text (the columns hold every digit).
+    await expect(s.locator('[data-trees]')).toHaveAttribute('data-odo-text', '260');
     await expect(s.locator('[data-trees-card]')).toContainText('2,460 of 8,540 trees shaped in North field');
     await expect(s.locator('[data-field-pct]')).toHaveText('29%');
   });
@@ -206,7 +207,7 @@ test.describe('Team tab', () => {
     for (const [name, [hours, trees]] of Object.entries(rows)) {
       const row = s.locator(`[data-team-row="${name}"]`);
       await expect(row).toContainText(name);
-      await expect(row.locator('[data-hours]')).toHaveText(hours!);
+      await expect(row.locator('[data-hours]')).toHaveAttribute('data-odo-text', hours!);
       await expect(row.locator('[data-trees]')).toHaveText(trees!);
     }
     await expect(s.locator('[data-team-total]')).toHaveText('3 people · 106:29 h · 3,557 trees');

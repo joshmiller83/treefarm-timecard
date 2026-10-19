@@ -2,10 +2,11 @@
 /**
  * "Trees this shift" (TreesCardView): the shift's count in Plex Mono, a Mark trees button
  * that opens the map, and the field's share with a fir progress bar. Off the clock it shows
- * the field instead. Hooks: [data-trees] (the count), [data-field-bar] (the fill; its width is
+ * the field instead. Hooks: [data-trees] (the count, odometer markup for util.odometer), [data-field-bar] (the fill; its width is
  * the share, so a scene can scaleX it from the left), [data-field-pct].
  */
 import Glyph from '../Glyph.astro';
+import { odometerHTML } from '../../../scripts/odometer';
 import type { TreesModel } from './clock';
 
 interface Props {
@@ -18,7 +19,7 @@ const { trees } = Astro.props;
   <div class="tr-row">
     <div class="tr-count">
       <span class="sc-label">{trees.label}</span>
-      <span class="tr-big sc-num" data-trees>{trees.big}</span>
+      <span class="tr-big sc-num"><span class="odo" data-trees data-odo-text={trees.big} set:html={odometerHTML(trees.big)} /></span>
     </div>
     <span class="sc-btn sc-btn--primary tr-go">
       <Glyph name="map" />

@@ -2,14 +2,16 @@
 /**
  * A few SF-Symbols-like glyphs the screens need that the shared sprite (app/icons.ts) does not
  * have yet: the break cup, the stop square, the folded map and pause in a circle. Same 24 × 24
- * box and 1.75 rounded strokes as the sprite, drawn for this site. Decorative (aria-hidden).
+ * box and rounded strokes as the sprite, drawn for this site. Decorative (aria-hidden).
  */
 interface Props {
   name: 'cup' | 'cup.fill' | 'stop.fill' | 'map' | 'pause.circle';
   class?: string;
   size?: string;
+  /** Stroke weight in the 24 × 24 box (default 2, about SF Symbols semibold at text sizes). */
+  weight?: number;
 }
-const { name, class: cls, size } = Astro.props;
+const { name, class: cls, size, weight = 2 } = Astro.props;
 
 const CUP = 'M4.6 8.4h11.6v4.2a5.6 5.6 0 0 1-5.6 5.6h-.4a5.6 5.6 0 0 1-5.6-5.6Z';
 const HANDLE = 'M16.2 9.6h1.5a2.7 2.7 0 0 1 0 5.4h-1.9';
@@ -34,7 +36,7 @@ const style = size ? `width:${size};height:${size}` : undefined;
   style={style}
   fill="none"
   stroke="currentColor"
-  stroke-width="1.75"
+  stroke-width={weight}
   stroke-linecap="round"
   stroke-linejoin="round"
   set:html={bodies[name]}

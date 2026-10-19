@@ -4,13 +4,15 @@
  * hours and trees from the ledger (through Fri 3:00 PM), then Invite someone and the
  * Fields & blocks editor. No invite code, no expiry, no pay.
  *
- * Hooks: [data-team-row="Alex"|"Sam"|"Rosa"] with [data-hours] and [data-trees] inside,
+ * Hooks: [data-team-row="Alex"|"Sam"|"Rosa"] with [data-hours] (odometer markup, so util.odometer
+ * can roll it) and [data-trees] inside,
  * [data-team-total], [data-invite], [data-fields-row].
  */
 import AppChrome from './AppChrome.astro';
 import Icon from './Icon.astro';
 import AppKit from '../screens/AppKit.astro';
 import { teamTab } from '../screens/team/team';
+import { odometerHTML } from '../../scripts/odometer';
 import { FIELD, TEAM, WEEK } from '../../data/ledger';
 
 export interface Props {
@@ -46,9 +48,7 @@ const span = `${WEEK[0]!.date.slice(5)} – ${WEEK[WEEK.length - 1]!.date.slice(
               </span>
             </span>
             <span class="tm-hours">
-              <span class="sc-num" data-hours>
-                {r.hours}
-              </span>
+              <span class="sc-num odo" data-hours data-odo-text={r.hours} set:html={odometerHTML(r.hours)} />
               <span class="tm-h">h</span>
             </span>
             <Icon name="chevron" class="tm-chev" size="calc(15 * var(--pt))" weight={2.4} />
