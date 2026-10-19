@@ -361,6 +361,17 @@ export function boot(): void {
   if ('requestIdleCallback' in window) requestIdleCallback(startScenes, { timeout: 300 });
   else setTimeout(startScenes, 0);
 
+  // ---- Reduced motion switched on mid-visit: become the static page ----
+  // gsap.matchMedia reverts the scenes, but the DayClock has written its times into every
+  // phone and the page's classes still say motion, so a half-moving page would be left. Reload
+  // onto the chapter the reader was in: the inline gate then serves the static page there.
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)');
+  reduce.addEventListener('change', () => {
+    if (!reduce.matches) return;
+    if (active?.id) history.replaceState(history.state, '', `#${active.id}`);
+    location.reload();
+  });
+
   // Hero's intro hold never outlives a failed or slow scene.
   window.setTimeout(() => root.classList.remove('intro-wait'), 1500);
 

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { SECTION_IDS, watch } from './helpers';
+import { SECTION_IDS, settle, watch } from './helpers';
 
 test.use({ reducedMotion: 'reduce' });
 
@@ -29,4 +29,22 @@ test('reduced motion: a complete static page, and GSAP is never requested', asyn
   await expect(page.locator('[data-pause-toggle]')).toBeHidden();
   expect(requests.filter((u) => /gsap|motion\.[\w-]+\.js|ScrollTrigger/i.test(u))).toEqual([]);
   expect(problems).toEqual([]);
+});
+
+test.describe('reduced motion switched on mid-visit', () => {
+  test.use({ reducedMotion: 'no-preference' });
+
+  test('the page becomes the static page on the chapter the reader was in', async ({ page }) => {
+    await page.goto('/');
+    await settle(page);
+    await expect(page.locator('html')).toHaveClass(/motion-ready/);
+    await page.locator('#field').evaluate((el) => window.scrollTo(0, el.getBoundingClientRect().top + scrollY + 200));
+    await page.waitForTimeout(600);
+    await Promise.all([page.waitForEvent('load'), page.emulateMedia({ reducedMotion: 'reduce' })]);
+    await expect(page.locator('html')).not.toHaveClass(/(^|\s)motion(\s|$)/);
+    await expect(page).toHaveURL(/#field$/);
+    await page.waitForTimeout(400);
+    const top = await page.locator('#field').evaluate((el) => el.getBoundingClientRect().top);
+    expect(Math.abs(top)).toBeLessThan(160);
+  });
 });
