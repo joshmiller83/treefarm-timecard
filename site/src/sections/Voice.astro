@@ -217,12 +217,19 @@ const pieces = (w: string) => w.split(/(\d+(?:,\d{3})*)/).filter(Boolean);
     visibility: visible;
   }
 
-  /* ---- Static page, desktop: the phone sits up beside the headline, not halfway down the
-     transcript ---- */
+  /* ---- Static page, desktop: the phone starts beside the headline and stays in view beside
+     the whole transcript (sticky in its grid row, which the transcript makes tall) ---- */
   @media (min-width: 900px) {
     html:not(.motion) #voice .frame {
+      position: sticky;
+      /* Under the header and its chapter list (static pages show both). */
+      top: calc(var(--chrome-h) + 64px);
       align-self: start;
       margin-top: 24px;
+    }
+    /* Phone, pocket and caption fit in the viewport under the header while they stick. */
+    html:not(.motion) #voice .shot {
+      --phone-h: min(calc(100svh - 330px), 600px);
     }
   }
 
