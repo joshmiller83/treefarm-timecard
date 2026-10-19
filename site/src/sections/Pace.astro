@@ -138,6 +138,17 @@ const lit = tiles.map((t) => t.row);
   .pace-tile:first-child {
     padding-top: 0;
   }
+  /* With motion the tiles light one by one (the scene); until the scene is built they wait
+     unlit, so a jump into the chapter never shows them lit over the intro first. */
+  :global(html.motion) .pace-tile-face {
+    opacity: 0;
+  }
+  :global(html.motion) .pace-tile-line {
+    transform: scaleX(0);
+  }
+  :global(html.motion) .pace-tile-rule {
+    transform: scaleY(0);
+  }
   /* The 1px rule between tiles (its own element, so it can draw in with its tile). */
   .pace-tile-line {
     position: absolute;
