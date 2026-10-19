@@ -12,6 +12,14 @@
  *   [data-choice="Yes"|"No"]             the chips (util.tap target)
  *     > [data-choice-ring]               the gold "chosen" outline: opacity 0 → 1
  *
+ * On a lock screen the card covers Siri's slot, so a [data-lock] that holds a snippet (or a
+ * DictationWave) hides its date, big clock and padlock (opacity 0, the static final state).
+ * Scenes that drop the card in fade those from 1 to 0 over the same span.
+ *
+ * The reply wraps like iOS (greedy, `text-wrap: pretty`), with numbers kept on the line of
+ * their units: 'block 2', 'row 14', 'tree 7', '10 trees', '26 rows', '34 an hour',
+ * '8 hours 30 minutes' never split.
+ *
  * Text always comes from SIRI.* in src/data/siri.ts; never type a Siri line by hand.
  */
 import { ICON, firTiers } from '../../data/icon';
@@ -28,10 +36,15 @@ export interface Props {
 }
 const { text, choices = [], chosen, top = 64 } = Astro.props;
 
-// Keep 'block 2', 'row 14', 'tree 7' together on one line.
+// Keep places ('block 2', 'row 14', 'tree 7') and amounts ('10 trees', '26 rows', '34 an hour',
+// '8 hours 30 minutes') on one line: their spaces become no-break spaces.
+const NB = '\u00a0';
 const words = text
   .trim()
-  .replace(/\b(block|row|tree|Block|Row|Tree) (\d+)/g, '$1\u00a0$2')
+  .replace(/\b(block|row|tree|Block|Row|Tree) (\d+)/g, `$1${NB}$2`)
+  .replace(/(\d+) an hour\b/g, `$1${NB}an${NB}hour`)
+  .replace(/(\d+) (hours?|minutes?|seconds?|trees?|rows?)\b/g, `$1${NB}$2`)
+  .replace(/\b(hours?|minutes?) (\d+)/g, `$1${NB}$2`)
   .split(/[ \t\n]+/); // not \s, which would split the no-break spaces again
 const { center: c, ringR, ringW, trunk, colors } = ICON;
 const tiers = firTiers();
@@ -134,7 +147,8 @@ const tiers = firTiers();
     line-height: calc(22 * var(--pt));
     font-weight: 400;
     letter-spacing: -0.008em;
-    text-wrap: balance;
+    /* Greedy like iOS, without a lone last word. */
+    text-wrap: pretty;
   }
 
   .snip-choices {
@@ -172,5 +186,11 @@ const tiers = firTiers();
   }
   .snip-chip--secondary.is-chosen {
     background: rgba(255, 255, 255, 0.1);
+  }
+
+  /* Siri's card takes the top of the lock screen: the date, the big clock and the padlock
+     give way (only the lock screen's own children, not the status bar's clock). */
+  :global([data-lock]:has([data-snippet], [data-wave]) > :is([data-date], [data-clock], [data-padlock], .lock-padlock)) {
+    opacity: 0;
   }
 </style>

@@ -5,13 +5,22 @@
  *
  * Hooks
  *   [data-wave]                 the card; data-seed / data-bars feed setWave()
- *   [data-wave-bar]             one bar: transform scaleY(h), h from waveHeights(progress)
+ *   [data-wave-bar]             one bar, height h (0–1 of 36 pt) in its --h, from
+ *                               waveHeights(progress). Drawn as a capsule from three
+ *                               transform-only parts: a middle scaled to h·36 − 3 pt and two
+ *                               3 pt round caps moved to ±(h·18 − 1.5) pt, so a quiet bar is a
+ *                               round dot and a loud one a capsule (never squashed corners)
  *   [data-transcript]           your words (util.typeIn target)
  *     > [data-word="0".."n"]    pre-split word spans
  *   [data-listening]            'Listening…' in place of the transcript when there is none
  *
- * Scenes scrub it with setWave(waveEl, progress) from src/scripts/wave.ts. The server render
- * draws waveHeights(progress) statically, so the static page shows a frozen, real-looking wave.
+ * Scenes scrub it with setWave(waveEl, progress) from src/scripts/wave.ts, which writes --h on
+ * every bar. The server render draws waveHeights(progress) statically, so the static page
+ * shows a frozen, real-looking wave.
+ *
+ * Like SiriSnippet, it takes Siri's slot on the lock screen (y 64 pt): a [data-lock] holding
+ * it hides its date, big clock and padlock. When Siri answers, the SiriSnippet replaces this
+ * card in the same slot (crossfade); the two never stack.
  */
 import { WAVE_MIN, waveHeights } from '../../scripts/wave';
 
@@ -53,7 +62,11 @@ const words = transcript ? transcript.trim().split(/\s+/) : [];
   style={top !== 64 ? `--wave-top:${top}` : undefined}
 >
   <div class="wave-bars" style={`--bars:${bars};--wave-min:${WAVE_MIN}`}>
-    {heights.map((h, i) => <i data-wave-bar style={`transform:scaleY(${h.toFixed(3)});background:${mix(bars > 1 ? i / (bars - 1) : 0.5)}`} />)}
+    {heights.map((h, i) => (
+      <i data-wave-bar style={`--h:${h.toFixed(3)};color:${mix(bars > 1 ? i / (bars - 1) : 0.5)}`}>
+        <b />
+      </i>
+    ))}
   </div>
   {
     transcript && (
@@ -110,12 +123,41 @@ const words = transcript ? transcript.trim().split(/\s+/) : [];
     gap: calc(2 * var(--pt));
     height: calc(36 * var(--pt));
   }
+  /* One bar: a 3 × 36 pt slot. The middle <b> is scaled to h·36 − 3 pt; the caps (::before,
+     ::after) are 3 pt circles centred on its ends. Only transforms change with --h. */
   .wave-bars i {
+    --h: 0.1;
+    position: relative;
     flex: none;
     width: calc(3 * var(--pt));
     height: 100%;
-    border-radius: calc(1.5 * var(--pt));
-    transform-origin: 50% 50%;
+  }
+  .wave-bars b,
+  .wave-bars i::before,
+  .wave-bars i::after {
+    position: absolute;
+    left: 0;
+    width: 100%;
+    background: currentColor;
+  }
+  .wave-bars b {
+    top: 0;
+    height: 100%;
+    transform: scaleY(max(0, calc((var(--h) * 36 - 3) / 36)));
+  }
+  .wave-bars i::before,
+  .wave-bars i::after {
+    content: '';
+    top: 50%;
+    height: calc(3 * var(--pt));
+    margin-top: calc(-1.5 * var(--pt));
+    border-radius: 50%;
+  }
+  .wave-bars i::before {
+    transform: translateY(calc(min(0, 1.5 - var(--h) * 18) * var(--pt)));
+  }
+  .wave-bars i::after {
+    transform: translateY(calc(max(0, var(--h) * 18 - 1.5) * var(--pt)));
   }
   .wave-text {
     max-width: calc(300 * var(--pt));
@@ -124,5 +166,10 @@ const words = transcript ? transcript.trim().split(/\s+/) : [];
     letter-spacing: -0.008em;
     text-align: center;
     text-wrap: balance;
+  }
+
+  /* Siri's card takes the top of the lock screen (see SiriSnippet). */
+  :global([data-lock]:has([data-snippet], [data-wave]) > :is([data-date], [data-clock], [data-padlock], .lock-padlock)) {
+    opacity: 0;
   }
 </style>

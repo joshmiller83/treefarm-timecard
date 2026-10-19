@@ -71,7 +71,21 @@ describe('waveHeights', () => {
 
 describe('setWave', () => {
   const fakeWave = (bars: number, seed?: number) => {
-    const els = Array.from({ length: bars }, () => ({ style: { transform: '' } }));
+    const els = Array.from({ length: bars }, () => {
+      const props = new Map<string, string>();
+      let writes = 0;
+      return {
+        props,
+        writes: () => writes,
+        style: {
+          getPropertyValue: (k: string) => props.get(k) ?? '',
+          setProperty: (k: string, v: string) => {
+            writes += 1;
+            props.set(k, v);
+          },
+        },
+      };
+    });
     const root = {
       dataset: seed === undefined ? {} : { seed: String(seed) },
       querySelectorAll: (sel: string) => (sel === '[data-wave-bar]' ? els : []),
@@ -79,18 +93,33 @@ describe('setWave', () => {
     return { root: root as unknown as HTMLElement, els };
   };
 
-  it('writes scaleY transforms from waveHeights using the root’s seed', () => {
+  it('writes each bar’s height as --h from waveHeights using the root’s seed', () => {
     const { root, els } = fakeWave(24, 7);
     setWave(root, 0.5);
     const want = waveHeights(0.5, 7, 24);
-    els.forEach((el, i) => expect(el.style.transform).toBe(`scaleY(${want[i]!.toFixed(3)})`));
+    els.forEach((el, i) => expect(el.props.get('--h')).toBe(want[i]!.toFixed(3)));
   });
 
   it('defaults the seed to 7 and sizes to the bars it finds', () => {
     const { root, els } = fakeWave(10);
     setWave(root, 0.42);
     const want = waveHeights(0.42, 7, 10);
-    els.forEach((el, i) => expect(el.style.transform).toBe(`scaleY(${want[i]!.toFixed(3)})`));
+    els.forEach((el, i) => expect(el.props.get('--h')).toBe(want[i]!.toFixed(3)));
+  });
+
+  it('only writes bars whose height changed', () => {
+    const { root, els } = fakeWave(24, 7);
+    setWave(root, 0.5);
+    setWave(root, 0.5);
+    els.forEach((el) => expect(el.writes()).toBe(1));
+    // Silence at both ends: every bar is the same dot, so going from 0 to 1 writes nothing new.
+    const quiet = fakeWave(24, 7);
+    setWave(quiet.root, 0);
+    setWave(quiet.root, 1);
+    quiet.els.forEach((el) => {
+      expect(el.writes()).toBe(1);
+      expect(el.props.get('--h')).toBe(WAVE_MIN.toFixed(3));
+    });
   });
 
   it('does nothing without a root', () => {

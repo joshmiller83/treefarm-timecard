@@ -3,7 +3,8 @@
  * same progress always draws the same wave and scrubbing backwards replays it exactly.
  *
  *   waveHeights(progress, seed?, bars?)  heights 0–1 (never below WAVE_MIN), one per bar
- *   setWave(waveEl, progress)            writes them as scaleY onto [data-wave-bar]s
+ *   setWave(waveEl, progress)            writes them as --h onto [data-wave-bar]s (DictationWave
+ *                                        turns --h into transforms: a scaled middle, moved caps)
  *
  * The shape reads as speech: loud and quiet syllables over time (a slow loudness curve),
  * bar-to-bar detail that drifts quickly but continuously, a gentle bump toward the middle
@@ -67,8 +68,10 @@ export function waveHeights(progress: number, seed = 7, bars = 24): number[] {
 
 /**
  * Applies waveHeights(progress) to a DictationWave: every [data-wave-bar] under `wave` gets
- * transform: scaleY(h). The seed comes from the wave's data-seed (default 7) and the bar count
- * from the bars it finds, so a scene only needs the element and a progress value.
+ * its height h as the custom property --h (DictationWave's CSS turns it into transforms only:
+ * the middle's scaleY and the round caps' translateY). The seed comes from the wave's
+ * data-seed (default 7) and the bar count from the bars it finds, so a scene only needs the
+ * element and a progress value. Only bars whose height changed are written.
  */
 export function setWave(wave: HTMLElement | null | undefined, progress: number): void {
   if (!wave) return;
@@ -76,6 +79,7 @@ export function setWave(wave: HTMLElement | null | undefined, progress: number):
   const seed = Number(wave.dataset.seed ?? 7);
   const hs = waveHeights(progress, Number.isFinite(seed) ? seed : 7, bars.length);
   bars.forEach((bar, i) => {
-    bar.style.transform = `scaleY(${hs[i]!.toFixed(3)})`;
+    const h = hs[i]!.toFixed(3);
+    if (bar.style.getPropertyValue('--h') !== h) bar.style.setProperty('--h', h);
   });
 }

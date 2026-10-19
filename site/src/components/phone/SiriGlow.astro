@@ -31,9 +31,10 @@ const mode = still === true ? 'still' : still === false ? 'live' : 'auto';
 <style>
   .glow {
     /* Edge band (6 pt inside the screen edge) plus a soft bloom, as an alpha mask in the
-       393 × 852 pt screen space. Stretched to the layer, so it follows the screen's corners. */
+       393 × 852 pt screen space. Stretched to the layer, so it follows the screen's corners.
+       Strokes are centred on the edge, so a 12 pt stroke leaves the still border's 6 pt inside. */
     --glow-mask: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 393 852' preserveAspectRatio='none'><defs><filter id='s' x='-10%25' y='-10%25' width='120%25' height='120%25'><feGaussianBlur stdDeviation='6'/></filter><filter id='e' x='-10%25' y='-10%25' width='120%25' height='120%25'><feGaussianBlur stdDeviation='1.1'/></filter></defs><rect width='393' height='852' rx='50' fill='none' stroke='%23000' stroke-opacity='.42' stroke-width='34' filter='url(%23s)'/><rect width='393' height='852' rx='48' fill='none' stroke='%23000' stroke-width='13' filter='url(%23e)'/></svg>");
-    --glow-mask-still: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 393 852' preserveAspectRatio='none'><rect width='393' height='852' rx='48' fill='none' stroke='%23000' stroke-width='6'/></svg>");
+    --glow-mask-still: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 393 852' preserveAspectRatio='none'><rect width='393' height='852' rx='48' fill='none' stroke='%23000' stroke-width='12'/></svg>");
 
     position: absolute;
     left: 0;
@@ -78,11 +79,11 @@ const mode = still === true ? 'still' : still === false ? 'live' : 'auto';
   .glow[data-glow-mode='still'] {
     -webkit-mask-image: var(--glow-mask-still);
     mask-image: var(--glow-mask-still);
-    opacity: 0.5;
+    opacity: 0.6;
   }
   :global(html:not(.motion)) .glow[data-glow-mode='auto'] {
     -webkit-mask-image: var(--glow-mask-still);
     mask-image: var(--glow-mask-still);
-    opacity: 0.5;
+    opacity: 0.6;
   }
 </style>
