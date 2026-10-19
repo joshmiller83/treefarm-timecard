@@ -1,35 +1,261 @@
 import SwiftUI
 import TimeCardCore
 
-/// The Clock tab. (Stand-in until the Clock slice lands.) Settings opens from its gear.
+/// The Clock tab: the big status card, where you're working with the lock screen's row
+/// buttons, trees this shift, pace, shift notes, and hours and pay. Settings opens from the gear.
+///
+/// Every clock and row button runs through `AppModel.actions` (FieldActions), the same path
+/// Siri and the Live Activity take, and shows what Siri would have said as a toast.
 struct ClockView: View {
+    @Environment(AppModel.self) private var model
     @Environment(TimeCardSession.self) private var session
-    @State private var showingSettings = false
+    @Environment(\.openTab) private var openTab
+    @Environment(\.scenePhase) private var scenePhase
+    @AppStorage("clock.showPay") private var showPay = true
+
+    @State private var sheet: ClockSheet?
+    @State private var toast: ClockToast?
+    @State private var confirmingOut = false
+    /// Bumped after each action: the work position lives outside the observed snapshot.
+    @State private var refresh = 0
+    @State private var notes = ShiftNotesEditor()
 
     var body: some View {
-        PlaceholderScreen(title: "Clock", systemImage: "clock",
-                          headline: "Clock in, breaks and your next rows",
-                          detail: "The big status card with a running timer, lunch and breaks, and the next three rows to shape will live here.") {
-            VStack(alignment: .leading, spacing: 10) {
-                StatusPill(text: "Off the clock", tone: .off)
+        let _ = refresh
+        let state = model.actions.state()
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    header
+                    if let state {
+                        content(state)
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
+                .padding(.bottom, 28)
+                .frame(maxWidth: 640)
+                .frame(maxWidth: .infinity)
+            }
+            .scrollDismissesKeyboard(.interactively)
+            .screenBackground()
+            .toolbar(.hidden, for: .navigationBar)
+            .overlay(alignment: .bottom) {
+                if let toast {
+                    ToastView(toast: toast)
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 12)
+                        .frame(maxWidth: 640)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                        .onTapGesture { withAnimation { self.toast = nil } }
+                        .id(toast.id)
+                }
+            }
+        }
+        .sensoryFeedback(trigger: toast) { _, new in
+            guard let new else { return nil }
+            return new.succeeded ? .success : .warning
+        }
+        .task(id: toast?.id) {
+            guard let shown = toast else { return }
+            try? await Task.sleep(for: shown.duration)
+            if toast?.id == shown.id { withAnimation(.easeInOut(duration: 0.25)) { toast = nil } }
+        }
+        .sheet(item: $sheet, onDismiss: { refresh += 1 }) { sheet in
+            sheetView(sheet, state: state)
+        }
+        .onChange(of: NotesSource(state?.openShift), initial: true) { _, source in
+            notes.load(shiftId: source.id, notes: source.notes)
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase != .active { notes.flush() }
+        }
+        .onAppear(perform: connectNotes)
+        .onDisappear { notes.flush() }
+        .task {
+            if await ClockScenario.applyIfRequested(model) { refresh += 1 }
+        }
+    }
+
+    // MARK: Layout
+
+    private var header: some View {
+        HStack(alignment: .top, spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
                 Text(session.farm?.name ?? "")
                     .headingStyle(.tcTitle)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityAddTraits(.isHeader)
                     .accessibilityIdentifier("clock-farm-name")
-                if let name = session.me?.user.displayName {
-                    Text("Signed in as \(name)").font(.subheadline).foregroundStyle(Palette.muted)
+                if !subtitle.isEmpty {
+                    Text(subtitle)
+                        .font(.subheadline)
+                        .foregroundStyle(Palette.muted)
                 }
             }
-            .card(padding: 20)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button { showingSettings = true } label: { Image(systemName: "gearshape") }
-                        .accessibilityLabel("Settings")
-                        .accessibilityIdentifier("settings-button")
-                }
+            Spacer(minLength: 8)
+            Button { sheet = .settings } label: {
+                Image(systemName: "gearshape")
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(Palette.ink)
+                    .frame(width: GloveButtonStyle.minHeight, height: GloveButtonStyle.minHeight)
+                    .background(Palette.surface, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Palette.line, lineWidth: 1))
+                    .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Settings")
+            .accessibilityIdentifier("settings-button")
+        }
+    }
+
+    /// "Crew lead · Alex Rivera"
+    private var subtitle: String {
+        let member = session.membership
+        let name = member?.displayName ?? session.me?.user.displayName ?? ""
+        return [member?.jobTitle ?? "", name].filter { !$0.isEmpty }.joined(separator: " · ")
+    }
+
+    @ViewBuilder
+    private func content(_ state: FieldState) -> some View {
+        let now = Date()
+        let status = ClockStatus(state: state, now: now)
+        let working = NowWorking(state: state, live: model.actions.liveSnapshot())
+
+        StatusCardView(
+            state: state,
+            status: status,
+            clockOutQuestion: confirmingOut ? model.actions.confirmation(for: .clockOut) : nil,
+            confirmingOut: $confirmingOut,
+            onClockIn: { run(.clockIn(fieldId: nil)) },
+            onLunch: { run(.startBreak(.lunch, reason: "")) },
+            onOtherBreak: { sheet = .breakReason },
+            onBackToWork: { run(.endBreak) },
+            onClockOut: { run(.clockOut) },
+            onChangeStart: { if let open = state.openShift { sheet = .startTime(open) } },
+            onEditShift: { sheet = .editShift(status.shiftId) })
+
+        if status.phase == .off {
+            offTheClockLinks
+        }
+
+        if let working {
+            NowWorkingCardView(
+                card: working,
+                onMarkRow: { run(.markRow($0.rowRef)) },
+                onBreak: { run(.startBreak(.break, reason: "")) },
+                onUndo: { run(.undo) },
+                onMove: { run(.moveTo(blockId: $0, row: nil)) })
+            TreesCardView(content: .shift(working), onOpenMap: mapAction)
+        } else if let field = FieldSummary(state: state) {
+            TreesCardView(content: .field(field), onOpenMap: mapAction)
+        }
+
+        TimelineView(.periodic(from: .now, by: 30)) { context in
+            if let pace = PaceCard(state: state, now: context.date, showPay: showPay) {
+                PaceCardView(pace: pace)
             }
         }
-        .sheet(isPresented: $showingSettings) {
+
+        if status.shiftId != nil {
+            ShiftNotesCardView(editor: notes)
+        }
+
+        TimelineView(.periodic(from: .now, by: 15)) { context in
+            HoursPayCardView(hours: HoursPay(state: state, now: context.date), showPay: $showPay) {
+                sheet = .settings
+            }
+        }
+    }
+
+    private var offTheClockLinks: some View {
+        HStack(spacing: 10) {
+            Button { sheet = .editShift(nil) } label: {
+                Label("Add a shift", systemImage: "plus")
+            }
+            .buttonStyle(.gloveSecondary)
+            .accessibilityIdentifier("add-shift")
+            if let openTab {
+                Button { openTab(.log) } label: {
+                    Label("Past shifts", systemImage: "list.bullet.rectangle")
+                }
+                .buttonStyle(.gloveSecondary)
+            }
+        }
+    }
+
+    private var mapAction: (() -> Void)? {
+        guard let openTab else { return nil }
+        return { openTab(.trees) }
+    }
+
+    @ViewBuilder
+    private func sheetView(_ sheet: ClockSheet, state: FieldState?) -> some View {
+        switch sheet {
+        case .settings:
             SettingsView()
+        case .breakReason:
+            BreakReasonSheet { reason in run(.startBreak(.break, reason: reason)) }
+        case .startTime(let shift):
+            StartTimeSheet(shift: shift, calendar: state?.calendar ?? FarmCalendar(timeZone: .current, weekStart: .monday)) { start in
+                run(.changeStart(start), toastFailures: false)
+            }
+        case .editShift(let id):
+            ShiftEditorView(shiftId: id)
         }
+    }
+
+    // MARK: Actions
+
+    /// Runs a field command the way Siri and the lock screen do, then says what happened.
+    @discardableResult
+    private func run(_ command: FieldCommand, toastFailures: Bool = true) -> FieldReply {
+        notes.flush()
+        confirmingOut = false
+        let reply = withAnimation(.easeInOut(duration: 0.25)) { model.actions.perform(command) }
+        refresh += 1
+        if reply.succeeded || toastFailures {
+            withAnimation(.spring(duration: 0.3)) { toast = ClockToast(text: reply.speech, succeeded: reply.succeeded) }
+            AccessibilityNotification.Announcement(reply.speech).post()
+        }
+        return reply
+    }
+
+    /// Notes save straight onto the open shift through the session, stamped to the millisecond.
+    private func connectNotes() {
+        let session = self.session
+        notes.save = { shiftId, text in
+            guard let shift = session.snapshot.shifts[shiftId],
+                  let updated = ShiftNotesEditor.updated(shift, notes: text, now: Date()) else { return }
+            try session.save([.shift(updated)])
+        }
+    }
+}
+
+/// What the Clock tab can open on top of itself.
+enum ClockSheet: Identifiable {
+    case settings
+    case breakReason
+    case startTime(Shift)
+    case editShift(UUID?)
+
+    var id: String {
+        switch self {
+        case .settings: "settings"
+        case .breakReason: "break"
+        case .startTime(let shift): "start-\(shift.id)"
+        case .editShift(let id): "edit-\(id?.uuidString ?? "new")"
+        }
+    }
+}
+
+/// The open shift's notes, to notice when they change elsewhere.
+private struct NotesSource: Equatable {
+    var id: UUID?
+    var notes: String
+
+    init(_ shift: Shift?) {
+        id = shift?.id
+        notes = shift?.notes ?? ""
     }
 }
