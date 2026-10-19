@@ -64,6 +64,15 @@ public final class WatchDesk {
         return (try? WatchEnvelope(.reply(reply)).data()) ?? Data()
     }
 
+    /// The reply when the phone can't read its own data (locked since a restart): "try later",
+    /// and **no state**, because a made-up signed-out state would stop the watch's workout.
+    public static func unavailable(_ data: Data, speech: String) -> Data {
+        var id = WatchReply.unreadableId
+        if case .request(let request)? = try? WatchEnvelope.decode(data).message { id = request.id }
+        let reply = WatchReply(requestId: id, speech: speech, succeeded: false, keepQueued: true)
+        return (try? WatchEnvelope(.reply(reply)).data()) ?? Data()
+    }
+
     /// A message that waits for no reply: a workout summary from the watch.
     public func receive(_ data: Data) {
         guard let envelope = try? WatchEnvelope.decode(data) else { return }

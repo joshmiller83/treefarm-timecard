@@ -395,6 +395,18 @@ struct WatchDeskTests {
         #expect(r.state != nil)
     }
 
+    @Test func aPhoneThatCantReadItsDataKeepsTheTapQueuedWithNoState() throws {
+        let tap = request(.clockIn(fieldId: nil), shiftId: UUID())
+        let r = try reply(WatchDesk.unavailable(try envelope(tap), speech: Speech.unlockOnce))
+        #expect(r.requestId == tap.id)
+        #expect(r.keepQueued)
+        #expect(!r.succeeded)
+        #expect(r.speech == Speech.unlockOnce)
+        #expect(r.state == nil)
+        let garbled = try reply(WatchDesk.unavailable(Data("x".utf8), speech: Speech.unlockOnce))
+        #expect(garbled.requestId == WatchReply.unreadableId)
+    }
+
     // MARK: Questions
 
     @Test func questionsAreAnsweredWithState() async throws {
