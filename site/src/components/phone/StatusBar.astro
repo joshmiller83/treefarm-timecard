@@ -1,32 +1,108 @@
 ---
-/** STUB (device-a): replace the look, keep the Props and hooks in CONTRACT.md. */
+/**
+ * STATUS BAR: iOS 26 on a Dynamic Island iPhone, drawn in pt (no SF Symbols).
+ *
+ * 54 pt tall. The time sits centered in the left ear and the cellular, Wi-Fi and battery
+ * glyphs in the right ear, all on the island's center line (y 29.5 pt).
+ *
+ * Hooks: [data-clock] (DayClock writes the time), [data-bar="1".."4"] (signal bars; the
+ * crew's offline beat fades them one by one), [data-no-service] (hidden unless offline;
+ * fade it in where the bars were), [data-wifi], [data-battery].
+ */
 export interface Props {
+  /** Shown before DayClock takes over; e.g. '7:02'. Default '7:02'. */
   time?: string;
+  /** 'light' = white (lock screen), 'dark' = black (light app screens). */
   tone?: 'light' | 'dark';
+  /** false freezes the time (data-clock="fixed"). Default true. */
   live?: boolean;
+  /** Signal bars 0–4. Default 4. */
   signal?: 0 | 1 | 2 | 3 | 4;
+  /** Shows 'No Service' instead of bars (crew offline beat). */
   noService?: boolean;
+  /** Battery percent. Default 80. */
   battery?: number;
+  /**
+   * Show the time on the left. The lock screen passes false: iOS shows the big clock there
+   * instead (the hidden span keeps its data-clock so DayClock code stays simple).
+   */
+  showTime?: boolean;
 }
-const { time = '7:02', tone = 'light', live = true, signal = 4, noService = false, battery = 80 } = Astro.props;
+const {
+  time = '7:02',
+  tone = 'light',
+  live = true,
+  signal = 4,
+  noService = false,
+  battery = 80,
+  showTime = true,
+} = Astro.props;
+
+const level = Math.max(0, Math.min(100, battery));
+const BAR_H = [4.2, 6.5, 8.8, 11.1];
+// Wi-Fi: two arcs and a wedge, fanned ±42° around straight up from (cx, cy).
+const cx = 7.75;
+const cy = 11.4;
+const arc = (r: number, a = 41) => {
+  const rad = (d: number) => ((d - 90) * Math.PI) / 180;
+  const x1 = cx + r * Math.cos(rad(-a));
+  const y1 = cy + r * Math.sin(rad(-a));
+  const x2 = cx + r * Math.cos(rad(a));
+  const y2 = cy + r * Math.sin(rad(a));
+  return `M${x1.toFixed(2)} ${y1.toFixed(2)}A${r} ${r} 0 0 1 ${x2.toFixed(2)} ${y2.toFixed(2)}`;
+};
+const wedge = (() => {
+  const r = 3.3;
+  const a = 44;
+  const rad = (d: number) => ((d - 90) * Math.PI) / 180;
+  const x1 = cx + r * Math.cos(rad(-a));
+  const y1 = cy + r * Math.sin(rad(-a));
+  const x2 = cx + r * Math.cos(rad(a));
+  const y2 = cy + r * Math.sin(rad(a));
+  return `M${cx} ${cy - 0.2}L${x1.toFixed(2)} ${y1.toFixed(2)}A${r} ${r} 0 0 1 ${x2.toFixed(2)} ${y2.toFixed(2)}Z`;
+})();
 ---
 
-<div class:list={['sb', `sb--${tone}`]} data-statusbar data-battery={battery}>
-  <span class="sb-time" data-clock={live ? '' : 'fixed'}>{time}</span>
+<div
+  class:list={['sb', `sb--${tone}`, noService && 'sb--offline']}
+  data-statusbar
+  data-battery={level}
+>
+  <span class:list={['sb-left', !showTime && 'sb-left--hidden']}>
+    <span class="sb-time" data-clock={live ? '' : 'fixed'}>{time}</span>
+  </span>
   <span class="sb-right">
-    {
-      noService ? (
-        <span data-no-service>No Service</span>
-      ) : (
-        <span class="sb-bars">
-          {[1, 2, 3, 4].map((i) => (
-            <i data-bar={i} style={i <= signal ? '' : 'opacity:.3'} />
-          ))}
-        </span>
-      )
-    }
-    <span data-wifi>wifi</span>
-    <span>{battery}%</span>
+    <span class="sb-noservice" data-no-service style={noService ? undefined : 'opacity:0'}>No Service</span>
+    <span class="sb-signal">
+      <svg class="sb-bars" viewBox="0 0 17.4 11.4" style={noService ? 'opacity:0' : undefined}>
+        {
+          BAR_H.map((h, i) => (
+            <rect
+              data-bar={i + 1}
+              x={i * 4.8}
+              y={11.4 - h}
+              width="3"
+              height={h}
+              rx="1"
+              fill="currentColor"
+              opacity={i < signal ? undefined : 0.3}
+            />
+          ))
+        }
+      </svg>
+    </span>
+    <svg class="sb-wifi" data-wifi viewBox="0 0 15.5 11.6" style={noService ? 'opacity:0' : undefined}>
+      <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="2.35">
+        <path d={arc(9.45)}></path>
+        <path d={arc(5.75, 39)}></path>
+      </g>
+      <path d={wedge} fill="currentColor" stroke="currentColor" stroke-width="0.9" stroke-linejoin="round"></path>
+    </svg>
+    <svg class="sb-battery" viewBox="0 0 27.6 13">
+      <rect x="0.5" y="0.5" width="24.6" height="12" rx="3.9" fill="none" stroke="currentColor" stroke-opacity="0.38"></rect>
+      <rect x="2.4" y="2.4" width={(20.8 * level) / 100} height="8.2" rx="2.1" fill="currentColor"></rect>
+      <path d="M26.2 4.4c.8.25 1.4 1 1.4 2.1s-.6 1.85-1.4 2.1z" fill="currentColor" fill-opacity="0.42"></path>
+    </svg>
   </span>
 </div>
 
@@ -35,33 +111,77 @@ const { time = '7:02', tone = 'light', live = true, signal = 4, noService = fals
     position: absolute;
     inset: 0 0 auto;
     height: calc(54 * var(--pt));
-    padding: calc(18 * var(--pt)) calc(32 * var(--pt)) 0 calc(48 * var(--pt));
-    display: flex;
-    justify-content: space-between;
+    z-index: 3;
+    color: #fff;
     font-family: var(--font-system);
     font-weight: 600;
     font-size: calc(17 * var(--pt));
-    color: #fff;
-    z-index: 3;
+    line-height: 1;
+    letter-spacing: -0.025em;
+    pointer-events: none;
   }
   .sb--dark {
-    color: var(--ink);
+    color: #000;
   }
+  /* Both ears share the island's center line: 11 pt down, 37 pt tall. */
+  .sb-left,
   .sb-right {
+    position: absolute;
+    top: calc(11 * var(--pt));
+    height: calc(37 * var(--pt));
     display: flex;
-    gap: calc(6 * var(--pt));
-    font-size: calc(11 * var(--pt));
     align-items: center;
+    justify-content: center;
+  }
+  .sb-left {
+    left: calc(10 * var(--pt));
+    width: calc(116 * var(--pt));
+  }
+  .sb-left--hidden {
+    visibility: hidden;
+  }
+  .sb-time {
+    font-variant-numeric: tabular-nums;
+    /* SF's digits sit a hair high in a 1.0 line box; nudge them onto the island's center. */
+    transform: translateY(calc(0.4 * var(--pt)));
+  }
+  /* The right ear is laid out from the battery, 31 pt in from the edge. */
+  .sb-right {
+    right: calc(31 * var(--pt));
+    justify-content: flex-end;
+    gap: calc(5.6 * var(--pt));
+  }
+  .sb-signal {
+    position: relative;
+    display: block;
+    width: calc(17.4 * var(--pt));
+    height: calc(11.4 * var(--pt));
   }
   .sb-bars {
-    display: flex;
-    gap: calc(1.5 * var(--pt));
-    align-items: flex-end;
+    display: block;
+    width: 100%;
+    height: 100%;
   }
-  .sb-bars i {
-    width: calc(3 * var(--pt));
-    height: calc(10 * var(--pt));
-    background: currentColor;
-    border-radius: 1px;
+  /* Offline, the text takes the place of the bars and Wi-Fi, ending just before the battery. */
+  .sb-noservice {
+    position: absolute;
+    right: calc((27.6 + 5.6) * var(--pt));
+    top: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    white-space: nowrap;
+    font-size: calc(13 * var(--pt));
+    letter-spacing: -0.01em;
+  }
+  .sb-wifi {
+    display: block;
+    width: calc(15.5 * var(--pt));
+    height: calc(11.6 * var(--pt));
+  }
+  .sb-battery {
+    display: block;
+    width: calc(27.6 * var(--pt));
+    height: calc(13 * var(--pt));
   }
 </style>

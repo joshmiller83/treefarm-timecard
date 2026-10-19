@@ -1,14 +1,27 @@
 ---
 /**
- * STUB (device-a): replace the look, keep the Props and the DOM contract in CONTRACT.md.
- * This stub already implements the contract (root, .screen with --pt, rest island, rim,
- * sheen, shadow) so sections and the stage work while the real frame is built.
+ * PHONE: a CSS iPhone (iOS 26 era, 6.1" Pro class) that every mock shares.
+ *
+ * The frame is drawn in "u": 1/420 of the phone's width. The screen inside is exactly
+ * 393 × 852 pt (so 1 u = 1 pt), set in from the edge by a 4.5 u titanium band and a 9 u
+ * black glass border (13.5 u, 3.2% of the width). The outer shape is therefore 420 × 879 u.
+ *
+ *   .phone            role="img" root, container for the frame units, side buttons
+ *   .phone-body       titanium band, black glass (::before), clips the sheen
+ *     .screen         393 × 852 pt, radius 55 pt, container: --pt = 1/393 of its width
+ *     .phone-island   the resting Dynamic Island, 126 × 37 pt at y 11 pt, with its lens
+ *     .phone-rim      gold rim light (scenes fade its opacity)
+ *     .phone-sheen    a 20° band of 12% white (util.sheen moves it with xPercent)
+ *   .phone-shadow     pre-blurred contact shadow
+ *
+ * Nothing here animates anything but transform and opacity; shadows and glows are baked.
  */
 export interface Props {
   /** aria-label for the role="img" root (required unless decorative). */
   label?: string;
-  /** CSS length for the height; width follows 393/852. Default: var(--phone-h). */
+  /** CSS length for the height; the width follows the 420 : 879 frame. Default: var(--phone-h). */
   height?: string;
+  /** 'stage': the fixed desktop phone; 'inline': a section phone; 'peek': the crew's second phone (black titanium). */
   variant?: 'stage' | 'inline' | 'peek';
   /** aria-hidden instead of role="img" (the stage phone repeats the section figures). */
   decorative?: boolean;
@@ -28,11 +41,18 @@ const hidden = decorative || !label;
   aria-label={hidden ? undefined : label}
   aria-hidden={hidden ? 'true' : undefined}
 >
+  <div class="phone-hw" aria-hidden="true">
+    <i class="hw hw-action"></i>
+    <i class="hw hw-vol-up"></i>
+    <i class="hw hw-vol-down"></i>
+    <i class="hw hw-side"></i>
+    <i class="hw hw-camera"></i>
+  </div>
   <div class="phone-body" aria-hidden="true">
     <div class="screen">
       <slot />
     </div>
-    <div class="phone-island" data-island-rest></div>
+    <div class="phone-island" data-island-rest><i class="phone-lens"></i></div>
     <div class="phone-rim" data-rim></div>
     <div class="phone-sheen sheen" data-sheen></div>
   </div>
@@ -42,39 +62,91 @@ const hidden = decorative || !label;
 <style>
   .phone {
     position: relative;
-    height: var(--phone-h, min(52svh, 460px));
-    aspect-ratio: 393 / 852;
     flex: none;
+    height: var(--phone-h, min(52svh, 460px));
+    aspect-ratio: 420 / 879;
+    container-type: inline-size;
+    /* Finish: natural titanium, tinted toward the page's fir greens. */
+    --ti-1: #3a3f3c;
+    --ti-2: #8c928e;
+    --ti-3: #2a2e2c;
+    --ti-hi: rgba(255, 255, 255, 0.34);
   }
+  .phone--peek {
+    /* Black titanium: the crew's second phone reads as someone else's. */
+    --ti-1: #1f2221;
+    --ti-2: #545a57;
+    --ti-3: #151716;
+    --ti-hi: rgba(255, 255, 255, 0.22);
+  }
+
   .phone-body {
+    /* 1 u = 1/420 of the phone's width (the .phone container). */
+    --u: calc(100cqw / 420);
     position: absolute;
     inset: 0;
-    border-radius: 13.99% / 6.455%;
-    padding: 3.2%;
-    background: linear-gradient(145deg, #3a3f3c, #8c928e 45%, #2a2e2c);
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
-  }
-  .screen {
-    position: relative;
-    width: 100%;
-    height: 100%;
+    z-index: 1;
     overflow: hidden;
-    border-radius: 11.8% / 5.45%;
+    border-radius: calc(68.5 * var(--u));
+    background:
+      /* specular edges: left and right catch the light, the bottom falls off */
+      linear-gradient(90deg, rgba(255, 255, 255, 0.2), transparent 2.2%, transparent 97.8%, rgba(255, 255, 255, 0.16)),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.16), transparent 1.4%, transparent 98.4%, rgba(0, 0, 0, 0.35)),
+      /* brushed metal */
+      linear-gradient(135deg, var(--ti-1), var(--ti-2) 34%, var(--ti-1) 52%, var(--ti-2) 74%, var(--ti-3));
+    box-shadow:
+      inset 0 0 0 calc(0.6 * var(--u)) var(--ti-hi),
+      inset 0 0 0 calc(1.4 * var(--u)) rgba(0, 0, 0, 0.18),
+      0 calc(1.5 * var(--u)) calc(3 * var(--u)) rgba(0, 0, 0, 0.35),
+      0 calc(34 * var(--u)) calc(64 * var(--u)) calc(-22 * var(--u)) rgba(0, 0, 0, 0.6);
+  }
+  /* The black glass border, with a hairline seam where glass meets metal. */
+  .phone-body::before {
+    content: '';
+    position: absolute;
+    inset: calc(4.5 * var(--u));
+    border-radius: calc(64 * var(--u));
+    background: #040505;
+    box-shadow:
+      0 0 0 calc(0.6 * var(--u)) rgba(0, 0, 0, 0.75),
+      inset 0 0 0 calc(0.5 * var(--u)) rgba(255, 255, 255, 0.07);
+  }
+
+  .screen {
+    position: absolute;
+    inset: calc(13.5 * var(--u));
+    overflow: hidden;
+    border-radius: calc(55 * var(--u));
     background: #000;
     container-type: inline-size;
     --pt: calc(100cqw / 393);
   }
+
   .phone-island {
     position: absolute;
     left: 50%;
-    top: calc(3.2% + 1.29%);
-    width: 32%;
-    height: 4.34%;
-    transform: translateX(-50%);
-    border-radius: 999px;
+    top: calc((13.5 + 11) * var(--u));
+    width: calc(126 * var(--u));
+    height: calc(37 * var(--u));
+    margin-left: calc(-63 * var(--u));
+    border-radius: calc(18.5 * var(--u));
     background: #000;
     pointer-events: none;
   }
+  /* The front camera under the island's right end: barely there, as on the real thing. */
+  .phone-lens {
+    position: absolute;
+    right: calc(13 * var(--u));
+    top: 50%;
+    width: calc(11 * var(--u));
+    height: calc(11 * var(--u));
+    margin-top: calc(-5.5 * var(--u));
+    border-radius: 50%;
+    background:
+      radial-gradient(circle at 36% 34%, rgba(120, 140, 190, 0.35), transparent 26%),
+      radial-gradient(circle, #0b0f1c 40%, #141826 62%, #07080b 72%);
+  }
+
   .phone-rim,
   .phone-sheen {
     position: absolute;
@@ -83,14 +155,73 @@ const hidden = decorative || !label;
     pointer-events: none;
     opacity: 0;
   }
+  /* Gold rim light on the titanium band (opacity only). */
+  .phone-rim {
+    box-shadow:
+      inset 0 0 0 calc(1.2 * var(--u)) rgba(244, 200, 120, 0.95),
+      inset 0 0 calc(10 * var(--u)) calc(1 * var(--u)) rgba(226, 166, 68, 0.6);
+  }
+  .phone-sheen {
+    background: linear-gradient(110deg, transparent 41%, rgba(255, 255, 255, 0.12) 50%, transparent 59%);
+  }
+
+  /* Side buttons sit under the body and stand 2 u proud of it. */
+  .phone-hw {
+    position: absolute;
+    inset: 0;
+    --u: calc(100cqw / 420);
+  }
+  .hw {
+    position: absolute;
+    width: calc(4 * var(--u));
+    border-radius: calc(1.6 * var(--u));
+    background: linear-gradient(90deg, var(--ti-3), var(--ti-2) 40%, var(--ti-1));
+    box-shadow: inset 0 0 0 calc(0.4 * var(--u)) rgba(255, 255, 255, 0.12);
+  }
+  .hw-action,
+  .hw-vol-up,
+  .hw-vol-down {
+    left: calc(-2 * var(--u));
+  }
+  .hw-side,
+  .hw-camera {
+    right: calc(-2 * var(--u));
+    background: linear-gradient(270deg, var(--ti-3), var(--ti-2) 40%, var(--ti-1));
+  }
+  .hw-action {
+    top: calc(176 * var(--u));
+    height: calc(34 * var(--u));
+  }
+  .hw-vol-up {
+    top: calc(246 * var(--u));
+    height: calc(62 * var(--u));
+  }
+  .hw-vol-down {
+    top: calc(322 * var(--u));
+    height: calc(62 * var(--u));
+  }
+  .hw-side {
+    top: calc(268 * var(--u));
+    height: calc(100 * var(--u));
+  }
+  /* Camera Control: a flush sapphire key, so it barely stands out. */
+  .hw-camera {
+    top: calc(548 * var(--u));
+    height: calc(52 * var(--u));
+    right: calc(-1 * var(--u));
+    width: calc(3 * var(--u));
+    background: linear-gradient(270deg, #1b1e1d, #3c4240 50%, #1b1e1d);
+  }
+
   .phone-shadow {
     position: absolute;
-    left: 8%;
-    right: 8%;
-    bottom: -3%;
+    left: 9%;
+    right: 9%;
+    bottom: -2.6%;
     height: 5%;
     border-radius: 50%;
-    background: radial-gradient(closest-side, rgba(0, 0, 0, 0.55), transparent);
-    z-index: -1;
+    background: radial-gradient(closest-side, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0.22) 55%, transparent);
+    z-index: 0;
+    pointer-events: none;
   }
 </style>

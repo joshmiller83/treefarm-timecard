@@ -1,166 +1,386 @@
 ---
-/** STUB (device-a): replace the look, keep the Props and every hook in CONTRACT.md. */
-import { liveActivityAt, MOMENTS, type ActivityState } from '../../data/ledger';
+/**
+ * LIVE ACTIVITY: the Time Card card on the lock screen (the hero feature).
+ *
+ *   [On the clock]                         North field · Block 2
+ *   6:27:00                                      28% of field ▬▬▭▭
+ *   220 trees this shift                    Row 36 marked · Undo
+ *   [Row 36] [Row 37] [Row 38] [Break]
+ *
+ * 361 pt wide with its bottom edge at y 760 pt, radius 24, padding 12/14, 159 pt tall.
+ * Values come from ledger.liveActivityAt(at) through activityView(); explicit props win.
+ * Never a clock-out button.
+ *
+ * Static first: the server markup is the given state, set with inline styles that scenes
+ * can tween from (GSAP inline styles win). Every state renders every part, so one card can
+ * play working → lunch → working, or the Row 36 tap:
+ *   - crossfade [data-la-material] / [data-la-break], [data-pill-face="clock"|"break"],
+ *     and fade [data-worked-line] in (it never overlaps anything);
+ *   - flip [data-la]'s data-state (tl.set attr) to turn the timer gold;
+ *   - collapse the row buttons (scaleX → 0, transformOrigin '100% 50%'), fade [data-break-btn],
+ *     reveal [data-back-btn] with clip-path inset(0 100% 0 0) → inset(0);
+ *   - advance: move [data-strip-track] by one step (x: '-=' + step; see stripStep in
+ *     system/lockscreen/activity.ts; in px, measure two [data-row] buttons' offsetLeft).
+ *     In the tapped state the marked row waits off the left edge, so x: step → 0 replays the tap.
+ */
 import { odometerHTML } from '../../scripts/odometer';
+import { activityView, type ActivityProps } from '../system/lockscreen/activity';
 
-export interface Props {
-  at?: number;
-  state?: ActivityState;
-  worked?: string;
-  breakTime?: string;
-  breakReason?: string | null;
-  trees?: number;
-  field?: string;
-  block?: string;
-  fieldPct?: number;
-  rows?: [number, number, number];
-  nextRow?: number;
-  undoRow?: number | null;
-  fixed?: boolean;
+export interface Props extends ActivityProps {
+  /**
+   * 'lock' (default): positioned on the lock screen (inside LockScreen's slot, in pt).
+   * 'solo': a standalone card that fills its container's width (for page-level crops).
+   */
+  placement?: 'lock' | 'solo';
+  class?: string;
 }
 
-const base = liveActivityAt(Astro.props.at ?? MOMENTS.clockIn);
-const p = { ...base, ...Object.fromEntries(Object.entries(Astro.props).filter(([, v]) => v !== undefined)) } as typeof base & Props;
-const onBreak = p.state === 'lunch' || p.state === 'break';
-const pill = !onBreak ? 'On the clock' : p.state === 'lunch' ? 'On lunch' : `On break${p.breakReason ? ` · ${p.breakReason}` : ''}`;
-const timer = onBreak ? p.breakTime : p.worked;
-const rows = [...p.rows, p.nextRow ?? p.rows[2] + 1];
+const { placement = 'lock', class: cls, ...props } = Astro.props;
+const v = activityView(props);
+const hide = 'opacity:0';
 ---
 
-<div class="la" data-la data-state={p.state}>
-  <div class="la-mat" data-la-material></div>
-  <div class="la-mat la-brk" data-la-break style={onBreak ? 'opacity:1' : undefined}></div>
-  <div class="la-row1">
-    <span class="la-pill" data-pill><span data-pill-text>{pill}</span></span>
-    <span data-place>{p.field} · {p.block}</span>
+<div class:list={['la-wrap', placement === 'solo' && 'la-wrap--solo', cls]}>
+  <div class:list={['la', `la--${placement}`]} data-la data-state={v.state}>
+    <div class="la-twin" aria-hidden="true"></div>
+    <div class="la-mat" data-la-material></div>
+    <div class="la-mat la-mat--break" data-la-break style={v.onBreak ? undefined : hide}></div>
+
+    <div class="la-r1">
+      <span class="la-pill" data-pill>
+        <span class="la-face la-face--clock" data-pill-face="clock" style={v.onBreak ? hide : undefined}>
+          <span data-pill-text="clock">{v.pillClock}</span>
+        </span>
+        <span class="la-face la-face--break" data-pill-face="break" style={v.onBreak ? undefined : hide}>
+          <span data-pill-text="break">{v.pillBreak}</span>
+        </span>
+      </span>
+      <span class="la-place" data-place>{v.place}</span>
+    </div>
+
+    <div class="la-r2">
+      <span
+        class="odo la-timer"
+        data-timer={v.timerMode}
+        data-odo
+        data-odo-text={v.timer}
+        set:html={odometerHTML(v.timer)}
+      />
+      <span class="la-field" data-field>
+        <span class="la-field-label"
+          ><span class="odo" data-fieldpct data-odo data-odo-text={v.fieldPctText} set:html={odometerHTML(v.fieldPctText)}
+          />% of field</span
+        >
+        <span class="la-bar"><i data-fieldbar style={`transform:scaleX(${v.fieldPct.toFixed(4)})`}></i></span>
+      </span>
+    </div>
+
+    <div class="la-r3">
+      <span class="la-trees" data-trees-line>
+        <span class="odo" data-trees data-odo data-odo-text={v.treesText} set:html={odometerHTML(v.treesText)} />
+        <span class="la-words">trees this shift</span>
+      </span>
+      <span class="la-note">
+        <span class="la-undo" data-undo style={v.tapped ? undefined : hide}>
+          Row <span data-undo-row>{v.undoRow ?? v.rows[0]}</span> marked · <span class="la-undo-link">Undo</span>
+        </span>
+        <span class="la-worked" data-worked-line style={v.onBreak ? undefined : hide}>
+          <span class="la-num" data-timer={v.workedMode}>{v.worked}</span> worked
+        </span>
+      </span>
+    </div>
+
+    <div class="la-r4">
+      <span class="la-strip" data-strip>
+        <span class:list={['la-track', v.lead && 'la-track--lead']} data-strip-track>
+          {
+            v.track.map((r) => (
+              <span class="la-btn la-row" data-row={r} style={v.onBreak ? 'transform:scaleX(0)' : undefined}>
+                Row {r}
+              </span>
+            ))
+          }
+        </span>
+      </span>
+      <span class="la-btn la-break" data-break-btn style={v.onBreak ? hide : undefined}>Break</span>
+      <span class="la-btn la-back" data-back-btn style={v.onBreak ? undefined : 'clip-path:inset(0 100% 0 0)'}>Back to work</span>
+    </div>
   </div>
-  <div class="odo la-timer" data-timer={p.fixed ? 'fixed' : 'auto'} data-odo data-odo-text={timer} set:html={odometerHTML(timer)} />
-  {onBreak && <div data-worked-line>{p.worked} worked</div>}
-  <div class="la-row3">
-    <span><span class="odo" data-trees data-odo data-odo-text={String(p.trees)} set:html={odometerHTML(String(p.trees))} /> trees this shift</span>
-    {p.undoRow ? <span data-undo>Row {p.undoRow} marked · <u>Undo</u></span> : <span class="la-bar"><i data-fieldbar style={`transform:scaleX(${p.fieldPct})`} /></span>}
-  </div>
-  <div class="la-btns">
-    {
-      onBreak ? (
-        <span class="la-back" data-back-btn>Back to work</span>
-      ) : (
-        <>
-          <span class="la-strip" data-strip>
-            <span class="la-track" data-strip-track>
-              {rows.map((r) => (
-                <span class="la-row" data-row={r}>Row {r}</span>
-              ))}
-            </span>
-          </span>
-          <span class="la-break" data-break-btn>Break</span>
-        </>
-      )
-    }
-  </div>
-  <span class="la-stub">LiveActivity · stub · device-a</span>
 </div>
 
 <style>
+  /* In the lock screen the wrapper is invisible to layout; solo, it supplies the pt scale. */
+  .la-wrap {
+    display: contents;
+  }
+  .la-wrap--solo {
+    display: block;
+    width: 100%;
+    container-type: inline-size;
+    --pt: calc(100cqw / 361);
+  }
+
   .la {
+    /* Geometry: system/lockscreen/activity.ts (LA). */
+    --btn-w: calc((333 - 24) / 4 * var(--pt));
+    --gap: calc(8 * var(--pt));
     position: absolute;
     left: calc(16 * var(--pt));
-    width: calc(361 * var(--pt));
     bottom: calc(92 * var(--pt));
-    height: calc(160 * var(--pt));
+    width: calc(361 * var(--pt));
     padding: calc(12 * var(--pt)) calc(14 * var(--pt));
+    display: flex;
+    flex-direction: column;
     border-radius: calc(24 * var(--pt));
     overflow: hidden;
-    color: #fff;
+    isolation: isolate;
+    color: #f2f5ef;
     font-family: var(--font-system);
     font-size: calc(13 * var(--pt));
-    outline: 1.5px dashed rgba(226, 166, 68, 0.75);
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+    -webkit-font-smoothing: antialiased;
   }
+  .la--solo {
+    position: relative;
+    left: auto;
+    bottom: auto;
+    width: 100%;
+  }
+
+  /* Material: the blurred wallpaper twin under rgba(16,30,22,.86), and the gold break tint. */
+  .la-twin,
   .la-mat {
     position: absolute;
-    inset: 0;
-    background: rgba(16, 30, 22, 0.86);
     z-index: -1;
+    pointer-events: none;
   }
-  .la-brk {
-    background: rgba(58, 42, 12, 0.88);
-    opacity: 0;
+  .la-twin {
+    left: calc(-16 * var(--pt));
+    bottom: calc(-92 * var(--pt));
+    width: calc(393 * var(--pt));
+    height: calc(852 * var(--pt));
+    /* LockScreen provides the blurred wallpaper twin; a solo card gets its average colors. */
+    background: var(--lock-twin, linear-gradient(180deg, #24392b, #17271d 60%, #101c15)) 0 0 / 100% 100% no-repeat;
   }
-  .la-row1,
-  .la-row3 {
+  .la-mat {
+    inset: 0;
+    border-radius: inherit;
+    background: var(--la-material, rgba(16, 30, 22, 0.86));
+    /* The glass edge iOS draws around a Live Activity. */
+    box-shadow: inset 0 0 0 calc(0.6 * var(--pt)) rgba(242, 245, 239, 0.1);
+  }
+  .la-mat--break {
+    background: var(--la-material-break, rgba(58, 42, 12, 0.88));
+    box-shadow: inset 0 0 0 calc(0.6 * var(--pt)) rgba(226, 166, 68, 0.22);
+  }
+
+  /* Row 1: pill and place. */
+  .la-r1 {
+    height: calc(22 * var(--pt));
     display: flex;
-    justify-content: space-between;
     align-items: center;
+    justify-content: space-between;
+    gap: calc(8 * var(--pt));
   }
   .la-pill {
-    padding: 0 calc(8 * var(--pt));
-    border-radius: calc(11 * var(--pt));
-    background: #2e7a4e;
-    font-weight: 600;
+    display: grid;
+    flex: none;
   }
-  .la[data-state='lunch'] .la-pill,
-  .la[data-state='break'] .la-pill {
-    background: #e2a644;
-    color: #2a1c04;
+  .la-face {
+    grid-area: 1 / 1;
+    justify-self: start;
+    height: calc(22 * var(--pt));
+    padding: 0 calc(9 * var(--pt));
+    display: inline-flex;
+    align-items: center;
+    border-radius: calc(11 * var(--pt));
+    font-weight: 600;
+    font-size: calc(13 * var(--pt));
+    letter-spacing: -0.005em;
+    white-space: nowrap;
+  }
+  .la-face--clock {
+    background: var(--pill-clock-bg, #2e7a4e);
+    color: var(--pill-clock-fg, #fff);
+  }
+  .la-face--break {
+    background: var(--pill-break-bg, #e2a644);
+    color: var(--pill-break-fg, #2a1c04);
+  }
+  .la-place {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: rgba(242, 245, 239, 0.72);
+    font-size: calc(13 * var(--pt));
+  }
+
+  /* Row 2: the timer, and the field's progress on the right. */
+  .la-r2 {
+    height: calc(34 * var(--pt));
+    margin-top: calc(4 * var(--pt));
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
   }
   .la-timer {
     font-family: var(--font-mono);
     font-weight: 600;
     font-size: calc(38 * var(--pt));
-    line-height: 1.15;
+    letter-spacing: -0.02em;
+    color: #fff;
+    /* Lift the digits a little: the odometer box is taller than the row, and the trees
+       line below needs the air more than the pill above. */
+    margin-top: calc(-2 * var(--pt));
+  }
+  /* Monospaced colons take a whole cell; tuck them in like a clock face does. */
+  .la-timer :global(.odo-s) {
+    margin: 0 -0.09em;
+  }
+  .la[data-state='lunch'] .la-timer,
+  .la[data-state='break'] .la-timer {
+    color: var(--pill-break-bg, #e2a644);
+  }
+  .la-field {
+    align-self: flex-end;
+    display: grid;
+    justify-items: end;
+    gap: calc(5 * var(--pt));
+    padding-bottom: calc(3 * var(--pt));
+  }
+  .la-field-label {
+    display: inline-flex;
+    align-items: baseline;
+    color: rgba(242, 245, 239, 0.72);
+    font-size: calc(12 * var(--pt));
+    white-space: nowrap;
+  }
+  .la-field-label .odo {
+    font-weight: 600;
+    color: #f2f5ef;
   }
   .la-bar {
-    width: calc(120 * var(--pt));
+    display: block;
+    width: calc(112 * var(--pt));
     height: calc(4 * var(--pt));
+    border-radius: calc(2 * var(--pt));
     background: #1c3125;
+    overflow: hidden;
+  }
+  .la[data-state='lunch'] .la-bar,
+  .la[data-state='break'] .la-bar {
+    background: rgba(242, 245, 239, 0.16);
   }
   .la-bar i {
     display: block;
     height: 100%;
     background: #e2a644;
-    transform-origin: left;
+    border-radius: inherit;
+    transform-origin: 0 50%;
   }
-  .la-btns {
+
+  /* Row 3: trees, and Undo or the worked line on the right. */
+  .la-r3 {
+    height: calc(17 * var(--pt));
+    margin-top: calc(4 * var(--pt));
     display: flex;
+    align-items: center;
+    justify-content: space-between;
     gap: calc(8 * var(--pt));
+    white-space: nowrap;
+  }
+  .la-trees {
+    display: inline-flex;
+    align-items: baseline;
+    gap: calc(4 * var(--pt));
+    font-size: calc(14 * var(--pt));
+  }
+  .la-trees .odo {
+    font-weight: 600;
+    color: #fff;
+  }
+  .la-words {
+    color: rgba(242, 245, 239, 0.8);
+  }
+  .la-note {
+    display: grid;
+    justify-items: end;
+  }
+  .la-undo,
+  .la-worked {
+    grid-area: 1 / 1;
+    font-size: calc(13 * var(--pt));
+    color: rgba(242, 245, 239, 0.72);
+  }
+  .la-undo-link {
+    color: #e2a644;
+    font-weight: 600;
+    text-decoration: underline;
+    text-decoration-thickness: calc(1.2 * var(--pt));
+    text-underline-offset: calc(2.5 * var(--pt));
+  }
+  .la-num {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-weight: 500;
+    color: #f2f5ef;
+  }
+
+  /* Row 4: the strip of row buttons, Break, and Back to work over both. */
+  .la-r4 {
+    position: relative;
+    height: calc(46 * var(--pt));
     margin-top: calc(8 * var(--pt));
+    display: flex;
+    gap: var(--gap);
   }
   .la-strip {
-    flex: 3;
-    overflow: hidden;
+    flex: none;
+    display: block;
+    width: calc(var(--btn-w) * 3 + var(--gap) * 2);
+    height: 100%;
+    /* Clip sideways only, so a tap ring can still spill over the top and bottom. */
+    overflow-x: clip;
+    overflow-y: visible;
   }
   .la-track {
     display: flex;
-    gap: calc(8 * var(--pt));
+    gap: var(--gap);
+    height: 100%;
   }
-  .la-row,
-  .la-break,
-  .la-back {
+  /* Tapped: the marked row waits one step off the left edge (transform stays free for scenes). */
+  .la-track--lead {
+    margin-left: calc(-1 * (var(--btn-w) + var(--gap)));
+  }
+  .la-btn {
     flex: none;
-    width: calc(77 * var(--pt));
-    height: calc(46 * var(--pt));
+    width: var(--btn-w);
+    height: 100%;
     display: grid;
     place-items: center;
     border-radius: calc(14 * var(--pt));
-    background: #1d5b3a;
     font-weight: 600;
     font-size: calc(16 * var(--pt));
+    letter-spacing: -0.015em;
+    white-space: nowrap;
+  }
+  .la-row {
+    background: #1d5b3a;
+    color: #fff;
+    box-shadow: inset 0 calc(0.75 * var(--pt)) 0 rgba(255, 255, 255, 0.1);
   }
   .la-break {
-    background: none;
-    outline: 1.5px solid rgba(242, 245, 239, 0.5);
+    color: #f2f5ef;
+    box-shadow: inset 0 0 0 calc(1.5 * var(--pt)) rgba(242, 245, 239, 0.5);
   }
   .la-back {
-    flex: 1;
+    position: absolute;
+    inset: 0;
+    width: auto;
     background: #e2a644;
     color: #2a1c04;
-  }
-  .la-stub {
-    position: absolute;
-    right: calc(10 * var(--pt));
-    bottom: calc(2 * var(--pt));
-    font-family: var(--font-mono);
-    font-size: 9px;
-    opacity: 0.6;
+    box-shadow: inset 0 calc(0.75 * var(--pt)) 0 rgba(255, 255, 255, 0.25);
   }
 </style>
