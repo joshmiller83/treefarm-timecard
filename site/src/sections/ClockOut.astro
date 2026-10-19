@@ -686,6 +686,13 @@ const alt = {
       linear-gradient(180deg, transparent calc(100% - 140px), var(--bg)),
       var(--tint-dusk);
   }
+  /* Below 900px the figure and its caption are the band's last lines: they end above the
+     140px fade, so the light caption never sits on the paper-coloured end of it. */
+  @media (max-width: 899.98px) {
+    :global(html:not(.motion) .sec-clock-out > .track) {
+      padding-bottom: 200px;
+    }
+  }
   :global(html:not(.motion) .sec-clock-out > .track .eyebrow) {
     color: var(--gold-lit);
   }
