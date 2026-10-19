@@ -168,11 +168,11 @@ struct ReportView: View {
     }
 
     private func stats(_ report: ReportContent) -> some View {
-        AdaptiveStack(spacing: 12, alignment: .top) {
-            StatColumn(label: "Hours", value: report.hours, identifier: "report-hours")
-            StatColumn(label: "Trees", value: report.trees, identifier: "report-trees")
-            StatColumn(label: report.days == 1 ? "Day" : "Days", value: "\(report.days)", identifier: "report-days")
-        }
+        StatRow(stats: [
+            StatRow.Stat(label: "Hours", value: report.hours, identifier: "report-hours"),
+            StatRow.Stat(label: "Trees", value: report.trees, identifier: "report-trees"),
+            StatRow.Stat(label: report.days == 1 ? "Day" : "Days", value: "\(report.days)", identifier: "report-days"),
+        ])
         .card()
     }
 

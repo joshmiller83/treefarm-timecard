@@ -251,7 +251,7 @@ private struct ShiftLine: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             VStack(alignment: stacked ? .leading : .trailing, spacing: 3) {
-                Text("\(Fmt.decimalHours(item.worked)) h").numberStyle(.body).foregroundStyle(item.forgotClockOut ? Palette.rust : Palette.ink)
+                Text.numberPhrase("\(Fmt.decimalHours(item.worked)) hrs").foregroundStyle(item.forgotClockOut ? Palette.rust : Palette.ink)
                 Text(Fmt.plural(item.trees, "tree")).font(.caption).foregroundStyle(Palette.muted)
             }
         }

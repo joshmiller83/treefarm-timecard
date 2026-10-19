@@ -130,7 +130,7 @@ private struct PaperCard: View {
                         .foregroundStyle(Palette.paperInk.opacity(0.7))
                 }
                 Spacer()
-                Text("\(Fmt.decimalHours(report.totalWorked)) h").numberStyle(.stat).foregroundStyle(Palette.paperInk)
+                Text.numberPhrase("\(Fmt.decimalHours(report.totalWorked)) hrs", .stat).foregroundStyle(Palette.paperInk)
             }
             .accessibilityElement(children: .combine)
             .accessibilityIdentifier("report-total")
@@ -152,7 +152,7 @@ private struct ReportLine: View {
             HStack(alignment: .firstTextBaseline) {
                 Text(Fmt.shortDay(row.shift.start, calendar)).font(.headline).foregroundStyle(Palette.paperInk)
                 Spacer()
-                Text("\(Fmt.decimalHours(row.worked)) h").numberStyle(.body).foregroundStyle(Palette.paperInk)
+                Text.numberPhrase("\(Fmt.decimalHours(row.worked)) hrs").foregroundStyle(Palette.paperInk)
             }
             Text("\(Fmt.time(row.shift.start, calendar)) – \(row.shift.end.map { Fmt.time($0, calendar) } ?? "still on the clock") · \(Fmt.plural(row.trees, "tree"))")
                 .font(.subheadline)

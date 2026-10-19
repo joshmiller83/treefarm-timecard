@@ -48,6 +48,29 @@ enum NumberSize {
     }
 }
 
+extension Text {
+    /// "48 trees", "3.03 hrs", "1:45/tree": the number in Plex Mono, the words after it in the
+    /// system font at the same size, so only digits look like digits.
+    static func numberPhrase(_ phrase: String, _ size: NumberSize = .body, weight: Font.Weight = .regular) -> Text {
+        let split = phrase.firstIndex(of: " ") ?? phrase.endIndex
+        let number = Text(phrase[..<split]).font(size.font).monospacedDigit()
+        guard split < phrase.endIndex else { return number }
+        return number + Text(phrase[split...]).font(size.wordFont.weight(weight))
+    }
+}
+
+extension NumberSize {
+    /// The system font that sits beside each number size.
+    var wordFont: Font {
+        switch self {
+        case .timer: .title
+        case .stat: .title3
+        case .body: .body
+        case .small: .footnote
+        }
+    }
+}
+
 extension View {
     /// Plex Mono with tabular digits, so ticking numbers don't jiggle.
     func numberStyle(_ size: NumberSize = .body) -> some View {

@@ -76,7 +76,7 @@ private struct EarlierSeasonRow: View {
                 Text("Started \(SeasonText.date(row.season.startedAt, calendar))").font(.subheadline).foregroundStyle(Palette.muted)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            Text(Fmt.plural(row.shaped, "tree")).numberStyle(.body).foregroundStyle(Palette.muted)
+            Text.numberPhrase(Fmt.plural(row.shaped, "tree")).foregroundStyle(Palette.muted)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)

@@ -144,6 +144,44 @@ extension View {
     }
 }
 
+/// Totals side by side at one size: all in a row when they fit at full size, else two by two,
+/// and one per line at the largest text sizes. Never each column shrunk on its own, which made
+/// "$735.67" look smaller than "38.25" beside it.
+struct StatRow: View {
+    struct Stat: Identifiable {
+        var label: String
+        var value: String
+        var identifier: String?
+        var id: String { identifier ?? label }
+    }
+
+    var stats: [Stat]
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    var body: some View {
+        if typeSize.isAccessibilitySize {
+            VStack(alignment: .leading, spacing: 12) { columns(stats) }
+        } else {
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .top, spacing: 12) { columns(stats) }
+                Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 10) {
+                    ForEach(Array(stride(from: 0, to: stats.count, by: 2)), id: \.self) { i in
+                        GridRow {
+                            columns(Array(stats[i..<min(i + 2, stats.count)]))
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func columns(_ items: [Stat]) -> some View {
+        ForEach(items) { stat in
+            StatColumn(label: stat.label, value: stat.value, identifier: stat.identifier)
+        }
+    }
+}
+
 /// A labeled number for totals: "HOURS  38.25".
 /// At the largest text sizes it becomes a row (label left, number right) inside an
 /// `AdaptiveStack`, so numbers are never squeezed or cut.
@@ -164,9 +202,10 @@ struct StatColumn: View {
             } else {
                 VStack(alignment: .leading, spacing: 2) {
                     caption
+                    // Whole, at full size: `StatRow` makes room instead.
                     number
                         .lineLimit(1)
-                        .minimumScaleFactor(0.6)
+                        .fixedSize()
                 }
             }
         }

@@ -91,11 +91,11 @@ struct DaySnippetCard: View {
             header
             if card.topic == .whereAmI {
                 whereBlock
-                StatRow(stats: SnippetStat.stats(for: card), compact: true)
+                SnippetStatRow(stats: SnippetStat.stats(for: card), compact: true)
             } else if card.topic == .pay && card.pay == nil {
                 payHidden
             } else {
-                StatRow(stats: SnippetStat.stats(for: card), compact: false)
+                SnippetStatRow(stats: SnippetStat.stats(for: card), compact: false)
                 if card.topic != .pay { rowLine }
             }
             if card.fieldTotal > 0 && card.topic != .pay { progress }
@@ -413,7 +413,7 @@ private struct TightStat: View {
 }
 
 /// Three numbers across, or stacked when the text is large.
-private struct StatRow: View {
+private struct SnippetStatRow: View {
     let stats: [SnippetStat]
     let compact: Bool
 

@@ -70,7 +70,7 @@ struct ShiftTreesSheet: View {
                                 Text(field.name).font(.subheadline).foregroundStyle(Palette.muted)
                             }
                             Spacer()
-                            Text(Fmt.plural(item.count, "tree")).numberStyle(.body).foregroundStyle(Palette.firText)
+                            Text.numberPhrase(Fmt.plural(item.count, "tree")).foregroundStyle(Palette.firText)
                         }
                         Text(rowsPart(item.text, block: item.block))
                             .font(.subheadline)

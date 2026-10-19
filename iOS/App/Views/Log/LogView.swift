@@ -133,14 +133,10 @@ private struct WeekHeader: View {
                         .foregroundStyle(Palette.muted)
                 }
             }
-            AdaptiveStack(spacing: 12, alignment: .top) {
-                StatColumn(label: "Hours", value: week.hours)
-                if showPay {
-                    StatColumn(label: "Pay", value: week.pay)
-                }
-                StatColumn(label: "Trees", value: Fmt.count(week.trees))
-                StatColumn(label: week.days == 1 ? "Day" : "Days", value: "\(week.days)")
-            }
+            StatRow(stats: [StatRow.Stat(label: "Hours", value: week.hours)]
+                    + (showPay ? [StatRow.Stat(label: "Pay", value: week.pay)] : [])
+                    + [StatRow.Stat(label: "Trees", value: Fmt.count(week.trees)),
+                       StatRow.Stat(label: week.days == 1 ? "Day" : "Days", value: "\(week.days)")])
         }
         .padding(.horizontal, 4)
         .accessibilityElement(children: .combine)

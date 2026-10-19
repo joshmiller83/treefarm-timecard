@@ -170,11 +170,10 @@ struct PaceCardView: View {
                 Text("trees an hour")
                     .font(.caption.weight(.semibold))
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(column.trees)
-                    Text(column.each)
-                    if let pay = column.payEach { Text(pay) }
+                    Text.numberPhrase(column.trees, .small)
+                    Text.numberPhrase(column.each.replacingOccurrences(of: "/tree", with: " a tree"), .small)
+                    if let pay = column.payEach { Text.numberPhrase(pay.replacingOccurrences(of: "/tree", with: " a tree"), .small) }
                 }
-                .font(.tcNumberSmall)
                 .opacity(0.85)
                 .padding(.top, 4)
             }
@@ -348,8 +347,7 @@ struct HoursPayCardView: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.6)
                     .accessibilityIdentifier("pay-\(id)")
-                Text(hours)
-                    .font(.tcNumberSmall)
+                Text.numberPhrase(hours, .small)
                     .foregroundStyle(Palette.muted)
                     .accessibilityIdentifier("hours-\(id)")
             } else {
