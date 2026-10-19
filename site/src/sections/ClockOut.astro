@@ -780,8 +780,10 @@ const alt = {
     :global(html.motion .sec-clock-out.co-staged [data-paper]) {
       transform-origin: 0 0;
     }
-    /* What stays in the after slot (the Report tab phone) is for screen readers only. */
-    :global(html.motion .sec-clock-out.co-staged > .after) {
+    /* What stays in the after slot (the Report tab phone) is for screen readers only. It is
+       out of flow from the first paint, before the scene stages the light part, so the page
+       never gets shorter under a reader who jumps here (a chapter link, #open). */
+    :global(html.motion .sec-clock-out > .after) {
       position: absolute;
       width: 1px;
       height: 1px;

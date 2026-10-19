@@ -1,5 +1,5 @@
 /**
- * THE FIELD SCENE (2:15 PM). Spec: jq '.sections[] | select(.id=="field") | .animation' docs/landing/brief.json
+ * THE FIELD SCENE (2:16 PM). Spec: jq '.sections[] | select(.id=="field") | .animation' docs/landing/brief.json
  *
  * One scrubbed timeline (normalized 0–1). The canvas plays the map team's choreography
  * (fieldstate.ts: sceneState(p), BEATS) through one proxy tween, so it redraws only when
@@ -44,7 +44,7 @@ registerScene(
   (ctx) => {
     const { tl, day, q, q1, isDesk, phone, util, beats, section, frame } = ctx;
 
-    // The field holds at 2:15 PM, the minute in its eyebrow and its tag.
+    // The field holds at 2:16 PM, the minute in its eyebrow and its tag.
     day.to(tl, MOMENTS.field, 0, 0.02, MOMENTS.field);
 
     const fig = q1<HTMLElement>('[data-field-fig]');
@@ -118,7 +118,14 @@ registerScene(
     // ---- [0, .1] The stage phone steps aside (desktop) and the field fades in under it; on phones
     // the section's own phone comes back at the end (opacity only: scaling a DOM phone re-rasterises it).
     if (isDesk && phone) {
-      tl.fromTo(phone, { opacity: 1, scale: 1 }, { opacity: 0, scale: 0.96, duration: len(WIN.phoneOut), ease: 'power1.in' }, WIN.phoneOut[0]);
+      // No immediate render: this scene is built while the lock screen chapter still owns the
+      // stage phone (zoomed on its callouts), and a render of this from-state would reset it.
+      tl.fromTo(
+        phone,
+        { opacity: 1, scale: 1 },
+        { opacity: 0, scale: 0.96, duration: len(WIN.phoneOut), ease: 'power1.in', immediateRender: false },
+        WIN.phoneOut[0],
+      );
       tl.fromTo(
         phone,
         { opacity: 0, scale: 0.96 },

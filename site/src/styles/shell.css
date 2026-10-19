@@ -22,6 +22,8 @@
   position: relative;
   color: var(--on-stage);
   color-scheme: dark;
+  /* Zooms, glows and second phones never widen the page (clip keeps sticky frames working). */
+  overflow-x: clip;
 }
 .sec[data-theme='light'] {
   color: var(--ink);
