@@ -16,7 +16,10 @@ struct RootView: View {
                 case .signedOut:
                     SignInFlow()
                 case .signedIn, .expired:
-                    if session.farm == nil {
+                    if !session.hasOpened {
+                        // The farm loads behind a calm, empty page (never "No farm yet").
+                        LaunchSurface()
+                    } else if session.farm == nil {
                         NoFarmView()
                     } else {
                         MainTabView()
@@ -25,6 +28,16 @@ struct RootView: View {
             }
         }
         .animation(.easeInOut(duration: 0.25), value: session.auth)
+        .animation(.easeInOut(duration: 0.2), value: session.hasOpened)
+    }
+}
+
+/// What a signed-in launch shows while the farm's records load: the app's paper, nothing else.
+struct LaunchSurface: View {
+    var body: some View {
+        Palette.bg
+            .ignoresSafeArea()
+            .accessibilityIdentifier("launch-surface")
     }
 }
 
@@ -69,13 +82,16 @@ extension MessageScreen where Actions == EmptyView {
 /// Signed in, but not a current member of any farm (removed, or the farm is gone).
 struct NoFarmView: View {
     @Environment(TimeCardSession.self) private var session
+    @State private var confirmingSignOut = false
 
     var body: some View {
         MessageScreen(systemImage: "person.crop.circle.badge.questionmark", title: "No farm yet",
-                      message: "You're signed in as \(session.me?.user.email ?? "you"), but you're not on a farm's crew. Ask your admin for an invite code.") {
-            Button("Sign out") { Task { await session.signOut() } }
+                      message: "You’re signed in as \(session.me?.user.email ?? "you"), but you’re not on a farm’s crew. Ask your admin for an invite code.") {
+            Button("Sign out") { confirmingSignOut = true }
                 .buttonStyle(.gloveSecondary)
                 .padding(.top, 8)
+                .accessibilityIdentifier("no-farm-sign-out")
         }
+        .signOutConfirmation(isPresented: $confirmingSignOut)
     }
 }

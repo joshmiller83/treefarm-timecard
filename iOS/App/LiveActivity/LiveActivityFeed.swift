@@ -17,7 +17,7 @@ extension AppModel {
     /// What the lock screen should show right now. Reading it from `withObservationTracking`
     /// tracks everything that changes it: the session's records, sign-in and farm.
     var liveActivityReading: LiveActivityReading {
-        LiveActivityReading(loaded: storageError == nil && (session.me == nil || session.farm != nil),
+        LiveActivityReading(loaded: storageError == nil && session.hasOpened,
                             snapshot: actions.liveSnapshot(),
                             attributes: activityAttributes)
     }

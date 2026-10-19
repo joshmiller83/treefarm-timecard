@@ -59,22 +59,8 @@ struct SettingsView: View {
                         .accessibilityIdentifier("settings-done")
                 }
             }
-            .confirmationDialog("Sign out of Time Card?", isPresented: $confirmingSignOut, titleVisibility: .visible) {
-                Button("Sign out", role: .destructive) { Task { await session.signOut() } }
-                Button("Cancel", role: .cancel) {}
-            } message: {
-                Text(signOutWarning)
-            }
+            .signOutConfirmation(isPresented: $confirmingSignOut)
         }
-    }
-
-    private var signOutWarning: String {
-        let pending = session.syncStatus.pendingCount
-        if pending > 0 {
-            let changes = pending == 1 ? "1 change hasn't" : "\(pending) changes haven't"
-            return "\(changes) synced yet. Signing out now removes \(pending == 1 ? "it" : "them") from this phone."
-        }
-        return "This phone forgets the farm until you sign in again."
     }
 
     private var versionLine: String {
@@ -82,6 +68,38 @@ struct SettingsView: View {
         let version = info?["CFBundleShortVersionString"] as? String ?? "?"
         let build = info?["CFBundleVersion"] as? String ?? "?"
         return "Time Card \(version) (\(build))"
+    }
+}
+
+// MARK: Signing out
+
+/// "Sign out of Time Card?", the same from Settings and from the no-farm screen.
+struct SignOutConfirmation: ViewModifier {
+    @Binding var isPresented: Bool
+    @Environment(TimeCardSession.self) private var session
+
+    func body(content: Content) -> some View {
+        content.confirmationDialog("Sign out of Time Card?", isPresented: $isPresented, titleVisibility: .visible) {
+            Button("Sign out", role: .destructive) { Task { await session.signOut() } }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text(warning)
+        }
+    }
+
+    private var warning: String {
+        let pending = session.syncStatus.pendingCount
+        if pending > 0 {
+            let changes = pending == 1 ? "1 change hasn’t" : "\(pending) changes haven’t"
+            return "\(changes) synced yet. Signing out now removes \(pending == 1 ? "it" : "them") from this phone."
+        }
+        return "This phone forgets the farm until you sign in again."
+    }
+}
+
+extension View {
+    func signOutConfirmation(isPresented: Binding<Bool>) -> some View {
+        modifier(SignOutConfirmation(isPresented: isPresented))
     }
 }
 

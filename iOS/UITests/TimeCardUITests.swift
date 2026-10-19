@@ -39,6 +39,20 @@ final class TimeCardUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Team"].waitForExistence(timeout: 5))
     }
 
+    /// A signed-in launch shows a plain page while the farm loads, never "No farm yet" with a
+    /// Sign out button (a tap there would wipe unsynced work).
+    func testASignedInLaunchNeverSaysNoFarm() {
+        let app = launch()
+        let farmName = app.staticTexts["clock-farm-name"]
+        let deadline = Date().addingTimeInterval(20)
+        while !farmName.exists && Date() < deadline {
+            XCTAssertFalse(app.staticTexts["No farm yet"].exists, "a signed-in launch said No farm yet")
+            XCTAssertFalse(app.buttons["no-farm-sign-out"].exists)
+        }
+        XCTAssertTrue(farmName.exists)
+        XCTAssertFalse(app.staticTexts["No farm yet"].exists)
+    }
+
     func testSettingsShowsSyncStatusAndSignOut() {
         let app = launch()
         XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 10))

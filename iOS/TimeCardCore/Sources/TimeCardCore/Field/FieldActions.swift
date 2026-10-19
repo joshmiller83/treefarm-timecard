@@ -36,7 +36,8 @@ public final class FieldActions {
 
     /// The engine's view of the open farm for the signed-in person, or nil when signed out.
     public func state() -> FieldState? {
-        guard let farm = session.farm, let me = session.membership else { return nil }
+        // Before the farm's records load there's nothing true to say (an empty map, no shift).
+        guard session.hasOpened, let farm = session.farm, let me = session.membership else { return nil }
         let snap = session.snapshot
         return FieldState(
             farm: farm,

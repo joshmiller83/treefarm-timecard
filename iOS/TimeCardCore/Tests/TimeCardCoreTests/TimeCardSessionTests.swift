@@ -61,6 +61,30 @@ struct TimeCardSessionTests {
         #expect(second.snapshot.blocks[f.blockId] == f.block)
     }
 
+    @Test func aSignedInLaunchKnowsItsFarmBeforeTheStoreOpens() async throws {
+        let store = try LocalStore.inMemory()
+        let stub = await makeStub()
+        let first = try makeSession(store: store, stub: stub)
+        try await first.signIn(email: "josh@example.com", password: "pw")
+        _ = await first.syncNow()
+        await first.stop()
+
+        let second = try makeSession(store: store, stub: stub)
+        // Straight from the cached `/me`: the app never shows "No farm yet" for a crew member.
+        #expect(second.farm == f.farm)
+        #expect(!second.hasOpened)
+        await second.start()
+        #expect(second.hasOpened)
+        #expect(second.snapshot.blocks[f.blockId] == f.block)
+    }
+
+    @Test func aSignedOutLaunchHasNothingToOpen() async throws {
+        let session = try makeSession(stub: await makeStub())
+        #expect(session.farm == nil)
+        await session.start()
+        #expect(session.hasOpened)
+    }
+
     @Test func savesShowUpAndWaitToSync() async throws {
         let stub = await makeStub()
         let session = try makeSession(stub: stub)

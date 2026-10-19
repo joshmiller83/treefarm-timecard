@@ -43,6 +43,7 @@ final class AppModel {
     @ObservationIgnored let liveActivity = LiveActivityController()
 
     @ObservationIgnored private var started = false
+    @ObservationIgnored private var starting: Task<Void, Never>?
     @ObservationIgnored private var lastForegroundRefresh: Date?
     @ObservationIgnored private var networkWatcher: Task<Void, Never>?
 
@@ -78,12 +79,23 @@ final class AppModel {
 
     // MARK: Lifecycle
 
+    /// Opens the session once. Later callers (an intent that woke the app while the window
+    /// was still opening it) wait for that same start instead of running on a store that
+    /// isn't loaded yet.
     func start() async {
-        guard !started, storageError == nil else { return }
+        guard storageError == nil else { return }
+        if let starting {
+            await starting.value
+            return
+        }
         started = true
         lastForegroundRefresh = Date()
-        await session.start()
-        if mode == .live { watchNetwork() }
+        let task = Task { @MainActor in
+            await self.session.start()
+            if self.mode == .live { self.watchNetwork() }
+        }
+        starting = task
+        await task.value
     }
 
     func sceneBecameActive() async {

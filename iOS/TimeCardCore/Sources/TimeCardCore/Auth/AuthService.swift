@@ -47,13 +47,15 @@ public actor AuthService {
 
     public private(set) var state: AuthState
 
-    public init(api: any APIClient, tokens: any TokenStore, cache: any KeyValueStore, deviceName: String) {
+    /// `initialState` saves reading the Keychain and the cached `/me` twice at launch when the
+    /// caller already has it.
+    public init(api: any APIClient, tokens: any TokenStore, cache: any KeyValueStore, deviceName: String, initialState: AuthState? = nil) {
         self.api = api
         self.tokens = tokens
         self.cache = cache
         self.deviceName = deviceName
 
-        state = Self.initialState(tokens: tokens, cache: cache)
+        state = initialState ?? Self.initialState(tokens: tokens, cache: cache)
     }
 
     /// What launch looks like before any network: the cached person, signed in if a token is

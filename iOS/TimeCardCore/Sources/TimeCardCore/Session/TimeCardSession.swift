@@ -35,17 +35,28 @@ public final class TimeCardSession {
     /// Called on the main actor for every rejection (for spoken or banner feedback).
     @ObservationIgnored public var onNotice: (@MainActor (SyncNotice) -> Void)?
 
-    public static let farmKey = "session.farmId"
+    public nonisolated static let farmKey = "session.farmId"
 
     public init(store: LocalStore, api: any APIClient, tokens: any TokenStore, deviceName: String,
                 engineConfiguration: SyncEngine.Configuration = SyncEngine.Configuration()) {
         self.store = store
         self.api = api
         self.engineConfiguration = engineConfiguration
-        self.authService = AuthService(api: api, tokens: tokens, cache: store, deviceName: deviceName)
-        self.auth = AuthService.initialState(tokens: tokens, cache: store)
+        let initial = AuthService.initialState(tokens: tokens, cache: store)
+        self.authService = AuthService(api: api, tokens: tokens, cache: store, deviceName: deviceName, initialState: initial)
+        self.auth = initial
         self.snapshot = store.snapshot
+        // The farm is known from the cached `/me` straight away, so a signed-in launch never
+        // looks like "no farm" while the store opens.
+        if let me = initial.me, let chosen = Self.chooseFarm(in: me, preferred: Self.preferredFarm(in: store)) {
+            chosenFarm = chosen.farm
+            chosenMembership = chosen.member
+        }
         listenToStore()
+    }
+
+    private nonisolated static func preferredFarm(in store: LocalStore) -> UUID? {
+        (try? store.value(forKey: farmKey)).flatMap { UUID(uuidString: String(decoding: $0, as: UTF8.self)) }
     }
 
     // MARK: What the UI reads
@@ -63,6 +74,10 @@ public final class TimeCardSession {
     }
 
     public var isAdmin: Bool { membership?.role == .admin }
+
+    /// False until the farm's records are loaded (or it's settled there's no farm to load).
+    /// The app shows a plain launch surface until then, never "No farm yet".
+    public private(set) var hasOpened = false
     public var me: MeResponse? { auth.me }
 
     // MARK: Lifecycle
@@ -71,7 +86,10 @@ public final class TimeCardSession {
     public func start() async {
         listenToStore()
         auth = await authService.state
-        guard let me = auth.me else { return }
+        guard let me = auth.me else {
+            hasOpened = true
+            return
+        }
         await open(me: me)
         if case .signedIn = auth {
             await engine?.requestSync(.launch)
@@ -288,8 +306,8 @@ public final class TimeCardSession {
     }
 
     private func open(me: MeResponse) async {
-        let preferred = (try? store.value(forKey: Self.farmKey)).flatMap { UUID(uuidString: String(decoding: $0, as: UTF8.self)) }
-        guard let chosen = Self.chooseFarm(in: me, preferred: preferred) else {
+        defer { hasOpened = true }
+        guard let chosen = Self.chooseFarm(in: me, preferred: Self.preferredFarm(in: store)) else {
             await closeEngine()
             chosenFarm = nil
             chosenMembership = nil
@@ -302,7 +320,11 @@ public final class TimeCardSession {
         guard engine?.farmId != farm.id else { return }
 
         await closeEngine()
-        try? store.activate(farmId: farm.id)
+        // Decoding a season of marks takes a while: off the main thread, behind the launch surface.
+        let store = self.store
+        await Task.detached(priority: .userInitiated) { try? store.activate(farmId: farm.id) }.value
+        // Another open (a farm switch, a fresh `/me`) may have run meanwhile; the latest one wins.
+        guard chosenFarm?.id == farm.id, engine == nil else { return }
         snapshot = store.snapshot
         let engine = SyncEngine(store: store, api: api, farmId: farm.id, configuration: engineConfiguration)
         self.engine = engine
