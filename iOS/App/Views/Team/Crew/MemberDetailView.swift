@@ -12,6 +12,7 @@ struct MemberDetailView: View {
     @State private var confirmingRemove = false
     /// The shift being fixed in the shift editor (a forgotten clock-out).
     @State private var fixing: FixShift?
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         TimelineView(.everyMinute) { timeline in
@@ -78,8 +79,12 @@ struct MemberDetailView: View {
     }
 
     private func header(_ member: Member, row: CrewRow?, calendar: FarmCalendar, isYou: Bool, now: Date) -> some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .center, spacing: 14) {
+        // At the largest text sizes the name and email get the full width under the initials.
+        let top = typeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 10))
+            : AnyLayout(HStackLayout(alignment: .center, spacing: 14))
+        return VStack(alignment: .leading, spacing: 14) {
+            top {
                 Avatar(name: member.displayName, size: 60, dimmed: member.removedAt != nil)
                 VStack(alignment: .leading, spacing: 3) {
                     Text(member.displayName).headingStyle(.tcTitle2).fixedSize(horizontal: false, vertical: true)

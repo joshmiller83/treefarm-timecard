@@ -195,8 +195,10 @@ struct NewSeasonSheet: View {
     @State private var name = ""
     @State private var problem: String?
     @State private var confirming = false
-    /// The bullets' icon column grows with the text, so icons never run into it.
+    /// The bullets' icon column grows with the text, so icons never run into it; at the
+    /// largest sizes the icon sits above its line instead.
     @ScaledMetric(relativeTo: .subheadline) private var iconWidth: CGFloat = 22
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         NavigationStack {
@@ -259,11 +261,14 @@ struct NewSeasonSheet: View {
     }
 
     private func point(_ icon: String, _ text: String, emphasized: Bool = false) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 10) {
+        let layout = typeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 4))
+            : AnyLayout(HStackLayout(alignment: .firstTextBaseline, spacing: 10))
+        return layout {
             Image(systemName: icon)
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(Palette.sapInk)
-                .frame(width: iconWidth)
+                .frame(width: typeSize.isAccessibilitySize ? nil : iconWidth)
                 .accessibilityHidden(true)
             Text(text)
                 .font(emphasized ? .subheadline.weight(.semibold) : .subheadline)

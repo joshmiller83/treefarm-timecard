@@ -258,17 +258,33 @@ struct NoticeBox<Content: View>: View {
     @ViewBuilder var content: Content
 
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
+        IconBox(systemImage: systemImage, tint: Palette.sapInk) { content }
+            .padding(14)
+            .background(Palette.sapSoft, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Palette.sap.opacity(0.45), lineWidth: 1))
+    }
+}
+
+/// An icon beside its text, or above it at the largest text sizes so the text keeps the
+/// whole width instead of wrapping a word a line.
+struct IconBox<Content: View>: View {
+    var systemImage: String
+    var tint: Color
+    @ViewBuilder var content: Content
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    var body: some View {
+        let layout = typeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
+            : AnyLayout(HStackLayout(alignment: .top, spacing: 12))
+        layout {
             Image(systemName: systemImage)
                 .font(.title3.weight(.semibold))
-                .foregroundStyle(Palette.sapInk)
+                .foregroundStyle(tint)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 8) { content }
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(14)
-        .background(Palette.sapSoft, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Palette.sap.opacity(0.45), lineWidth: 1))
     }
 }
 
@@ -352,17 +368,10 @@ struct AlertBox<Content: View>: View {
     @ViewBuilder var content: Content
 
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            Image(systemName: systemImage)
-                .font(.title3.weight(.semibold))
-                .foregroundStyle(Palette.rust)
-                .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 8) { content }
-                .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .padding(14)
-        .background(Palette.rust.opacity(0.10), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Palette.rust.opacity(0.4), lineWidth: 1))
+        IconBox(systemImage: systemImage, tint: Palette.rust) { content }
+            .padding(14)
+            .background(Palette.rust.opacity(0.10), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Palette.rust.opacity(0.4), lineWidth: 1))
     }
 }
 

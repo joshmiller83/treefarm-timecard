@@ -322,6 +322,38 @@ final class TeamUITests: XCTestCase {
         XCTAssertTrue(action.waitForNonExistence(timeout: 5))
     }
 
+    func testASeasonStartedByMistakeCanBeTakenBack() {
+        let app = launch(["-UITestTeamSection", "season"])
+        let name = element("season-name", in: app)
+        XCTAssertTrue(name.waitForExistence(timeout: 10))
+        let before = name.label
+        let start = app.buttons["season-start"]
+        reveal(start, in: app)
+        start.tap()
+        let begin = app.buttons["season-new-start"]
+        XCTAssertTrue(begin.waitForExistence(timeout: 5))
+        let title = begin.label
+        begin.tap()
+        app.buttons.matching(NSPredicate(format: "label == %@ AND identifier != 'season-new-start'", title)).firstMatch.tap()
+
+        // The new season is active, and the one before it can come back while nothing is shaped.
+        XCTAssertTrue(name.waitForExistence(timeout: 5))
+        XCTAssertEqual(name.label, String(title.dropFirst("Start ".count)))
+        let undo = app.buttons["season-undo"]
+        XCTAssertTrue(undo.waitForExistence(timeout: 5))
+        reveal(undo, in: app)
+        shot("season-undo", app)
+        undo.tap()
+        let confirm = app.buttons["Make \(before) active"]
+        assertDialog(confirm, isBy: undo.frame)
+        shot("dialog-season-undo", app)
+        confirm.tap()
+        reveal(name, in: app, up: true)
+        XCTAssertTrue(app.staticTexts[before].waitForExistence(timeout: 5))
+        XCTAssertEqual(name.label, before)
+        XCTAssertFalse(app.buttons["season-undo"].exists)
+    }
+
     // MARK: A look at every screen
 
     func testWalkThroughEveryTeamScreen() {
