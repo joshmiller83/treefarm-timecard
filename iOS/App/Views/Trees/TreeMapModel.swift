@@ -534,14 +534,21 @@ final class TreeMapModel {
             guard let data, data.shift(edit.shiftId) != nil else { continue }
             let inverse = edit.change.inverse(now: now().roundedToMillisecond)
             // Never bring marks back onto a block that's gone or got smaller since.
-            let added = inverse.added.filter { data.block($0.tree.blockId)?.contains($0.tree) == true }
+            let onMap = inverse.added.filter { data.block($0.tree.blockId)?.contains($0.tree) == true }
+            // Nor onto a tree someone shaped since (a sync brought their mark): that would be a
+            // second mark on it, which the server refuses.
+            let holders = onMap.compactMap { mark in data.index.mark(at: mark.tree).flatMap { $0.id == mark.id ? nil : $0 } }
+            let added = onMap.filter { mark in data.index.mark(at: mark.tree).map { $0.id == mark.id } ?? true }
             let records = (added + inverse.removed).map(SyncRecord.treeMark)
             guard !records.isEmpty else {
-                message = MapMessage(Speech.blockGone, tone: .warning)
+                message = MapMessage(holders.isEmpty ? Speech.blockGone : MarkMessages.undidExcept(holders, by: holders.first.map { data.name(of: $0.userId) }),
+                                     tone: .warning)
                 return
             }
             guard apply(records) else { undoStack.push(edit); return }
-            message = MapMessage(MarkMessages.undid, tone: .done)
+            message = holders.isEmpty
+                ? MapMessage(MarkMessages.undid, tone: .done)
+                : MapMessage(MarkMessages.undidExcept(holders, by: holders.first.map { data.name(of: $0.userId) }), tone: .warning)
             return
         }
         if canUndoElsewhere {

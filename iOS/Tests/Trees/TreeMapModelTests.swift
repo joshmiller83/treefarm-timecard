@@ -310,6 +310,25 @@ struct TreeMapModelTests {
         #expect(back?.markedAt == f.earlier.start.addingTimeInterval(1800), "the original time comes back")
     }
 
+    /// Clearing a row, then a sync bringing Sam's mark on one of those trees: undo brings back
+    /// the rest and says which tree it left alone, so the tree never gets two marks.
+    @Test func undoLeavesTreesShapedSinceAlone() {
+        let f = TreeMapFixture()
+        f.model.pickShift(f.earlier.id)
+        f.model.tap(at: f.rowNumber(f.block1, row: 3))
+        #expect(f.live(f.tree(f.block1, row: 3, tree: 5)) == nil)
+        let sams = TreeMark(seasonId: f.season.id, tree: f.tree(f.block1, row: 3, tree: 5), shiftId: f.samShift.id, userId: f.sam.userId,
+                            markedAt: f.now)
+        f.snapshot.apply(.treeMark(sams))
+        f.sync()
+        f.model.undo()
+        #expect(f.model.message?.text == "Undid your last change, except tree 5 in row 3, which Sam Ortiz shaped since.")
+        #expect(f.live(f.tree(f.block1, row: 3, tree: 5))?.id == sams.id)
+        #expect(f.live(f.tree(f.block1, row: 3, tree: 6))?.shiftId == f.earlier.id)
+        let marksOnTree = f.snapshot.marks.values.filter { $0.tree == f.tree(f.block1, row: 3, tree: 5) && $0.isLive }
+        #expect(marksOnTree.count == 1, "two marks on one tree")
+    }
+
     @Test func undoSkipsEditsOnADeletedShift() {
         let f = TreeMapFixture()
         f.model.pickShift(f.earlier.id)

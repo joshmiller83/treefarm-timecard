@@ -5,6 +5,16 @@ import Foundation
 public enum MarkMessages {
     public static let needShift = "Clock in or add a shift first. Trees are saved with a shift."
     public static let undid = "Undid your last change."
+
+    /// Undo couldn't bring back trees someone shaped since (a sync brought their marks):
+    /// "Undid your last change, except 3 trees Sam shaped since." / "… except tree 4 in row 2, which Sam shaped since."
+    public static func undidExcept(_ skipped: [TreeMark], by name: String?) -> String {
+        let who = name.flatMap { $0.isEmpty ? nil : $0 } ?? "someone else"
+        if skipped.count == 1, let tree = skipped.first {
+            return "Undid your last change, except tree \(tree.position + 1) in row \(tree.row + 1), which \(who) shaped since."
+        }
+        return "Undid your last change, except \(trees(skipped.count)) \(who) shaped since."
+    }
     public static let fillOneBlock = "Pick the first and last tree in the same block. Tap the first tree again to start over."
 
     /// A one-tree tap (one or erase mode). `shapedOn` is the day another shift shaped

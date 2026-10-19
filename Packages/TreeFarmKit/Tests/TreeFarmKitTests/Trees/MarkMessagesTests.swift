@@ -102,4 +102,10 @@ struct MarkMessagesTests {
         #expect(MarkMessages.shapedFirst(by: "Sam", count: 10, row: 0, in: block) == "Sam shaped 10 trees in Block 2, row 1 first. They came off your shift.")
         #expect(MarkMessages.shapedFirst(by: nil, count: 1, row: 13, in: nil) == "Someone else shaped 1 tree in row 14 first. It came off your shift.")
     }
+
+    @Test func undoSaysWhichTreesItLeftAlone() {
+        let mark = TreeMark(seasonId: UUID(), tree: TreeRef(blockId: UUID(), row: 1, position: 3), shiftId: UUID(), userId: UUID(), markedAt: Date())
+        #expect(MarkMessages.undidExcept([mark], by: "Sam") == "Undid your last change, except tree 4 in row 2, which Sam shaped since.")
+        #expect(MarkMessages.undidExcept([mark, mark, mark], by: nil) == "Undid your last change, except 3 trees someone else shaped since.")
+    }
 }
