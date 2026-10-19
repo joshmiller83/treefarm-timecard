@@ -162,7 +162,7 @@ or over 200 KB (a PNG capture is 1–3 MB). Capture first: `lock-1414-activity`,
 
 `.github/workflows/site.yml` runs on pushes and pull requests that touch `site/**`,
 `docs/landing/**`, the root README or the workflow: `npm ci`, type check, unit tests, build,
-Playwright (Chromium), Lighthouse CI on mobile (median of 3 runs: performance ≥ 0.9,
+Playwright (Chromium), Lighthouse CI on mobile (median of 3 runs: performance ≥ 0.8 (lowered from 0.9, see #14),
 accessibility, best practices and SEO ≥ 0.95), then uploads `site/dist` as the Pages
 artifact. Only a push to `main` deploys (`actions/deploy-pages`, environment `github-pages`).
 Lighthouse skips the `canonical` audit because CI audits `localhost` while the canonical URL

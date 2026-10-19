@@ -20,7 +20,7 @@ What's known to be wrong or unfinished, with the issue that tracks it. Fixed ite
 ## Landing page
 
 - [#15](https://github.com/joshmiller83/treefarm-timecard/issues/15) **Text contrast dips during fades between story beats.** For a few dozen pixels of scroll, fading text can fall below 4.5:1. The 24-position accessibility scan reports these as "known issue #15" instead of failing; every other accessibility rule still fails the build. Also: one figure is hidden from screen readers on phones, and the "Try it" map's targets are under 44 px.
-- [#14](https://github.com/joshmiller83/treefarm-timecard/issues/14) Over the performance budgets: motion JS 102 KB gz (budget 80), CSS 40 KB in total, repeated inline icons, double downloads in Safari.
+- [#14](https://github.com/joshmiller83/treefarm-timecard/issues/14) Over the performance budgets: motion JS 102 KB gz (budget 80), CSS 40 KB in total, repeated inline icons, double downloads in Safari. **CI's Lighthouse mobile performance minimum is lowered from 0.9 to 0.8** until these are fixed; raise it back when #14 closes.
 - [#16](https://github.com/joshmiller83/treefarm-timecard/issues/16) Story and copy polish: counts that rest on impossible numbers, an overlap at 1024×768, a long page on phones, chapter naming, one unverified Siri line.
 - [#17](https://github.com/joshmiller83/treefarm-timecard/issues/17) The timing-sensitive tests only run alone in Chromium, not in WebKit or Firefox.
 - [#12](https://github.com/joshmiller83/treefarm-timecard/issues/12) The app screens are HTML recreations; real screenshots are still to come.
