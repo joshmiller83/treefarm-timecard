@@ -19,7 +19,7 @@ Server/data/
 Server/backups/
 
 # Real time-card exports used for one-time imports
-import/
+/import/
 *.export.json
 
 # Real deploy settings for this machine (copy deploy/config.env.example)
