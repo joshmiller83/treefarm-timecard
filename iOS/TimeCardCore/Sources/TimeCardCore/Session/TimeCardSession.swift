@@ -124,11 +124,41 @@ public final class TimeCardSession {
         await adopt(try await authService.reset(email: email, code: code, newPassword: newPassword), previousUser: previous)
     }
 
+    /// How a sign-out went.
+    public enum SignOutResult: Equatable, Sendable {
+        case signedOut
+        /// Nothing was forgotten: this many changes still couldn't reach the server.
+        case unsynced(Int)
+    }
+
     /// Signs out on the server if possible and forgets this phone's copy of the farm.
-    public func signOut() async {
+    /// Changes still waiting are sent first (for up to `syncLimit`); if some still can't be
+    /// sent, nothing is forgotten unless `discardingUnsynced`, and the result says how many.
+    @discardableResult
+    public func signOut(discardingUnsynced: Bool = false, syncLimit: Duration = .seconds(10)) async -> SignOutResult {
+        if ((try? store.pendingCount()) ?? 0) > 0, let engine {
+            _ = await Self.within(syncLimit) { await engine.syncNow() }
+        }
+        let left = (try? store.pendingCount()) ?? 0
+        if left > 0 && !discardingUnsynced { return .unsynced(left) }
         await closeEngine()
         await authService.logout()
         forgetFarmData()
+        return .signedOut
+    }
+
+    /// The body's answer, or nil when it takes longer than `limit` (it carries on in the background).
+    private static func within<T: Sendable>(_ limit: Duration, _ body: @escaping @Sendable () async -> T) async -> T? {
+        await withTaskGroup(of: T?.self) { group in
+            group.addTask { await body() }
+            group.addTask {
+                try? await Task.sleep(for: limit)
+                return nil
+            }
+            let first = await group.next() ?? nil
+            group.cancelAll()
+            return first
+        }
     }
 
     /// Asks the server for the person's farms again (on launch and foreground).
@@ -365,7 +395,8 @@ public final class TimeCardSession {
         checkedRole = nil
         engineListeners.forEach { $0.cancel() }
         engineListeners = []
-        await engine?.stop()
+        // A pass on its way finishes (or stops) before anything is wiped or switched.
+        await engine?.stopAndWait()
         engine = nil
     }
 

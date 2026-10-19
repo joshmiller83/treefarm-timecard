@@ -74,26 +74,73 @@ struct SettingsView: View {
 // MARK: Signing out
 
 /// "Sign out of Time Card?", the same from Settings and from the no-farm screen.
+///
+/// Signing out sends waiting changes first. If some still can't reach the server, a second
+/// question puts "Sync first" forward and names what signing out anyway would lose.
 struct SignOutConfirmation: ViewModifier {
     @Binding var isPresented: Bool
     @Environment(TimeCardSession.self) private var session
+    @State private var working = false
+    @State private var unsynced = 0
+    @State private var askingAboutUnsynced = false
 
     func body(content: Content) -> some View {
-        content.confirmationDialog("Sign out of Time Card?", isPresented: $isPresented, titleVisibility: .visible) {
-            Button("Sign out", role: .destructive) { Task { await session.signOut() } }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text(warning)
-        }
+        content
+            .confirmationDialog("Sign out of Time Card?", isPresented: $isPresented, titleVisibility: .visible) {
+                Button("Sign out", role: .destructive) { signOut(discarding: false) }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text(SignOutWording.warning(pending: session.syncStatus.pendingCount))
+            }
+            .confirmationDialog(SignOutWording.unsyncedTitle(unsynced), isPresented: $askingAboutUnsynced, titleVisibility: .visible) {
+                Button("Sync first") { Task { await session.requestSync(.manual) } }
+                    .keyboardShortcut(.defaultAction)
+                Button(SignOutWording.loseButton(unsynced), role: .destructive) { signOut(discarding: true) }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text(SignOutWording.unsyncedMessage)
+            }
+            .overlay {
+                if working {
+                    ProgressView("Sending your changes…")
+                        .padding(20)
+                        .background(Palette.surface, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Palette.line, lineWidth: 1))
+                        .accessibilityIdentifier("signing-out")
+                }
+            }
+            .disabled(working)
     }
 
-    private var warning: String {
-        let pending = session.syncStatus.pendingCount
-        if pending > 0 {
-            let changes = pending == 1 ? "1 change hasn’t" : "\(pending) changes haven’t"
-            return "\(changes) synced yet. Signing out now removes \(pending == 1 ? "it" : "them") from this phone."
+    private func signOut(discarding: Bool) {
+        working = true
+        Task {
+            let result = await session.signOut(discardingUnsynced: discarding)
+            working = false
+            if case .unsynced(let n) = result {
+                unsynced = n
+                askingAboutUnsynced = true
+            }
         }
-        return "This phone forgets the farm until you sign in again."
+    }
+}
+
+/// What the sign-out questions say.
+enum SignOutWording {
+    static func warning(pending: Int) -> String {
+        guard pending > 0 else { return "This phone forgets the farm until you sign in again." }
+        let changes = pending == 1 ? "1 change hasn’t" : "\(pending) changes haven’t"
+        return "\(changes) synced yet. Time Card sends \(pending == 1 ? "it" : "them") before signing out."
+    }
+
+    static func unsyncedTitle(_ n: Int) -> String {
+        n == 1 ? "1 change hasn’t synced" : "\(n) changes haven’t synced"
+    }
+
+    static let unsyncedMessage = "They couldn’t reach the server. Sync first to keep them, or sign out and they’re gone from this phone."
+
+    static func loseButton(_ n: Int) -> String {
+        n == 1 ? "Sign out and lose 1 change" : "Sign out and lose \(n) changes"
     }
 }
 

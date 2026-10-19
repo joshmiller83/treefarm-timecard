@@ -155,6 +155,26 @@ struct TimeCardSessionTests {
         #expect(session.snapshot.blocks.isEmpty)
     }
 
+    @Test func signingOutDuringASlowPullLeavesNothingBehind() async throws {
+        let stub = await makeStub()
+        let store = try LocalStore.inMemory()
+        let session = try makeSession(store: store, stub: stub)
+        try await session.signIn(email: "josh@example.com", password: "pw")
+        _ = await session.syncNow()
+        // Sam's shift comes with the next pull, which takes a while.
+        let sams = Shift(userId: f.otherUserId, farmId: f.farmId, start: Fixtures.t0, end: Fixtures.t0 + 3600, rateCents: 2000, updatedAt: Fixtures.t0)
+        await stub.seed(farmId: f.farmId, [.shift(sams)])
+        await stub.setPullDelay(.milliseconds(400))
+        await session.requestSync(.manual)
+        try await Task.sleep(for: .milliseconds(100))
+
+        #expect(await session.signOut() == .signedOut)
+        try await Task.sleep(for: .milliseconds(600))
+        #expect(store.snapshot.shifts.isEmpty, "the pull on its way wrote into the signed-out phone")
+        #expect(store.snapshot.blocks.isEmpty)
+        #expect(try store.cursor(farmId: f.farmId) == 0)
+    }
+
     @Test func rejectionsBecomeTheLatestNotice() async throws {
         let stub = await makeStub()
         let session = try makeSession(stub: stub)

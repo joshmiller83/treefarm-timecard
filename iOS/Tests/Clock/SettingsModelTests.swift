@@ -211,3 +211,13 @@ extension Result where Failure == ServerAddress.Problem {
         return nil
     }
 }
+
+@Suite("Sign-out wording")
+struct SignOutWordingTests {
+    @Test func namesWhatWouldBeLost() {
+        #expect(SignOutWording.warning(pending: 0) == "This phone forgets the farm until you sign in again.")
+        #expect(SignOutWording.warning(pending: 2) == "2 changes haven’t synced yet. Time Card sends them before signing out.")
+        #expect(SignOutWording.unsyncedTitle(1) == "1 change hasn’t synced")
+        #expect(SignOutWording.loseButton(3) == "Sign out and lose 3 changes")
+    }
+}

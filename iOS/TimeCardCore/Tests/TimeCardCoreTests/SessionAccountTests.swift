@@ -67,6 +67,31 @@ struct SessionAccountTests {
         #expect(session.me?.user.displayName == "Josh")
     }
 
+    @Test func signingOutRightAfterASaveSendsItFirst() async throws {
+        let stub = await makeStub()
+        let session = try await signedIn(stub)
+        let shift = Shift(userId: f.userId, farmId: f.farmId, start: Fixtures.t0, end: Fixtures.t0 + 3600, rateCents: 1800, updatedAt: Fixtures.t0)
+        try session.save([.shift(shift)])
+        #expect(await session.signOut() == .signedOut)
+        #expect(await stub.record(kind: .shift, id: shift.id) == .shift(shift))
+        #expect(session.auth == .signedOut)
+    }
+
+    @Test func signingOutOfflineKeepsWorkThatCouldntBeSent() async throws {
+        let stub = await makeStub()
+        let session = try await signedIn(stub)
+        for _ in 0..<3 { await stub.failNext(.offline) }
+        let shift = Shift(userId: f.userId, farmId: f.farmId, start: Fixtures.t0, end: Fixtures.t0 + 3600, rateCents: 1800, updatedAt: Fixtures.t0)
+        try session.save([.shift(shift)])
+        #expect(await session.signOut(syncLimit: .seconds(2)) == .unsynced(1))
+        #expect(session.auth != .signedOut)
+        #expect(session.snapshot.shifts[shift.id] == shift)
+
+        #expect(await session.signOut(discardingUnsynced: true) == .signedOut)
+        #expect(session.auth == .signedOut)
+        #expect(session.snapshot.shifts.isEmpty)
+    }
+
     @Test func deletingTheAccountSendsLocalHoursFirstThenForgetsThePhone() async throws {
         let stub = await makeStub()
         let store = try LocalStore.inMemory()

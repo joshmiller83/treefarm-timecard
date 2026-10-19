@@ -118,6 +118,8 @@ public actor SyncEngine {
 
     public private(set) var status = SyncStatus()
     private var signedOut = false
+    /// Set by `stopAndWait()`: no pass writes to the store again.
+    private var stopped = false
     private var running: Task<SyncOutcome, Never>?
     private var scheduled: Task<Void, Never>?
     private var generation = 0
@@ -154,6 +156,16 @@ public actor SyncEngine {
         scheduled?.cancel()
         scheduled = nil
         generation += 1
+    }
+
+    /// Stops for good and waits for a pass already running to end (it stops at its next step
+    /// and writes nothing more). Call before wiping the store, so a pull that was on its way
+    /// can't put the last person's records back after the wipe.
+    public func stopAndWait() async {
+        stop()
+        stopped = true
+        running?.cancel()
+        while let current = running { _ = await current.value }
     }
 
     /// Stops syncing as if the server had refused the token (the app opened with an
@@ -243,9 +255,15 @@ public actor SyncEngine {
         return await syncNow()
     }
 
+    /// Before every store write in a pass: stop when the engine was stopped meanwhile.
+    private func stillRunning() throws {
+        if stopped || Task.isCancelled { throw CancellationError() }
+    }
+
     private func runPass() async -> SyncOutcome {
         defer { running = nil }
         guard !signedOut else { return .signedOut }
+        guard !stopped else { return .failed("Syncing stopped.") }
         update { $0.phase = .syncing }
         do {
             let pushed = try await pushAll()
@@ -259,7 +277,10 @@ public actor SyncEngine {
                 $0.lastError = nil
             }
             return .synced(pushed: pushed, pulled: pulled)
+        } catch is CancellationError {
+            return .failed("Syncing stopped.")
         } catch let error as APIError {
+            if stopped || Task.isCancelled { return .failed("Syncing stopped.") }
             switch error {
             case .unauthorized:
                 signedOut = true
@@ -288,9 +309,11 @@ public actor SyncEngine {
             do {
                 response = try await api.push(farmId: farmId, PushRequest(mutations: batch.map(\.mutation)))
             } catch let error as APIError {
+                try stillRunning()
                 try? store.recordAttempt(mutationIds: batch.map(\.mutationId), error: error.userMessage)
                 throw error
             }
+            try stillRunning()
             let rejections = try store.applyPushResults(response.results, farmId: farmId)
             let answered = Set(response.results.map(\.mutationId))
             let unanswered = batch.map(\.mutationId).filter { !answered.contains($0) }
@@ -306,12 +329,14 @@ public actor SyncEngine {
         var pulled = 0
         while true {
             let page = try await api.pull(farmId: farmId, since: since, limit: config.pullLimit)
+            try stillRunning()
             try store.applyRemote(page.changes, farmId: farmId, cursor: page.cursor)
             pulled += page.changes.count
             // Stop if the server says it's done, or stops making progress.
             guard page.hasMore, page.cursor > since else { break }
             since = page.cursor
         }
+        try stillRunning()
         try store.finishPull(farmId: farmId)
         return pulled
     }

@@ -59,6 +59,8 @@ public actor StubAPIClient: APIClient {
     private var currentSession: UUID?
     private var clock: @Sendable () -> Date = { Date() }
     private var rejector: (@Sendable (Mutation) -> MutationResult?)?
+    /// How long each pull takes (tests of a slow network).
+    private var pullDelay: Duration?
 
     /// Calls made, for tests to inspect.
     public private(set) var pushes: [PushRequest] = []
@@ -188,6 +190,11 @@ public actor StubAPIClient: APIClient {
         losesNextPushAnswer = true
     }
 
+    /// Makes every pull wait this long before answering (nil: answer at once).
+    public func setPullDelay(_ delay: Duration?) {
+        pullDelay = delay
+    }
+
     /// A rule run before the built-in ones; return a result to answer a mutation yourself.
     public func setRejector(_ rule: (@Sendable (Mutation) -> MutationResult?)?) {
         rejector = rule
@@ -293,6 +300,7 @@ public actor StubAPIClient: APIClient {
     public func pull(farmId: UUID, since: Int64, limit: Int) async throws -> PullResponse {
         try takeScripted()
         pulls.append((since, limit))
+        if let pullDelay { try await Task.sleep(for: pullDelay) }
         // Like the server: workers see their own shifts only, and other people's email and
         // rate come back blank. (A pull with nobody signed in, in engine tests, sees everything.)
         let viewer = signedIn == nil ? nil : try? member(on: farmId)
