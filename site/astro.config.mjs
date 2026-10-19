@@ -47,7 +47,8 @@ export default defineConfig({
   trailingSlash: 'ignore',
   devToolbar: { enabled: false },
   build: {
-    inlineStylesheets: 'auto',
+    // The page's CSS is ~9 KB gzipped: inlining it saves a render-blocking round trip (LCP).
+    inlineStylesheets: 'always',
     format: 'directory',
   },
   integrations: [sitemap({ filter: (page) => !isToolRoute(page) }), siriLinesCheck()],

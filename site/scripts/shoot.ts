@@ -3,13 +3,14 @@
  *
  *   npm run shoot -- [--url /] [--section voice] [--widths 375,1440] [--steps 6]
  *                    [--reduced] [--out .shots/name] [--port 4321] [--browser chromium]
- *                    [--wait 900] [--no-full] [--build]
+ *                    [--wait 900] [--no-full] [--build] [--selector 'header'] [--scale 2]
  *
  * - Builds once if dist/ is missing or older than src/ or public/ (or with --build).
  * - Serves dist with `astro preview` on --port (stops it when done).
  * - For each width: viewport shots stepping through the whole page, or through one section's
  *   scroll track with --section, plus a full-page shot. --reduced emulates
  *   prefers-reduced-motion (the static page).
+ * - --selector shoots just that element at each step (e.g. the header); --scale sets the DPR.
  * - Writes PNGs to .shots/<name>/ (git-ignored) and prints their paths.
  */
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
@@ -35,6 +36,8 @@ const { values: args } = parseArgs({
     'no-full': { type: 'boolean', default: false },
     build: { type: 'boolean', default: false },
     name: { type: 'string' },
+    selector: { type: 'string' },
+    scale: { type: 'string' },
   },
 });
 
@@ -122,7 +125,7 @@ async function main() {
       const height = HEIGHTS[width] ?? Math.round(width * 0.625);
       const context = await browser.newContext({
         viewport: { width, height },
-        deviceScaleFactor: width < 900 ? 2 : 1,
+        deviceScaleFactor: args.scale ? Number(args.scale) : width < 900 ? 2 : 1,
         reducedMotion: args.reduced ? 'reduce' : 'no-preference',
         hasTouch: width < 900,
         isMobile: width < 900 && args.browser === 'chromium',
@@ -144,10 +147,11 @@ async function main() {
         await page.evaluate((top) => window.scrollTo(0, top), y);
         await pause(settle);
         const file = join(outDir, `${tag}-${String(i + 1).padStart(2, '0')}.png`);
-        await page.screenshot({ path: file });
+        if (args.selector) await page.locator(args.selector).first().screenshot({ path: file });
+        else await page.screenshot({ path: file });
         written.push(file);
       }
-      if (!args['no-full']) {
+      if (!args['no-full'] && !args.selector) {
         // content-visibility: auto skips far sections, which a full-page capture would show blank.
         await page.addStyleTag({ content: '.sec { content-visibility: visible !important; }' });
         await page.evaluate(() => window.scrollTo(0, 0));

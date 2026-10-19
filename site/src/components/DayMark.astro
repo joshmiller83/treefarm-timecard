@@ -4,7 +4,7 @@
  * DayClock sets --angle (12-hour dial, 7:02 = 211deg) and --ring (gold arc from 7 AM).
  * Without motion it is the app icon as designed: tree upright, ring full.
  */
-import { firTiers, ICON } from '../data/icon.ts';
+import { firTiers, ICON, roundedTrianglePath } from '../data/icon.ts';
 
 interface Props {
   size?: number;
@@ -13,6 +13,15 @@ interface Props {
 const { size = 28, class: cls } = Astro.props;
 const tiers = firTiers();
 const { center: c, ringR, trunk, colors } = ICON;
+// With motion the fir becomes a clock hand: a slimmer tree whose trunk sits on the pivot.
+const handTiers = [
+  { apexY: 340, baseY: 492, half: 150 },
+  { apexY: 268, baseY: 404, half: 120 },
+  { apexY: 196, baseY: 322, half: 90 },
+].map((t, i) => ({
+  d: roundedTrianglePath({ x: c.x, y: t.apexY }, { x: c.x - t.half, y: t.baseY }, { x: c.x + t.half, y: t.baseY }, 22),
+  fill: i % 2 === 0 ? colors.tree : colors.treeShade,
+}));
 const uid = 'dm';
 ---
 
@@ -44,10 +53,15 @@ const uid = 'dm';
     pathLength="100"
     stroke-dasharray="100"
     transform={`rotate(120 ${c.x} ${c.y})`}></circle>
-  <g class="dm-hand">
+  <g class="dm-tree">
     <rect x={trunk.x} y={trunk.y} width={trunk.w} height={trunk.h} rx={trunk.r} fill={colors.trunk}></rect>
     {tiers.map((t) => <path d={t.d} fill={t.fill} />)}
   </g>
+  <g class="dm-hand">
+    <rect x={c.x - 30} y="470" width="60" height="80" rx="16" fill={colors.trunk}></rect>
+    {handTiers.map((t) => <path d={t.d} fill={t.fill} />)}
+  </g>
+  <circle class="dm-pin" cx={c.x} cy={c.y} r="40" fill={colors.ring}></circle>
 </svg>
 
 <style>
@@ -61,8 +75,19 @@ const uid = 'dm';
   .dm-hand {
     transform-box: view-box;
     transform-origin: 512px 520px;
-    /* a touch smaller than the app icon's tree so it clears the ring at every angle */
-    transform: rotate(var(--angle)) scale(0.86);
+    transform: rotate(var(--angle));
+  }
+  /* Without motion: the app icon as designed. With motion: a fir clock hand on a gold pin. */
+  .dm-hand,
+  .dm-pin {
+    display: none;
+  }
+  :global(html.motion) .dm-tree {
+    display: none;
+  }
+  :global(html.motion) .dm-hand,
+  :global(html.motion) .dm-pin {
+    display: inline;
   }
   .dm-track {
     opacity: 0;
