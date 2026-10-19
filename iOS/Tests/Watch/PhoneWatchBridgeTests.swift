@@ -35,15 +35,36 @@ struct PhoneWatchBridgeTests {
         let model: AppModel
         let fake: FakeWatchTransport
         let launcher: FakeLauncher
+        let userId: UUID
 
         var bridge: PhoneWatchBridge { model.watch }
-        var userId: UUID { model.session.me!.user.id }
+    }
+
+    /// What the bridge did with the app's background time and the shared database, in order.
+    @MainActor final class Log {
+        var entries: [String] = []
+        func add(_ entry: String) { entries.append(entry) }
+        func count(_ entry: String) -> Int { entries.filter { $0 == entry }.count }
+    }
+
+    /// A keeper that writes to `log` instead of UIKit and the database. `suspended` describes
+    /// the moment the database is let go.
+    func keeper(_ log: Log, background: Bool, suspended: @escaping @MainActor () -> String = { "suspend" }) -> WatchDatabaseKeeper {
+        let keeper = WatchDatabaseKeeper()
+        keeper.holdAwake = { _ in
+            log.add("hold")
+            return { log.add("release") }
+        }
+        keeper.resume = { log.add("resume") }
+        keeper.suspend = { log.add(suspended()) }
+        keeper.isInBackground = { background }
+        return keeper
     }
 
     func harness(_ fake: FakeWatchTransport = FakeWatchTransport(), start: Bool = true,
-                 recordWorkouts: Bool = true) async -> Harness {
+                 recordWorkouts: Bool = true, store: LocalStore? = nil) async -> Harness {
         let demo = DemoFarm.makeServer(signedIn: true)
-        let store = try! LocalStore.inMemory()
+        let store = store ?? (try! LocalStore.inMemory())
         try? store.setValue(try? JSONCoding.encoder().encode(demo.me), forKey: AuthService.meKey)
         WatchSettings.save(WatchSettings(recordWorkouts: recordWorkouts), to: store, userId: demo.me.user.id)
         let session = TimeCardSession(store: store, api: demo.server, tokens: InMemoryTokenStore(token: "t"), deviceName: "Test iPhone")
@@ -51,7 +72,7 @@ struct PhoneWatchBridgeTests {
         launcher.transport = fake
         let model = AppModel(session: session, mode: .uiTest(signedIn: true), watchTransport: fake, watchLauncher: launcher)
         model.watch.coalesce = .milliseconds(40)
-        let h = Harness(model: model, fake: fake, launcher: launcher)
+        let h = Harness(model: model, fake: fake, launcher: launcher, userId: demo.me.user.id)
         if start {
             await model.start()
             await quiet(h)
@@ -286,11 +307,23 @@ struct PhoneWatchBridgeTests {
         #expect(h.model.session.hasOpened)
     }
 
+    /// A model made before the first unlock after a restart: its data couldn't be opened.
+    func sealedModel(_ fake: FakeWatchTransport) -> AppModel {
+        let session = TimeCardSession(store: try! LocalStore.inMemory(), api: StubAPIClient(), tokens: InMemoryTokenStore(), deviceName: "t")
+        return AppModel(session: session, mode: .uiTest(signedIn: true), storageError: "Sealed",
+                        watchTransport: fake, watchLauncher: FakeLauncher())
+    }
+
     @Test func aSealedPhoneKeepsTheTapQueuedAndSendsNoState() async {
         let fake = FakeWatchTransport()
-        let session = TimeCardSession(store: try! LocalStore.inMemory(), api: StubAPIClient(), tokens: InMemoryTokenStore(), deviceName: "t")
-        let model = AppModel(session: session, mode: .uiTest(signedIn: true), storageError: "Sealed",
-                             watchTransport: fake, watchLauncher: FakeLauncher())
+        let model = sealedModel(fake)
+        let reopened = Log()
+        // Still locked since the restart: nothing to open yet.
+        model.watch.protectedDataAvailable = { false }
+        model.watch.reopen = {
+            reopened.add("reopen")
+            return model
+        }
         let tap = WatchRequest(body: .command(.clockIn(fieldId: nil)), issuedAt: Date(), userId: UUID(), shiftId: UUID())
         let answer = reply(await fake.deliverMessage(FakeWatchTransport.envelope(.request(tap))))
         #expect(answer?.keepQueued == true)
@@ -298,9 +331,129 @@ struct PhoneWatchBridgeTests {
         #expect(answer?.speech == Speech.unlockOnce)
         // A signed-out state from a phone that can't read its data would end the watch's workout.
         #expect(answer?.state == nil)
+        #expect(reopened.entries.isEmpty)
         model.watch.publish(reason: .sceneActive)
         await model.watch.settled()
         #expect(fake.contexts.isEmpty)
+    }
+
+    @Test func aSealedPhoneUnlockedSinceOpensItsDataAndAppliesTheTap() async throws {
+        let fake = FakeWatchTransport()
+        let sealed = sealedModel(fake)
+        // The model the phone's data opens into now that it has been unlocked, not yet started.
+        let opened = await harness(FakeWatchTransport(), start: false)
+        sealed.watch.protectedDataAvailable = { true }
+        sealed.watch.reopen = { opened.model }
+        let minted = UUID()
+        let tap = WatchRequest(body: .command(.clockIn(fieldId: nil)), issuedAt: Date(), userId: opened.userId, shiftId: minted)
+        let answer = reply(await fake.deliverMessage(FakeWatchTransport.envelope(.request(tap))))
+        #expect(answer?.succeeded == true, "\(answer?.speech ?? "no reply")")
+        #expect(answer?.keepQueued == false)
+        #expect(answer?.state?.shiftId == minted)
+        #expect(opened.model.session.snapshot.openShift(for: opened.userId)?.id == minted)
+        // The opened model's own link tells the watch from here on.
+        await quiet(opened)
+        #expect(states(opened.fake.contexts).last?.shiftId == minted)
+    }
+
+    @Test func aSealedPhoneWhoseDataStillWontOpenKeepsTheTapQueued() async {
+        let fake = FakeWatchTransport()
+        let sealed = sealedModel(fake)
+        let stillSealed = sealedModel(FakeWatchTransport())
+        sealed.watch.protectedDataAvailable = { true }
+        sealed.watch.reopen = { stillSealed }
+        let tap = WatchRequest(body: .command(.clockIn(fieldId: nil)), issuedAt: Date(), userId: UUID(), shiftId: UUID())
+        let answer = reply(await fake.deliverMessage(FakeWatchTransport.envelope(.request(tap))))
+        #expect(answer?.keepQueued == true)
+        #expect(answer?.speech == Speech.unlockOnce)
+        #expect(answer?.state == nil)
+    }
+
+    // MARK: Background time and the shared database
+
+    /// The window lets go of the database when the app leaves the screen
+    /// (`AppDatabase.suspend()`), and GRDB refuses every write until it's resumed. A watch
+    /// message that reaches the phone in a pocket still has to apply.
+    @Test func aTapThatReachesThePhoneInAPocketStillApplies() async throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("watch-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let h = await harness(store: try LocalStore.onDisk(directory: dir))
+        let log = Log()
+        let keeper = keeper(log, background: false)
+        keeper.resume = { AppDatabase.resume() }
+        h.bridge.keeper = keeper
+        defer { AppDatabase.resume() }
+        let published = try #require(states(h.fake.contexts).last)
+
+        // A workout summary posted while the database is suspended is kept.
+        AppDatabase.suspend()
+        let start = Date(timeIntervalSince1970: 1_760_000_000)
+        let summary = WorkoutSummary(shiftId: UUID(), start: start, end: start.addingTimeInterval(3600), activeDuration: 3500)
+        h.fake.deliverPost(FakeWatchTransport.envelope(.workoutSummary(summary)))
+        let id = try #require(summary.shiftId)
+        await eventually { h.bridge.desk.summary(for: id) != nil }
+        #expect(h.bridge.desk.summary(for: id) == summary)
+
+        // And a clock-in applies, with states that keep counting up.
+        AppDatabase.suspend()
+        let minted = UUID()
+        let answer = reply(await h.fake.deliverMessage(request(.clockIn(fieldId: nil), userId: h.userId, shiftId: minted)))
+        #expect(answer?.succeeded == true, "\(answer?.speech ?? "no reply")")
+        #expect(h.model.session.snapshot.openShift(for: h.userId)?.id == minted)
+        await quiet(h)
+        let replied = try #require(answer?.state)
+        let next = try #require(states(h.fake.contexts).last)
+        #expect(replied.revision > published.revision)
+        #expect(next.revision > replied.revision)
+        #expect(next.shiftId == minted)
+    }
+
+    @Test func inAPocketTheTapIsSentOnAndTheDatabaseLetGoOnceItsStateHasGoneOut() async throws {
+        let h = await harness()
+        let log = Log()
+        let before = h.fake.contexts.count
+        h.bridge.keeper = keeper(log, background: true) {
+            let pending = (try? h.model.session.store.pendingCount()) ?? -1
+            return "suspend after \(h.fake.contexts.count - before) states, \(pending) waiting"
+        }
+        let answer = reply(await h.fake.deliverMessage(request(.clockIn(fieldId: nil), userId: h.userId, shiftId: UUID())))
+        #expect(answer?.succeeded == true)
+        await eventually { log.count("release") > 0 && log.count("hold") == log.count("release") }
+        // The tap's state went out and the shift went to the server before letting go, once.
+        #expect(log.entries.first == "hold")
+        #expect(log.entries.dropFirst().first == "resume")
+        let suspends = log.entries.filter { $0.hasPrefix("suspend") }
+        #expect(suspends.count == 1)
+        #expect(suspends.first?.hasSuffix("0 waiting") == true, "\(log.entries)")
+        #expect(suspends.first?.hasPrefix("suspend after 0 states") == false, "\(log.entries)")
+        // Nothing resumes it after, and the app is let go last.
+        let at = try #require(log.entries.firstIndex { $0.hasPrefix("suspend") })
+        #expect(!log.entries[at...].contains("resume"))
+        #expect(log.entries.last == "release")
+    }
+
+    @Test func onScreenTheDatabaseIsNeverLetGo() async {
+        let h = await harness()
+        let log = Log()
+        h.bridge.keeper = keeper(log, background: false)
+        let answer = reply(await h.fake.deliverMessage(request(.clockIn(fieldId: nil), userId: h.userId, shiftId: UUID())))
+        #expect(answer?.succeeded == true)
+        await eventually { log.count("release") > 0 && log.count("hold") == log.count("release") }
+        #expect(log.entries.first == "hold")
+        #expect(!log.entries.contains { $0.hasPrefix("suspend") })
+    }
+
+    @Test func aPublishOfAnotherDoorsChangeLeavesTheDatabaseAlone() async {
+        let h = await harness()
+        let log = Log()
+        h.bridge.keeper = keeper(log, background: true)
+        // Siri on the phone, say: it resumed the database itself and is still syncing.
+        #expect(h.model.actions.perform(.clockIn(fieldId: nil)).succeeded)
+        await h.bridge.settled()
+        #expect(log.entries.first == "hold")
+        #expect(!log.entries.contains("resume"))
+        #expect(!log.entries.contains { $0.hasPrefix("suspend") })
+        #expect(log.count("hold") == log.count("release"))
     }
 
     @Test func aPostedWorkoutSummaryIsKeptOnThePhone() async throws {
