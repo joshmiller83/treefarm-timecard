@@ -212,6 +212,45 @@ public final class LocalStore: Sendable {
         }
     }
 
+    /// The role the farm's pulls were made under, since the server shows workers less.
+    public func pulledAs(farmId: UUID) throws -> Role? {
+        try value(forKey: Self.pulledAsKey(farmId)).flatMap { Role(rawValue: String(decoding: $0, as: UTF8.self)) }
+    }
+
+    public func setPulledAs(_ role: Role, farmId: UUID) throws {
+        try setValue(Data(role.rawValue.utf8), forKey: Self.pulledAsKey(farmId))
+    }
+
+    static func pulledAsKey(_ farmId: UUID) -> String { "sync.pulledAs.\(farmId.uuidString)" }
+
+    /// Starts the farm's pulls over from 0, after the person's role changed. With `owner`, other
+    /// people's shifts are forgotten too (someone who is no longer an admin doesn't see them).
+    public func restartPulls(farmId: UUID, keepingOnlyShiftsOf owner: UUID?) throws {
+        let farm = farmId.uuidString
+        let decoder = JSONCoding.decoder()
+        let pending = try writer.writeWithoutTransaction { db -> Int in
+            var dropped: [UUID] = []
+            try db.inTransaction {
+                try Self.setCursor(db, farmId: farm, 0)
+                if let owner {
+                    let rows = try Row.fetchAll(db, sql: "SELECT id, json FROM records WHERE farmId = ? AND kind = ?",
+                                                arguments: [farm, RecordKind.shift.rawValue])
+                    for row in rows {
+                        let data: Data = row["json"]
+                        guard case .shift(let shift) = try decoder.decode(SyncRecord.self, from: data), shift.userId != owner else { continue }
+                        try db.execute(sql: "DELETE FROM records WHERE farmId = ? AND kind = ? AND id = ?",
+                                       arguments: [farm, RecordKind.shift.rawValue, shift.id.uuidString])
+                        dropped.append(shift.id)
+                    }
+                }
+                return .commit
+            }
+            updateSnapshot(farmId: farmId) { snapshot in dropped.forEach { snapshot.remove(kind: .shift, id: $0) } }
+            return try Self.count(db)
+        }
+        notify(.remote, pending)
+    }
+
     public func cursor(farmId: UUID) throws -> Int64 {
         try writer.read { db in
             try Int64.fetchOne(db, sql: "SELECT cursor FROM sync_state WHERE farmId = ?", arguments: [farmId.uuidString]) ?? 0

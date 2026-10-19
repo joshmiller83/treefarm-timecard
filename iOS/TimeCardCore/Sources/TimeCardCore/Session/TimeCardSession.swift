@@ -15,6 +15,10 @@ public final class TimeCardSession {
     public private(set) var syncStatus = SyncStatus()
     /// The last change the server turned down, until dismissed.
     public private(set) var latestNotice: SyncNotice?
+    /// True from the moment the person's role is seen to change until the farm has been
+    /// pulled again under it. Until then other people's records may be the redacted copies
+    /// a worker gets (no email, rate 0), so member edits wait.
+    public private(set) var isCatchingUpOnRole = false
     private var chosenFarm: Farm?
     private var chosenMembership: Member?
 
@@ -25,6 +29,9 @@ public final class TimeCardSession {
     @ObservationIgnored public private(set) var engine: SyncEngine?
     @ObservationIgnored private var storeListener: Task<Void, Never>?
     @ObservationIgnored private var engineListeners: [Task<Void, Never>] = []
+    /// The role last checked against the one the farm was pulled under.
+    @ObservationIgnored private var checkedRole: (farmId: UUID, role: Role)?
+    @ObservationIgnored private var roleCatchUp: Task<Void, Never>?
     /// Called on the main actor for every rejection (for spoken or banner feedback).
     @ObservationIgnored public var onNotice: (@MainActor (SyncNotice) -> Void)?
 
@@ -291,6 +298,7 @@ public final class TimeCardSession {
         let farm = chosen.farm
         chosenFarm = farm
         chosenMembership = chosen.member
+        reconcileRole()
         guard engine?.farmId != farm.id else { return }
 
         await closeEngine()
@@ -299,6 +307,8 @@ public final class TimeCardSession {
         let engine = SyncEngine(store: store, api: api, farmId: farm.id, configuration: engineConfiguration)
         self.engine = engine
         await engine.start()
+        checkedRole = nil
+        reconcileRole()
         let statuses = await engine.statusUpdates()
         let notices = await engine.notices()
         engineListeners = [
@@ -318,6 +328,8 @@ public final class TimeCardSession {
 
     private func syncStatusChanged(_ status: SyncStatus) async {
         syncStatus = status
+        // A pass that ended after the restart (which happens before `roleCatchUp` ends) pulled from 0.
+        if isCatchingUpOnRole, roleCatchUp == nil, status.phase == .idle { isCatchingUpOnRole = false }
         if status.phase == .signedOut, case .signedIn = auth {
             await authService.markExpired()
             auth = await authService.state
@@ -325,6 +337,10 @@ public final class TimeCardSession {
     }
 
     private func closeEngine() async {
+        roleCatchUp?.cancel()
+        roleCatchUp = nil
+        isCatchingUpOnRole = false
+        checkedRole = nil
         engineListeners.forEach { $0.cancel() }
         engineListeners = []
         await engine?.stop()
@@ -338,7 +354,33 @@ public final class TimeCardSession {
             for await _ in events {
                 guard let self else { return }
                 self.snapshot = self.store.snapshot
+                self.reconcileRole()
             }
+        }
+    }
+
+    /// The server filters pulls by role, so when the person's own role changes (seen in a
+    /// pulled member record or a fresh `/me`) the farm is pulled again from the start: a
+    /// promoted worker gets everyone's hours and real rates, and a demoted admin's phone
+    /// forgets other people's shifts.
+    private func reconcileRole() {
+        guard let engine, let me = membership, me.farmId == engine.farmId else { return }
+        if let checked = checkedRole, checked.farmId == engine.farmId, checked.role == me.role { return }
+        checkedRole = (engine.farmId, me.role)
+        let farmId = engine.farmId
+        let pulledAs = try? store.pulledAs(farmId: farmId)
+        guard pulledAs != me.role else { return }
+        try? store.setPulledAs(me.role, farmId: farmId)
+        // Never checked before: only a farm already pulled (under a role we can't know) needs redoing.
+        if pulledAs == nil, ((try? store.cursor(farmId: farmId)) ?? 0) == 0 { return }
+        let owner = me.role == .admin ? nil : me.userId
+        isCatchingUpOnRole = true
+        roleCatchUp?.cancel()
+        roleCatchUp = Task { [weak self] in
+            let outcome = await engine.pullEverythingAgain(keepingOnlyShiftsOf: owner)
+            guard let self, !Task.isCancelled else { return }
+            self.roleCatchUp = nil
+            if case .synced = outcome { self.isCatchingUpOnRole = false }
         }
     }
 }

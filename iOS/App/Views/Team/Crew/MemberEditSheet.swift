@@ -67,8 +67,18 @@ struct MemberEditSheet: View {
                     if let problem {
                         ErrorMessage(text: problem)
                     }
+                    if session.isCatchingUpOnRole {
+                        // Until the farm is pulled again under your new role, the copies here
+                        // may have blank rates, and saving one would overwrite the real rate.
+                        Label(Self.waitingForRates, systemImage: "arrow.triangle.2.circlepath")
+                            .font(.footnote)
+                            .foregroundStyle(Palette.muted)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .accessibilityIdentifier("member-waiting")
+                    }
                     Button("Save", action: attemptSave)
                         .buttonStyle(.glovePrimary)
+                        .disabled(session.isCatchingUpOnRole)
                         .accessibilityIdentifier("member-save")
                         .confirmationDialog("Make yourself crew?", isPresented: $confirmingStepDown, titleVisibility: .visible) {
                             Button("Make me crew", role: .destructive, action: save)
@@ -94,8 +104,15 @@ struct MemberEditSheet: View {
         }
     }
 
+    static let waitingForRates = "Getting everyone’s pay rates from the server. Save works once that’s done."
+
     private func attemptSave() {
         focus = nil
+        guard !session.isCatchingUpOnRole else {
+            problem = Self.waitingForRates
+            TeamAnnounce.say(problem)
+            return
+        }
         if MemberRules.losesOwnAdmin(draft, for: member, me: session.me?.user.id),
            case .save = MemberRules.save(draft, for: member, members: Array(session.snapshot.members.values), now: Date()) {
             confirmingStepDown = true

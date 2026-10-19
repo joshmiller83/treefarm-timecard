@@ -54,7 +54,12 @@ public enum Clock {
         guard shift.isLive && shift.isOpen else { throw .notClockedIn }
         guard shift.openBreak != nil else { throw .notOnBreak }
         var s = shift
-        s.breaks[s.breaks.count - 1].end = now
+        // A break ended the moment it began leaves nothing behind (ShiftRules refuses zero-length breaks).
+        if s.breaks[s.breaks.count - 1].start >= now {
+            s.breaks.removeLast()
+        } else {
+            s.breaks[s.breaks.count - 1].end = now
+        }
         s.updatedAt = now
         return s
     }
@@ -63,7 +68,9 @@ public enum Clock {
     public static func clockOut(at now: Date, shift: Shift) throws(ClockError) -> Shift {
         guard shift.isLive && shift.isOpen else { throw .notClockedIn }
         var s = shift
-        if s.openBreak != nil { s.breaks[s.breaks.count - 1].end = now }
+        if s.openBreak != nil {
+            if s.breaks[s.breaks.count - 1].start >= now { s.breaks.removeLast() } else { s.breaks[s.breaks.count - 1].end = now }
+        }
         s.end = now
         s.updatedAt = now
         return s

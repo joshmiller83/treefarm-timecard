@@ -228,6 +228,21 @@ public actor SyncEngine {
         return await pass.value
     }
 
+    /// Pulls everything again from the start, after any pass already running, because the
+    /// person's role changed and the server now shows them different records. With `owner`,
+    /// other people's shifts are dropped first (no longer an admin).
+    @discardableResult
+    public func pullEverythingAgain(keepingOnlyShiftsOf owner: UUID?) async -> SyncOutcome {
+        // A pass already running would move the cursor past the restart when it ends.
+        while let current = running { _ = await current.value }
+        do {
+            try store.restartPulls(farmId: farmId, keepingOnlyShiftsOf: owner)
+        } catch {
+            return .failed("Couldn't save on this phone: \(error.localizedDescription)")
+        }
+        return await syncNow()
+    }
+
     private func runPass() async -> SyncOutcome {
         defer { running = nil }
         guard !signedOut else { return .signedOut }

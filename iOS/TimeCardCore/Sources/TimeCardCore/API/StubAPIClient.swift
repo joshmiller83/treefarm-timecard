@@ -293,10 +293,32 @@ public actor StubAPIClient: APIClient {
     public func pull(farmId: UUID, since: Int64, limit: Int) async throws -> PullResponse {
         try takeScripted()
         pulls.append((since, limit))
+        // Like the server: workers see their own shifts only, and other people's email and
+        // rate come back blank. (A pull with nobody signed in, in engine tests, sees everything.)
+        let viewer = signedIn == nil ? nil : try? member(on: farmId)
         let newer = (farms[farmId] ?? [:]).values.filter { $0.seq > since }.sorted { $0.seq < $1.seq }
         let page = newer.prefix(limit)
-        return PullResponse(changes: page.map { Change(seq: $0.seq, record: $0.record) },
-                            cursor: page.last?.seq ?? max(since, 0), hasMore: newer.count > page.count)
+        let visible = page.compactMap { stored -> Change? in
+            guard let viewer else { return Change(seq: stored.seq, record: stored.record) }
+            guard Self.canSee(stored.record, viewer: viewer) else { return nil }
+            return Change(seq: stored.seq, record: Self.redact(stored.record, for: viewer))
+        }
+        return PullResponse(changes: visible, cursor: page.last?.seq ?? max(since, 0), hasMore: newer.count > page.count)
+    }
+
+    /// The server's `Visibility.canSee`: admins see everything, workers their own shifts.
+    static func canSee(_ record: SyncRecord, viewer: Member) -> Bool {
+        if viewer.role == .admin { return true }
+        if case .shift(let shift) = record { return shift.userId == viewer.userId }
+        return true
+    }
+
+    /// The server's `Visibility.redact`: a worker gets other people's email and rate blank.
+    static func redact(_ record: SyncRecord, for viewer: Member) -> SyncRecord {
+        guard viewer.role != .admin, case .member(var member) = record, member.userId != viewer.userId else { return record }
+        member.email = ""
+        member.rateCents = 0
+        return .member(member)
     }
 
     // MARK: Your account
