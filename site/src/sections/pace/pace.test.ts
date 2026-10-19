@@ -10,9 +10,13 @@ import {
   LAPSE,
   PACE_AT,
   PACE_FROM,
-  crossed,
+  ROLL_CELLS,
+  ROLL_REST,
+  bottomCropLabel,
   lapseEvents,
   leadRows,
+  litAt,
+  numParts,
   phoneLabel,
   rollHTML,
   rollStops,
@@ -47,21 +51,39 @@ describe('pace: the stat tiles', () => {
 });
 
 describe('pace: the rolling digits', () => {
-  it('stop every column on its own digit in the second cycle (no rounding, no drift)', () => {
-    expect(rollStops('34')).toEqual([-65, -70]);
-    expect(rollStops('1:46')).toEqual([-55, -70, -80]);
-    expect(rollStops('179')).toEqual([-55, -85, -95]);
+  /** The cell a column shows at a translateY of `stop` percent. */
+  const cellAt = (stop: number) => ROLL_CELLS[Math.round((-stop / 100) * ROLL_CELLS.length)];
+
+  it('rest unlit on a blank cell, so an unlit tile never shows a number', () => {
+    expect(ROLL_CELLS).toHaveLength(21);
+    expect(cellAt(ROLL_REST)).toBe('');
   });
 
-  it('renders one 20-digit column per digit, at rest on the final reading, with static separators', () => {
+  it('stop every column on its own digit in the second cycle (no rounding, no drift)', () => {
+    for (const text of ['34', '1:46', '179']) {
+      const stops = rollStops(text);
+      expect(stops.map(cellAt).join('')).toBe(text.replace(':', ''));
+      // Second cycle: at least eleven steps from the blank rest, whatever the digit.
+      for (const s of stops) expect((-s / 100) * ROLL_CELLS.length).toBeGreaterThanOrEqual(11);
+    }
+    expect(rollStops('34')).toEqual([-(14 * 100) / 21, -(15 * 100) / 21]);
+  });
+
+  it('renders one 21-cell column per digit, at rest on the final reading, with static separators', () => {
     const html = rollHTML('1:46');
     expect(html.match(/class="roll-col"/g)).toHaveLength(3);
     expect(html.match(/<span>\d<\/span>/g)).toHaveLength(60);
+    expect(html.match(/<span><\/span>/g)).toHaveLength(3);
     expect(html).toContain('<span class="roll-s">:</span>');
     for (const stop of rollStops('1:46')) expect(html).toContain(`translateY(${stop}%)`);
     // The digit at each stop reads back the text.
     const cols = [...html.matchAll(/data-digit="(\d)"/g)].map((m) => m[1]).join('');
     expect(cols).toBe('146');
+  });
+
+  it('splits a reading into digits and separators for the static number', () => {
+    expect(numParts('1:46')).toEqual([{ t: '1' }, { t: ':', sep: true }, { t: '46' }]);
+    expect(numParts('179')).toEqual([{ t: '179' }]);
   });
 });
 
@@ -109,7 +131,12 @@ describe('pace: the scroll beats', () => {
     expect(BEATS.tiles[0]).toBeLessThanOrEqual(0.33);
     expect(BEATS.toHours[1]).toBeLessThanOrEqual(0.75);
     expect(BEATS.tap).toBeGreaterThanOrEqual(0.75);
-    expect(BEATS.tap).toBeLessThan(0.88);
+    expect(BEATS.tap + BEATS.tapDur).toBeLessThan(0.88);
+    // The pay answers inside the tap, and the small print starts with it.
+    expect(BEATS.nope).toBeGreaterThan(BEATS.tap);
+    expect(BEATS.nope).toBeLessThan(BEATS.tap + BEATS.tapDur);
+    expect(Math.abs(BEATS.small[0] - BEATS.tap)).toBeLessThanOrEqual(0.01);
+    expect(BEATS.small[1]).toBeLessThan(BEATS.back[0]);
     expect(BEATS.back[0]).toBeGreaterThanOrEqual(0.88);
     expect(BEATS.relock[1]).toBeLessThanOrEqual(1);
   });
@@ -186,21 +213,22 @@ describe('pace: the in-phone scroll', () => {
   });
 });
 
-describe('pace: crossing marks (the triggered tweens)', () => {
-  it('reports marks crossed forward and backward, once each', () => {
+describe('pace: the triggered pieces are level-triggered', () => {
+  it('know what is lit at any progress, with no history (reload, restore, rebuild)', () => {
     const marks = [0.3, 0.4, 0.5];
-    expect(crossed(0, 0.35, marks)).toEqual([{ i: 0, forward: true }]);
-    expect(crossed(0.35, 0.55, marks)).toEqual([
-      { i: 1, forward: true },
-      { i: 2, forward: true },
-    ]);
-    expect(crossed(0.55, 0.1, marks)).toEqual([
-      { i: 2, forward: false },
-      { i: 1, forward: false },
-      { i: 0, forward: false },
-    ]);
-    expect(crossed(0.3, 0.3, marks)).toEqual([]);
-    expect(crossed(0.45, 0.46, marks)).toEqual([]);
+    expect(litAt(0, marks)).toEqual([false, false, false]);
+    expect(litAt(0.35, marks)).toEqual([true, false, false]);
+    expect(litAt(0.4, marks)).toEqual([true, true, false]);
+    expect(litAt(0.72, marks)).toEqual([true, true, true]);
+    expect(litAt(1, marks)).toEqual([true, true, true]);
+  });
+
+  it('light every tile and grow the bars by the mid-section restore points on both breakpoints', () => {
+    for (const desk of [true, false]) {
+      const b = beatsFor(desk);
+      expect(litAt(0.5, [...b.tiles])).toEqual([true, true, true]);
+      expect(litAt(0.72, [...b.tiles, b.bars])).toEqual([true, true, true, true]);
+    }
   });
 });
 
@@ -214,20 +242,34 @@ describe('pace: words', () => {
 
   it('puts the week chart’s values in words (the chart itself is decorative)', () => {
     const s = weekSentence();
-    for (const [i, d] of weekHoursAt(PACE_AT).entries()) expect(s).toContain(`${WEEK[i]!.long} ${d.hm}`);
-    expect(s).toBe('Monday 8:37, Tuesday 8:18, Wednesday 5:45, Thursday 8:45 and Friday 7:39 so far');
+    for (const [i] of weekHoursAt(PACE_AT).entries()) expect(s).toContain(`${WEEK[i]!.long} `);
+    // Durations, never clock-style strings a screen reader would announce as times of day.
+    expect(s).not.toMatch(/\d:\d/);
+    expect(s).toBe(
+      'Monday 8 hours 37 minutes, Tuesday 8 hours 18 minutes, Wednesday 5 hours 45 minutes, Thursday 8 hours 45 minutes and Friday 7 hours 39 minutes so far',
+    );
   });
 
   it('labels the phone with the brief’s sentence plus the week’s values', () => {
     expect(phoneLabel()).toBe(
       'Time Card Clock tab at 3:40 PM: on the clock 7 hours 39 minutes, 260 trees this shift, 34 trees an hour, ' +
         '1 minute 46 seconds a tree, best day Thursday with 318 trees, about 179 hours left in North field, ' +
-        'and a week chart of hours worked, Monday 8:37, Tuesday 8:18, Wednesday 5:45, Thursday 8:45 and Friday 7:39 so far, with pay hidden.',
+        'and a week chart of hours worked, Monday 8 hours 37 minutes, Tuesday 8 hours 18 minutes, Wednesday 5 hours 45 minutes, ' +
+        'Thursday 8 hours 45 minutes and Friday 7 hours 39 minutes so far, with pay hidden.',
     );
   });
 
+  it('labels the bottom crop with what it shows: the pace card and Hours & pay', () => {
+    expect(bottomCropLabel()).toBe(
+      'The same Clock tab scrolled down: the pace card with 34 trees an hour, 1 minute 46 seconds a tree and pay per tree hidden, ' +
+        'best day Thursday with 318 trees, about 179 hours left in North field, and Hours & pay with a bar for each day, ' +
+        'Friday in gold, and pay hidden behind dots.',
+    );
+    expect(bottomCropLabel()).not.toMatch(/notes/i);
+  });
+
   it('keeps the copy honest: no currency, best day from the ledger', () => {
-    const all = JSON.stringify(COPY) + phoneLabel();
+    const all = JSON.stringify(COPY) + phoneLabel() + bottomCropLabel();
     expect(all).not.toMatch(/\$|USD|dollar/i);
     const plain = COPY.bullets.map(bulletText).map((t) => t.replace(/\u00a0/g, ' '));
     expect(plain[1]).toBe(`Your best day: ${BEST_DAY.long}, ${BEST_DAY.trees} trees.`);

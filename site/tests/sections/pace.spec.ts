@@ -5,12 +5,15 @@
  *   - reduced motion: the final state is all visible (tiles, bullets, small print, two crops of
  *     the Clock tab: the top, and Hours & pay with the week's bars and pay hidden)
  *   - with motion the tile digits end exactly on 34, 1:46 and 179 at progress 1 and after
- *     scrolling back and forth; the Live Activity and the Clock tab read the ledger's values
+ *     scrolling back and forth; the Live Activity and the Clock tab read the ledger's values;
+ *     unlit tiles show no number at all (no ghost zeros)
+ *   - the triggered pieces are level-triggered: a reload mid-section (restored scroll, no
+ *     further scrolling) and a desk → mob rebuild still show the lit tiles, rules and bars
  *   - 375px: the tiles wrap 2 + 1 with no horizontal overflow; axe finds nothing serious
  */
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
-import { COPY, bulletText, phoneLabel, tilesAt } from '../../src/sections/pace/pace';
+import { COPY, bottomCropLabel, bulletText, phoneLabel, tilesAt } from '../../src/sections/pace/pace';
 
 const TILES = tilesAt().map((t) => t.text); // ['34', '1:46', '179']
 
@@ -64,6 +67,58 @@ async function rolledTiles(page: Page) {
         .join(''),
     ),
   );
+}
+
+/** Jump the page to progress p of the pace track (one scroll, like a deep link or a restore). */
+async function jumpTo(page: Page, p: number) {
+  await page.evaluate((p) => {
+    const t = document.querySelector<HTMLElement>('#pace .track')!;
+    window.scrollTo(0, Math.round(t.getBoundingClientRect().top + scrollY + p * (t.offsetHeight - innerHeight)));
+  }, p);
+}
+
+/** The pace track's scroll progress right now. */
+async function progress(page: Page) {
+  return page.evaluate(() => {
+    const t = document.querySelector<HTMLElement>('#pace .track')!;
+    return -t.getBoundingClientRect().top / (t.offsetHeight - innerHeight);
+  });
+}
+
+/** What a reader sees of each tile: its rolled digits (only where the face shows) and opacities. */
+async function tileState(page: Page) {
+  const rolled = await rolledTiles(page);
+  const looks = await page.locator('#pace [data-tile]').evaluateAll((els) =>
+    els.map((e) => {
+      const op = (sel: string) => Number(getComputedStyle(e.querySelector(sel)!).opacity);
+      const seps = Array.from(e.querySelectorAll('.roll-s')).map((s) => Number(getComputedStyle(s).opacity));
+      return { face: op('.pace-tile-face') * op('.pace-num'), sep: seps.length ? Math.min(...seps) : 1 };
+    }),
+  );
+  return looks.map((l, i) => ({ ...l, text: rolled[i]! }));
+}
+
+/** scaleY of the phone's gold pace rules for the three tiles' rows, and of the week's bars. */
+const PACE_RULES = '[data-screen="clock-1540"] [data-pace-row] [data-pace-rule]';
+async function phoneScales(page: Page) {
+  return page.evaluate((sel) => {
+    const d = (e: Element) => new DOMMatrixReadOnly(getComputedStyle(e).transform).d;
+    const rules: Record<string, number> = {};
+    for (const r of document.querySelectorAll(sel)) rules[(r.closest('[data-pace-row]') as HTMLElement).dataset.paceRow!] = d(r);
+    const bars = Array.from(document.querySelectorAll('[data-screen="clock-1540"] [data-hours-card] [data-bar]')).map(d);
+    return { rules, bars };
+  }, PACE_RULES);
+}
+
+async function expectLit(page: Page, at: string) {
+  const tiles = await tileState(page);
+  expect(tiles.map((t) => t.text), at).toEqual(TILES);
+  for (const t of tiles) {
+    expect(t.face, at).toBeCloseTo(1, 2);
+    expect(t.sep, at).toBeCloseTo(1, 2);
+  }
+  const { rules } = await phoneScales(page);
+  for (const row of ['trees-hour', 'per-tree', 'left']) expect(rules[row], `${at}: phone rule ${row}`).toBeCloseTo(1, 3);
 }
 
 test.describe('pace', () => {
@@ -126,11 +181,33 @@ test.describe('pace', () => {
         }, sel);
       // Top crop: status card, now working, trees this shift.
       for (const sel of ['[data-status-card]', '[data-now-working]', '[data-trees-card] [data-trees]']) expect(await inScreen(0, sel)).toBe('in');
-      // Bottom crop: the pace card's last rows and Hours & pay with the week's bars and pay hidden.
-      for (const sel of ['[data-pace-row="best"]', '[data-pace-row="left"]', '[data-hours-card] [data-bar="mon"]', '[data-hours-card] [data-bar="fri"]', '[data-pay]', '[data-pay-toggle]']) {
+      // Bottom crop: the pace card (its control, 34, 1:46, pay per tree, best day, hours left)
+      // and Hours & pay with the week's bars and pay hidden. No shift notes in this crop.
+      await expect(phones.nth(1)).toHaveAttribute('aria-label', bottomCropLabel());
+      for (const sel of [
+        '[data-segmented]',
+        '[data-pace-row="trees-hour"]',
+        '[data-pace-row="per-tree"]',
+        '[data-pace-row="pay"]',
+        '[data-pace-row="best"]',
+        '[data-pace-row="left"]',
+        '[data-hours-card]',
+        '[data-hours-card] [data-bar="mon"]',
+        '[data-hours-card] [data-bar="fri"]',
+        '[data-pay]',
+        '[data-pay-toggle]',
+      ]) {
         expect(await inScreen(1, sel)).toBe('in');
       }
+      await expect(phones.nth(1).locator('[data-shift-notes]')).toBeHidden();
       await expect(phones.nth(1).locator('[data-pay]')).toHaveText('•••');
+      // The static gold rules mirror the static tiles' rules.
+      const lit = await phones.nth(1).evaluate((ph) =>
+        Array.from(ph.querySelectorAll<HTMLElement>('[data-pace-row]')).map(
+          (r) => `${r.dataset.paceRow}:${new DOMMatrixReadOnly(getComputedStyle(r.querySelector('[data-pace-rule]')!).transform).d}`,
+        ),
+      );
+      expect(lit).toEqual(['trees-hour:1', 'per-tree:1', 'pay:0', 'best:0', 'left:1']);
       expect(problems).toEqual([]);
     });
 
@@ -195,16 +272,61 @@ test.describe('pace', () => {
 
     // Back before the first tile, then forward again: still exact.
     await scrubTo(page, 0.2);
-    // Unlit: hidden on desktop, a 40% ghost number below 900px.
-    const unlit = await page
-      .locator('#pace [data-tile]')
-      .evaluateAll((els) =>
-        els.map((e) => Number(getComputedStyle(e.querySelector('.pace-tile-face')!).opacity) * Number(getComputedStyle(e.querySelector('.pace-num')!).opacity)),
-      );
-    expect(Math.max(...unlit)).toBeLessThan(0.45);
+    // Unlit: hidden on desktop; below 900px the unit stays and the number is not there at all
+    // (blank columns, a hidden colon): never a ghost zero that contradicts the phone.
+    for (const t of await tileState(page)) {
+      const shows = t.face > 0.05 ? t.text.replace(/\D/g, '') + (t.sep > 0.05 && t.text.includes(':') ? ':' : '') : '';
+      expect(shows).toBe('');
+    }
     await scrubTo(page, 0.95);
     expect(await rolledTiles(page)).toEqual(TILES);
     expect(problems).toEqual([]);
+  });
+
+  test.describe('level-triggered: no update needed', () => {
+    for (const at of [0.5, 0.72]) {
+      test(`a reload at ${at} lands lit, without scrolling again`, async ({ page }) => {
+        const problems = watch(page);
+        await page.goto('/');
+        await settle(page);
+        test.skip(!(await page.locator('html.motion').count()), 'motion is off in this viewport');
+        await scrubTo(page, at);
+        await page.reload();
+        await settle(page);
+        await page.waitForTimeout(1500);
+        // The browser restored the scroll position: still mid-section.
+        expect(Math.abs((await progress(page)) - at)).toBeLessThan(0.03);
+        await expectLit(page, `reload at ${at}`);
+        if (at > 0.7) {
+          const { bars } = await phoneScales(page);
+          expect(bars.length).toBeGreaterThan(0);
+          for (const d of bars) expect(d).toBeCloseTo(1, 3);
+        }
+        expect(problems).toEqual([]);
+      });
+    }
+
+    test('a desk → mob rebuild at .5 keeps the tiles and the phone’s gold rules lit', async ({ page, isMobile }) => {
+      test.skip(isMobile, 'resizes a desktop window');
+      await page.setViewportSize({ width: 1440, height: 900 });
+      await page.goto('/');
+      await settle(page);
+      test.skip(!(await page.locator('html.motion').count()), 'motion is off in this viewport');
+      await scrubTo(page, 0.5);
+      await expectLit(page, 'desk at .5');
+      await page.setViewportSize({ width: 800, height: 900 });
+      await page.waitForTimeout(800);
+      // The track's height changed with the breakpoint: jump back to .5 (one scroll, like a restore).
+      await jumpTo(page, 0.5);
+      await page.waitForTimeout(1600);
+      await expectLit(page, 'mob at .5');
+      // And back to the desk layout.
+      await page.setViewportSize({ width: 1440, height: 900 });
+      await page.waitForTimeout(800);
+      await jumpTo(page, 0.5);
+      await page.waitForTimeout(1600);
+      await expectLit(page, 'desk again at .5');
+    });
   });
 
   test.describe('at 375px', () => {

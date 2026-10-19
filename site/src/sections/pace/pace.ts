@@ -101,18 +101,22 @@ export function tilesAt(at: Minute = PACE_AT): Tile[] {
 // ---------------------------------------------------------------------------
 // Rolling digits (page tiles only; the phone uses the shared odometer)
 //
-// Each digit is a clipped column holding 0–9 twice. A roll moves the column from the first 0
-// to the digit's place in the second cycle, so every column spins at least ten steps and
-// lands exactly on its digit: no counting, no rounding, no drift.
+// Each digit is a clipped column: one blank cell, then 0–9 twice. An unlit tile rests every
+// column on the blank (so it shows no number at all, never a zero that contradicts the phone);
+// a roll moves the column to the digit's place in the second cycle, so every column spins at
+// least eleven steps and lands exactly on its digit: no counting, no rounding, no drift.
 
 const isDigit = (ch: string) => ch >= '0' && ch <= '9';
-const CYCLE = '01234567890123456789';
+/** The cells of one column, top to bottom: '' (the unlit rest), then 0–9 twice. */
+export const ROLL_CELLS: readonly string[] = ['', ...'0123456789', ...'0123456789'];
+/** translateY (percent of the column) of the unlit rest: the blank cell. */
+export const ROLL_REST = 0;
 
 /** translateY (percent of the column) that rests each digit column on its digit. */
 export function rollStops(text: string): number[] {
   return Array.from(text)
     .filter(isDigit)
-    .map((ch) => -((10 + Number(ch)) * 100) / CYCLE.length);
+    .map((ch) => -((11 + Number(ch)) * 100) / ROLL_CELLS.length);
 }
 
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`);
@@ -128,8 +132,21 @@ export function rollHTML(text: string): string {
     const stop = rollStops(ch)[0]!;
     out +=
       `<span class="roll-d"><span class="roll-col" data-digit="${ch}" style="transform:translateY(${stop}%)">` +
-      Array.from(CYCLE, (n) => `<span>${n}</span>`).join('') +
+      ROLL_CELLS.map((n) => `<span>${n}</span>`).join('') +
       `</span></span>`;
+  }
+  return out;
+}
+
+/** A reading split into digits and separators, so the static number can tighten its colon the
+ *  way the rolling one does: '1:46' → [{ t: '1' }, { t: ':', sep: true }, { t: '46' }]. */
+export function numParts(text: string): Array<{ t: string; sep?: true }> {
+  const out: Array<{ t: string; sep?: true }> = [];
+  for (const ch of text) {
+    const sep = !isDigit(ch);
+    const prev = out.at(-1);
+    if (!sep && prev && !prev.sep) prev.t += ch;
+    else out.push(sep ? { t: ch, sep: true } : { t: ch });
   }
   return out;
 }
@@ -149,7 +166,8 @@ export interface Beats {
   toHours: Span;
   bars: number;
   tap: number;
-  pulse: number;
+  tapDur: number;
+  nope: number;
   small: Span;
   back: Span;
   relock: Span;
@@ -170,12 +188,13 @@ export const BEATS: Beats = {
   toHours: [0.55, 0.65],
   /** The week's bars grow (triggered) as the hours card settles. */
   bars: 0.63,
-  /** A tap on the eye-slash 'Show pay' toggle. */
+  /** A tap on the eye-slash 'Show pay' toggle (long enough for the ring to read at reading speed). */
   tap: 0.77,
-  /** The masked pay does a single pulse. */
-  pulse: 0.8,
-  /** The small print fades in. */
-  small: [0.79, 0.86],
+  tapDur: 0.06,
+  /** The masked pay answers with a short, deliberate 'no' (it stays hidden on this page). */
+  nope: 0.785,
+  /** The small print fades in with the tap, so the explanation lands with the 'no'. */
+  small: [0.775, 0.85],
   /** The scroll layer returns to the top. */
   back: [0.88, 0.94],
   /** The lock screen returns: the phone ends at rest on it. */
@@ -262,22 +281,21 @@ export function scrollStops(g: ScrollGeo) {
 // ---------------------------------------------------------------------------
 // Triggered tweens follow the scrubbed playhead
 
-/** Marks the playhead passed going from `prev` to `next`, in the order it passed them. */
-export function crossed(prev: number, next: number, marks: readonly number[]): Array<{ i: number; forward: boolean }> {
-  if (next > prev) return marks.flatMap((m, i) => (m > prev && m <= next ? [{ i, forward: true }] : []));
-  if (next < prev)
-    return marks
-      .flatMap((m, i) => (m > next && m <= prev ? [{ i, forward: false }] : []))
-      .reverse();
-  return [];
+/**
+ * Which triggered pieces are on at progress `p`: level-triggered, not edge-triggered, so a
+ * playhead that lands mid-section without an update (a reload, a restored scroll, a deep
+ * link, a breakpoint rebuild) still knows exactly what should be lit.
+ */
+export function litAt(p: number, marks: readonly number[]): boolean[] {
+  return marks.map((m) => p >= m);
 }
 
 // ---------------------------------------------------------------------------
 // Words for screen readers
 
-/** 'Monday 8:37, Tuesday 8:18, Wednesday 5:45, Thursday 8:45 and Friday 7:39 so far' */
+/** 'Monday 8 hours 37 minutes, …, and Friday 7 hours 39 minutes so far' (durations, never clock times). */
 export function weekSentence(at: Minute = PACE_AT): string {
-  const days = weekHoursAt(at).map((d, i) => `${WEEK[i]!.long} ${d.hm}${d.today ? ' so far' : ''}`);
+  const days = weekHoursAt(at).map((d, i) => `${WEEK[i]!.long} ${fmtSpokenDuration(d.seconds)}${d.today ? ' so far' : ''}`);
   return days.length > 1 ? `${days.slice(0, -1).join(', ')} and ${days.at(-1)}` : (days[0] ?? '');
 }
 
@@ -291,11 +309,12 @@ export function phoneLabel(at: Minute = PACE_AT): string {
   );
 }
 
-/** The static page's second crop (the bottom of the Clock tab). */
+/** The static page's second crop: the same tab scrolled down to the pace card and Hours & pay. */
 export function bottomCropLabel(at: Minute = PACE_AT): string {
   return (
-    `The same Clock tab scrolled to the bottom: best day ${BEST_DAY.long} with ${fmtCount(BEST_DAY.trees)} trees, ` +
-    `about ${fmtCount(hoursLeftAt(at))} hours left in ${FIELD.name}, the shift notes, and Hours & pay with a bar for each day, ` +
+    `The same Clock tab scrolled down: the pace card with ${paceAt(at)} trees an hour, ${spokenMinSec(perTreeAt(at))} a tree ` +
+    `and pay per tree hidden, best day ${BEST_DAY.long} with ${fmtCount(BEST_DAY.trees)} trees, ` +
+    `about ${fmtCount(hoursLeftAt(at))} hours left in ${FIELD.name}, and Hours & pay with a bar for each day, ` +
     `Friday in gold, and pay hidden behind dots.`
   );
 }

@@ -9,20 +9,24 @@
  *   [.10, .18] unlock: the lock layer slides up, the Clock tab settles from .94
  *   [.19, .29] the tab scrolls to the pace card and parks it under the toolbar
  *   .30 .38 .46  one page tile at a time lights (triggered): its rule draws, it rises in, its
- *              digits roll, and the matching pace row on the phone draws its gold rule
+ *              digits roll up from blank, and the matching pace row on the phone draws its
+ *              gold rule
  *   [.55, .65] on to Hours & pay; the week's bars grow from the baseline, Friday last, in gold
- *   .77 .80    a tap on the eye-slash 'Show pay'; the masked pay pulses once; the small print
+ *   .77 .785   a tap on the eye-slash 'Show pay'; the masked pay answers with a short 'no' (it
+ *              stays hidden on this page) as the small print says why
  *   [.88, .99] back to the top, and the lock screen returns: the phone ends at rest on it
  *
- * Scrubbed (ctx.tl) except the tiles lighting and the bars, which are short time-based tweens
- * played and reversed as the scrubbed playhead crosses their marks. No pins: SectionShell's
- * sticky frame holds the phone.
+ * Scrubbed (ctx.tl) except the tiles lighting and the bars: short time-based pieces that are
+ * level-triggered from the scrubbed playhead (on past their mark, off before it). They follow
+ * every update, and snap to their state on build and on every ScrollTrigger refresh, which
+ * sets the playhead without update events (a reload or restored scroll mid-section, a deep
+ * link, a breakpoint rebuild). No pins: SectionShell's sticky frame holds the phone.
  */
 import { registerScene } from '../scene.ts';
 import { FIELD_TREES, fieldShapedAt, fmtCount, treesAt } from '../../data/ledger.ts';
 import { setOdometer } from '../odometer.ts';
 import { stripStep, stripWidth } from '../../components/system/lockscreen/activity.ts';
-import { PACE_AT, PACE_FROM, beatsFor, crossed, lapseEvents, leadRows, rollStops, scrollStops } from '../../sections/pace/pace.ts';
+import { PACE_AT, PACE_FROM, ROLL_REST, beatsFor, lapseEvents, leadRows, litAt, rollStops, scrollStops } from '../../sections/pace/pace.ts';
 
 const CLOCK = '[data-screen="clock-1540"]';
 const LOCK = '[data-screen="lock-1540-activity"]';
@@ -121,9 +125,9 @@ registerScene(
     }
 
     // ---- The page tiles, each lit with its phone row's gold rule ----
-    // Each tile lights as one short, time-based piece (played as the scrubbed playhead
-    // crosses its mark, reversed on the way back), so the rule, the rise and the rolling
-    // digits always finish together however fast or slowly the page is scrolled.
+    // Each tile lights as one short, time-based piece (on once the scrubbed playhead is past
+    // its mark, reversed before it), so the rule, the rise and the rolling digits always
+    // finish together however fast or slowly the page is scrolled.
     const tiles = q<HTMLElement>('[data-tile]');
     const lights: GSAPTimeline[] = [];
     for (const tile of tiles) {
@@ -135,16 +139,17 @@ registerScene(
       const roll = tile.querySelector<HTMLElement>('[data-roll]');
       const cols = roll ? Array.from(roll.querySelectorAll<HTMLElement>('.roll-col')) : [];
       const stops = rollStops(roll?.dataset.rollText ?? '');
+      const seps = roll ? Array.from(roll.querySelectorAll<HTMLElement>('.roll-s')) : [];
       const t = gsap.timeline({ paused: true, defaults: { ease: 'power3.out' } });
       if (line) t.fromTo(line, { scaleX: 0 }, { scaleX: 1, duration: 0.5, ease: 'power2.inOut' }, 0);
       // Desktop: the tile rises in. Below 900px its card is already on screen, so the unit
-      // stays and the number waits as a ghost (zeros at 40%, still 3:1 as large text), then
-      // lights up as its digits roll.
-      const num = tile.querySelector('.pace-num');
+      // stays and the number is simply not there yet (blank columns, no ghost zeros that
+      // would contradict the phone), then rolls up into place.
       if (isDesk && face) t.fromTo(face, { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.5 }, 0.06);
-      else if (num) t.fromTo(num, { opacity: 0.4 }, { opacity: 1, duration: 0.5 }, 0.06);
-      // Every column spins from 0 to its digit in the second cycle: no counting, no drift.
-      if (cols.length) t.fromTo(cols, { y: 0, yPercent: 0 }, { y: 0, yPercent: (k: number) => stops[k] ?? 0, duration: 0.8, stagger: 0.07 }, 0.06);
+      // Every column spins from its blank rest to its digit in the second cycle: no counting.
+      if (cols.length) t.fromTo(cols, { y: 0, yPercent: ROLL_REST }, { y: 0, yPercent: (k: number) => stops[k] ?? 0, duration: 0.8, stagger: 0.07 }, 0.06);
+      // The colon comes in with the digits around it.
+      if (seps.length) t.fromTo(seps, { opacity: 0 }, { opacity: 1, duration: 0.3, ease: 'power2.out' }, 0.2);
       if (rules.length) t.fromTo(rules, { scaleY: 0 }, { scaleY: 1, duration: 0.4, ease: 'power2.out' }, 0.16);
       lights.push(t);
     }
@@ -154,31 +159,46 @@ registerScene(
     const grow = gsap.timeline({ paused: true });
     if (bars.length) grow.fromTo(bars, { scaleY: 0, transformOrigin: '50% 100%' }, { scaleY: 1, duration: 0.55, ease: 'power3.out', stagger: 0.06 });
 
-    // Triggered tweens follow the scrubbed playhead: forward plays, back reverses.
+    // Triggered pieces are level-triggered from the scrubbed playhead: on past their mark
+    // (play), off before it (reverse). snap = jump straight to that state (no animation).
     const marks = [...BEATS.tiles.slice(0, lights.length), BEATS.bars];
     const players = [...lights, grow];
-    let last = 0;
-    tl.eventCallback('onUpdate', () => {
-      const p = tl.progress();
-      for (const { i, forward } of crossed(last, p, marks)) {
-        const pl = players[i];
-        if (pl) void (forward ? pl.play() : pl.reverse());
-      }
-      last = p;
+    const sync = (snap = false) => {
+      const on = litAt(tl.progress(), marks);
+      players.forEach((pl, i) => {
+        if (snap) {
+          pl.pause().reversed(false).progress(on[i] ? 1 : 0);
+        } else if (on[i]) {
+          if (pl.reversed() || pl.progress() < 1) void pl.play();
+        } else if (!pl.reversed() && pl.progress() > 0) {
+          void pl.reverse();
+        }
+      });
+    };
+    tl.eventCallback('onUpdate', () => sync());
+    // A refresh sets the playhead with its events suppressed (and a reload or deep link lands
+    // mid-section that way), so snap after every refresh and once the scene is in place.
+    const onRefresh = () => sync(true);
+    ctx.ScrollTrigger.addEventListener('refresh', onRefresh);
+    const raf = requestAnimationFrame(() => sync(true));
+    undo.push(() => {
+      cancelAnimationFrame(raf);
+      tl.eventCallback('onUpdate', null);
+      ctx.ScrollTrigger.removeEventListener('refresh', onRefresh);
     });
-    undo.push(() => tl.eventCallback('onUpdate', null));
 
-    // ---- The pay toggle: a tap, the masked pay pulses once, the small print ----
+    // ---- The pay toggle: a tap, the masked pay answers 'no' (pay stays hidden here), the small print ----
     const toggle = $(`${CLOCK} [data-pay-toggle]`);
-    util.tap(tl, toggle, BEATS.tap, { dur: 0.04 });
+    // No haptic phone shake: the dots' own 'no' is the response.
+    util.tap(tl, toggle, BEATS.tap, { dur: BEATS.tapDur, shake: false });
     const pay = $(`${CLOCK} [data-pay]`);
     if (pay) {
-      tl.fromTo(
-        pay,
-        { scale: 1, opacity: 1 },
-        { keyframes: { scale: [1, 1.24, 1], opacity: [1, 0.55, 1], easeEach: 'power2.inOut' }, duration: 0.04, ease: 'none', immediateRender: false },
-        BEATS.pulse,
-      );
+      // A short horizontal 'no' in phone points (like a refused passcode), not a pulse that
+      // reads as a button that did nothing.
+      const pt = () => (viewport?.clientWidth ?? 393) / 393;
+      const nope = [-6, 6, -4, 0];
+      const step = [0.008, 0.012, 0.01, 0.01]; // .04 in all
+      tl.to(pay, { keyframes: nope.map((v, i) => ({ x: () => v * pt(), duration: step[i]!, ease: 'sine.inOut' })) }, BEATS.nope);
     }
     const small = q1('[data-small]');
     if (small) {
