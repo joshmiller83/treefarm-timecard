@@ -96,6 +96,7 @@ final class ShiftWorkout {
     private(set) var live = WorkoutLive()
     /// Whether Health lets the watch record workouts.
     private(set) var access: HealthAccess
+    private var askingStep: HealthOnboardingStep?
 
     /// Delivers a finished shift's summary to the phone (`.workoutSummary`, no reply). False when
     /// the phone is out of reach: the summary waits in its one slot for `sendPendingSummary()`.
@@ -184,15 +185,24 @@ final class ShiftWorkout {
 
     // MARK: Health access and the first-launch card
 
-    /// The first-launch card: recording is on (or nothing's known yet) and Health was never asked.
-    var needsHealthOnboarding: Bool {
-        access == .notDetermined && (inputs.confirmed?.recordWorkouts ?? true)
+    /// The first-launch card's step (docs/watch.md 2.4), nil when there's no card: it shows while
+    /// recording is on (or nothing's known yet) and Health was never asked, and stays up through
+    /// the notification question. The Action button only launches the app until Health was asked
+    /// once, so it comes early.
+    var onboardingStep: HealthOnboardingStep? {
+        if let askingStep { return askingStep }
+        return access == .notDetermined && (inputs.confirmed?.recordWorkouts ?? true) ? .health : nil
     }
+
+    var needsHealthOnboarding: Bool { onboardingStep != nil }
 
     /// "Allow Health", then "Remind me if a clock-out gets stuck."
     func allowHealth() async {
+        askingStep = .health
         access = await driver.requestAuthorization()
+        askingStep = .reminder
         _ = await notifier.requestAuthorization()
+        askingStep = nil
         refreshLive()
         recheck()
     }

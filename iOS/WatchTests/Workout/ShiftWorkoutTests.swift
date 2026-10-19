@@ -441,6 +441,7 @@ struct ShiftWorkoutTests {
         driver.access = .notDetermined
         let workout = make()
         #expect(workout.needsHealthOnboarding)
+        #expect(workout.onboardingStep == .health)
         workout.reconcile(WorkoutInputs(confirmed: offClock(recordWorkouts: false)))
         #expect(!workout.needsHealthOnboarding)
         workout.reconcile(WorkoutInputs(confirmed: offClock(), outbox: [clockIn(minted, at: at(7, 0))]))
@@ -450,7 +451,7 @@ struct ShiftWorkoutTests {
 
         await workout.allowHealth()
         #expect(driver.authorizationRequests == 1 && notifier.authorizationRequests == 1)
-        #expect(!workout.needsHealthOnboarding)
+        #expect(!workout.needsHealthOnboarding && workout.onboardingStep == nil)
         await workout.settled()
         #expect(driver.calls.last == .start(at(7, 0), minted, .watchTap))
     }
