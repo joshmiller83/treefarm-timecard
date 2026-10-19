@@ -88,6 +88,29 @@ struct LocalStoreTests {
         #expect(try reopened.cursor(farmId: f.farmId) == 5)
     }
 
+    @Test func aWholeFarmOfMarksLoadsQuickly() throws {
+        // Josh's farm: 14 blocks of 61 rows x 10 trees. Every tree marked is the worst case.
+        let dir = try temporaryDirectory()
+        let blocks = (0..<14).map { _ in UUID() }
+        let marks = blocks.flatMap { block in
+            (0..<610).map { i in
+                TreeMark(seasonId: f.seasonId, tree: TreeRef(blockId: block, row: i / 10, position: i % 10), shiftId: f.shiftId,
+                         userId: f.userId, markedAt: Fixtures.t0)
+            }
+        }
+        do {
+            let store = try LocalStore.onDisk(directory: dir)
+            try store.activate(farmId: f.farmId)
+            try store.applyRemote(marks.enumerated().map { Change(seq: Int64($0.offset + 1), record: .treeMark($0.element)) },
+                                  farmId: f.farmId, cursor: Int64(marks.count))
+        }
+        let clock = ContinuousClock()
+        let reopened = try LocalStore.onDisk(directory: dir)
+        let elapsed = try clock.measure { try reopened.activate(farmId: f.farmId) }
+        #expect(reopened.snapshot.marks.count == 8_540)
+        #expect(elapsed < .seconds(5), "loading took \(elapsed)")
+    }
+
     @Test func theSnapshotHoldsOnlyTheActiveFarm() throws {
         let store = try makeStore()
         let other = Farm(name: "Elsewhere", timeZoneId: "UTC", updatedAt: Fixtures.t0)
