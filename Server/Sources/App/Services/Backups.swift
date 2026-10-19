@@ -69,11 +69,12 @@ enum Maintenance {
     }
 }
 
-/// While serving: checks every hour and backs up (then tidies) when the newest
-/// backup is a day old, so a backup happens at start-up if one is due and about
-/// every 24 hours after.
+/// A safety net while serving. launchd runs `Run backup` every night (see
+/// deploy/launchd); the server checks every hour, starting at boot, and backs up
+/// (then tidies) only when the newest backup is more than 25 hours old: a missed
+/// night, a Mac that was off, or a setup without the nightly job.
 final class BackupScheduler: LifecycleHandler, @unchecked Sendable {
-    static let interval: TimeInterval = 24 * 3600
+    static let maxAge: TimeInterval = 25 * 3600
     private let lock = NSLock()
     private var task: Task<Void, Never>?
 
@@ -89,7 +90,7 @@ final class BackupScheduler: LifecycleHandler, @unchecked Sendable {
 
     static func isDue(newest: Date?, now: Date) -> Bool {
         guard let newest else { return true }
-        return now.timeIntervalSince(newest) >= interval - 60
+        return now.timeIntervalSince(newest) >= maxAge
     }
 
     func didBootAsync(_ app: Application) async throws {

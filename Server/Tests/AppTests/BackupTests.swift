@@ -67,11 +67,13 @@ struct BackupTests {
         }
     }
 
-    @Test func aBackupIsDueAfterADay() {
+    /// launchd runs `backup` nightly; the server only steps in when a night was missed.
+    @Test func theServerBacksUpWhenANightWasMissed() {
         let now = Date(timeIntervalSince1970: 1_000_000)
         #expect(BackupScheduler.isDue(newest: nil, now: now))
         #expect(!BackupScheduler.isDue(newest: now.addingTimeInterval(-3600), now: now))
-        #expect(BackupScheduler.isDue(newest: now.addingTimeInterval(-24 * 3600), now: now))
+        #expect(!BackupScheduler.isDue(newest: now.addingTimeInterval(-24.5 * 3600), now: now))
+        #expect(BackupScheduler.isDue(newest: now.addingTimeInterval(-25 * 3600), now: now))
     }
 
     @Test func theServerBacksUpWhenItStartsIfNeeded() async throws {
