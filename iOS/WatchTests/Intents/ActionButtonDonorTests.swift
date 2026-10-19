@@ -1,4 +1,5 @@
 import Foundation
+import Observation
 import Testing
 import TreeFarmKit
 @testable import TimeCardWatch
@@ -16,10 +17,27 @@ struct ActionButtonDonorTests {
         func donate(_ next: ActionButtonNext) { donations.append(next) }
     }
 
-    func donor(sessionPossible: Bool = true) -> (ActionButtonDonor, RecordingDonations) {
+    /// The workout's recording status, as `ShiftWorkout.shared.live.recording` reports it.
+    @MainActor @Observable final class FakeRecording {
+        var status: WorkoutLive.Recording
+        init(_ status: WorkoutLive.Recording) { self.status = status }
+    }
+
+    func donor(_ status: WorkoutLive.Recording = .recording) -> (ActionButtonDonor, RecordingDonations) {
+        donor(FakeRecording(status))
+    }
+
+    func donor(_ recording: FakeRecording) -> (ActionButtonDonor, RecordingDonations) {
         let recorded = RecordingDonations()
-        let donor = ActionButtonDonor(donating: recorded, sessionPossible: { sessionPossible })
+        let donor = ActionButtonDonor(donating: recorded, recording: { recording.status })
         return (donor, recorded)
+    }
+
+    /// Waits (briefly) for the donor to hear about a change.
+    func eventually(_ condition: @MainActor () -> Bool) async {
+        for _ in 0..<200 where !condition() {
+            try? await Task.sleep(for: .milliseconds(10))
+        }
     }
 
     // MARK: Donations
@@ -69,10 +87,37 @@ struct ActionButtonDonorTests {
     }
 
     @Test func healthDeniedDonatesNothing() {
-        let (donor, recorded) = donor(sessionPossible: false)
+        let (donor, recorded) = donor(.notAuthorized)
         donor.update(F.working())
         donor.update(F.onLunch())
         #expect(recorded.donations.isEmpty)
+    }
+
+    @Test func aWorkoutThatStartsAfterThePhaseChangeDonatesAgain() async {
+        // The state says working before the session is running; a donation then may not count.
+        let recording = FakeRecording(.idle)
+        let (donor, recorded) = donor(recording)
+        donor.update(F.working())
+        #expect(recorded.donations == [.markNextRow])
+        recording.status = .recording
+        await eventually { recorded.donations.count == 2 }
+        #expect(recorded.donations == [.markNextRow, .markNextRow])
+        // A row is no change, and neither is a pause on lunch (the phase change donated it).
+        donor.update(F.working(chips: F.chips(from: 14, count: 39)))
+        donor.update(F.onLunch())
+        recording.status = .paused
+        try? await Task.sleep(for: .milliseconds(50))
+        #expect(recorded.donations == [.markNextRow, .markNextRow, .resumeWork])
+    }
+
+    @Test func healthDeniedLaterStopsDonating() async {
+        let recording = FakeRecording(.recording)
+        let (donor, recorded) = donor(recording)
+        donor.update(F.working())
+        recording.status = .notAuthorized
+        try? await Task.sleep(for: .milliseconds(50))
+        donor.update(F.onLunch())
+        #expect(recorded.donations == [.markNextRow])
     }
 
     // MARK: Presses
@@ -80,7 +125,7 @@ struct ActionButtonDonorTests {
     @Test func theFirstPressClocksInFromTheActionButton() async {
         let model = FakeIntentModel(F.offClock())
         var attached = 0
-        let said = await StartShiftWorkoutIntent(style: .treeShift).speak(model: model) { attached += 1 }
+        let said = await StartShiftWorkoutIntent(style: .treeShift).speak(model: model, sessionPossible: true) { attached += 1 }
         #expect(model.performed == [.clockIn(fieldId: nil)])
         #expect(model.sources == [.actionButton])
         #expect(attached == 0)
@@ -90,24 +135,54 @@ struct ActionButtonDonorTests {
     @Test func theFirstPressOnTheClockOnlyStartsTheWorkout() async {
         let model = FakeIntentModel(F.working())
         var attached = 0
-        let said = await StartShiftWorkoutIntent(style: .treeShift).speak(model: model) { attached += 1 }
+        let said = await StartShiftWorkoutIntent(style: .treeShift).speak(model: model, sessionPossible: true) { attached += 1 }
         #expect(model.performed.isEmpty)
         #expect(attached == 1)
         #expect(said == "Recording your shift.")
+    }
+
+    @Test func aPressOnTheClockWithRecordingOffSaysTheButtonNeedsWorkouts() async {
+        var state = F.working()
+        state.recordWorkouts = false
+        let model = FakeIntentModel(state)
+        var attached = 0
+        let said = await StartShiftWorkoutIntent(style: .treeShift).speak(model: model, sessionPossible: true) { attached += 1 }
+        // Nothing records, so it never says it does.
+        #expect(said == "Action button needs workouts on.")
+        #expect(attached == 0)
+        #expect(model.performed.isEmpty)
+    }
+
+    @Test func aPressOnTheClockWithHealthDeniedSaysTheButtonNeedsWorkouts() async {
+        let model = FakeIntentModel(F.onLunch())
+        var attached = 0
+        let said = await StartShiftWorkoutIntent(style: .treeShift).speak(model: model, sessionPossible: false) { attached += 1 }
+        #expect(said == WatchDisplay.actionButtonNeedsWorkouts)
+        #expect(attached == 0)
+        #expect(model.performed.isEmpty)
+    }
+
+    @Test func theFirstPressWithHealthDeniedStillClocksIn() async {
+        let model = FakeIntentModel(F.offClock())
+        var attached = 0
+        let said = await StartShiftWorkoutIntent(style: .treeShift).speak(model: model, sessionPossible: false) { attached += 1 }
+        #expect(model.performed == [.clockIn(fieldId: nil)])
+        #expect(attached == 0)
+        #expect(said == F.phoneSays(.clockIn(fieldId: nil)))
     }
 
     @Test func theFirstPressWithRecordingOffStillClocksIn() async {
         var state = F.offClock()
         state.recordWorkouts = false
         let model = FakeIntentModel(state, reach: .outOfReach)
-        let said = await StartShiftWorkoutIntent(style: .treeShift).speak(model: model) {}
+        let said = await StartShiftWorkoutIntent(style: .treeShift).speak(model: model, sessionPossible: true) {}
         #expect(model.performed == [.clockIn(fieldId: nil)])
         #expect(said == WatchDisplay.savedForSiri)
     }
 
     @Test func theFirstPressWithNoStateSaysWhy() async {
         let model = FakeIntentModel(nil, reach: .outOfReach)
-        #expect(await StartShiftWorkoutIntent(style: .treeShift).speak(model: model) {} == WatchDisplay.neverConnected)
+        #expect(await StartShiftWorkoutIntent(style: .treeShift).speak(model: model, sessionPossible: true) {} == WatchDisplay.neverConnected)
         #expect(model.performed.isEmpty)
     }
 
@@ -150,7 +225,7 @@ struct ActionButtonDonorTests {
 
     @Test func theButtonNeverClocksOut() async {
         let model = FakeIntentModel(F.working())
-        _ = await StartShiftWorkoutIntent(style: .treeShift).speak(model: model) {}
+        _ = await StartShiftWorkoutIntent(style: .treeShift).speak(model: model, sessionPossible: true) {}
         _ = await MarkNextRowIntent().speak(model: model)
         _ = await PauseShiftIntent().speak(model: model)
         _ = await ResumeShiftIntent().speak(model: model)

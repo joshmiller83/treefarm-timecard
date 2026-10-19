@@ -7,7 +7,8 @@ import TreeFarmKit
 // default `openAppWhenRun`: they run in the app that owns the shift's workout session.
 //
 // - First press: `StartShiftWorkoutIntent` clocks in and records (or, with a shift already on
-//   the clock, only starts its workout).
+//   the clock, only starts its workout). With recording off or Health denied it still clocks
+//   in, and on the clock says "Action button needs workouts on."
 // - Later presses: the donated next action, `MarkNextRowIntent` while working or
 //   `ResumeWorkIntent` on lunch or a break (`ActionButtonDonor`).
 // - Action + side button: `PauseShiftIntent` (lunch, then breaks), `ResumeShiftIntent`.
@@ -44,13 +45,15 @@ struct StartShiftWorkoutIntent: StartWorkoutIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
-        let said = await speak(model: WatchIntentRunner.model) { WatchIntentRunner.attachWorkout() }
+        let said = await speak(model: WatchIntentRunner.model, sessionPossible: ActionButtonDonor.workoutsPossible()) {
+            WatchIntentRunner.attachWorkout()
+        }
         return .result(dialog: .say(said))
     }
 
     @MainActor
-    func speak(model: any WatchIntentModel, attachWorkout: () -> Void) async -> String {
-        await WatchVoice.startShift(model, attachWorkout: attachWorkout)
+    func speak(model: any WatchIntentModel, sessionPossible: Bool, attachWorkout: () -> Void) async -> String {
+        await WatchVoice.startShift(model, sessionPossible: sessionPossible, attachWorkout: attachWorkout)
     }
 }
 

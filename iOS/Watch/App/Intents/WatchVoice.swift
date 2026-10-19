@@ -113,8 +113,13 @@ enum WatchVoice {
 
     /// The Action button's first press: clock in (the workout starts through reconcile), or
     /// with a shift already on the clock, only start or attach its workout.
-    static func startShift(_ model: any WatchIntentModel, attachWorkout: () -> Void) async -> String {
-        if model.displayed?.isClockedIn == true {
+    ///
+    /// With recording off or Health denied (`sessionPossible` false) there's no session, so
+    /// every press is a first press: it still clocks in, but on the clock it records nothing
+    /// and says so (docs/watch.md 2.7).
+    static func startShift(_ model: any WatchIntentModel, sessionPossible: Bool, attachWorkout: () -> Void) async -> String {
+        if let state = model.displayed, state.isClockedIn {
+            guard state.recordWorkouts, sessionPossible else { return WatchDisplay.actionButtonNeedsWorkouts }
             attachWorkout()
             return WatchDisplay.recordingYourShift
         }
