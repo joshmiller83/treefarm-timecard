@@ -175,6 +175,25 @@ registerScene(
       ScrollTrigger.addEventListener('refreshInit', pinZoom);
       cleanups.push(() => ScrollTrigger.removeEventListener('refreshInit', pinZoom));
     }
+    // Mobile: the controls card hangs past the end of the track (it arrives after the island
+    // card); the section's tail is as tall as the overhang, plus a gap, so it never covers the
+    // field chapter's heading. Measured from layout offsets, so scrolling never changes it.
+    const controlsCard = section.querySelector<HTMLElement>('.ls-controls-beat');
+    const tail = () => {
+      if (useCallouts || !controlsCard) return;
+      const track = controlsCard.offsetParent as HTMLElement | null;
+      if (!track) return;
+      const over = controlsCard.offsetTop + controlsCard.offsetHeight - track.offsetHeight;
+      section.style.setProperty('--ls-tail', `${Math.max(0, Math.ceil(over + 40))}px`);
+    };
+    if (!useCallouts) {
+      tail();
+      ScrollTrigger.addEventListener('refreshInit', tail);
+      cleanups.push(() => {
+        ScrollTrigger.removeEventListener('refreshInit', tail);
+        section.style.removeProperty('--ls-tail');
+      });
+    }
     /** The island close-up: mobile, and stage phones too small to read the island at 1×. */
     const islandClose = () =>
       islandZoom({ phone: phoneBox(), viewportWidth: innerWidth, gutter: gutter(), desk: useCallouts, top: useCallouts ? undefined : 10 });
@@ -259,8 +278,10 @@ registerScene(
       // The caption slot: notes [.19, .5], the tap [.515, .66], the island [.69, .87].
       const card = (sel: string, a: number, b: number) => {
         const el = section.querySelector<HTMLElement>(sel);
-        fromTo(el, { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.02, ease: 'power2.out', immediateRender: true }, a);
-        to(el, { opacity: 0, y: -10, duration: 0.018, ease: 'power1.in' }, b);
+        // autoAlpha: a card at 0 is visibility: hidden too, so it never takes a tap or a
+        // screen reader's touch while it waits over the other chapters (it is position: fixed).
+        fromTo(el, { autoAlpha: 0, y: 14 }, { autoAlpha: 1, y: 0, duration: 0.02, ease: 'power2.out', immediateRender: true }, a);
+        to(el, { autoAlpha: 0, y: -10, duration: 0.018, ease: 'power1.in' }, b);
       };
       card('.ls-notes-beat', 0.185, 0.505);
       card('.ls-tap-beat', 0.52, 0.665);

@@ -380,14 +380,24 @@ const undoNote = CALLOUTS.find((c) => c.n === 5)!;
       max-width: 34rem;
       margin-inline: auto;
       translate: none;
+      /* Hidden (not just transparent) until the scene fades a card in with autoAlpha: an
+         idle card never catches a tap or a screen reader's touch over another chapter. */
       opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
       z-index: 6;
     }
     /* The last card hangs from its top, so it arrives only after the island beat's card
-       has gone, and finishes coming up as the section scrolls away. */
+       has gone, and finishes coming up as the section scrolls away. It is taller than what
+       is left of the track, so the section keeps a tail as tall as its overhang (the scene
+       measures it as --ls-tail; the default is close for a 320vh track) and the card lands
+       in its own chapter, never over the field's heading. */
     html.motion .sec-lock-screen[data-mob='sticky'][data-layout='beats'] .beat.ls-controls-beat {
       --at: 0.95 !important;
       translate: 0 0;
+    }
+    html.motion .sec-lock-screen[data-mob='sticky'][data-layout='beats'] {
+      padding-bottom: var(--ls-tail, max(0px, 640px - 37svh));
     }
     /* In card 1 the ghost waits for card 2. */
     html.motion .sec-lock-screen .ls-note-ghost {
