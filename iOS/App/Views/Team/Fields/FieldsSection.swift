@@ -4,8 +4,11 @@ import TimeCardCore
 /// Every field with a small map of its blocks. A field opens its editor; archived fields
 /// sit at the bottom and can be put back.
 struct FieldsSection: View {
+    /// Opens a field's editor (a new field opens right away, so its blocks come next).
+    var open: (UUID) -> Void
     @Environment(TimeCardSession.self) private var session
     @State private var adding = false
+    @State private var added: UUID?
 
     var body: some View {
         let snapshot = session.snapshot
@@ -64,8 +67,11 @@ struct FieldsSection: View {
                 }
             }
         }
-        .sheet(isPresented: $adding) {
-            FieldNameSheet(field: nil)
+        .sheet(isPresented: $adding, onDismiss: {
+            if let added { open(added) }
+            added = nil
+        }) {
+            FieldNameSheet(field: nil) { added = $0 }
         }
     }
 }
@@ -104,6 +110,8 @@ private struct FieldCard: View {
 /// Names a new field, or renames one.
 struct FieldNameSheet: View {
     var field: Field?
+    /// Called with a new field's id after it's saved.
+    var onAdded: (UUID) -> Void = { _ in }
     @Environment(TimeCardSession.self) private var session
     @Environment(\.dismiss) private var dismiss
     @State private var name = ""
@@ -145,7 +153,12 @@ struct FieldNameSheet: View {
         let edit = field.map { FieldPlans.rename($0, to: name, now: Date()) }
             ?? FieldPlans.add(name: name, farmId: farm.id, fields: Array(session.snapshot.fields.values), now: Date())
         do {
-            if let text = try TeamSave.apply(edit, in: session) { problem = text } else { dismiss() }
+            if let text = try TeamSave.apply(edit, in: session) {
+                problem = text
+                return
+            }
+            if field == nil, case .save(let records) = edit, case .field(let new)? = records.first { onAdded(new.id) }
+            dismiss()
         } catch {
             problem = error.localizedDescription
         }

@@ -3,8 +3,9 @@ import TimeCardCore
 
 /// The crew with this week's hours, who's on the clock, and the farm's invites.
 struct CrewSection: View {
+    /// Owned by the tab, so the list survives switching sections and reloads on pull to refresh.
+    var invites: InvitesModel?
     @Environment(TimeCardSession.self) private var session
-    @State private var invites: InvitesModel?
     @State private var inviting = false
 
     var body: some View {
@@ -12,10 +13,6 @@ struct CrewSection: View {
             VStack(alignment: .leading, spacing: 16) {
                 content(now: timeline.date)
             }
-        }
-        .task {
-            if invites == nil { invites = InvitesModel(session: session) }
-            await invites?.load()
         }
         .sheet(isPresented: $inviting) {
             if let invites { InviteSheet(invites: invites) }

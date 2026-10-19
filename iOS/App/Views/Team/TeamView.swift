@@ -19,6 +19,7 @@ struct TeamView: View {
     @Environment(TimeCardSession.self) private var session
     @State private var section: Section = TeamScenario.section ?? .crew
     @State private var path: [Route] = []
+    @State private var invites: InvitesModel?
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -30,8 +31,8 @@ struct TeamView: View {
                         (.season, "Season", "team-section-season"),
                     ], selection: $section)
                     switch section {
-                    case .crew: CrewSection()
-                    case .fields: FieldsSection()
+                    case .crew: CrewSection(invites: invites)
+                    case .fields: FieldsSection { path.append(.field($0)) }
                     case .season: SeasonSection()
                     }
                 }
@@ -47,9 +48,16 @@ struct TeamView: View {
                 case .field(let id): FieldEditorView(fieldId: id)
                 }
             }
-            .refreshable { await session.requestSync(.manual) }
+            .refreshable {
+                await session.requestSync(.manual)
+                if section == .crew { await invites?.load() }
+            }
         }
         .task {
+            if invites == nil {
+                invites = InvitesModel(session: session)
+                await invites?.load()
+            }
             guard model.mode != .live else { return }
             await TeamScenario.applyIfRequested(session)
         }

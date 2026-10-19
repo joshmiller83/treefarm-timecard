@@ -117,6 +117,32 @@ final class TeamUITests: XCTestCase {
         shot("field-after-add", app)
     }
 
+    func testANewFieldOpensForItsFirstBlock() {
+        let app = launch(["-UITestTeamSection", "fields"])
+        let add = app.buttons["field-add"]
+        XCTAssertTrue(add.waitForExistence(timeout: 10))
+        reveal(add, in: app)
+        add.tap()
+        let name = app.textFields["field-name"]
+        XCTAssertTrue(name.waitForExistence(timeout: 5))
+        name.typeText("South Field")
+        app.buttons["field-name-save"].tap()
+
+        XCTAssertTrue(app.navigationBars["South Field"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["No blocks yet"].exists)
+        app.buttons["block-add"].tap()
+        let placement = app.buttons["block-placement"]
+        XCTAssertTrue(placement.waitForExistence(timeout: 5))
+        XCTAssertTrue(placement.label.contains("The first block"), placement.label)
+        XCTAssertEqual(app.textFields["block-name"].value as? String, "1")
+        let save = app.buttons["block-save"]
+        reveal(save, in: app)
+        save.tap()
+        let block = element("block-row-Block 1", in: app)
+        XCTAssertTrue(block.waitForExistence(timeout: 5))
+        XCTAssertTrue(block.label.contains("20 rows of 10 trees"), block.label)
+    }
+
     func testTheOnlyAdminCannotStepDown() {
         let app = launch()
         let alex = element("crew-Alex Rivera", in: app)
