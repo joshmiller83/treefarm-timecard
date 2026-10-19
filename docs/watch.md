@@ -520,7 +520,7 @@ There's no pay, ever, because bystanders can see a wrist. `WatchState` doesn't c
 
 - **The watch app ships its own `AppShortcutsProvider` (`WatchShortcuts`).** App Shortcuts from the iPhone app don't run on the watch. Flexible matching is off there, so phrases must match exactly. With the phone in a pocket, the watch usually answers "Hey Siri". [UI-F12, UI-P8]
 - **Display name and aliases:** `CFBundleDisplayName` is "Time Card", and `INAlternativeAppNames` are "Tree Card" and "Tree Farm".
-- **The phrase source of truth is `docs/voice-test.md` plus the table below.** `docs/voice-test.md` gets a watch column with the same wording. The phone has no `AppShortcutsProvider` on main yet; when it gets one, it copies these phrases, not the other way round.
+- **The phrase source of truth is `docs/voice-test.md` plus the table below.** `docs/voice-test.md` has the watch's list in its "Apple Watch" section, with the same wording. The phone's `TimeCardShortcuts` keeps its own, wider list (the phone has flexible matching); a watch phrase is always one the phone also understands.
 - **The Siri opt-in:** a declined App Shortcuts opt-in on watchOS 26.6 has been reported impossible to re-enable or detect. SetupScreen warns about it (3.1), and the device checklist covers it. [UI-F12]
 
 An app may have at most 10 App Shortcuts, and these are the 10. Every phrase ends in "in \(.applicationName)" and also exists with "with \(.applicationName)":
@@ -598,7 +598,7 @@ All of these intents live in the **watch app target**, not an extension, and kee
 
 ### 4.4 The iPhone Live Activity on the watch (`.small` family) [SYS-F1–F5, SYS-R5]
 
-**Depends on the iPhone Live Activity work, which isn't on main yet.** Today `TimeCardLiveActivity.swift` is a placeholder and `LiveActivityController.update` is an empty stub. Slice c adds the `.small` family only once the real lock-screen activity and its controller (with the 8-hour restart) have landed (8.1).
+**The iPhone Live Activity work is on the `watch` branch** (merged from `app`): the real lock-screen activity with its row buttons, and `LiveActivityController` with the restart and `.immediate` dismissal. So slice c builds the `.small` family now (8.1).
 
 **What the watch needs from that activity:**
 - `ActivityConfiguration(for: TimeCardActivityAttributes.self)` gains `.supplementalActivityFamilies([.small])`, which needs iOS 18 (section 5). Its lock-screen closure branches on `@Environment(\.activityFamily)`.
@@ -628,7 +628,7 @@ Working                                      Lunch / break
 ### 4.5 Controls
 
 **No watch-native controls in v1.**
-- On watchOS 26, an iPhone app's Control Center controls can be placed in the watch's Control Center and Smart Stack, and they run on the phone. [UI-F11] The iPhone app has no controls on main yet. When they ship (Clock In, Next Row, Break), the watch gets them with no watch code.
+- On watchOS 26, an iPhone app's Control Center controls can be placed in the watch's Control Center and Smart Stack, and they run on the phone. [UI-F11] The iPhone app's controls (Clock In, Next Row, Break, in `iOS/Widgets/TimeCardControls.swift`) reach the watch this way with no watch code.
 - Shipping watch-built controls would **hide** the iPhone ones from the watch. [SYS-F9, SYS-P13]
 - Watch-built control intents run in the widget extension, which has no WCSession and no outbox. [SYS-P9]
 - Ultra owners already get the Action button (4.2), and everyone gets Double Tap.
@@ -1058,7 +1058,7 @@ Run everything **detached from Xcode**, because the debugger stops suspension. [
 2. **Slices a, b, c and d run in parallel**, each only inside its own folders. Each opens with failing tests.
 3. **The lead integrates:** pair the simulators, run 7.3 and 7.4, then the device checklist. The lead also merges each slice's edge-case lines (from its PR description) into `docs/edge-cases.md`.
 
-**Prerequisite for slice c's Live Activity part:** the real iPhone Live Activity (lock-screen layout with row buttons), its `LiveActivityController` (with the 8-hour restart and `.immediate` dismissal) and the iPhone Control Center controls must be on main first. Until then, slice c builds only the watch complications and `ComplicationReload`, and leaves `LiveActivitySmall.swift` for a follow-up PR.
+**Prerequisite for slice c's Live Activity part:** the real iPhone Live Activity (lock-screen layout with row buttons), its `LiveActivityController` (with the 8-hour restart and `.immediate` dismissal) and the iPhone Control Center controls. All three are on the `watch` branch, so slice c builds `LiveActivitySmall.swift` too.
 
 **No slice edits a file another slice owns.** If a contract or a plist key has to change, stop and ask the lead, who changes it in slice 0's files for everyone.
 
@@ -1279,7 +1279,35 @@ The intents (names in 4.1 and 4.2) call only `WatchShiftModel.shared` and `Shift
 - `WatchShiftModel` registers these observers at launch: `ShiftWorkout.shared.reconcile(change.workout)`, `ActionButtonDonor.shared.update(change.displayed)`, the shortcut-parameter refresh, and `WatchStateFile.write` followed by `WidgetCenter.reloadTimelines` when `ComplicationReload.needsReload` is true.
 - `AppModel.liveSnapshotChanged` calls `watch.publish(reason: .fieldAction)`.
 
-### 8.4 Definition of done (per slice)
+### 8.4 What slice 0 landed (read this before starting a slice)
+
+Everything in 8.3 compiles on the `watch` branch, the TreeFarmKit and TimeCardCore parts with tests, and every type another slice owns is a stub marked `// STUB: slice X replaces` with its final signature. Replace a stub in place, in its own file; keep its name and signature, because other slices call it.
+
+**Building and testing**
+- Apple tools always run with `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`, with `-derivedDataPath` inside your worktree (`iOS/DerivedData` and `iOS/build` are git-ignored).
+- **Every new watch and iPhone-watch folder is an Xcode synced folder** (`type: syncedFolder` in `project.yml`): `iOS/Watch/App/**`, `iOS/Watch/Shared`, `iOS/Watch/Widgets`, `iOS/WatchLink`, `iOS/WatchTests/**`, `iOS/WatchUITests`, `iOS/App/Watch` and `iOS/Tests/Watch`. **Add files there and they build; never run `xcodegen` or commit `TimeCard.xcodeproj`** (slice 0 owns it). A new file anywhere else in the iPhone targets needs the lead.
+- Files that sit in ordinary groups were made for you as stubs: `iOS/App/Views/Settings/WatchSettingsSection.swift` (d), `iOS/Widgets/LiveActivitySmall.swift` (c; it is also built into the app, so `TimeCardTests` can render it) and `iOS/Tests/LiveActivity/LiveActivitySmallTests.swift` (c).
+- Watch tests: **boot the watch simulator first** (`xcrun simctl boot <id>; xcrun simctl bootstatus <id> -b`), then `xcodebuild test -project iOS/TimeCard.xcodeproj -scheme TimeCardWatch -only-testing:TimeCardWatchTests -destination 'platform=watchOS Simulator,id=<id>'`. On a watch that is still booting, the run fails with "Unknown application display identifier".
+- The iPhone scheme `TimeCard` builds the watch app too (it is embedded), so an iPhone build catches watch compile errors.
+- Xcode builds TreeFarmKit as a dynamic framework when the app and a test bundle both link it, so `FakeWatchTransport` and the app share one copy of every type.
+
+**Contract details settled here**
+- Every `Data` on the transport is a `WatchEnvelope`, also in the application context and the complication user info (a `.state` envelope under `"tc.state"`, with `"v": 1`). `WCSessionTransport` (`iOS/WatchLink`) does the mapping, delivers `receivedApplicationContext` once after activation, reports `needsUnlock` on the watch, and re-announces `.activated` on the iPhone's `sessionWatchStateDidChange`.
+- `WatchTransportError` (`notActivated`, `notReachable`, `timedOut`, `failed`), `WatchEventLedger` (the `drained()` counter) and `DisconnectedWatchTransport` (no watch: the iPhone app uses it in UI-test mode and in test hosts) are in `WatchTransport.swift`.
+- `WatchDisplay` holds every string and glyph in sections 3 and 4, including the complication lines (`rectangularTitle`, `rectangularDetail`, `inlineDetail`, `circularHours`, `rowNumber`, `cornerRow`) and the small Live Activity lines (`smallTitle`, `smallDetail`). `WatchPhase` (`noData`, `signedOut`, `offClock`, `working`, `lunch`, `onBreak`) and `WatchDisplay.Primary` (what the big button does, and `command(for:)`, which always sends `markRow` for the shown chip) live there too. `PhoneReach` is `WatchDisplay.Reach`. A string a slice needs that isn't there: ask the lead.
+- `WatchOptimism.displayed(confirmed:pending:)` sorts by `issuedAt`, counts each id once, skips `appliedRequestIds`, and aliases a pending clock-in that the open shift will refuse, as the desk does.
+- `WatchStateFile.Contents` has `displayed`, `waitingCount` and `clockOutWaiting` (for "Clock-out waiting for iPhone" on the rectangular complication).
+- `WatchState`'s new fields have defaults (`epoch: WatchState.noEpoch`, `revision: 0`, …), so tests can build states by hand; the phone always sets real ones. `WatchState.signedOut` sends `recordWorkouts: true`.
+- `CourierResult`, `CourierEvent` (slice a); `WorkoutLive`, `WorkoutInput`, `HealthAccess`, `WorkoutDriverEvent` (slice b); `PublishReason`, `WatchLinkStatus`, `WatchSettings.load(from:userId:)` and `save(_:to:userId:)` (slice d); `WatchLaunchResult`, `HealthKitWatchLauncher` and `UnavailableWatchLauncher` (slice b) are declared in the stubs. `AppModel` builds the launcher types and calls `WatchSettings.load`, so keep those names.
+- `WatchShiftModel` has an `activate()` (the app delegate calls it first). `WatchToast` and `WatchHapticEvent` are in the stubs.
+- `AppModel` makes the bridge in `init` (`watch`), awaits one `startTask`, and calls `watch.publish(reason:)` on field actions, after starting, on scene activation, and when the session's records or signed-in person change (`.sync`, `.signIn`, `.signOut`). `AppEnvironment.makeModel(mode:watchTransport:)` takes a fake transport for tests.
+- `FieldActions.perform(_:at:newShiftId:)` stamps records with its own clock (`now()`, the receive time) and keeps undo pointing at the new stamps; it never asks `confirmation(for:)`.
+- `FieldEngine.cancelShift` refuses a shift that isn't the open one with "That shift isn’t the one on the clock, so nothing was cancelled."; success says "Cancelled the clock-in at 7:02." with the last action "Clock-in cancelled".
+- The watch app cannot link `TreeFarmKitTestSupport`, so the `-watchDemo` scripted phone (7.3) is the app's own transport (slice a).
+
+**Signing:** simulator builds only so far. A device build wasn't attempted, so no App IDs were registered on the Personal Team (each new id and capability counts toward its weekly limit, 6).
+
+### 8.5 Definition of done (per slice)
 
 - Its tests are written first and are green: `swift test` in TreeFarmKit and TimeCardCore, and `xcodebuild test` for the `TimeCard` and `TimeCardWatch` schemes.
 - No file outside its row was touched.

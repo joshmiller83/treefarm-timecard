@@ -87,3 +87,22 @@ All of these, plus Add a Note, Note a Tree, Mark Trees and Fix My Start Time on 
 ## Checked automatically
 
 `ShortcutsUITests` (UI tests) runs a field day through the Shortcuts app in the simulator: clock in, next row, a row by name, lunch, back to work, how many trees, and clock out with "no" then "yes". `VoiceCommandsTests` and `IntentShellTests` (unit tests) check every command's words, changes and failures against the demo farm, and `ShortcutPhraseTests` checks the built phrase list: every phrase names the app, ten App Shortcuts, one parameter at most.
+
+## Apple Watch
+
+The watch app ships its own ten App Shortcuts (the iPhone's don't run on the watch), and flexible matching is off there, so the phrases below are the whole list: each one ends in "in Time Card" and also exists with "with Time Card". The watch answers with the iPhone's sentence when the phone is in reach; with the phone away, a command waits on the watch and Siri says "Saved on your watch. It'll reach your phone when it's back in range." (docs/watch.md 4.1). Accept the App Shortcuts opt-in the first time: a "no" on watchOS 26 has been reported impossible to undo.
+
+| # | Command | Say (each + "in Time Card" / "with Time Card") | Phone in reach | Phone away |
+|---|---|---|---|---|
+| W1 | Clock in (opens the app, starts the workout) | Clock in · Punch in · Start work · Start my shift | Clocked in at <time>. You're on block 1, row 1. | Saved on your watch… (the workout starts at once) |
+| W2 | Clock out | Clock out · Punch out · End my shift · Stop work | Asks: You've worked <time> today. Clock out? Then the phone's sentence | Asks the same; then Saved on your watch… |
+| W3 | Lunch | Take lunch · Start lunch | Lunch started at <time>. | Saved on your watch… |
+| W4 | A break | Take a break · Start a break | Break started at <time>. | Saved on your watch… |
+| W5 | Back to work | Back to work · End my break | Back at <time>. Lunch was <n> minutes. | Saved on your watch… |
+| W6 | Next row | Next row · Row done · Mark the next row | Row 14 marked, <n> trees. Next is row 15. | Saved on your watch…; with no row the watch knows: Out of rows the watch knows. Bring your phone closer. |
+| W7 | A row by number | Mark <row> · <row> done; "Mark a row" asks "Which row?" | Row 14 marked…; a row more than 5 away or in another block asks first | Asks the same; then Saved on your watch… |
+| W8 | Undo | Undo · Undo that | Undid row 14. | A tap still waiting: Took back row 15. It wasn't sent yet. Otherwise: Undo needs your phone nearby. |
+| W9 | Status | How long have I worked · How many trees · What row am I on · What's my pace | One answer covering all four, from the phone | The same from the watch, with "as of <time>" |
+| W10 | A note | Add a note | Asks: What's the note? Then: Added to today's notes. | Asks the same; then Saved on your watch… |
+
+Watch checks: with no state yet, every command says "Open Time Card on your iPhone once." Signed out on the phone: "Open Time Card on your iPhone to sign in." Pay, moving blocks, tree notes and the start time are phone-only (raise the phone or use AirPods).
