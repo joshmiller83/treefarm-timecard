@@ -13,7 +13,7 @@ import type { SplitText as Split } from 'gsap/SplitText';
 import type { Flip as FlipPlugin } from 'gsap/Flip';
 import type { ChapterId, TintKey } from '../data/chapters.ts';
 import type { Minute } from '../data/ledger.ts';
-import type { Day } from './dayclock.ts';
+import type { Day, DayClockRuntime } from './dayclock.ts';
 import type { Stage } from './stage.ts';
 import type { Util } from './util.ts';
 
@@ -37,6 +37,11 @@ export interface SceneContext {
   q1: <T extends Element = HTMLElement>(selector: string) => T | null;
   /** The shared DayClock: day.to(tl, minute, start, end, fromMinute?). */
   day: Day;
+  /**
+   * The DayClock runtime's real-time tick: wake() stops it and drops its seconds, idle()
+   * starts the up-to-5-second tick (the hero starts the Live Activity's timer as it lands).
+   */
+  clock: Pick<DayClockRuntime, 'wake' | 'idle'>;
   /** True in the 'desk' context (stage phone in use). */
   isDesk: boolean;
   util: Util;

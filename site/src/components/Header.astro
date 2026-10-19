@@ -409,7 +409,7 @@ const n = CHAPTERS.length - 1;
     :global(html:not(.motion)) {
       scroll-padding-top: calc(var(--chrome-h) + 56px);
     }
-    :global(html:not(.motion)) .site-header {
+    :global(html:not(.motion)) .site-header:not([data-theme='light']) {
       background: rgba(8, 20, 13, 0.94);
     }
     .shift-list a {

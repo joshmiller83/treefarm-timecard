@@ -28,23 +28,13 @@
  * html.hero-intro is on while part of the sequence is playing, and html[data-hero-intro] is
  * 'playing', 'waiting' (the mobile phone's half) or 'done'; 'tf:hero-intro' fires on each change.
  */
-import { registerScene, type SceneContext } from '../scene.ts';
+import { registerScene } from '../scene.ts';
 import { PAUSE_EVENT } from '../header.ts';
 import { MOMENTS } from '../../data/ledger.ts';
 import { BANDS, INTRO, MOBILE_SCALE, SCROLL, cue, type Cue } from '../../sections/hero/hero.ts';
 
 /** The sequence plays once per page view: a rebuilt scene (breakpoint change) shows the end state. */
 let played = false;
-
-/**
- * The DayClock runtime's real-time tick. The motion core is to pass it to scenes as ctx.clock
- * (not in SceneContext yet): until it does, these hooks do nothing and the timer simply
- * keeps the motion core's own post-load tick.
- */
-interface ClockLike {
-  wake(): void;
-  idle(): void;
-}
 
 registerScene(
   'hero',
@@ -53,7 +43,7 @@ registerScene(
     const root = document.documentElement;
     const scale = isDesk ? 1 : MOBILE_SCALE;
     const k = (c: Cue) => cue(c, scale);
-    const clock = (ctx as SceneContext & { clock?: ClockLike }).clock;
+    const { clock } = ctx;
     const cleanups: Array<() => void> = [];
 
     // The day holds at 7:02 through the hero.

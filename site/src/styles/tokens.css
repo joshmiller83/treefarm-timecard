@@ -14,6 +14,7 @@
   --fir-lit: #88cfa4; /* pills and links on dark */
   --fir-mid: #2e7a4e; /* key-light glow, progress fills; white on it 5.2:1 */
   --card-dark: #10221a;
+  --rust-lit: #d4502f; /* rust that reads on the stage: strikes and flags on dark (~4.5:1) */
 
   /* ---- Paper (light) ---- */
   --bg: #ecf1ec;

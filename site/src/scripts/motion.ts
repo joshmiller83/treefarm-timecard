@@ -186,6 +186,7 @@ export function boot(): void {
           return null;
         },
         day,
+        clock,
         isDesk: desk,
         util,
         gsap,

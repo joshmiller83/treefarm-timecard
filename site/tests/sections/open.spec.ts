@@ -214,9 +214,6 @@ test.describe('reduced motion', () => {
 
   test('the header stays readable over this light chapter (static desktop page)', async ({ page }) => {
     test.skip((page.viewportSize()?.width ?? 0) < 900, 'the static header bar is desktop-only');
-    // Deferred to Header.astro's owner: the static desktop bar keeps its dark background while
-    // the light theme switches its text to ink. Remove this line once that fix lands.
-    test.fail(true, 'Header.astro: html:not(.motion) .site-header outranks [data-theme=light]');
     await page.goto('/');
     await page.locator('#open').evaluate((s) => window.scrollTo(0, s.getBoundingClientRect().top + scrollY + 200));
     const header = page.locator('[data-header]');
