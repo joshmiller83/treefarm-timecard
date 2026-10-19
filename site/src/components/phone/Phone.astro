@@ -17,7 +17,7 @@
  * Nothing here animates anything but transform and opacity; shadows and glows are baked.
  */
 export interface Props {
-  /** aria-label for the role="img" root (required unless decorative). */
+  /** aria-label for the role="img" root. Required unless decorative: the build fails without one. */
   label?: string;
   /** CSS length for the height; the width follows the 420 : 879 frame. Default: var(--phone-h). */
   height?: string;
@@ -29,7 +29,11 @@ export interface Props {
 }
 
 const { label, height, variant = 'inline', decorative = false, class: cls } = Astro.props;
-const hidden = decorative || !label;
+// A figure screen readers skip must be a choice, never a missing prop: fail the build loudly.
+if (!decorative && !label?.trim()) {
+  throw new Error('Phone: pass a label (what the screen shows), or decorative for the stage phone.');
+}
+const hidden = decorative;
 ---
 
 <div

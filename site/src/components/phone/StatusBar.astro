@@ -7,7 +7,8 @@
  *
  * Hooks: [data-clock] (DayClock writes the time), [data-bar="1".."4"] (signal bars; the
  * crew's offline beat fades them one by one), [data-no-service] (hidden unless offline;
- * fade it in where the bars were), [data-wifi], [data-battery].
+ * fade it in where the bars were), [data-wifi], [data-battery] (the level, 0–100, on the
+ * root; [data-battery-low] marks 20% and below, where the level is drawn red as on iOS).
  */
 export interface Props {
   /** Shown before DayClock takes over; e.g. '7:02'. Default '7:02'. */
@@ -39,6 +40,8 @@ const {
 } = Astro.props;
 
 const level = Math.max(0, Math.min(100, battery));
+/** iOS draws the battery level red at 20% and below (on light and dark bars alike). */
+const low = level <= 20;
 const BAR_H = [4.2, 6.5, 8.8, 11.1];
 // Wi-Fi: two arcs and a wedge, fanned ±42° around straight up from (cx, cy).
 const cx = 7.75;
@@ -67,6 +70,7 @@ const wedge = (() => {
   class:list={['sb', `sb--${tone}`, noService && 'sb--offline']}
   data-statusbar
   data-battery={level}
+  data-battery-low={low ? '' : undefined}
 >
   <span class:list={['sb-left', !showTime && 'sb-left--hidden']}>
     <span class="sb-time" data-clock={live ? '' : 'fixed'}>{time}</span>
@@ -100,7 +104,7 @@ const wedge = (() => {
     </svg>
     <svg class="sb-battery" viewBox="0 0 27.6 13">
       <rect x="0.5" y="0.5" width="24.6" height="12" rx="3.9" fill="none" stroke="currentColor" stroke-opacity="0.38"></rect>
-      <rect x="2.4" y="2.4" width={(20.8 * level) / 100} height="8.2" rx="2.1" fill="currentColor"></rect>
+      <rect x="2.4" y="2.4" width={(20.8 * level) / 100} height="8.2" rx="2.1" fill={low ? '#FF3B30' : 'currentColor'}></rect>
       <path d="M26.2 4.4c.8.25 1.4 1 1.4 2.1s-.6 1.85-1.4 2.1z" fill="currentColor" fill-opacity="0.42"></path>
     </svg>
   </span>
