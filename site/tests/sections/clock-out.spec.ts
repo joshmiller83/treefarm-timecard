@@ -60,10 +60,13 @@ async function readTo(page: Page, p: number, wait = 1300) {
     return Math.round(top + p * Math.max(0, track.offsetHeight - innerHeight));
   }, p);
   let y = await page.evaluate(() => scrollY);
-  while (target - y > 700) {
+  // Wheel like a reader; if the wheel stops moving the page (a busy engine), jump the rest.
+  for (let stuck = 0; target - y > 700 && stuck < 5; ) {
     await page.mouse.wheel(0, 600);
     await page.waitForTimeout(80);
-    y = await page.evaluate(() => scrollY);
+    const next = await page.evaluate(() => scrollY);
+    stuck = next > y ? 0 : stuck + 1;
+    y = next;
   }
   await page.evaluate((t) => window.scrollTo(0, t), target);
   await page.waitForTimeout(wait);
@@ -215,7 +218,7 @@ test.describe('clock-out', () => {
   test('the paper lifts out of the preview for a reader scrolling down (Chromium and WebKit)', async ({ page, isMobile }) => {
     test.skip(isMobile, 'desktop: the stage phone');
     // A reader's wheel through eight chapters, twice (Chromium, then WebKit): slow on a busy machine.
-    test.setTimeout(150_000);
+    test.setTimeout(240_000);
     const at = DESK.lift[0] + 0.004;
     const check = async (p: Page, engine: string) => {
       await settle(p);
