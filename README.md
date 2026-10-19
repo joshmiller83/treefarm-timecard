@@ -28,6 +28,10 @@ Everything is built test-first. The domain rules live in `TreeFarmKit` so they'r
 swift test --package-path Packages/TreeFarmKit
 ```
 
+## Known issues
+
+See [KNOWN_ISSUES.md](KNOWN_ISSUES.md) for what's known to be wrong or unfinished, each linked to its GitHub issue.
+
 ## License
 
 MIT
