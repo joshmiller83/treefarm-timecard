@@ -1,61 +1,844 @@
 ---
 /**
- * CLOCK OUT · 4:31 PM, then the lights come up for the paper time card. PLACEHOLDER from
- * the foundation: the section team owns this file and src/scripts/scenes/clock-out.ts.
+ * CLOCK OUT · 4:31 PM. The day ends as a ritual: clocking out by voice takes a spoken yes.
+ * Then the lights come up and the paper time card prints.
  * Spec: jq '.sections[] | select(.id=="clock-out")' docs/landing/brief.json
+ * Scene: src/scripts/scenes/clock-out.ts. Data: ./clock-out/model.ts (unit-tested).
+ *
+ * Static first (no motion, reduced motion, no JS): a dusk band holds the exchange and the
+ * quiet lock screen, then the section is light: the report copy, the Report tab phone and the
+ * fully printed paper with the annotation and the export chips. Both parts pin their own color
+ * tokens, so they never depend on the section's data-theme, which only tells the header.
+ *
+ * With motion the server markup is the final state and the scene adds the from-states:
+ *   desktop  the stage phone plays lock → ask → answer (which goes quiet) → Report tab; the
+ *            Report tab layer is borrowed from the after part's phone (one copy in the page);
+ *            the scene moves the report copy and the paper block into the sticky frame, where
+ *            the paper lifts out of the preview and prints.
+ *   mobile   the section's sticky phone plays the exchange under cards; the light part
+ *            (copy, a smaller Report tab phone, the paper) follows in flow.
+ * The quiet layer is the static final state (and its capture slot); with motion the answer
+ * layer plays the quiet lock screen itself, so Siri's words never swap layers and re-wrap.
+ *
+ * Hooks (scene): [data-co-said] [data-co-reply="ask"|"answer"] [data-co-yes] [data-co-copy]
+ * [data-co-paperblock] [data-co-slot] [data-co-fit] [data-co-note] [data-co-note-line]
+ * [data-co-note-label] .co-exports-lead [data-co-chip="pdf"|"csv"] [data-co-report].
  */
 import SectionShell from '../components/SectionShell.astro';
 import Phone from '../components/phone/Phone.astro';
 import Screen from '../components/phone/Screen.astro';
+import LockScreen from '../components/phone/LockScreen.astro';
+import LiveActivity from '../components/phone/LiveActivity.astro';
+import SiriSnippet from '../components/phone/SiriSnippet.astro';
+import SiriGlow from '../components/phone/SiriGlow.astro';
 import ReportTab from '../components/app/ReportTab.astro';
 import PaperTimeCard from '../components/PaperTimeCard.astro';
+import { fmtClock, fmtTime } from '../data/ledger';
 import { SIRI } from '../data/siri';
+import { AT, BEAT_AT, COPY, LABELS, TRANSCRIPT } from './clock-out/model';
 
-const label = 'Time Card Report tab with This week selected, a paper time card preview, and buttons to export a PDF or a CSV.';
+const time = fmtClock(AT);
+const at = (b: { desk: number; mob: number }) => `--at:${b.desk};--at-m:${b.mob}`;
+const [said, ask, yes, answer] = TRANSCRIPT as [(typeof TRANSCRIPT)[number], (typeof TRANSCRIPT)[number], (typeof TRANSCRIPT)[number], (typeof TRANSCRIPT)[number]];
+
+/** Lines as words (rendered as inline spans, so scenes light them one by one and lines wrap like text). */
+const wordsOf = (text: string) => text.split(' ');
+
+const alt = {
+  activity: `iPhone lock screen at ${fmtTime(AT)} with the Time Card Live Activity: on the clock, 8 hours 30 minutes, 290 trees this shift.`,
+  ask: `iPhone lock screen at ${fmtTime(AT)}. Siri asks: “${SIRI.clockOutAsk.reply}” with Yes and No buttons.`,
+  answer: `iPhone lock screen at ${fmtTime(AT)}. Siri says: “${SIRI.clockOut.reply}”`,
+};
 ---
 
-<SectionShell id="clock-out">
+<SectionShell id="clock-out" headAt={BEAT_AT.head.desk} track={{ desk: '360vh', mob: '280vh' }}>
   <Fragment slot="intro">
-    <p>Say “Clock out with Time Card.” Siri asks first, so a stray word can’t end your day. Say yes, and the timer stops.</p>
+    <p class="co-intro">{COPY.intro}</p>
   </Fragment>
-  <div class="beat" data-beat="1" style="--at:.2">
-    <p class="speaker">Siri</p>
-    <p class="siri-reply">{SIRI.clockOutAsk.reply}</p>
-    <p class="speaker">You</p>
-    <p class="spoken"><q>{SIRI.clockOutAsk.answer}</q></p>
-    <p class="speaker">Siri</p>
-    <p class="siri-reply">{SIRI.clockOut.reply}</p>
-  </div>
-  <div class="beat" data-beat="2" style="--at:.5">
-    <p>Forget to clock out? Time Card warns you about a shift left open overnight. Clocked in late, or forgot to clock in? Change your start time.</p>
-  </div>
-  <div class="beat" data-beat="3" style="--at:.75">
-    <h3 class="display-m">A time card you can hand in.</h3>
-    <p>Pick this week, last week, this month or any dates. You get a clean, paper-style time card with the date, in, out, trees, hours, breaks and notes.</p>
-    <p>Breaks are listed so everyone can see them. They never count as hours. Share it as a PDF, or export a CSV for your spreadsheet.</p>
+
+  <div class="beat co-beat co-ex" data-beat="1" data-co-ex="ask" style={at(BEAT_AT.askEx)}>
+    <div class="co-line co-line--you">
+      <p class="speaker co-who">
+        <svg class="co-glyph" viewBox="0 0 16 16" aria-hidden="true"
+          ><path d="M6.6 2.2a3.3 3.3 0 0 0-3.3 3.3v.6a3.3 3.3 0 0 0 3.3 3.3h.5v3.9a1.3 1.3 0 0 0 2.6 0V5.5a3.3 3.3 0 0 0-3.1-3.3z" fill="currentColor"
+          ></path><circle class="co-glyph-hole" cx="5.7" cy="5.8" r="1"></circle></svg
+        >You
+      </p>
+      <p class="co-said"><q class="spoken co-q" data-co-said>{wordsOf(said.text).map((w, i, a) => (<>{i > 0 && ' '}<span class="co-w">{i === 0 && <span class="co-qm co-qm--open" aria-hidden="true">“</span>}{w}{i === a.length - 1 && <span class="co-qm" aria-hidden="true">”</span>}</span></>))}</q></p>
+    </div>
+    <div class="co-line co-line--siri">
+      <p class="speaker co-who">
+        <svg class="co-glyph co-glyph--wave" viewBox="0 0 16 16" aria-hidden="true"
+          ><rect x="1" y="6" width="2" height="4" rx="1"></rect><rect x="4.5" y="3.5" width="2" height="9" rx="1"></rect><rect
+            x="8"
+            y="1.5"
+            width="2"
+            height="13"
+            rx="1"></rect><rect x="11.5" y="4" width="2" height="8" rx="1"></rect><rect x="15" y="6.5" width="1" height="3" rx=".5"
+          ></rect></svg
+        >Siri
+      </p>
+      <p class="siri-reply co-reply" data-co-reply="ask">{wordsOf(ask.text).map((w, i) => (<>{i > 0 && ' '}<span class="co-w">{w}</span></>))}</p>
+    </div>
   </div>
 
-  <figure class="shot" data-stage-shot slot="figure">
-    <Phone label={label}>
+  <div class="beat co-beat co-ex" data-beat="2" data-co-ex="answer" style={at(BEAT_AT.yesEx)}>
+    <div class="co-line co-line--you">
+      <p class="speaker co-who">
+        <svg class="co-glyph" viewBox="0 0 16 16" aria-hidden="true"
+          ><path d="M6.6 2.2a3.3 3.3 0 0 0-3.3 3.3v.6a3.3 3.3 0 0 0 3.3 3.3h.5v3.9a1.3 1.3 0 0 0 2.6 0V5.5a3.3 3.3 0 0 0-3.1-3.3z" fill="currentColor"
+          ></path><circle class="co-glyph-hole" cx="5.7" cy="5.8" r="1"></circle></svg
+        >You
+      </p>
+      <p class="co-said"><q class="spoken co-q" data-co-yes>{wordsOf(yes.text).map((w, i, a) => (<>{i > 0 && ' '}<span class="co-w">{i === 0 && <span class="co-qm co-qm--open" aria-hidden="true">“</span>}{w}{i === a.length - 1 && <span class="co-qm" aria-hidden="true">”</span>}</span></>))}</q></p>
+    </div>
+    <div class="co-line co-line--siri">
+      <p class="speaker co-who">
+        <svg class="co-glyph co-glyph--wave" viewBox="0 0 16 16" aria-hidden="true"
+          ><rect x="1" y="6" width="2" height="4" rx="1"></rect><rect x="4.5" y="3.5" width="2" height="9" rx="1"></rect><rect
+            x="8"
+            y="1.5"
+            width="2"
+            height="13"
+            rx="1"></rect><rect x="11.5" y="4" width="2" height="8" rx="1"></rect><rect x="15" y="6.5" width="1" height="3" rx=".5"
+          ></rect></svg
+        >Siri
+      </p>
+      <p class="siri-reply co-reply" data-co-reply="answer">{wordsOf(answer.text).map((w, i) => (<>{i > 0 && ' '}<span class="co-w">{w}</span></>))}</p>
+    </div>
+  </div>
+
+  <div class="beat co-beat co-forgot" data-beat="3" style={at(BEAT_AT.forgot)}>
+    <ul class="co-forgot-list">
+      <li>
+        <span class="co-ico" aria-hidden="true">
+          <svg viewBox="0 0 24 24"
+            ><path
+              d="M19.6 14.6A8 8 0 0 1 9.4 4.4a8 8 0 1 0 10.2 10.2z"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linejoin="round"></path><path d="M16 3.2v3M14.5 4.7h3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"></path></svg
+          >
+        </span>
+        <p><strong>{COPY.forgot[0][0]}</strong> {COPY.forgot[0][1]}</p>
+      </li>
+      <li>
+        <span class="co-ico" aria-hidden="true">
+          <svg viewBox="0 0 24 24"
+            ><path d="M4.6 9.2A8 8 0 1 1 4 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path><path
+              d="M3.4 5.4v3.9h3.9"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"></path><path d="M12 7.6V12l2.9 1.8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
+            ></path></svg
+          >
+        </span>
+        <p><strong>{COPY.forgot[1][0]}</strong> {COPY.forgot[1][1]}</p>
+      </li>
+    </ul>
+  </div>
+
+  <figure class="shot co-shot" data-stage-shot slot="figure">
+    <Phone label={LABELS.lock}>
       <div class="screens" data-screens>
-        <Screen stateId="report-week" alt={label} tone="light" final>
-          <ReportTab />
+        <Screen stateId="lock-1631-activity" alt={alt.activity} tone="dark">
+          <LockScreen time={time} wallpaper="dusk-rows">
+            <LiveActivity at={AT} />
+          </LockScreen>
+        </Screen>
+        <Screen stateId="lock-1631-ask" alt={alt.ask} tone="dark">
+          <LockScreen time={time} wallpaper="dusk-rows">
+            <SiriSnippet slot="top" text={SIRI.clockOutAsk.reply} choices={SIRI.clockOutAsk.choices} />
+            <LiveActivity at={AT} fixed />
+          </LockScreen>
+          <SiriGlow />
+        </Screen>
+        <Screen stateId="lock-1631-answer" alt={alt.answer} tone="dark">
+          <LockScreen time={time} wallpaper="dusk-rows">
+            <SiriSnippet slot="top" text={SIRI.clockOut.reply} />
+            <LiveActivity at={AT} fixed />
+          </LockScreen>
+        </Screen>
+        <Screen stateId="lock-1631-quiet" alt={LABELS.lock} tone="dark" final>
+          <LockScreen time={time} wallpaper="dusk-rows">
+            <SiriSnippet slot="top" text={SIRI.clockOut.reply} />
+          </LockScreen>
         </Screen>
       </div>
     </Phone>
-    <figcaption>The Report tab: pick a range, then share a PDF or a CSV.</figcaption>
+    <figcaption>{COPY.lockCaption}</figcaption>
   </figure>
 
-  <div slot="after" class="wrap paper-slot">
-    <PaperTimeCard />
-    <p class="small muted">No pay on the report. Ever.</p>
+  <div slot="extras" class="co-stage" data-co-stage>
+    <div class="co-stage-grid">
+      <div class="co-stage-copy" data-co-copyslot></div>
+      <div class="co-stage-slot" data-co-slot></div>
+    </div>
+  </div>
+
+  <div slot="after" class="co-after" data-co-after>
+    <div class="co-copy" data-co-copy>
+      <h3 class="display-m co-h3">{COPY.reportHeading}</h3>
+      <p class="co-body">{COPY.report}</p>
+      <ul class="co-points">
+        <li>
+          <svg class="co-point-ico" viewBox="0 0 24 24" aria-hidden="true"
+            ><rect x="4" y="3.5" width="16" height="17" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.7"></rect><path
+              d="M8 9h8M8 12.5h5"
+              stroke="currentColor"
+              stroke-width="1.7"
+              stroke-linecap="round"></path><path d="M8 16h8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-dasharray="1.6 2.2"
+            ></path></svg
+          >
+          <span>{COPY.points[0]}</span>
+        </li>
+        <li>
+          <svg class="co-point-ico" viewBox="0 0 24 24" aria-hidden="true"
+            ><path d="M12 3.5v11M8 7.3l4-3.8 4 3.8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"
+            ></path><path d="M8.5 10.5H7a2.5 2.5 0 0 0-2.5 2.5v5A2.5 2.5 0 0 0 7 20.5h10a2.5 2.5 0 0 0 2.5-2.5v-5a2.5 2.5 0 0 0-2.5-2.5h-1.5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"
+            ></path></svg
+          >
+          <span>{COPY.points[1]}</span>
+        </li>
+      </ul>
+    </div>
+
+    <figure class="co-report" data-co-report>
+      <Phone label={LABELS.report}>
+        <div class="screens">
+          <Screen stateId="report-week" alt={LABELS.report} tone="light" final>
+            <ReportTab time={time} />
+          </Screen>
+        </div>
+      </Phone>
+      <figcaption>{COPY.reportCaption}</figcaption>
+    </figure>
+
+    <div class="co-pb" data-co-paperblock>
+      <p class="co-note" data-co-note>
+        <span class="co-note-label" data-co-note-label>{COPY.annotation}</span>
+        <span class="co-note-lead" aria-hidden="true"><i data-co-note-line></i></span>
+      </p>
+      <div class="co-fit-box" data-co-fitbox>
+        <div class="co-fit" data-co-fit>
+          <PaperTimeCard />
+        </div>
+      </div>
+      <div class="co-exports">
+        <span class="co-exports-lead" id="co-exports-lead">{COPY.exportsLead}</span>
+        <ul class="co-chips" aria-labelledby="co-exports-lead">
+          <li class="co-chip" data-co-chip="pdf">{COPY.exports[0]}</li>
+          <li class="co-chip" data-co-chip="csv">{COPY.exports[1]}</li>
+        </ul>
+      </div>
+    </div>
   </div>
 </SectionShell>
 
+<!--
+  Static page (no motion): the section is light after its dusk band, so it tells the header
+  (header.ts follows the section's data-theme) which part is under it. With motion the scene
+  owns the theme: dark at dusk, light from the lights-up.
+  On desktop the static header keeps its dark bar whatever the theme (Header.astro's
+  html:not(.motion) .site-header rule), so a 'light' there would turn its text ink on that dark
+  bar. There the section stays 'dark' and the header stays light-on-dark, readable.
+-->
+<script is:inline>
+  (function () {
+    var s = document.getElementById('clock-out');
+    var t = s && s.querySelector('.track');
+    var r = document.documentElement;
+    if (!t || !('IntersectionObserver' in window)) return;
+    var narrow = matchMedia('(max-width: 899.98px)');
+    var io;
+    var watch = function () {
+      if (io) io.disconnect();
+      io = new IntersectionObserver(
+        function (e) {
+          if (r.classList.contains('motion')) return;
+          s.dataset.theme = e[e.length - 1].isIntersecting || !narrow.matches ? 'dark' : 'light';
+        },
+        { rootMargin: '-56px 0px ' + (64 - innerHeight) + 'px 0px' },
+      );
+      io.observe(t);
+    };
+    watch();
+    addEventListener('resize', watch, { passive: true });
+  })();
+</script>
+
 <style>
-  .paper-slot {
-    padding-block: 24px 96px;
+  /* ------------------------------------------------------------------------------------------
+   * Colors follow the section's theme through local tokens, so one rule set serves the dusk
+   * (dark) part, the light part, and the static dusk band (which stays dark on a light section).
+   * ------------------------------------------------------------------------------------------ */
+  :global(.sec-clock-out) {
+    --co-text: var(--on-stage);
+    --co-muted: var(--on-stage-muted);
+    --co-accent: var(--gold-lit);
+    --co-rule: var(--gold-lit);
+    --co-tile: rgba(226, 166, 68, 0.12);
+    --co-tile-ink: var(--gold-lit);
+    --co-hair: var(--stage-line);
+    --co-glyph-hole: #10221a;
+    --co-quote: var(--gold-lit);
+  }
+  :global(.sec-clock-out[data-theme='light']) {
+    --co-text: var(--ink);
+    --co-muted: var(--muted);
+    --co-accent: var(--fir);
+    --co-rule: var(--gold);
+    --co-tile: #dce8de;
+    --co-tile-ink: var(--fir);
+    --co-hair: var(--line);
+    --co-glyph-hole: var(--bg);
+    --co-quote: var(--gold);
+  }
+  /* With motion the fixed light layer brings the light up; the section never paints its own. */
+  :global(html.motion .sec-clock-out) {
+    background: transparent;
+  }
+  :global(html.motion .sec-clock-out[data-co-lit='yes']) {
+    background: var(--bg);
+  }
+
+  /* ---------- The exchange: transcript lines, styled like the voice section ---------- */
+  .co-ex {
     display: grid;
+    gap: 26px;
+  }
+  .co-line {
+    display: grid;
+    gap: 8px;
+  }
+  .co-who {
+    color: var(--co-muted);
+  }
+  .co-glyph {
+    width: 16px;
+    height: 16px;
+    flex: none;
+    color: var(--co-accent);
+  }
+  .co-glyph--wave {
+    fill: var(--co-rule);
+  }
+  .co-glyph-hole {
+    fill: var(--co-glyph-hole);
+  }
+  .co-said {
+    margin: 0;
+    text-wrap: balance;
+  }
+  .co-said .spoken {
+    color: var(--co-text);
+  }
+  /* The quotes are real characters inside the words (gold, the opener hanging in the margin). */
+  .co-q {
+    quotes: none;
+  }
+  .co-q::before,
+  .co-q::after {
+    content: none;
+  }
+  .co-qm {
+    color: var(--co-quote);
+  }
+  .co-qm--open {
+    margin-left: -0.42em;
+  }
+  .co-reply {
+    color: var(--co-muted);
+    border-left-color: var(--co-rule);
+  }
+
+  /* ---------- Forgot to clock out: the safety net ---------- */
+  .co-forgot-list {
+    display: grid;
+    gap: 18px;
+    padding: 20px 0 0;
+    margin: 0;
+    list-style: none;
+    border-top: 1px solid var(--co-hair);
+    max-width: 34rem;
+  }
+  .co-forgot-list li {
+    display: grid;
+    grid-template-columns: 40px 1fr;
+    gap: 14px;
+    align-items: start;
+  }
+  .co-forgot-list p {
+    margin: 0;
+    font-size: 1.0625rem;
+    line-height: 1.5;
+    color: var(--co-muted);
+  }
+  .co-forgot-list strong {
+    display: block;
+    color: var(--co-text);
+  }
+  .co-ico {
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    background: var(--co-tile);
+    color: var(--co-tile-ink);
+  }
+  .co-ico svg {
+    width: 22px;
+    height: 22px;
+  }
+
+  /* ---------- The light part: copy, the Report tab, the paper ---------- */
+  .co-after {
+    width: 100%;
+    max-width: calc(var(--maxw) + 2 * var(--gutter));
+    margin-inline: auto;
+    padding: 72px var(--gutter) 96px;
+    display: grid;
+    gap: 40px;
+    color: var(--co-text);
+  }
+  .co-copy {
+    display: grid;
+    gap: 18px;
+    max-width: 34rem;
+  }
+  .co-h3 {
+    color: var(--co-text);
+    max-width: 16ch;
+  }
+  .co-body {
+    max-width: 38ch;
+    color: var(--co-muted);
+  }
+  .co-points {
+    display: grid;
+    gap: 14px;
+    margin: 6px 0 0;
+    padding: 0;
+    list-style: none;
+  }
+  .co-points li {
+    display: grid;
+    grid-template-columns: 24px 1fr;
     gap: 12px;
+    align-items: start;
+    max-width: 38ch;
+    color: var(--co-text);
+    font-size: 1.0625rem;
+    line-height: 1.5;
+  }
+  .co-point-ico {
+    width: 24px;
+    height: 24px;
+    margin-top: 1px;
+    color: var(--co-accent);
+  }
+
+  .co-report {
+    margin: 0;
+    display: grid;
+    justify-items: center;
+    gap: 14px;
+    --phone-h: min(40svh, 360px);
+  }
+  .co-report figcaption {
+    max-width: 34ch;
+    text-align: center;
+    font-size: var(--text-small);
+    line-height: 1.5;
+    color: var(--co-muted);
+  }
+
+  .co-pb {
+    display: grid;
+    gap: 16px;
+    justify-items: start;
+    min-width: 0;
+  }
+  .co-fit-box {
+    width: 100%;
+    min-width: 0;
+  }
+  .co-fit {
+    width: 100%;
+    max-width: 720px;
+  }
+
+  /* The annotation: a fir chip on phones, a margin note with a leader line on desktop. */
+  .co-note {
+    margin: 0;
+    display: inline-flex;
+    align-items: center;
+    min-height: 36px;
+    padding: 6px 16px;
+    border-radius: 999px;
+    background: var(--fir);
+    color: #fff;
+    font-family: var(--font-body);
+    font-weight: 600;
+    font-size: 0.9375rem;
+    line-height: 1.3;
+  }
+  .co-note-lead {
+    display: none;
+  }
+
+  /* The formats the report exports to: labels with a lead-in, not buttons (nothing to click). */
+  .co-exports {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 12px;
+    margin: 4px 0 0;
+  }
+  .co-exports-lead {
+    font-family: var(--font-mono);
+    font-weight: 500;
+    font-size: 0.75rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--co-muted);
+  }
+  .co-chips {
+    display: flex;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .co-chip {
+    display: inline-flex;
+    align-items: center;
+    height: 30px;
+    padding: 0 10px;
+    border-radius: 7px;
+    /* Fir on the light part; the section's accent wherever the part still sits on dusk. */
+    border: 1px solid var(--co-accent);
+    color: var(--co-accent);
+    font-family: var(--font-mono);
+    font-weight: 600;
+    font-size: 0.8125rem;
+    letter-spacing: 0.08em;
+    cursor: default;
+  }
+
+  /* The desktop stage for the paper (motion only; the scene moves the paper block in). */
+  .co-stage {
+    display: none;
+  }
+
+  /* ---------- Phones (<900px) ---------- */
+  @media (max-width: 899.98px) {
+    .co-said .spoken {
+      font-size: 1.5rem;
+    }
+    .co-reply {
+      font-size: 1.0625rem;
+    }
+    .co-ex {
+      gap: 18px;
+    }
+    .co-forgot-list {
+      border-top: 0;
+      padding-top: 0;
+    }
+    .co-after {
+      padding-top: 64px;
+      justify-items: stretch;
+    }
+    .co-report {
+      margin-block: 8px;
+    }
+  }
+
+  /* ---------- Desktop (≥900px), static and the fallback ---------- */
+  @media (min-width: 900px) {
+    .co-after {
+      padding-block: 120px;
+      grid-template-columns: repeat(12, minmax(0, 1fr));
+      column-gap: var(--col-gap);
+      row-gap: 32px;
+      align-items: start;
+    }
+    /* Headline left, the words right; then the paper beside the Report tab. */
+    .co-after > .co-copy {
+      grid-column: 1 / -1;
+      grid-row: 1;
+      max-width: none;
+      display: grid;
+      grid-template-columns: repeat(12, minmax(0, 1fr));
+      column-gap: var(--col-gap);
+      row-gap: 18px;
+      align-items: start;
+    }
+    .co-after > .co-copy > .co-h3 {
+      grid-column: 1 / span 5;
+      grid-row: 1 / span 2;
+    }
+    .co-after > .co-copy > .co-body,
+    .co-after > .co-copy > .co-points {
+      grid-column: 7 / -1;
+    }
+    .co-report {
+      grid-column: 9 / -1;
+      grid-row: 2;
+      align-self: center;
+      --phone-h: min(70svh, 640px);
+    }
+    .co-pb {
+      grid-column: 1 / span 8;
+      grid-row: 2;
+      margin-top: 40px;
+    }
+    .co-fit {
+      transform: rotate(-1deg);
+      transform-origin: 0 0;
+    }
+    /* Margin note: the label rides above the paper's band, its leader dropping to the band. */
+    .co-note {
+      position: relative;
+      align-self: end;
+      justify-self: end;
+      margin-right: 14%;
+      padding: 0 0 46px;
+      min-height: 0;
+      background: none;
+      color: var(--co-accent);
+      font-family: var(--font-mono);
+      font-weight: 500;
+      font-size: 0.875rem;
+      letter-spacing: 0.02em;
+      margin-bottom: -16px;
+    }
+    /* A 1px fir leader from the label down to the band's top edge (scenes draw it with scaleY). */
+    .co-note-lead {
+      display: block;
+      position: absolute;
+      left: 50%;
+      bottom: -4px;
+      width: 1px;
+      height: 42px;
+    }
+    .co-note-lead i {
+      display: block;
+      height: 100%;
+      background: currentColor;
+      transform-origin: 50% 0;
+    }
+  }
+
+  /* ------------------------------------------------------------------------------------------
+   * STATIC (no motion): a dusk band holds the exchange; the section is light from there on.
+   * ------------------------------------------------------------------------------------------ */
+  :global(html:not(.motion) .sec-clock-out[data-tint]) {
+    background: var(--bg);
+  }
+  :global(html:not(.motion) .sec-clock-out > .track) {
+    isolation: isolate;
+    color: var(--on-stage);
+    color-scheme: dark;
+    --focus: var(--gold-lit);
+    --co-text: var(--on-stage);
+    --co-muted: var(--on-stage-muted);
+    --co-accent: var(--gold-lit);
+    --co-rule: var(--gold-lit);
+    --co-tile: rgba(226, 166, 68, 0.12);
+    --co-tile-ink: var(--gold-lit);
+    --co-hair: var(--stage-line);
+    --co-glyph-hole: #10221a;
+    --co-quote: var(--gold-lit);
+  }
+  :global(html:not(.motion) .sec-clock-out .co-after) {
+    color-scheme: light;
+    --focus: var(--fir);
+    --co-text: var(--ink);
+    --co-muted: var(--muted);
+    --co-accent: var(--fir);
+    --co-rule: var(--gold);
+    --co-tile: #dce8de;
+    --co-tile-ink: var(--fir);
+    --co-hair: var(--line);
+    --co-glyph-hole: var(--bg);
+    --co-quote: var(--gold);
+  }
+  :global(html:not(.motion) .sec-clock-out > .track::before) {
+    content: '';
+    position: absolute;
+    z-index: -1;
+    top: 0;
+    bottom: 0;
+    left: 50%;
+    width: 100vw;
+    margin-left: -50vw;
+    background: var(--tint-dusk);
+  }
+  :global(html:not(.motion) .sec-clock-out > .track .eyebrow) {
+    color: var(--gold-lit);
+  }
+  :global(html:not(.motion) .sec-clock-out > .track .beat-intro > p),
+  :global(html:not(.motion) .sec-clock-out > .track .shot figcaption) {
+    color: var(--on-stage-muted);
+  }
+  :global(html:not(.motion) .sec-clock-out > .track q::before),
+  :global(html:not(.motion) .sec-clock-out > .track q::after) {
+    color: var(--gold-lit);
+  }
+
+  /* ------------------------------------------------------------------------------------------
+   * MOTION
+   * ------------------------------------------------------------------------------------------ */
+  /* The lights-up: text colors ease over 0.4 s (the page's only non-transform transition). */
+  :global(html.motion .sec-clock-out :is(.beat, .beat *, .co-after, .co-after *)) {
+    transition: color 0.4s linear;
+  }
+
+  @media (max-width: 899.98px) {
+    /* Mobile cards sit at their own progress (the copy after the exchange is in flow). */
+    :global(html.motion .sec-clock-out .co-beat) {
+      --at: var(--at-m) !important;
+      /* Centered lower than the shell's cards, so the Live Activity shows between them. */
+      --anchor-mob: 82svh;
+      /* The cards stay dark material when the lights come up behind them. */
+      --co-text: var(--on-stage);
+      --co-muted: var(--on-stage-muted);
+      --co-accent: var(--gold-lit);
+      --co-rule: var(--gold-lit);
+      --co-tile: rgba(226, 166, 68, 0.12);
+      --co-tile-ink: var(--gold-lit);
+      --co-hair: var(--stage-line);
+      --co-glyph-hole: #10221a;
+      --co-quote: var(--gold-lit);
+      --focus: var(--gold-lit);
+      color: var(--on-stage);
+    }
+    :global(html.motion .sec-clock-out .co-forgot) {
+      padding-block: 18px;
+    }
+  }
+
+  @media (min-width: 900px) {
+    /* The paper flies out of the stage phone, so the frame sits above it (the stage is z 5). */
+    :global(html.motion .sec-clock-out .frame) {
+      z-index: 6;
+      pointer-events: none;
+    }
+    :global(html.motion .sec-clock-out.co-staged .co-stage) {
+      display: block;
+      position: absolute;
+      inset: 0;
+    }
+    .co-stage-grid {
+      height: 100%;
+      max-width: calc(var(--maxw) + 2 * var(--gutter));
+      margin-inline: auto;
+      padding: var(--chrome-h) var(--gutter) 0;
+      display: grid;
+      grid-template-columns: repeat(12, minmax(0, 1fr));
+      column-gap: var(--col-gap);
+      align-items: center;
+    }
+    .co-stage-copy,
+    .co-stage-slot {
+      grid-row: 1;
+      min-width: 0;
+    }
+    .co-stage-copy {
+      grid-column: 1 / span 5;
+      max-width: 34rem;
+      /* A little below center: the safety-net beat is still leaving above it. */
+      margin-top: 8svh;
+    }
+    .co-stage-slot {
+      grid-column: 1 / span 7;
+    }
+    :global(html.motion .sec-clock-out.co-staged .co-stage-slot .co-pb) {
+      grid-column: auto;
+      grid-row: auto;
+      margin: 0;
+    }
+    /* On the stage the paper keeps the full 720px card's layout and is scaled to fit (the scene
+       sets the scale), so it matches the Report tab's preview exactly. */
+    :global(html.motion .sec-clock-out.co-staged .co-fit-box) {
+      position: relative;
+    }
+    :global(html.motion .sec-clock-out.co-staged .co-fit) {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 720px;
+      max-width: none;
+      transform: none;
+    }
+    :global(html.motion .sec-clock-out.co-staged [data-paper]) {
+      transform-origin: 0 0;
+    }
+    /* What stays in the after slot (the Report tab phone) is for screen readers only. */
+    :global(html.motion .sec-clock-out.co-staged > .after) {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+    :global(html.motion .sec-clock-out.co-staged .co-stage-copy .co-copy) {
+      gap: 16px;
+    }
+  }
+
+  /* Short desktop windows (a 1280 × 720 laptop leaves about 600 px): the beats' spacing scales
+     with the viewport's height but their type does not, so the dusk beats get tighter type and
+     gaps there and never touch. */
+  @media (min-width: 900px) and (max-height: 700px) {
+    :global(html.motion) .co-ex {
+      gap: 16px;
+    }
+    :global(html.motion) .co-line {
+      gap: 6px;
+    }
+    :global(html.motion) .co-said .spoken {
+      font-size: min(var(--text-m), 5.4svh);
+    }
+    :global(html.motion) .co-reply {
+      font-size: min(var(--text-siri), 3.3svh);
+    }
+    :global(html.motion) .co-forgot-list {
+      gap: 12px;
+      padding-top: 0;
+      border-top: 0;
+    }
+    :global(html.motion) .co-forgot-list p {
+      font-size: 1rem;
+      line-height: 1.4;
+    }
+  }
+
+  /* The time-lapse's rolling row labels keep the button's own type (system, tabular digits). */
+  :global(.co-rowodo) {
+    font-family: inherit;
+    font-weight: inherit;
+    font-variant-numeric: tabular-nums;
+  }
+  :global(.co-rowodo .odo-s) {
+    white-space: pre;
+  }
+  /* Gold rule under the stopped timer (injected by the scene into the answer layer). */
+  :global(.co-underline) {
+    position: absolute;
+    left: 0.04em;
+    right: 0.04em;
+    bottom: 0.1em;
+    height: 1px;
+    background: var(--gold-lit);
+    transform-origin: 0 50%;
+    pointer-events: none;
   }
 </style>
