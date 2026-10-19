@@ -107,13 +107,34 @@ final class ClockFlowUITests: XCTestCase {
         let out = app.buttons["clock-out"]
         XCTAssertTrue(out.waitForExistence(timeout: 5))
         out.tap()
-        let question = element("clock-out-question", in: app)
-        XCTAssertTrue(question.waitForExistence(timeout: 4))
+        // The question shows under the button and is the button's value for VoiceOver.
+        waitFor(out, label: "Confirm clock out", timeout: 4)
         shot(app, "Tap again to clock out")
-        XCTAssertTrue(question.label.hasPrefix("You’ve worked"), question.label)
+        let question = out.value as? String ?? ""
+        XCTAssertTrue(question.hasPrefix("You’ve worked"), question)
         // Left alone, it goes back after a few seconds, so a pocket bump can't finish the job later.
         waitFor(out, label: "Clock out", timeout: 8)
         waitFor(element("status-pill", in: app), label: "On the clock")
+    }
+
+    /// The question appears under the button, so a second gloved tap in the same spot lands
+    /// on the same button and clocks out.
+    func testTwoTapsInTheSamePlaceClockOut() {
+        let app = launch()
+        let clockIn = app.buttons["clock-in"]
+        XCTAssertTrue(clockIn.waitForExistence(timeout: 10))
+        clockIn.tap()
+        let out = app.buttons["clock-out"]
+        XCTAssertTrue(out.waitForExistence(timeout: 5))
+        let before = out.frame
+        let spot = out.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+        spot.tap()
+        waitFor(out, label: "Confirm clock out")
+        XCTAssertEqual(out.frame, before, "the Clock out button moved when it asked")
+        XCTAssertTrue(out.value as? String ?? "" != "", "the question is the button's value")
+        Thread.sleep(forTimeInterval: 0.8)
+        spot.tap()
+        waitFor(element("status-pill", in: app), label: "Off the clock")
     }
 
     func testADoubleTapOnClockOutOnlyAsks() {
@@ -124,7 +145,7 @@ final class ClockFlowUITests: XCTestCase {
         let out = app.buttons["clock-out"]
         XCTAssertTrue(out.waitForExistence(timeout: 5))
         out.doubleTap()
-        waitFor(out, label: "Tap again to clock out")
+        waitFor(out, label: "Confirm clock out")
         Thread.sleep(forTimeInterval: 1)
         waitFor(element("status-pill", in: app), label: "On the clock")
         shot(app, "Double tap only asks")
@@ -229,12 +250,25 @@ final class ClockFlowUITests: XCTestCase {
         XCTAssertTrue(warning.waitForExistence(timeout: 10))
         waitFor(element("big-timer", in: app), labelContains: "worked this shift")
         shot(app, "Forgot to clock out")
-        // The meta line names the day, so 7:00 AM can't read as later today.
-        waitFor(element("status-meta", in: app), labelContains: " at 7:00 AM")
+        // The meta line names the day, so the time can't read as later today.
+        waitFor(element("status-meta", in: app), labelContains: " at ")
         app.buttons["fix-times"].tap()
         // The shift editor (from the Log tab) opens on top.
         XCTAssertTrue(element("shift-editor-sheet", in: app).waitForExistence(timeout: 5))
         XCTAssertFalse(app.buttons["fix-times"].isHittable)
+    }
+
+    /// Clocked in three days ago: Clock out would close a 70-hour shift (which the server
+    /// refuses), so the card offers to fix the clock-out time instead.
+    func testAShiftLeftOpenForDaysOffersToFixTheClockOut() {
+        let app = launch(["-UITestClock", "weekend"])
+        let fix = app.buttons["fix-clock-out"]
+        XCTAssertTrue(fix.waitForExistence(timeout: 10))
+        XCTAssertFalse(app.buttons["clock-out"].exists)
+        shot(app, "Fix clock-out time")
+        fix.tap()
+        XCTAssertTrue(element("shift-editor-sheet", in: app).waitForExistence(timeout: 5))
+        shot(app, "Clock-out filled in")
     }
 
     func testHidingPayIsRememberedNextTime() {

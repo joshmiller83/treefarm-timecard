@@ -1,8 +1,13 @@
 import SwiftUI
 import TimeCardCore
+import UIKit
 
 /// The big card at the top of the Clock tab, as on the web time card: paper while off the
 /// clock, fir green while working, sap gold on a break, with a live h:mm:ss.
+///
+/// The order is what a gloved hand needs: status, the big clock, then the actions (Lunch,
+/// Other break, Clock out). Fixing the shift's times is a quiet row under them. At the
+/// largest text sizes the actions come right under the clock, before the details.
 struct StatusCardView: View {
     var state: FieldState
     var status: ClockStatus
@@ -23,65 +28,65 @@ struct StatusCardView: View {
     /// When "Tap again to clock out" appeared.
     @State private var armedAt: Date?
 
+    private var large: Bool { typeSize.isAccessibilitySize }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             top
             timer
                 .padding(.top, 10)
-            Text(status.workedLabel)
-                .font(.subheadline.weight(.medium))
-                .opacity(0.88)
-                .fixedSize(horizontal: false, vertical: true)
-                // The timer says it, so VoiceOver doesn't hear "worked today" twice.
-                .accessibilityHidden(true)
-            if status.isOnBreak {
-                breakLine
-                    .padding(.top, 10)
+            if large {
+                actions
+                    .padding(.top, 14)
+                details
+                    .padding(.top, 14)
+                staleBlock
+                shiftRow
+            } else {
+                details
+                staleBlock
+                actions
+                    .padding(.top, 14)
+                shiftRow
             }
-            ForEach(status.meta, id: \.self) { line in
-                Text(line)
-                    .font(.callout)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.top, status.isOnBreak ? 2 : 10)
-                    .accessibilityIdentifier("status-meta")
-            }
-            if let stale = status.stale {
-                staleWarning(stale)
-                    .padding(.top, 12)
-            }
-            if status.shiftId != nil {
-                shiftChips
-                    .padding(.top, 12)
-            }
-            actions
-                .padding(.top, 14)
         }
         .foregroundStyle(ink)
         .padding(18)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(background, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(border, lineWidth: 1))
+        .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(border, lineWidth: status.stale != nil ? 1.5 : 1))
         .animation(.easeInOut(duration: 0.25), value: status.phase)
         .task(id: confirmingOut) {
-            // "Tap again to clock out" waits five seconds, then quietly goes back.
+            // "Tap again to clock out" goes back after a while, so a pocket bump can't finish the
+            // job later. With VoiceOver or Switch Control it waits much longer (WCAG 2.2.1).
             guard confirmingOut else { return }
-            try? await Task.sleep(for: .seconds(5))
+            try? await Task.sleep(for: .seconds(ClockOutTap.timeout(assistiveTech: Self.assistiveTechRunning)))
             if !Task.isCancelled { withAnimation { confirmingOut = false } }
         }
     }
 
+    private static var assistiveTechRunning: Bool {
+        UIAccessibility.isVoiceOverRunning || UIAccessibility.isSwitchControlRunning
+    }
+
     // MARK: Pieces
 
+    @ViewBuilder
     private var top: some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(spacing: 10) {
-                ClockPill(text: status.pill, tone: pillTone)
-                Spacer(minLength: 8)
-                dateLabel
-            }
-            VStack(alignment: .leading, spacing: 8) {
-                ClockPill(text: status.pill, tone: pillTone)
-                dateLabel
+        if large {
+            // The date is on the phone's own clock; at these sizes the room goes to the timer.
+            ClockPill(text: status.pill, tone: pillTone, pulses: status.stale == nil)
+        } else {
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 10) {
+                    ClockPill(text: status.pill, tone: pillTone, pulses: status.stale == nil)
+                    Spacer(minLength: 8)
+                    dateLabel
+                }
+                VStack(alignment: .leading, spacing: 8) {
+                    ClockPill(text: status.pill, tone: pillTone, pulses: status.stale == nil)
+                    dateLabel
+                }
             }
         }
     }
@@ -89,14 +94,44 @@ struct StatusCardView: View {
     private var dateLabel: some View {
         Text(status.dateText)
             .font(.subheadline)
-            .opacity(0.88)
+    }
+
+    /// "worked today", the break line and the quiet lines under the timer.
+    @ViewBuilder
+    private var details: some View {
+        Text(status.workedLabel)
+            .font(.subheadline.weight(.medium))
+            .fixedSize(horizontal: false, vertical: true)
+            // The timer says it, so VoiceOver doesn't hear "worked today" twice.
+            .accessibilityHidden(true)
+        if status.isOnBreak {
+            breakLine
+                .padding(.top, 10)
+        }
+        ForEach(status.meta, id: \.self) { line in
+            Text(line)
+                .font(.callout)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, status.isOnBreak ? 2 : 10)
+                .accessibilityIdentifier("status-meta")
+        }
+    }
+
+    @ViewBuilder
+    private var staleBlock: some View {
+        if let stale = status.stale {
+            staleWarning(stale)
+                .padding(.top, 12)
+        }
     }
 
     @ViewBuilder
     private var timer: some View {
         if status.isWorking {
-            TimelineView(.periodic(from: .now, by: 1)) { context in
-                bigClock(ClockStatus.worked(state: state, now: context.date))
+            // Ticks on the worked time's whole seconds, and adds the time since the card's
+            // reading instead of adding up every shift again each second.
+            TimelineView(.periodic(from: status.nextWholeSecond, by: 1)) { context in
+                bigClock(status.bigClock(at: context.date))
             }
         } else {
             bigClock(status.worked)
@@ -138,14 +173,17 @@ struct StatusCardView: View {
     }
 
     private var breakSoFar: some View {
-        TimelineView(.periodic(from: .now, by: 1)) { context in
-            let elapsed = context.date.timeIntervalSince(status.breakStart ?? context.date)
+        let start = status.breakStart ?? Date()
+        let fraction = Date().timeIntervalSince(start).truncatingRemainder(dividingBy: 1)
+        return TimelineView(.periodic(from: Date().addingTimeInterval(1 - fraction), by: 1)) { context in
+            let elapsed = context.date.timeIntervalSince(start)
             Text("\(Text(Fmt.hms(elapsed)).font(.tcNumber).fontWeight(.semibold).monospacedDigit()) so far")
                 .font(.callout)
                 .accessibilityLabel("\(Fmt.spokenDuration(elapsed)) so far")
         }
     }
 
+    /// A shift left open: a surface box with a rust mark, on a card with a rust edge and no pulse.
     private func staleWarning(_ text: String) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             Label {
@@ -153,7 +191,7 @@ struct StatusCardView: View {
                     .fixedSize(horizontal: false, vertical: true)
             } icon: {
                 Image(systemName: "exclamationmark.triangle.fill")
-                    .foregroundStyle(ClockColors.alarm)
+                    .foregroundStyle(Palette.rust)
             }
             .font(.callout)
             if !status.needsClockOutFix {
@@ -162,34 +200,37 @@ struct StatusCardView: View {
                     .accessibilityIdentifier("fix-times")
             }
         }
-        .foregroundStyle(Palette.paperInk)
+        .foregroundStyle(Palette.ink)
         .padding(12)
-        .background(Palette.paper, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .background(Palette.surface, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Palette.line, lineWidth: 1))
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("stale-warning")
     }
 
-    private var shiftChips: some View {
-        let chip: CardButtonStyle.Kind = status.isOnBreak ? .chipOnSap : .chipOnFir
-        return twoUp {
-            changeStartButton.buttonStyle(.card(chip))
-        } second: {
-            editShiftButton.buttonStyle(.card(chip))
+    /// Start time and Edit shift: one quiet row under the actions, still glove-sized.
+    @ViewBuilder
+    private var shiftRow: some View {
+        if status.shiftId != nil {
+            let chip: CardButtonStyle.Kind = status.isOnBreak ? .chipOnSap : .chipOnFir
+            twoUp {
+                Button(action: onChangeStart) {
+                    Label("Start time", systemImage: "clock.arrow.circlepath")
+                }
+                .buttonStyle(.card(chip))
+                .accessibilityLabel("Change start time")
+                .accessibilityInputLabels(["Start time", "Change start time"])
+                .accessibilityIdentifier("change-start")
+            } second: {
+                Button(action: onEditShift) {
+                    Label("Edit shift", systemImage: "square.and.pencil")
+                }
+                .buttonStyle(.card(chip))
+                .accessibilityInputLabels(["Edit shift", "Edit this shift"])
+                .accessibilityIdentifier("edit-shift")
+            }
+            .padding(.top, 10)
         }
-    }
-
-    private var changeStartButton: some View {
-        Button(action: onChangeStart) {
-            Label("Change start time", systemImage: "clock.arrow.circlepath")
-        }
-        .accessibilityIdentifier("change-start")
-    }
-
-    private var editShiftButton: some View {
-        Button(action: onEditShift) {
-            Label("Edit this shift", systemImage: "square.and.pencil")
-        }
-        .accessibilityIdentifier("edit-shift")
     }
 
     @ViewBuilder
@@ -211,6 +252,7 @@ struct StatusCardView: View {
                 } second: {
                     Button(action: onOtherBreak) { Label("Other break", systemImage: "cup.and.saucer") }
                         .buttonStyle(.card(.onFir))
+                        .accessibilityInputLabels(["Other break", "Break"])
                         .accessibilityIdentifier("start-break")
                 }
                 clockOut(outline: .outlineOnFir, confirm: .confirmOnFir)
@@ -243,22 +285,18 @@ struct StatusCardView: View {
         }
     }
 
+    /// The button stays where it is when armed: the question appears under it, so a second
+    /// gloved tap in the same place lands on the same button.
     private func twoStepClockOut(outline: CardButtonStyle.Kind, confirm: CardButtonStyle.Kind) -> some View {
         VStack(spacing: 8) {
-            if confirmingOut, let clockOutQuestion {
-                Text(clockOutQuestion)
-                    .font(.callout.weight(.semibold))
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: .infinity)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .transition(.opacity)
-                    .accessibilityIdentifier("clock-out-question")
-            }
             Button {
                 switch ClockOutTap.decide(armedAt: confirmingOut ? armedAt : nil, now: Date()) {
                 case .arm:
                     armedAt = Date()
                     withAnimation(.easeOut(duration: 0.15)) { confirmingOut = true }
+                    if let clockOutQuestion {
+                        AccessibilityNotification.Announcement(clockOutQuestion).post()
+                    }
                 case .ignore:
                     break
                 case .confirm:
@@ -270,16 +308,31 @@ struct StatusCardView: View {
                 Label(confirmingOut ? "Tap again to clock out" : "Clock out", systemImage: confirmingOut ? "exclamationmark.circle.fill" : "stop.fill")
             }
             .buttonStyle(.card(confirmingOut ? confirm : outline))
+            .accessibilityLabel(confirmingOut ? "Confirm clock out" : "Clock out")
+            .accessibilityValue(confirmingOut ? (clockOutQuestion ?? "") : "")
+            .accessibilityInputLabels(["Clock out", "Confirm clock out"])
             .accessibilityIdentifier("clock-out")
             .accessibilityHint(confirmingOut ? "Ends your shift." : "Asks once more before ending your shift.")
             .sensoryFeedback(.impact(weight: .medium), trigger: confirmingOut) { _, new in new }
+
+            if confirmingOut, let clockOutQuestion {
+                Text(clockOutQuestion)
+                    .font(.callout.weight(.semibold))
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .transition(.opacity)
+                    // The button's value says it; the announcement said it once already.
+                    .accessibilityHidden(true)
+                    .accessibilityIdentifier("clock-out-question")
+            }
         }
     }
 
     /// Two buttons side by side, stacked at the largest text sizes.
     @ViewBuilder
     private func twoUp<A: View, B: View>(@ViewBuilder first: () -> A, @ViewBuilder second: () -> B) -> some View {
-        if typeSize.isAccessibilitySize {
+        if large {
             VStack(spacing: 10) { first(); second() }
         } else {
             HStack(spacing: 10) { first(); second() }
@@ -299,7 +352,7 @@ struct StatusCardView: View {
     private var background: Color {
         switch status.phase {
         case .off: Palette.surface
-        case .working: Palette.fir
+        case .working: Palette.firCard
         case .onBreak: Palette.sapSoft
         }
     }
@@ -313,10 +366,11 @@ struct StatusCardView: View {
     }
 
     private var border: Color {
+        if status.stale != nil { return Palette.rust }
         switch status.phase {
-        case .off: Palette.line
-        case .working: Palette.fir
-        case .onBreak: Palette.sap
+        case .off: return Palette.line
+        case .working: return Palette.firCard
+        case .onBreak: return Palette.sap
         }
     }
 }
@@ -329,6 +383,12 @@ enum ClockOutTap: Equatable {
     case confirm
 
     static let settle: TimeInterval = 0.6
+
+    /// How long "Tap again" waits: 5 seconds, or 30 with VoiceOver or Switch Control, which take
+    /// longer to reach the button again.
+    static func timeout(assistiveTech: Bool) -> TimeInterval {
+        assistiveTech ? 30 : 5
+    }
 
     /// `armedAt` is when "Tap again" appeared, or nil when it isn't showing.
     static func decide(armedAt: Date?, now: Date) -> ClockOutTap {

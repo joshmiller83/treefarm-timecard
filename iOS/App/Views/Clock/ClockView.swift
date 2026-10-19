@@ -12,6 +12,7 @@ struct ClockView: View {
     @Environment(TimeCardSession.self) private var session
     @Environment(\.openTab) private var openTab
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.dynamicTypeSize) private var typeSize
     @AppStorage("clock.showPay") private var showPay = true
 
     @State private var sheet: ClockSheet?
@@ -118,10 +119,14 @@ struct ClockView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(session.farm?.name ?? "")
                     .headingStyle(.tcTitle)
-                    .fixedSize(horizontal: false, vertical: true)
+                    // At the largest sizes the name stops growing, so the clock and its
+                    // buttons are on the first screen.
+                    .dynamicTypeSize(...DynamicTypeSize.accessibility1)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.7)
                     .accessibilityAddTraits(.isHeader)
                     .accessibilityIdentifier("clock-farm-name")
-                if !subtitle.isEmpty {
+                if !subtitle.isEmpty && !typeSize.isAccessibilitySize {
                     Text(subtitle)
                         .font(.subheadline)
                         .foregroundStyle(Palette.muted)

@@ -32,11 +32,14 @@ struct ClockStatus: Equatable {
     /// Open longer than a shift may be, so Clock out can't close it: the card offers
     /// "Fix clock-out time" instead, which opens the editor with an end filled in.
     var needsClockOutFix = false
+    /// When the card was read; `worked` is the big clock at this instant.
+    var computedAt: Date
 
     init(state: FieldState, now: Date) {
         let cal = state.calendar
         let shifts = state.liveShifts
         let open = state.openShift
+        computedAt = now
         dateText = Fmt.dayLong(now, cal)
         worked = Self.worked(state: state, now: now)
         shiftId = open?.id
@@ -86,6 +89,17 @@ struct ClockStatus: Equatable {
     /// The big clock alone, cheap enough to run every second.
     static func worked(state: FieldState, now: Date) -> TimeInterval {
         Hours.bigClock(shifts: state.liveShifts, now: now, calendar: state.calendar)
+    }
+
+    /// The big clock a little later, while working: the reading plus the time since, without
+    /// adding up every shift again (the card ticks every second).
+    func bigClock(at date: Date) -> TimeInterval {
+        isWorking ? worked + max(0, date.timeIntervalSince(computedAt)) : worked
+    }
+
+    /// The next moment the worked time reaches a whole second, so the ticks land on them.
+    var nextWholeSecond: Date {
+        computedAt.addingTimeInterval(worked.rounded(.up) - worked)
     }
 
     var isWorking: Bool { phase == .working }

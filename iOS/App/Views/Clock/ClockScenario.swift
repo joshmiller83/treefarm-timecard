@@ -7,7 +7,8 @@ import TimeCardCore
 /// - `working`: three earlier days of shifts and rows this week, and a shift on the clock
 ///   since a little over three hours ago with a short break, four rows marked and notes.
 /// - `lunch`: the same, on lunch for the last 14 minutes.
-/// - `stale`: still clocked in since 7:00 AM yesterday (forgot to clock out).
+/// - `stale`: still clocked in since yesterday, about 20 hours ago (forgot to clock out, but
+///   not yet past the 24 hours a shift may last).
 /// - `weekend`: still clocked in since 7:00 AM three days ago, with lunch and two rows; too
 ///   long to clock out, so the card offers "Fix clock-out time".
 ///
@@ -115,7 +116,9 @@ enum ClockScenario: String {
         case .stale:
             past(-3, from: (7, 0), to: (15, 30), rows: 6)
             past(-2, from: (7, 15), to: (15, 45), rows: 8)
-            let start = at(day(-1), 7, 0)
+            // On yesterday's date and under 24 hours ago, whatever time the test runs.
+            var start = Date(timeIntervalSince1970: (now.timeIntervalSince1970 - 20 * 3600) / 900 * 900).roundedToMillisecond
+            if !(cal.dayKey(start) < cal.dayKey(now)) { start = now.addingTimeInterval(-23.5 * 3600).roundedToMillisecond }
             records.append(.shift(Shift(userId: me.userId, farmId: state.farm.id, start: start, rateCents: me.rateCents, updatedAt: start)))
             try? model.session.save(records)
             model.actions.publishLiveSnapshot()

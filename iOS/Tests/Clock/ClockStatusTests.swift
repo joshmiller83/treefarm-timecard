@@ -89,6 +89,23 @@ struct ClockStatusTests {
         #expect(s.meta == ["Clocked in Tue, Oct 13 at 7:00 AM · No breaks yet"])
     }
 
+    @Test func theBigClockTicksOnFromOneReading() {
+        let open = f.shift(f.today(7, 0))
+        let state = f.state(shifts: [open])
+        let read: Date = f.today(9, 0).addingTimeInterval(0.25)
+        let later: Date = f.today(9, 1)
+        let s = ClockStatus(state: state, now: read)
+        let full: TimeInterval = ClockStatus.worked(state: state, now: later)
+        #expect(s.bigClock(at: later) == full)
+        let tick: Date = f.today(9, 0).addingTimeInterval(1)
+        #expect(s.nextWholeSecond == tick)
+    }
+
+    @Test func tapAgainWaitsLongerForAssistiveTech() {
+        #expect(ClockOutTap.timeout(assistiveTech: false) == 5)
+        #expect(ClockOutTap.timeout(assistiveTech: true) == 30)
+    }
+
     @Test func aShiftOpenPastADayNeedsItsClockOutFixed() {
         let open = f.shift(f.at(f.day(-1), 7, 0))
         #expect(!ClockStatus(state: f.state(shifts: [open]), now: f.today(6, 59)).needsClockOutFix)

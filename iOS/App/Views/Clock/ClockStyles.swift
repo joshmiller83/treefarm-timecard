@@ -100,12 +100,16 @@ enum ClockColors {
     }
 }
 
-/// The status card's pill: small caps, letter-spaced, with a light that pulses while working.
+/// The status card's pill: small caps, letter-spaced, with a light. While working the light
+/// sends out one ring when the phase changes (not all day: that keeps the screen redrawing),
+/// and none with Reduce Motion, in Low Power Mode, or on a shift left open.
 struct ClockPill: View {
     var text: String
     var tone: Tone
+    var pulses = true
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var pulsing = false
+    @ScaledMetric(relativeTo: .caption) private var dotSize: CGFloat = 9
+    @State private var ring = false
 
     enum Tone { case off, working, onBreak }
 
@@ -113,13 +117,13 @@ struct ClockPill: View {
         HStack(spacing: 8) {
             Circle()
                 .fill(dot)
-                .frame(width: 9, height: 9)
+                // Grows with the text, up to where the pill stops growing.
+                .frame(width: min(dotSize, 14), height: min(dotSize, 14))
                 .background {
-                    if tone == .working && !reduceMotion {
+                    if showsRing {
                         Circle()
-                            .stroke(ClockColors.pulse.opacity(pulsing ? 0 : 0.7), lineWidth: pulsing ? 8 : 0)
-                            .scaleEffect(pulsing ? 2.2 : 1)
-                            .animation(.easeOut(duration: 2).repeatForever(autoreverses: false), value: pulsing)
+                            .stroke(ClockColors.pulse.opacity(ring ? 0 : 0.7), lineWidth: ring ? 8 : 0)
+                            .scaleEffect(ring ? 2.2 : 1)
                     }
                 }
                 .accessibilityHidden(true)
@@ -133,10 +137,26 @@ struct ClockPill: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
         .overlay(Capsule().strokeBorder(border, lineWidth: 1.5))
+        .dynamicTypeSize(...DynamicTypeSize.accessibility1)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(text)
+        .accessibilityShowsLargeContentViewer {
+            Text(text)
+        }
         .accessibilityIdentifier("status-pill")
-        .onAppear { pulsing = true }
+        .task(id: tone) { await sendRing() }
+    }
+
+    private var showsRing: Bool {
+        tone == .working && pulses && !reduceMotion && !ProcessInfo.processInfo.isLowPowerModeEnabled
+    }
+
+    /// One ring, then still.
+    private func sendRing() async {
+        ring = false
+        guard showsRing else { return }
+        try? await Task.sleep(for: .milliseconds(150))
+        withAnimation(.easeOut(duration: 2)) { ring = true }
     }
 
     private var dot: Color {
