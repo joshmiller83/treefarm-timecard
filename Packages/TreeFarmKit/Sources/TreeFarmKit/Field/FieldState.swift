@@ -27,9 +27,12 @@ public struct FieldState: Sendable {
     public var members: [Member]
     public var position: WorkPosition?
     public var notes: [TreeNote]
+    /// Who holds each tree in the active season, when the caller keeps one up to date (the
+    /// app's store does). Nil: `index` builds it from `marks` on each read.
+    public var seasonIndex: MarkIndex?
 
     public init(farm: Farm, me: Member, season: Season?, fields: [Field], blocks: [Block], myShifts: [Shift],
-                marks: [TreeMark], members: [Member], position: WorkPosition?, notes: [TreeNote] = []) {
+                marks: [TreeMark], members: [Member], position: WorkPosition?, notes: [TreeNote] = [], seasonIndex: MarkIndex? = nil) {
         self.farm = farm
         self.me = me
         self.season = season
@@ -40,6 +43,7 @@ public struct FieldState: Sendable {
         self.members = members
         self.position = position
         self.notes = notes
+        self.seasonIndex = seasonIndex
     }
 
     public var calendar: FarmCalendar { FarmCalendar(farm: farm) }
@@ -51,6 +55,7 @@ public struct FieldState: Sendable {
 
     /// Who holds each tree this season.
     public var index: MarkIndex {
+        if let seasonIndex { return seasonIndex }
         guard let season else { return MarkIndex(marks: []) }
         return MarkIndex(marks: marks.filter { $0.seasonId == season.id && $0.isLive })
     }
@@ -116,6 +121,7 @@ public struct FieldState: Sendable {
                 markIds.insert(mark.id)
                 newMarks.removeAll { $0.id == mark.id }
                 if mark.isLive { newMarks.append(mark) }
+                if mark.seasonId == s.season?.id { s.seasonIndex?.apply(mark) }
             case .treeNote(let note):
                 s.notes.removeAll { $0.id == note.id }
                 if note.isLive { s.notes.append(note) }
@@ -130,9 +136,13 @@ public struct FieldState: Sendable {
                 s.members.append(member)
                 if member.userId == me.userId { s.me = member }
             case .farm(let farm):
+                if farm.activeSeasonId != s.farm.activeSeasonId { s.seasonIndex = nil }
                 s.farm = farm
             case .season(let season):
-                if season.id == s.farm.activeSeasonId { s.season = season }
+                if season.id == s.farm.activeSeasonId {
+                    if s.season?.id != season.id { s.seasonIndex = nil }
+                    s.season = season
+                }
             }
         }
         if !markIds.isEmpty {

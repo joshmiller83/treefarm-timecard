@@ -7,9 +7,19 @@ import Foundation
 public struct MarkIndex: Sendable {
     private var byRow: [RowRef: [Int: TreeMark]] = [:]
     private var byShift: [UUID: Set<TreeRef>] = [:]
+    /// Live marks that lost a tree to an earlier claim, kept so the next in line takes the
+    /// tree if the winner goes (only trees two phones marked offline have any).
+    private var losers: [TreeRef: [TreeMark]] = [:]
 
     public init(marks: [TreeMark]) {
         for mark in marks where mark.isLive { insert(mark) }
+    }
+
+    /// Folds in a new version of one mark: a live one claims its tree (or waits behind an
+    /// earlier claim), a deleted one lets go. The app's store keeps its index up to date this
+    /// way instead of rebuilding it from thousands of marks on every read.
+    public mutating func apply(_ mark: TreeMark) {
+        if mark.isLive { insert(mark) } else { remove(mark) }
     }
 
     public func mark(at tree: TreeRef) -> TreeMark? {
@@ -72,19 +82,39 @@ public struct MarkIndex: Sendable {
     private mutating func insert(_ mark: TreeMark) {
         let row = mark.tree.rowRef
         if let current = byRow[row]?[mark.position] {
-            guard current.id == mark.id || Self.claim(mark, beats: current) else { return }
+            if current.id != mark.id {
+                guard Self.claim(mark, beats: current) else {
+                    losers[mark.tree, default: []].removeAll { $0.id == mark.id }
+                    losers[mark.tree, default: []].append(mark)
+                    return
+                }
+                losers[mark.tree, default: []].append(current)
+            }
             byShift[current.shiftId]?.remove(current.tree)
         }
+        losers[mark.tree]?.removeAll { $0.id == mark.id }
+        if losers[mark.tree]?.isEmpty == true { losers[mark.tree] = nil }
         byRow[row, default: [:]][mark.position] = mark
         byShift[mark.shiftId, default: []].insert(mark.tree)
     }
 
     private mutating func remove(_ mark: TreeMark) {
         let row = mark.tree.rowRef
-        guard let current = byRow[row]?[mark.position], current.id == mark.id else { return }
+        guard let current = byRow[row]?[mark.position], current.id == mark.id else {
+            losers[mark.tree]?.removeAll { $0.id == mark.id }
+            if losers[mark.tree]?.isEmpty == true { losers[mark.tree] = nil }
+            return
+        }
         byRow[row]?[mark.position] = nil
         if byRow[row]?.isEmpty == true { byRow[row] = nil }
         byShift[current.shiftId]?.remove(current.tree)
+        // The next earliest claim on the tree takes it.
+        if var waiting = losers[mark.tree], let next = waiting.min(by: { Self.claim($0, beats: $1) }) {
+            waiting.removeAll { $0.id == next.id }
+            losers[mark.tree] = waiting.isEmpty ? nil : waiting
+            byRow[row, default: [:]][mark.position] = next
+            byShift[next.shiftId, default: []].insert(next.tree)
+        }
     }
 
     /// First commit wins: the earlier mark, then the smaller id.

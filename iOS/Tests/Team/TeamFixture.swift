@@ -34,7 +34,7 @@ struct TeamFixture {
                     removedAt: start.addingTimeInterval(86400))
         north = Field(farmId: farmId, name: "North Field", sortOrder: 0, updatedAt: start)
         snapshot = FarmSnapshot(farmId: farmId)
-        snapshot.farm = farm
+        snapshot.apply(.farm(farm))
         snapshot.seasons[season.id] = season
         for m in [alex, sam, jo] { snapshot.members[m.userId] = m }
         snapshot.fields[north.id] = north
@@ -65,7 +65,7 @@ struct TeamFixture {
     mutating func mark(_ block: Block, row: Int, position: Int, shift: Shift, season: Season? = nil) -> TreeMark {
         let mark = TreeMark(seasonId: (season ?? self.season).id, tree: TreeRef(blockId: block.id, row: row, position: position),
                             shiftId: shift.id, userId: shift.userId, markedAt: shift.start.addingTimeInterval(600))
-        snapshot.marks[mark.id] = mark
+        snapshot.apply(.treeMark(mark))
         return mark
     }
 

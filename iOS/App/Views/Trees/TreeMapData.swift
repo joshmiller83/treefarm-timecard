@@ -125,8 +125,9 @@ struct TreeMapData {
     var fields: [Field]
     /// Every live block on the farm.
     var blocks: [Block]
-    /// The snapshot's live marks (every season), kept to spot what changed.
-    var allMarks: [UUID: TreeMark]
+    /// The snapshot's live marks (every season), kept to spot what changed. It shares storage
+    /// with the snapshot's, so it costs nothing until one of them changes, and then only a bucket.
+    var allMarks: MarkTable
     var index: MarkIndex
     var notes: [UUID: TreeNote]
     var notesByTree: [TreeRef: [TreeNote]]
@@ -142,7 +143,7 @@ struct TreeMapData {
     init(snapshot: FarmSnapshot, farm: Farm, me: Member) {
         self.init(header: snapshot, farm: farm, me: me)
         allMarks = snapshot.marks
-        index = Self.index(snapshot.marks, season: season?.id)
+        index = Self.index(snapshot, season: season?.id)
         notes = snapshot.notes
         notesByTree = Self.group(snapshot.notes)
     }
@@ -178,18 +179,22 @@ struct TreeMapData {
         let next = TreeMapData(header: snapshot, farm: farm, me: me)
         var dirty: Set<RowRef>? = []
         if next.season?.id != season?.id || next.me.userId != self.me.userId {
-            index = Self.index(snapshot.marks, season: next.season?.id)
+            index = Self.index(snapshot, season: next.season?.id)
             dirty = nil
-        } else if let change = Self.diff(allMarks, snapshot.marks, season: next.season?.id) {
-            if change.removed.isEmpty && change.added.isEmpty {
-                // Equal values in different storage: nothing to redraw.
-            } else if change.added.count + change.removed.count > 600 {
-                index = Self.index(snapshot.marks, season: next.season?.id)
+        } else {
+            // Only the buckets that changed are looked at; the store keeps the season's index.
+            let change = snapshot.marks.changes(since: allMarks)
+            if change.upserted.count + change.removed.count > 600 {
                 dirty = nil
             } else {
-                index = index.applying(MarkChange(removed: change.removed))
-                index = index.applying(MarkChange(added: change.added))
-                dirty?.formUnion(change.rows)
+                for mark in change.upserted {
+                    dirty?.insert(mark.tree.rowRef)
+                    if let before = allMarks[mark.id] { dirty?.insert(before.tree.rowRef) }
+                }
+                for mark in change.removed { dirty?.insert(mark.tree.rowRef) }
+            }
+            if !change.upserted.isEmpty || !change.removed.isEmpty {
+                index = Self.index(snapshot, season: next.season?.id)
             }
         }
         if notes != snapshot.notes {
@@ -252,7 +257,7 @@ struct TreeMapData {
         season = farm.activeSeasonId.flatMap { snapshot.seasons[$0] }
         fields = Self.liveFields(snapshot)
         blocks = snapshot.blocks.values.filter { $0.deletedAt == nil }.sorted { $0.id.uuidString < $1.id.uuidString }
-        allMarks = [:]
+        allMarks = MarkTable()
         index = MarkIndex(marks: [])
         notes = [:]
         notesByTree = [:]
@@ -270,9 +275,11 @@ struct TreeMapData {
         snapshot.shifts.values.filter { $0.userId == userId && $0.isLive }.sorted { $0.start > $1.start }
     }
 
-    private static func index(_ marks: [UUID: TreeMark], season: UUID?) -> MarkIndex {
+    /// The season's index: the store's own when it's for this season, else built from the marks.
+    private static func index(_ snapshot: FarmSnapshot, season: UUID?) -> MarkIndex {
         guard let season else { return MarkIndex(marks: []) }
-        return MarkIndex(marks: marks.values.filter { $0.seasonId == season && $0.isLive })
+        if snapshot.farm?.activeSeasonId == season { return snapshot.seasonIndex }
+        return MarkIndex(marks: snapshot.marks.values.filter { $0.seasonId == season && $0.isLive })
     }
 
     static func group(_ notes: [UUID: TreeNote]) -> [TreeRef: [TreeNote]] {
@@ -284,30 +291,6 @@ struct TreeMapData {
             byTree[key]?.sort { ($0.createdAt, $0.id.uuidString) > ($1.createdAt, $1.id.uuidString) }
         }
         return byTree
-    }
-
-    /// What changed between two sets of live marks: the old copies to take out of the index,
-    /// the new season marks to put in, and every row touched. Nil when nothing changed.
-    static func diff(_ old: [UUID: TreeMark], _ new: [UUID: TreeMark], season: UUID?) -> (removed: [TreeMark], added: [TreeMark], rows: Set<RowRef>)? {
-        if old == new { return nil }
-        var removed: [TreeMark] = []
-        var added: [TreeMark] = []
-        var rows = Set<RowRef>()
-        for (id, mark) in new {
-            let before = old[id]
-            guard before != mark else { continue }
-            if let before {
-                removed.append(before)
-                rows.insert(before.tree.rowRef)
-            }
-            if mark.seasonId == season { added.append(mark) }
-            rows.insert(mark.tree.rowRef)
-        }
-        for (id, mark) in old where new[id] == nil {
-            removed.append(mark)
-            rows.insert(mark.tree.rowRef)
-        }
-        return (removed, added, rows)
     }
 
     private static func changedNoteRows(_ old: [UUID: TreeNote], _ new: [UUID: TreeNote]) -> Set<RowRef> {

@@ -456,12 +456,16 @@ public final class LocalStore: Sendable {
 
     // MARK: Helpers
 
+    /// Changes the in-memory snapshot. Called only inside the database writer's serialized
+    /// blocks, so writes never race: the copy is taken and changed outside the lock (readers keep
+    /// the old one meanwhile, and a change copies only the buckets it touches) and swapped in.
     private func updateSnapshot(farmId: UUID, _ body: (inout FarmSnapshot) -> Void) {
-        state.withLockUnchecked { state in
-            guard var snapshot = state.snapshot, snapshot.farmId == farmId else { return }
-            state.snapshot = nil // keep the dictionaries uniquely referenced while mutating
-            body(&snapshot)
-            state.snapshot = snapshot
+        guard var snapshot = state.withLock({ $0.snapshot }), snapshot.farmId == farmId else { return }
+        body(&snapshot)
+        let changed = snapshot
+        state.withLock { state in
+            guard state.snapshot?.farmId == farmId else { return }
+            state.snapshot = changed
         }
     }
 

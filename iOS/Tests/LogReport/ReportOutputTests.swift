@@ -72,7 +72,7 @@ struct ReportOutputTests {
         let cache = ShiftTreesCache()
         #expect(cache.trees(for: snapshot).count(mon.id) == 124)
         var more = snapshot
-        for mark in F.marks(rows: 18...18, on: mon) { more.marks[mark.id] = mark }
+        for mark in F.marks(rows: 18...18, on: mon) { more.apply(.treeMark(mark)) }
         #expect(cache.trees(for: more).count(mon.id) == 134)
         #expect(cache.trees(for: snapshot).count(mon.id) == 124)
     }

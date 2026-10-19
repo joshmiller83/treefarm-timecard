@@ -60,7 +60,7 @@ struct SeasonPlansTests {
         f.snapshot.seasons[mistake.id] = mistake
         var farm = f.farm
         farm.activeSeasonId = mistake.id
-        f.snapshot.farm = farm
+        f.snapshot.apply(.farm(farm))
         #expect(SeasonPlans.undoTarget(f.snapshot, now: f.now)?.id == f.season.id)
 
         let edit = SeasonPlans.makeActive(f.season, farm: farm, now: f.now)
@@ -78,7 +78,7 @@ struct SeasonPlansTests {
         #expect(SeasonPlans.undoTarget(f.snapshot, now: f.now) == nil)
 
         // Nor a week on, when it was surely meant.
-        f.snapshot.marks[mark.id] = nil
+        f.snapshot.remove(kind: .treeMark, id: mark.id)
         #expect(SeasonPlans.undoTarget(f.snapshot, now: f.at(28, 9, 1)) == nil)
         // And the only season has nothing to go back to.
         #expect(SeasonPlans.undoTarget(TeamFixture().snapshot, now: f.now) == nil)

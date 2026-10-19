@@ -21,6 +21,8 @@ struct ClockView: View {
     /// Bumped after each action: the work position lives outside the observed snapshot.
     @State private var refresh = 0
     @State private var notes = ShiftNotesEditor()
+    /// What the cards show, worked out once per change to the farm, not on every redraw.
+    @State private var derivedCache = ClockDerivedCache()
     /// The gear's box: 54 pt, a little larger at the biggest text sizes.
     @ScaledMetric(relativeTo: .title3) private var gearScaled: CGFloat = GloveButtonStyle.minHeight
     private var gearBox: CGFloat { min(72, max(GloveButtonStyle.minHeight, gearScaled)) }
@@ -160,8 +162,8 @@ struct ClockView: View {
     @ViewBuilder
     private func content(_ state: FieldState) -> some View {
         let status = ClockStatus(state: state, now: Date())
-        let working = NowWorking(state: state, live: model.actions.liveSnapshot())
-        // Who holds each tree, built once per redraw: a late-season farm has thousands of marks.
+        let derived = derivedCache.values(state: state, version: model.actions.stateVersion, live: model.actions.liveSnapshot())
+        let working = derived.working
         let index = state.index
 
         // The card's words roll over with the clock (midnight, the 16-hour warning) without a tap.
@@ -184,12 +186,12 @@ struct ClockView: View {
                 .id("now")
             TreesCardView(content: .shift(working), onOpenMap: mapAction)
                 .id("trees")
-        } else if let field = FieldSummary(state: state, index: index) {
+        } else if let field = derived.field {
             TreesCardView(content: .field(field), onOpenMap: mapAction)
                 .id("trees")
         }
 
-        if PaceCard.hasTrees(state: state, index: index) {
+        if derived.hasTrees {
             TimelineView(.periodic(from: .now, by: 30)) { context in
                 if let pace = PaceCard(state: state, index: index, now: context.date, showPay: showPay) {
                     PaceCardView(pace: pace)
@@ -331,6 +333,31 @@ enum ClockSheet: Identifiable {
         case .editShift(let id): "edit-\(id?.uuidString ?? "new")"
         case .fixClockOut(let id): "fix-out-\(id)"
         }
+    }
+}
+
+/// The Clock tab's cards, derived from the field state once per change (`FieldActions.stateVersion`
+/// and the lock-screen snapshot), so a tap that redraws the tab several times doesn't walk the
+/// field again each time.
+@MainActor
+final class ClockDerivedCache {
+    struct Values {
+        var working: NowWorking?
+        var field: FieldSummary?
+        var hasTrees: Bool
+    }
+
+    private var cached: (version: Int, live: LiveSnapshot?, values: Values)?
+
+    func values(state: FieldState, version: Int, live: LiveSnapshot?) -> Values {
+        if let cached, cached.version == version, cached.live == live { return cached.values }
+        let index = state.index
+        let working = NowWorking(state: state, live: live)
+        let values = Values(working: working,
+                            field: working == nil ? FieldSummary(state: state, index: index) : nil,
+                            hasTrees: PaceCard.hasTrees(state: state, index: index))
+        cached = (version, live, values)
+        return values
     }
 }
 

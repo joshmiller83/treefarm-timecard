@@ -63,13 +63,13 @@ enum LogReportFixture {
     /// A snapshot holding the farm, both people, the blocks, and the given shifts and marks.
     static func snapshot(shifts: [Shift], marks: [TreeMark] = []) -> FarmSnapshot {
         var s = FarmSnapshot(farmId: farmId)
-        s.farm = farm
+        s.apply(.farm(farm))
         s.members = [me: meMember, sam: samMember]
         s.blocks = [block1.id: block1, block2.id: block2]
         s.fields = [fieldId: Field(id: fieldId, farmId: farmId, name: "North Field")]
         s.seasons = [seasonId: Season(id: seasonId, farmId: farmId, name: "2026", startedAt: at(1, 1, 0, 0))]
         for shift in shifts { s.shifts[shift.id] = shift }
-        for mark in marks { s.marks[mark.id] = mark }
+        for mark in marks { s.apply(.treeMark(mark)) }
         return s
     }
 

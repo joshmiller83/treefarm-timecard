@@ -68,7 +68,7 @@ struct ShiftTrees {
 /// whole farm of marks. Comparing an unchanged dictionary with its copy is quick.
 @MainActor
 final class ShiftTreesCache {
-    private var marks: [UUID: TreeMark]?
+    private var marks: MarkTable?
     private var blocks: [UUID: Block]?
     private var value: ShiftTrees?
 

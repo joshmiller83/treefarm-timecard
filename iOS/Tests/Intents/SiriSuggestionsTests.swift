@@ -91,4 +91,19 @@ struct SiriSuggestionsTests {
         model.actions.perform(.clockIn(fieldId: nil))
         #expect(heard == 1)
     }
+
+    /// Each Siri or lock-screen press may start a fresh process; one that would tell iOS the
+    /// same names as the last process skips it.
+    @Test func aFreshProcessSkipsTheSameNames() async throws {
+        let memory = try #require(UserDefaults(suiteName: "SiriSuggestionsTests-\(UUID().uuidString)"))
+        var calls = 0
+        let first = SiriSuggestions(settle: .milliseconds(10), memory: memory) { calls += 1 }
+        first.follow(model)
+        await first.settled()
+        #expect(calls == 1)
+        let fresh = SiriSuggestions(settle: .milliseconds(10), memory: memory) { calls += 1 }
+        fresh.follow(model)
+        await fresh.settled()
+        #expect(calls == 1, "the same names went to iOS again")
+    }
 }

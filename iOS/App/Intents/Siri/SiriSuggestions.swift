@@ -13,7 +13,7 @@ import TimeCardCore
 /// update, and an update is only sent when what Siri can name really changed.
 @MainActor
 final class SiriSuggestions {
-    static let shared = SiriSuggestions()
+    static let shared = SiriSuggestions(memory: SiriSuggestions.appGroupDefaults())
 
     /// Tells iOS to read the suggestions again. Tests count the calls.
     var update: @MainActor () -> Void
@@ -24,9 +24,24 @@ final class SiriSuggestions {
     private var lastNames: Names?
     private var pending: Task<Void, Never>?
 
-    init(settle: Duration = .seconds(1), update: @escaping @MainActor () -> Void = { TimeCardShortcuts.updateAppShortcutParameters() }) {
+    /// Where the last names iOS was told about are remembered, so a fresh process (Siri and
+    /// lock-screen presses each may start one) doesn't tell iOS the same names again.
+    /// Nil: remember in memory only (tests).
+    private let memory: UserDefaults?
+    static let digestKey = "siri.suggestions.digest"
+
+    init(settle: Duration = .seconds(1), memory: UserDefaults? = nil,
+         update: @escaping @MainActor () -> Void = { TimeCardShortcuts.updateAppShortcutParameters() }) {
         self.settle = settle
+        self.memory = memory
         self.update = update
+    }
+
+    /// The shared instance remembers in the App Group, which every process of the app sees.
+    static func appGroupDefaults() -> UserDefaults? {
+        guard LaunchMode.current() == .live,
+              let group = Bundle.main.object(forInfoDictionaryKey: "TimeCardAppGroup") as? String else { return nil }
+        return UserDefaults(suiteName: group)
     }
 
     /// What Siri can name right now: the suggested rows, blocks and fields, by id.
@@ -40,6 +55,11 @@ final class SiriSuggestions {
             rows = VoiceCatalog.suggestedRows(state).map(\.id)
             blocks = VoiceCatalog.suggestedBlocks(state).map(\.id)
             fields = VoiceCatalog.fields(state).map(\.id)
+        }
+
+        /// The names in one string, to remember between processes.
+        var digest: String {
+            [rows.joined(separator: ","), blocks.joined(separator: ","), fields.joined(separator: ",")].joined(separator: "|")
         }
     }
 
@@ -86,8 +106,16 @@ final class SiriSuggestions {
 
     private func send(always: Bool) {
         let names = followed.map { Names($0.actions.state()) }
-        if !always, let names, names == lastNames { return }
+        if !always, let names {
+            if names == lastNames { return }
+            // A fresh process: iOS may already have these from an earlier one.
+            if lastNames == nil, let memory, memory.string(forKey: Self.digestKey) == names.digest {
+                lastNames = names
+                return
+            }
+        }
         lastNames = names
+        if let names { memory?.set(names.digest, forKey: Self.digestKey) }
         update()
     }
 
