@@ -26,6 +26,9 @@ public func configure(_ app: Application, config: AppConfig) async throws {
         app.databases.use(.sqlite(.file(path)), as: .sqlite)
     }
 
+    app.migrations.add(CreateSchema())
+    try await app.autoMigrate()
+
     app.middleware = Middlewares()
     app.middleware.use(RouteLoggingMiddleware(logLevel: .info))
     app.middleware.use(APIErrorMiddleware())
