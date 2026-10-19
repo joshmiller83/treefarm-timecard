@@ -71,6 +71,85 @@ final class ShortcutsUITests: XCTestCase {
         done()
     }
 
+    /// The demo farm, clocked in, with the Shortcuts app open on Time Card's page.
+    private func clockedInInShortcuts() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-UITestInMemory"]
+        app.launch()
+        XCTAssertTrue(app.tabBars.buttons["Clock"].waitForExistence(timeout: 15))
+        try openTimeCardShortcuts()
+        run("Clock In")
+        _ = answer(startingWith: "Clocked in at")
+        done()
+    }
+
+    /// "Mark a row" asks which row; a row more than 5 away is checked first, and "No" marks
+    /// nothing. (Strings: VoiceText.whichRow, FieldEngine.confirmation, VoiceText.nothingMarked.)
+    func testMarkARowFarAwayAsksAndNoMarksNothing() throws {
+        try clockedInInShortcuts()
+        run("Mark a Row")
+        _ = answer(startingWith: "Which row?")
+        let row11 = springboard.staticTexts["Row 11"].firstMatch
+        XCTAssertTrue(row11.waitForExistence(timeout: 10))
+        row11.tap()
+        XCTAssertEqual(answer(startingWith: "Row 11 in block 1?"), "Row 11 in block 1? That’s 6 rows ahead.")
+        save("mark-a-row-far")
+        tapSystemButton(["No"])
+        XCTAssertEqual(answer(startingWith: "Okay"), "Okay, nothing marked.")
+        done()
+    }
+
+    /// "Note a tree" with a tree past the end of the row says so right away, before the note
+    /// is dictated. (Strings: VoiceText.whichTree, Speech.treesRange.)
+    func testNoteATreePastTheEndOfTheRow() throws {
+        try clockedInInShortcuts()
+        run("Note a tree")
+        _ = answer(startingWith: "Which tree?")
+        let field = springboard.textFields.firstMatch
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        field.typeText("13")
+        tapSystemButton(["Done"])
+        XCTAssertEqual(answer(startingWith: "Block 1 has"), "Block 1 has 12 trees in each row.")
+        XCTAssertFalse(springboard.staticTexts["What’s the note?"].exists)
+        done()
+    }
+
+    /// "Fix my start time" asks for the time on a wheel and moves the open shift's start.
+    /// (Strings: VoiceText.whatTime, FieldEngine's "Start time changed to …".)
+    func testFixMyStartTime() throws {
+        try clockedInInShortcuts()
+        run("Fix my start time")
+        _ = answer(startingWith: "What time did you start?")
+        let hours = springboard.pickerWheels.firstMatch
+        XCTAssertTrue(hours.waitForExistence(timeout: 5))
+        // An hour earlier on the wheel ("11 o’clock" → "10 o’clock").
+        let shown = (hours.value as? String) ?? ""
+        let hour = Int(shown.prefix { $0.isNumber }) ?? 12
+        hours.adjust(toPickerWheelValue: "\(hour == 1 ? 12 : hour - 1)")
+        tapSystemButton(["Done"])
+        let reply = answer(startingWith: "Start time changed to")
+        XCTAssertTrue(reply.hasSuffix("."), reply)
+        save("fix-start")
+        done()
+    }
+
+    /// Siri runs a command while the app isn't running: iOS starts the app's process for the
+    /// intent alone, which opens the store and answers. Run with the demo farm switched on for
+    /// processes iOS starts by itself:
+    ///   xcrun simctl spawn <device> launchctl setenv UITEST_IN_MEMORY 1
+    /// and TEST_RUNNER_COLD_LAUNCH=1; `launchctl unsetenv UITEST_IN_MEMORY` afterwards.
+    func testAColdLaunchAnswersFromTheDemoFarm() throws {
+        guard ProcessInfo.processInfo.environment["COLD_LAUNCH"] == "1" else {
+            throw XCTSkip("Needs UITEST_IN_MEMORY set with simctl launchctl, and TEST_RUNNER_COLD_LAUNCH=1")
+        }
+        XCUIApplication().terminate()
+        try openTimeCardShortcuts()
+        run("What row am I on")
+        XCTAssertEqual(answer(startingWith: "You’re on"), "You’re on block 1, row 5. Next are rows 6 and 7.")
+        save("cold-launch")
+        done()
+    }
+
     // MARK: Driving the Shortcuts app
     //
     // Found by what the Shortcuts app names its pages and sections (accessibility identifiers
@@ -227,7 +306,10 @@ final class ShortcutsUITests: XCTestCase {
         _ = button.waitForNonExistence(timeout: 5)
     }
 
+    /// Closes whatever an earlier run left up: a question (Cancel) or an answer (Done).
     private func dismissLeftoverAnswer() {
+        let cancel = springboard.buttons["Cancel"].firstMatch
+        if cancel.waitForExistence(timeout: 1) { cancel.tap() }
         let button = springboard.buttons["Done"].firstMatch
         if button.waitForExistence(timeout: 1) { button.tap() }
     }
