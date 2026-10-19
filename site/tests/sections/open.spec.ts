@@ -192,6 +192,15 @@ test.describe('motion', () => {
     expect(problems).toEqual([]);
   });
 
+  test('with Pause motion on, every part arrives finished', async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem('tf-pause', '1'));
+    await page.goto('/');
+    await page.evaluate(() => document.fonts.ready);
+    await arrive(page);
+    await page.waitForTimeout(250);
+    expect(await finalState(page, true)).toEqual([]);
+  });
+
   test('pressing a button here never jumps the page (so the click lands)', async ({ page }) => {
     await page.goto('/');
     await arrive(page);

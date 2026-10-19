@@ -40,8 +40,16 @@ registerScene(
     const later: Array<GSAPTween | GSAPTimeline> = [];
     const cleanups: Array<() => void> = [];
     const below = (el: Element | null, at: number): el is Element => !!el && el.getBoundingClientRect().top > innerHeight * at;
-    const once = (trigger: Element, at: number, play: () => void) =>
-      ScrollTrigger.create({ trigger, start: `top ${Math.round(at * 100)}%`, end: 'max', once: true, onEnter: play });
+    // With Pause motion on, each part simply arrives finished.
+    const paused = () => document.documentElement.classList.contains('paused');
+    const once = (trigger: Element, at: number, anim: GSAPTimeline) =>
+      ScrollTrigger.create({
+        trigger,
+        start: `top ${Math.round(at * 100)}%`,
+        end: 'max',
+        once: true,
+        onEnter: () => (paused() ? anim.progress(1) : anim.play()),
+      });
 
     // ---- The icon assembles ----
     const icon = q1('[data-open-icon]');
@@ -74,7 +82,7 @@ registerScene(
         .fromTo(text, { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.5, stagger: 0.07, ease: 'power2.out' }, 0.85)
         .fromTo(sheen, { opacity: 0, xPercent: -100 }, { keyframes: { opacity: [0, 1, 1, 0] }, xPercent: 100, duration: 0.85, ease: 'power1.inOut' }, 1.3)
         .set(sheen, { xPercent: 0 });
-      once(icon, AT.icon, () => a.play());
+      once(icon, AT.icon, a);
     }
 
     // ---- The headline: lines rise out of their masks ----
@@ -84,7 +92,7 @@ registerScene(
       const h = gsap.timeline({ paused: true, onComplete: () => split.revert() });
       // 115, not 100: each mask leaves .14em below its line for descenders (see Open.astro).
       h.fromTo(split.lines, { yPercent: 115 }, { yPercent: 0, duration: 0.7, stagger: 0.08, ease: 'power3.out' });
-      once(head, AT.head, () => h.play());
+      once(head, AT.head, h);
       cleanups.push(() => split.revert());
     }
 
@@ -97,7 +105,9 @@ registerScene(
         end: 'max',
         once: true,
         onEnter: (batch) => {
-          later.push(gsap.to(batch, { opacity: 1, y: 0, duration: 0.6, stagger: 0.05, ease: 'power2.out', overwrite: 'auto' }));
+          const show = gsap.to(batch, { opacity: 1, y: 0, duration: 0.6, stagger: 0.05, ease: 'power2.out', overwrite: 'auto' });
+          if (paused()) show.progress(1);
+          later.push(show);
         },
       });
     }
@@ -124,7 +134,7 @@ registerScene(
           r.fromTo(ripple, { opacity: 0.8, scale: 1 }, { opacity: 0, scale: 2.8, duration: 0.9, ease: 'power2.out', immediateRender: false }, at + 0.25);
         }
       });
-      once(rail, AT.rail, () => r.play());
+      once(rail, AT.rail, r);
     }
 
     // ---- The terminal types the command once ----
@@ -154,7 +164,7 @@ registerScene(
         t.set(cursor, to(i), at);
       });
       t.set(cursor, { x: 0, y: 0, immediateRender: false }, DURATION + 0.03);
-      once(term, AT.term, () => t.play());
+      once(term, AT.term, t);
     }
 
     // ---- The stage phone is released (desktop): it fades as the light section rises into view,
