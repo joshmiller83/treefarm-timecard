@@ -17,16 +17,22 @@
  *   phone     the stage phone fades out (.4 s) as the section rises into view (desktop); the
  *             core then hides the stage itself, since this chapter is stage: 'off'
  *
- * Static first: an element that is already in view when the scene builds (a reader who
- * jumped here) keeps its final state; only parts still below the fold get from-states.
+ * Static first: an element that is already on screen when the scene builds (a reader who
+ * jumped here, even with it just above the bottom edge) keeps its final state; only parts
+ * still entirely below the viewport get from-states, and each then plays at its AT line.
+ * With Pause motion on when it builds, nothing gets a from-state.
  * Every from-state and timeline is made while building, so gsap.matchMedia reverts them.
  */
 import { registerScene } from '../scene.ts';
 import { MOMENTS } from '../../data/ledger.ts';
 import { handDrop, tickOrder, typeTimes } from '../../sections/open/open.ts';
 
-/** Where each part starts playing, as a fraction of the viewport height from the top. */
-const AT = { icon: 0.85, head: 0.88, copy: 0.92, rail: 0.85, term: 0.82, ribbon: 0.7, phone: 0.85 } as const;
+/**
+ * Where each part starts playing, as a fraction of the viewport height from the top. A part
+ * only gets its from-state when it is fully below the viewport as the scene builds. The rail
+ * plays on the copy's line, so its dots and line arrive with its labels (they fade up as copy).
+ */
+const AT = { icon: 0.85, head: 0.88, copy: 0.92, rail: 0.92, term: 0.82, ribbon: 0.7, phone: 0.85 } as const;
 
 registerScene(
   'open',
@@ -39,9 +45,12 @@ registerScene(
 
     const later: Array<GSAPTween | GSAPTimeline> = [];
     const cleanups: Array<() => void> = [];
-    const below = (el: Element | null, at: number): el is Element => !!el && el.getBoundingClientRect().top > innerHeight * at;
     // With Pause motion on, each part simply arrives finished.
     const paused = () => document.documentElement.classList.contains('paused');
+    // Below the viewport, not merely below a trigger line: a part already on screen (between its
+    // line and the bottom edge) would otherwise sit half-built until the reader scrolled on.
+    // Paused at build: nothing gets a from-state at all.
+    const ahead = (el: Element | null): el is Element => !!el && !paused() && el.getBoundingClientRect().top >= innerHeight;
     const once = (trigger: Element, at: number, anim: GSAPTimeline) =>
       ScrollTrigger.create({
         trigger,
@@ -53,7 +62,7 @@ registerScene(
 
     // ---- The icon assembles ----
     const icon = q1('[data-open-icon]');
-    if (below(icon, AT.icon)) {
+    if (ahead(icon)) {
       const svg = icon.querySelector('svg')!;
       const size = svg.getBoundingClientRect().width || 192;
       const bg = svg.querySelector('[data-icon-bg]');
@@ -67,8 +76,15 @@ registerScene(
       const text = q('[data-lockup-text]').filter((t) => getComputedStyle(t).display !== 'none');
 
       const a = gsap.timeline({ paused: true });
+      // The shadow layer grows with the square (same origin: 512,520 of 1024), so no pale rim
+      // of background shows between a small square and a full-size shadow.
       a.fromTo(bg, { opacity: 0, scale: 0.9, svgOrigin: '512 520' }, { opacity: 1, scale: 1, duration: 0.55, ease: 'power3.out' }, 0)
-        .fromTo(shadow, { opacity: 0 }, { opacity: 1, duration: 0.8, ease: 'power1.out' }, 0.05)
+        .fromTo(
+          shadow,
+          { opacity: 0, scale: 0.9, transformOrigin: '50% 50.78%' },
+          { opacity: 1, scale: 1, duration: 0.55, ease: 'power3.out' },
+          0,
+        )
         // The ring has pathLength 1, so its offset runs 1 → 0: tween the attribute (CSS px would round).
         .fromTo(ring, { attr: { 'stroke-dashoffset': 1 } }, { attr: { 'stroke-dashoffset': 0 }, duration: 1, ease: 'power2.inOut' }, 0.15)
         .fromTo(ticks, { scale: 0, transformOrigin: '50% 50%' }, { scale: 1, duration: 0.32, ease: 'back.out(2.2)', stagger: 0.04 }, 0.3)
@@ -78,16 +94,17 @@ registerScene(
           { y: handDrop(size), rotation: -8, svgOrigin: '512 520' },
           { y: 0, rotation: 0, duration: 0.6, ease: 'back.out(1.4)' },
           0.72,
-        )
-        .fromTo(text, { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.5, stagger: 0.07, ease: 'power2.out' }, 0.85)
-        .fromTo(sheen, { opacity: 0, xPercent: -100 }, { keyframes: { opacity: [0, 1, 1, 0] }, xPercent: 100, duration: 0.85, ease: 'power1.inOut' }, 1.3)
+        );
+      // The name and audience lines are hidden below 900px: nothing to tween there.
+      if (text.length) a.fromTo(text, { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.5, stagger: 0.07, ease: 'power2.out' }, 0.85);
+      a.fromTo(sheen, { opacity: 0, xPercent: -100 }, { keyframes: { opacity: [0, 1, 1, 0] }, xPercent: 100, duration: 0.85, ease: 'power1.inOut' }, 1.3)
         .set(sheen, { xPercent: 0 });
       once(icon, AT.icon, a);
     }
 
     // ---- The headline: lines rise out of their masks ----
     const head = q1<HTMLElement>(`#${section.id}-h`);
-    if (below(head, AT.head) && document.fonts.status === 'loaded') {
+    if (ahead(head) && document.fonts.status === 'loaded') {
       const split = SplitText.create(head, { type: 'lines', mask: 'lines', linesClass: 'open-line', aria: 'auto' });
       const h = gsap.timeline({ paused: true, onComplete: () => split.revert() });
       // 115, not 100: each mask leaves .14em below its line for descenders (see Open.astro).
@@ -97,7 +114,7 @@ registerScene(
     }
 
     // ---- Copy, chips and buttons fade up 16px as they arrive ----
-    const reveal = q('[data-reveal]').filter((el) => below(el, AT.copy));
+    const reveal = q('[data-reveal]').filter((el) => ahead(el));
     if (reveal.length) {
       gsap.set(reveal, { opacity: 0, y: 16 });
       ScrollTrigger.batch(reveal, {
@@ -114,7 +131,7 @@ registerScene(
 
     // ---- Where it stands: the line fills to "now", the stops pop in order ----
     const rail = q1<HTMLElement>('[data-open-rail]');
-    if (below(rail, AT.rail)) {
+    if (ahead(rail)) {
       const fill = parseFloat(rail.style.getPropertyValue('--fill')) || 0;
       const dots = Array.from(rail.querySelectorAll<HTMLElement>('[data-dot]'));
       const now = dots.findIndex((d) => d.closest<HTMLElement>('[data-step]')?.dataset.step === 'now');
@@ -141,7 +158,7 @@ registerScene(
     const term = q1<HTMLElement>('[data-open-term]');
     const cursor = term?.querySelector<HTMLElement>('[data-term-cursor]');
     const chars = term ? Array.from(term.querySelectorAll<HTMLElement>('[data-term-char]')) : [];
-    if (below(term, AT.term) && cursor && chars.length) {
+    if (ahead(term) && cursor && chars.length) {
       const DURATION = 1.2;
       const last = chars[chars.length - 1]!;
       // The cursor rests after the last character; these offsets move it after character i

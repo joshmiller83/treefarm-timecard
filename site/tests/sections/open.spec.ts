@@ -12,10 +12,12 @@ const DOCS = `${REPO}/tree/main/docs`;
 const COMMAND = 'swift test --package-path Packages/TreeFarmKit';
 const STACK = ['SwiftUI', 'App Intents', 'ActivityKit', 'Vapor', 'SQLite', 'Cloudflare Tunnel', 'MIT'];
 
+/** Collects page errors, console errors, and GSAP's warnings (e.g. "GSAP target not found"). */
 function watch(page: Page) {
   const problems: string[] = [];
   page.on('console', (m) => {
     if (m.type() === 'error') problems.push(`console: ${m.text()}`);
+    if (m.type() === 'warning' && /gsap/i.test(m.text())) problems.push(`warning: ${m.text()}`);
   });
   page.on('pageerror', (e) => problems.push(`pageerror: ${e.message}`));
   return problems;
@@ -51,27 +53,67 @@ async function settled(loc: Locator) {
 }
 
 /**
- * What inside #open is not in its final state (faded, hidden, or the ring not drawn).
- * `inView` limits the check to what is on screen. Transient layers (the icon's one-time sheen)
- * rest at opacity 0 by design.
+ * What inside #open is not in its final state: faded, hidden, shrunk (a dot or a tick still at
+ * scale 0), the rail's line not filled, or the ring not drawn. `inView` limits the check to
+ * what is on screen. Transient layers (the icon's one-time sheen, the ripple) rest at opacity 0
+ * by design.
  */
 async function finalState(page: Page, inView = false) {
   return page.locator('#open').evaluate((sec, inView) => {
     const off: string[] = [];
     const els = [sec, ...Array.from(sec.querySelectorAll<HTMLElement | SVGElement>('*'))];
+    const scale = (el: Element, cs: CSSStyleDeclaration) => {
+      // GSAP writes an SVG element's transform as its attribute, which some engines do not
+      // report as the computed CSS transform.
+      const own = el instanceof SVGGraphicsElement ? el.transform.baseVal.consolidate()?.matrix : undefined;
+      const m = cs.transform !== 'none' ? new DOMMatrix(cs.transform) : (own ?? new DOMMatrix());
+      return Math.min(Math.hypot(m.a, m.b), Math.hypot(m.c, m.d));
+    };
     for (const el of els) {
       const cs = getComputedStyle(el);
       if (el.closest('.sr-only, [data-transient]')) continue;
       const r = el.getBoundingClientRect();
-      if (inView && (r.top > innerHeight * 0.85 || r.bottom < 0)) continue;
-      if (Number(cs.opacity) < 0.999) off.push(`opacity ${cs.opacity}: ${el.outerHTML.slice(0, 70)}`);
-      if (cs.visibility === 'hidden') off.push(`hidden: ${el.outerHTML.slice(0, 70)}`);
+      if (inView && (r.top >= innerHeight || r.bottom <= 0)) continue;
+      const tag = el.outerHTML.slice(0, 70);
+      if (Number(cs.opacity) < 0.999) off.push(`opacity ${cs.opacity}: ${tag}`);
+      if (cs.visibility === 'hidden') off.push(`hidden: ${tag}`);
+      const k = scale(el, cs);
+      // The rail's fill rests at its own scale (the share of the line up to "now").
+      if (el.matches('[data-rail-fill]')) {
+        if (k < 0.3) off.push(`rail fill ${k.toFixed(3)}`);
+      } else if (cs.display !== 'none' && k < 0.999) off.push(`scale ${k.toFixed(3)}: ${tag}`);
     }
     const ring = sec.querySelector('[data-icon-ring]');
     const dash = ring ? parseFloat(getComputedStyle(ring).strokeDashoffset || '0') : 0;
     if (Math.abs(dash) > 0.001) off.push(`ring dashoffset ${dash}`);
     return off;
   }, inView);
+}
+
+/** True when every character of `phrase` inside the element is set on one line. */
+async function onOneLine(loc: Locator, phrase: string) {
+  return loc.evaluate((el, phrase) => {
+    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+    const nodes: Text[] = [];
+    for (let n = walker.nextNode(); n; n = walker.nextNode()) nodes.push(n as Text);
+    const text = nodes.map((n) => n.data).join('').replace(/\s/g, ' ');
+    const start = text.indexOf(phrase);
+    if (start < 0) return false;
+    const tops: number[] = [];
+    let pos = 0;
+    for (const n of nodes) {
+      for (let i = 0; i < n.length; i++) {
+        const at = pos + i;
+        if (at < start || at >= start + phrase.length || text[at] === ' ') continue;
+        const r = document.createRange();
+        r.setStart(n, i);
+        r.setEnd(n, i + 1);
+        tops.push(r.getBoundingClientRect().top);
+      }
+      pos += n.length;
+    }
+    return tops.length > 0 && Math.max(...tops) - Math.min(...tops) < 8;
+  }, phrase);
 }
 
 for (const mode of ['reduced', 'motion'] as const) {
@@ -85,7 +127,8 @@ for (const mode of ['reduced', 'motion'] as const) {
       await arrive(page);
       const sec = page.locator('section#open');
       await expect(sec).toHaveAttribute('aria-labelledby', 'open-h');
-      await expect(page.getByRole('heading', { level: 2, name: 'Built on a working tree farm. Out in the open.' })).toBeVisible();
+      const head = page.getByRole('heading', { level: 2, name: 'Built on a working tree farm. Out in the open.' });
+      await expect(head).toBeVisible();
       await expect(sec.locator('.eyebrow').first()).toHaveText(/the story so far/i);
 
       // The three facts, in plain text.
@@ -101,7 +144,7 @@ for (const mode of ['reduced', 'motion'] as const) {
       const rail = sec.getByRole('list', { name: 'Where it stands' });
       await expect(rail.getByRole('listitem')).toHaveCount(4);
       await expect(rail).toContainText('In active development');
-      await expect(rail).toContainText('Not yet');
+      await expect(rail).toContainText('Not yet'); // said to screen readers; on screen the open ring says it
 
       // The stack.
       const chips = sec.getByRole('list', { name: 'The stack' }).getByRole('listitem');
@@ -154,6 +197,50 @@ for (const mode of ['reduced', 'motion'] as const) {
 
 test.describe('reduced motion', () => {
   test.use({ reducedMotion: 'reduce' });
+
+  test('the headline never splits “Out in the open.”', async ({ page }) => {
+    const head = page.locator('#open-h');
+    await page.goto('/');
+    // Off-screen sections skip rendering (content-visibility), and their geometry can be stale.
+    await page.addStyleTag({ content: '.sec { content-visibility: visible !important; }' });
+    await page.evaluate(() => document.fonts.ready);
+    for (const width of [320, 375, 768, 1024, 1280, 1440]) {
+      await page.setViewportSize({ width, height: 900 });
+      await head.scrollIntoViewIfNeeded();
+      await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+      expect(await onOneLine(head, 'Out in the open.'), `at ${width}px`).toBe(true);
+    }
+  });
+
+  test('the header stays readable over this light chapter (static desktop page)', async ({ page }) => {
+    test.skip((page.viewportSize()?.width ?? 0) < 900, 'the static header bar is desktop-only');
+    // Deferred to Header.astro's owner: the static desktop bar keeps its dark background while
+    // the light theme switches its text to ink. Remove this line once that fix lands.
+    test.fail(true, 'Header.astro: html:not(.motion) .site-header outranks [data-theme=light]');
+    await page.goto('/');
+    await page.locator('#open').evaluate((s) => window.scrollTo(0, s.getBoundingClientRect().top + scrollY + 200));
+    const header = page.locator('[data-header]');
+    await expect(header).toHaveAttribute('data-theme', 'light');
+    await page.waitForTimeout(400); // the bar's colour transition
+    // WCAG contrast of the wordmark and the GitHub link on the bar, composited over the light
+    // chapter (#ECF1EC) that scrolls under it.
+    const ratios = await header.evaluate((h) => {
+      const rgba = (c: string) => (c.match(/[\d.]+/g) ?? []).map(Number);
+      const lum = ([r, g, b]: number[]) => {
+        const f = (v: number) => ((v /= 255) <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
+        return 0.2126 * f(r!) + 0.7152 * f(g!) + 0.0722 * f(b!);
+      };
+      const [r, g, b, a = 1] = rgba(getComputedStyle(h).backgroundColor);
+      const under = [0xec, 0xf1, 0xec];
+      const bar = [r!, g!, b!].map((v, i) => v * a + under[i]! * (1 - a));
+      return ['.brand', '.gh'].map((sel) => {
+        const fg = rgba(getComputedStyle(h.querySelector(sel)!).color);
+        const [l1, l2] = [lum(fg), lum(bar)].sort((x, y) => y - x);
+        return `${sel} ${((l1! + 0.05) / (l2! + 0.05)).toFixed(2)}`;
+      });
+    });
+    for (const r of ratios) expect(Number(r.split(' ')[1]), r).toBeGreaterThanOrEqual(4.5);
+  });
 
   test('no overflow at 375 and nothing wider than the viewport', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 812 });
@@ -212,6 +299,30 @@ test.describe('motion', () => {
     expect(await finalState(page, true)).toEqual([]);
     expect(problems).toEqual([]);
   });
+
+  // A reader who lands with a part just above the bottom edge (below its trigger line, but on
+  // screen) sees it finished, not half-built until they scroll a little more.
+  for (const part of ['[data-open-rail]', '[data-open-term]', '[data-open-icon]', '#open-h'] as const) {
+    test(`landing with ${part} near the bottom edge shows it finished`, async ({ page }) => {
+      const problems = watch(page);
+      await page.goto('/');
+      await page.evaluate(async () => {
+        await document.fonts.ready;
+        await (window as unknown as { __tf?: { ready: Promise<void> } }).__tf?.ready;
+      });
+      // Jump (no smooth scroll) so the part's top sits at 95% of the viewport; this builds the scene.
+      await page.locator(part).evaluate((el) => {
+        document.documentElement.style.scrollBehavior = 'auto';
+        window.scrollTo(0, el.getBoundingClientRect().top + scrollY - innerHeight * 0.95);
+      });
+      await page.waitForTimeout(1200);
+      const top = await page.locator(part).evaluate((el) => el.getBoundingClientRect().top / innerHeight);
+      expect(top).toBeGreaterThan(0.86);
+      expect(top).toBeLessThan(1);
+      expect(await finalState(page, true)).toEqual([]);
+      expect(problems).toEqual([]);
+    });
+  }
 
   test('with Pause motion on, every part arrives finished', async ({ page }) => {
     await page.addInitScript(() => localStorage.setItem('tf-pause', '1'));
