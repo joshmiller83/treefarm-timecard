@@ -1,9 +1,13 @@
 /**
  * HERO · 7:02 AM · Clock in. The section's own checks (projects 'desktop' 1440 × 900 and
  * 'mobile' 375 × 812). Spec: jq '.sections[] | select(.id=="hero")' docs/landing/brief.json
+ *
+ * playwright.config.ts does not list tests/sections yet (foundation adds section projects);
+ * until then run this file with a config whose projects use testDir 'tests/sections'.
  */
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
+import { INTRO_END, MOBILE_SCALE } from '../../src/sections/hero/hero';
 
 const LABEL =
   'iPhone lock screen at 7:02 AM. Siri says: Clocked in at 7:02. You’re on block 2, row 14. ' +
@@ -52,6 +56,13 @@ async function introDone(page: Page) {
 
 const opacity = (page: Page, sel: string) => page.locator(sel).first().evaluate((el) => Number(getComputedStyle(el).opacity));
 
+/** The hero's scroll track: where it starts and how far it scrolls. */
+const heroTrack = (page: Page) =>
+  page.locator('#hero .track').evaluate((el) => {
+    const top = el.getBoundingClientRect().top + scrollY;
+    return { top, dist: (el as HTMLElement).offsetHeight - innerHeight };
+  });
+
 test.describe('the hero', () => {
   test('says what it is, the hook, the honest status and where to go', async ({ page }) => {
     await page.goto('/');
@@ -94,8 +105,9 @@ test.describe('the hero', () => {
     const t = await page.evaluate(() => (window as unknown as { __heroIntro: { on?: number; off?: number } }).__heroIntro);
     expect(t.on, 'the sequence started').toBeDefined();
     expect(t.off, 'the sequence finished').toBeDefined();
-    // The timeline is 3.1 s (hero.test.ts checks the cues). Wall time adds frame drops on a
-    // busy test machine (GSAP's lag smoothing), so only Chromium is held to it, with slack.
+    // The timeline is 3.1 s (hero.test.ts checks the cues; the next test, the real timeline).
+    // Wall time adds frame drops on a busy test machine (GSAP's lag smoothing), so only
+    // Chromium is held to it, with slack.
     // Mobile's phone half waits for the scroll.
     if (!isMobile(page) && browserName === 'chromium') expect(t.off! - t.on!).toBeLessThan(3100 + 900);
     // Rest pose: the lock screen, its clock and the Live Activity; Siri's card and glow have gone.
@@ -110,6 +122,38 @@ test.describe('the hero', () => {
     for (const w of await words.all()) expect(await w.evaluate((el) => Number(getComputedStyle(el).opacity))).toBe(1);
     await expect(page.locator('[data-screen="lock-0702-clockin"] [data-la] [data-pill-text="clock"]')).toHaveText('On the clock');
     expect(problems).toEqual([]);
+  });
+
+  test('builds a load sequence no longer than the brief allows (INTRO_END)', async ({ page }) => {
+    await page.goto('/');
+    await booted(page);
+    // The real timeline, so the unit-tested cues and what plays can never drift apart
+    // (e.g. a stagger that also caught the strip's off-screen next row).
+    const dur = Number(await page.locator('#hero').getAttribute('data-intro-dur'));
+    const scale = isMobile(page) ? MOBILE_SCALE : 1;
+    expect(dur).toBeGreaterThan(2 * scale);
+    expect(dur).toBeLessThanOrEqual(INTRO_END * scale + 0.001);
+  });
+
+  test('starts the Live Activity timer at 0:00:00 as the card lands', async ({ page }) => {
+    await page.goto('/');
+    await booted(page);
+    test.skip((await page.locator('#hero').getAttribute('data-intro-clock')) !== 'on', 'needs the DayClock runtime in the scene context (ctx.clock, foundation)');
+    if (isMobile(page)) await page.locator('#hero [data-hero-device]').scrollIntoViewIfNeeded();
+    const read = await page.evaluate(
+      () =>
+        new Promise<{ landed: string; later: string }>((resolve) => {
+          const la = document.querySelector('[data-screen="lock-0702-clockin"] [data-la]')!;
+          const timer = () => la.querySelector('.la-timer')?.getAttribute('data-odo-text') ?? '';
+          const step = () => {
+            if (Number(getComputedStyle(la).opacity) < 1) return void requestAnimationFrame(step);
+            const landed = timer();
+            setTimeout(() => resolve({ landed, later: timer() }), 1100);
+          };
+          step();
+        }),
+    );
+    expect(read).toEqual({ landed: '0:00:00', later: '0:00:01' });
   });
 
   test('never hides the H1 (the LCP element), not even during the sequence', async ({ page }) => {
@@ -196,6 +240,29 @@ test.describe('the hero on a phone', () => {
     expect(walk!.y).toBeGreaterThan(gh!.y + gh!.height - 1);
   });
 
+  test('keeps the H1 the largest paint (LCP) on phones', async ({ page, browserName }) => {
+    test.skip(browserName !== 'chromium', 'largest-contentful-paint entries are Chromium only');
+    for (const [width, height] of [
+      [375, 667],
+      [375, 812],
+      [412, 823],
+    ] as const) {
+      await page.setViewportSize({ width, height });
+      await page.addInitScript(() => {
+        const w = window as unknown as { __lcp: string[] };
+        w.__lcp = [];
+        new PerformanceObserver((list) => {
+          for (const e of list.getEntries() as unknown as Array<{ element: Element | null }>) w.__lcp.push(e.element?.nodeName ?? '?');
+        }).observe({ type: 'largest-contentful-paint', buffered: true });
+      });
+      await page.goto('/');
+      await page.evaluate(() => document.fonts.ready);
+      await page.waitForTimeout(1500);
+      const lcp = await page.evaluate(() => (window as unknown as { __lcp: string[] }).__lcp);
+      expect(lcp.at(-1), `${width} × ${height}: ${lcp.join(', ')}`).toBe('H1');
+    }
+  });
+
   test('waits to play the phone’s half until the phone is on screen', async ({ page }) => {
     await page.goto('/');
     await booted(page);
@@ -264,15 +331,88 @@ test.describe('the hero on the stage (desktop)', () => {
     });
   }
 
+  for (const [w, h] of [
+    [1024, 768],
+    [1280, 720],
+    [1440, 900],
+  ] as const) {
+    test(`shifts nothing as the stage takes over the figure (CLS < .01) at ${w} × ${h}`, async ({ page, browserName }) => {
+      test.skip(browserName !== 'chromium', 'layout-shift entries are Chromium only');
+      await page.setViewportSize({ width: w, height: h });
+      await page.addInitScript(() => {
+        const win = window as unknown as { __cls: { sum: number; src: string[] } };
+        win.__cls = { sum: 0, src: [] };
+        new PerformanceObserver((list) => {
+          for (const e of list.getEntries() as unknown as Array<{ value: number; hadRecentInput: boolean; sources: Array<{ node?: Node | null }> }>) {
+            if (e.hadRecentInput) continue;
+            win.__cls.sum += e.value;
+            win.__cls.src.push(...e.sources.map((x) => `${(x.node as Element | null)?.className ?? x.node?.nodeName} ${e.value.toFixed(4)}`));
+          }
+        }).observe({ type: 'layout-shift', buffered: true });
+      });
+      await page.goto('/');
+      await page.waitForTimeout(5000);
+      const cls = await page.evaluate(() => (window as unknown as { __cls: { sum: number; src: string[] } }).__cls);
+      expect(cls.sum, cls.src.join(' | ')).toBeLessThan(0.01);
+    });
+  }
+
+  for (const [w, h] of [
+    [1024, 768],
+    [1280, 800],
+    [1440, 900],
+    [1920, 1080],
+  ] as const) {
+    test(`holds the copy level with the phone while it fades at ${w} × ${h}`, async ({ page }) => {
+      await page.setViewportSize({ width: w, height: h });
+      await page.goto('/');
+      await introDone(page);
+      const t = await heroTrack(page);
+      for (const p of [0, 0.15, 0.3, 0.45, 0.6]) {
+        await page.evaluate((y) => scrollTo(0, y), t.top + p * t.dist);
+        await page.waitForTimeout(900);
+        const m = await page.evaluate(() => {
+          const head = document.querySelector('#hero .beat-head')!;
+          const r = head.getBoundingClientRect();
+          const ph = document.querySelector('[data-stage] [data-phone]')!.getBoundingClientRect();
+          const chrome = document.querySelector('nav.shift')?.getBoundingClientRect().bottom ?? 59;
+          return {
+            drift: ph.top + ph.height / 2 - (r.top + r.height / 2),
+            top: document.querySelector('#hero .eyebrow')!.getBoundingClientRect().top,
+            chrome,
+            op: Number(getComputedStyle(head).opacity),
+          };
+        });
+        // Centred on the phone, then lifted at most the brief's 60px while it fades.
+        expect(m.drift, `p=${p}`).toBeGreaterThanOrEqual(-2);
+        expect(m.drift, `p=${p}`).toBeLessThanOrEqual(p <= 0.15 ? 2 : 62);
+        // Never under the header while it can still be seen.
+        if (m.op > 0.05) expect(m.top, `p=${p}`).toBeGreaterThanOrEqual(m.chrome);
+      }
+    });
+  }
+
+  test('brings the faded copy back when a keyboard user tabs into it', async ({ page }) => {
+    await page.goto('/');
+    await introDone(page);
+    const t = await heroTrack(page);
+    await page.evaluate((y) => scrollTo(0, y), t.top + t.dist);
+    await page.waitForTimeout(1500);
+    // Faded and held in place: it no longer catches the pointer.
+    expect(await opacity(page, '#hero .beat-head')).toBeLessThan(0.05);
+    expect(await page.locator('#hero .beat-head').evaluate((el) => getComputedStyle(el).pointerEvents)).toBe('none');
+    await page.locator('#hero .hero-gh').focus();
+    await expect.poll(() => opacity(page, '#hero .beat-head'), { timeout: 4000 }).toBeGreaterThan(0.99);
+    expect(await page.locator('#hero .beat-head').evaluate((el) => getComputedStyle(el).pointerEvents)).not.toBe('none');
+    await expect(page.locator('#hero .hero-gh')).toBeInViewport();
+  });
+
   test('scrubs: the copy lifts away, the rows sink and the shift ribbon arrives', async ({ page }) => {
     await page.goto('/');
     await introDone(page);
     expect(await opacity(page, 'nav.shift .tag-ride')).toBe(0);
-    const track = await page.locator('#hero .track').evaluate((el) => {
-      const top = el.getBoundingClientRect().top + scrollY;
-      return { top, end: top + (el as HTMLElement).offsetHeight - innerHeight };
-    });
-    await page.evaluate((y) => scrollTo(0, y), track.end);
+    const track = await heroTrack(page);
+    await page.evaluate((y) => scrollTo(0, y), track.top + track.dist);
     await page.waitForTimeout(1500);
     expect(await opacity(page, '#hero .beat-head')).toBeLessThan(0.05);
     expect(await opacity(page, '#hero [data-said="stage"]')).toBeLessThan(0.05);
