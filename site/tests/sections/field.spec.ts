@@ -27,6 +27,65 @@ async function goTo(page: Page, p: number) {
   await page.waitForTimeout(1100);
 }
 
+/** Goes to p and waits until the scrub has caught up (the camera, the canvas box and the chips stop moving). */
+async function goToStill(page: Page, p: number) {
+  await goTo(page, p);
+  const snap = () =>
+    page.evaluate(() => {
+      const c = document.querySelector<HTMLCanvasElement>('#field [data-field-fig] canvas[data-fieldmap]');
+      const m = (c as (HTMLCanvasElement & { fieldMap?: { state: { camera: number } } }) | null)?.fieldMap;
+      const r = c?.getBoundingClientRect();
+      const ops = ['[data-field-undo]', '[data-field-season]', '[data-field-card="2"]'].map((s) => getComputedStyle(document.querySelector(s)!).opacity);
+      return JSON.stringify([m?.state.camera, r?.left, r?.top, r?.width, ops]);
+    });
+  await expect
+    .poll(
+      async () => {
+        const a = await snap();
+        await page.waitForTimeout(300);
+        return a === (await snap());
+      },
+      { timeout: 15_000 },
+    )
+    .toBe(true);
+}
+
+type Box = { top: number; bottom: number; left: number; right: number; opacity: number };
+type Pt = { x: number; y: number };
+
+/** Where things are now: the overview canvas's camera and rows, the cards, the chip, the strip and the Undo chip. */
+const geometry = (page: Page) =>
+  page.evaluate(() => {
+    const c = document.querySelector<HTMLCanvasElement>('#field [data-field-fig] canvas[data-fieldmap]')!;
+    type Handle = { orientation: string; state: { camera: number }; pointAt(b: number, r: number, t: number): { x: number; y: number } };
+    const m = (c as HTMLCanvasElement & { fieldMap: Handle }).fieldMap;
+    const r = c.getBoundingClientRect();
+    const pt = (block: number, row: number, tree: number) => {
+      const p = m.pointAt(block, row, tree);
+      return { x: r.left + p.x, y: r.top + p.y };
+    };
+    const box = (sel: string) => {
+      const e = document.querySelector<HTMLElement>(sel)!;
+      const b = e.getBoundingClientRect();
+      return { top: b.top, bottom: b.bottom, left: b.left, right: b.right, opacity: Number(getComputedStyle(e).opacity) };
+    };
+    return {
+      orientation: m.orientation,
+      camera: m.state.camera,
+      canvasWidth: r.width,
+      /** The overview's first and last trees across (block 1 tree 1, block 7 tree 10). */
+      across: [pt(1, 1, 1), pt(7, 1, 10)] as [Pt, Pt],
+      row28: pt(2, 28, 10),
+      row40: pt(2, 40, 10),
+      card2: box('[data-field-card="2"]'),
+      card3: box('[data-field-card="3"]'),
+      chip: box('[data-field-season]'),
+      strip: box('#field [data-field-counts]'),
+      undo: box('[data-field-undo]'),
+      toast: !!document.querySelector('#field [data-field-fig][data-toast]'),
+    };
+  });
+
 async function serious(page: Page) {
   const results = await new AxeBuilder({ page })
     .include('#field')
@@ -70,6 +129,48 @@ test.describe('with motion', () => {
     expect(problems).toEqual([]);
   });
 
+  test('the DayClock holds at 2:15 PM, the minute in the eyebrow and the tag', async ({ page }) => {
+    await page.goto('/');
+    await settle(page);
+    await goTo(page, 0.5);
+    await expect(page.locator('[data-shift-tag]').first()).toHaveText('2:15 PM · The field');
+    await expect(page.locator('#field .eyebrow')).toContainText('2:15 PM');
+  });
+
+  test('the heading never runs under the header: its lines are masked before the field’s content', async ({ page }) => {
+    await page.goto('/');
+    await settle(page);
+    for (const p of [0, 0.05, 0.1, 0.15]) {
+      await goTo(page, p);
+      const g = await page.evaluate(() => {
+        const head = document.querySelector<HTMLElement>('#field .beat-head')!;
+        const frame = document.querySelector<HTMLElement>('#field .frame')!;
+        const fig = document.querySelector<HTMLElement>('#field [data-field-fig]')!;
+        let y = parseFloat(getComputedStyle(frame).top) || 0;
+        for (let e: HTMLElement | null = fig; e && e !== frame; e = e.offsetParent as HTMLElement | null) y += e.offsetTop;
+        if (innerWidth >= 900) y += document.querySelector<HTMLElement>('#field .fm-top')!.offsetHeight;
+        return { top: head.getBoundingClientRect().top, cut: parseFloat(head.style.getPropertyValue('--cut')) || 0, line: y };
+      });
+      // Everything of the heading above the line is inside the mask's clear part (cut − 64px).
+      if (g.top < g.line) expect(g.top + g.cut - 64, `at ${p}`).toBeGreaterThanOrEqual(g.line - 1);
+    }
+  });
+
+  test('the Undo chip sits beside row 37 on a wide canvas, or as a toast in the legend’s place', async ({ page }) => {
+    await page.goto('/');
+    await settle(page);
+    await goToStill(page, 0.655);
+    const g = await geometry(page);
+    expect(g.undo.opacity).toBeGreaterThan(0.5);
+    if (g.toast) {
+      await expect(page.locator('#field .fm-foot [data-field-undo]')).toHaveCount(1);
+      expect(g.undo.top).toBeGreaterThanOrEqual(g.card2.bottom - 1);
+    } else {
+      expect(g.undo.left).toBeGreaterThan(g.row40.x);
+      expect(Math.abs((g.undo.top + g.undo.bottom) / 2 - (g.row28.y + (g.row40.y - g.row28.y) * (9 / 12)))).toBeLessThan(12);
+    }
+  });
+
   test('no horizontal overflow anywhere in the track', async ({ page }) => {
     await page.goto('/');
     await settle(page);
@@ -86,6 +187,51 @@ test.describe('with motion', () => {
     expect(await serious(page)).toEqual([]);
   });
 });
+
+// Real iPhone Safari heights (100svh with the toolbars showing), not just 812.
+for (const [width, height] of [
+  [375, 667],
+  [390, 664],
+  [393, 759],
+  [430, 746],
+] as const) {
+  test.describe(`phone at ${width}×${height}`, () => {
+    test.use({ viewport: { width, height } });
+    test.skip(({ isMobile }) => !isMobile, 'phone layout');
+
+    test('the overview is upright and wide, and the close-up clears the cards and the strip', async ({ page }) => {
+      const { problems } = watch(page);
+      await page.goto('/');
+      await settle(page);
+
+      await goToStill(page, 0.45);
+      let g = await geometry(page);
+      expect(g.orientation).toBe('portrait');
+      expect(g.camera).toBe(0);
+      // Portrait: block 7 is to the right of block 1 on the same row, and the field spans most of the width.
+      expect(Math.abs(g.across[1].y - g.across[0].y)).toBeLessThan(1);
+      expect(g.across[1].x - g.across[0].x).toBeGreaterThan(0.75 * g.canvasWidth);
+
+      // The demo: rows 28–40 sit between the strip and card 2.
+      await goToStill(page, 0.62);
+      g = await geometry(page);
+      expect(g.camera).toBe(1);
+      expect(g.card2.opacity).toBeGreaterThan(0.9);
+      expect(g.row40.y + 9).toBeLessThanOrEqual(g.card2.top);
+      expect(g.row28.y - 9).toBeGreaterThanOrEqual(g.strip.bottom);
+
+      // The season flip: the rows clear card 3, and the chip sits between the strip and row 28.
+      await goToStill(page, 0.8);
+      g = await geometry(page);
+      expect(g.card3.opacity).toBeGreaterThan(0.9);
+      expect(g.chip.opacity).toBeGreaterThan(0.9);
+      expect(g.row40.y + 9).toBeLessThanOrEqual(g.card3.top);
+      expect(g.chip.top).toBeGreaterThanOrEqual(g.strip.bottom - 1);
+      expect(g.chip.bottom).toBeLessThanOrEqual(g.row28.y - 9);
+      expect(problems).toEqual([]);
+    });
+  });
+}
 
 test.describe('at 320px', () => {
   test.use({ viewport: { width: 320, height: 640 } });
@@ -169,8 +315,9 @@ test.describe('Try it', () => {
     await expect(page.getByRole('heading', { level: 3, name: 'Try it. Tap a row number.' })).toBeVisible();
     await expect(page.getByText('This is a small copy of the map. Nothing you do here is saved.')).toBeVisible();
 
-    // One tab stop in the grid.
+    // One tab stop in the grid. The next row (37) wears the gold hint until the first tap.
     await expect(grid.locator('button[tabindex="0"]')).toHaveCount(1);
+    await expect(grid.locator('[data-next]')).toHaveAttribute('data-try-row', '37');
     const status = page.locator('[data-try-status]');
     await expect(status).toHaveAttribute('role', 'status');
     const today = page.locator('[data-try-today]');
@@ -191,6 +338,7 @@ test.describe('Try it', () => {
     await expect(page.locator(':focus')).toHaveAccessibleName('Row 37: not yet');
     await page.keyboard.press('Enter');
     await expect(status).toHaveText('Row 37 marked, 10 trees');
+    await expect(grid.locator('[data-next]')).toHaveCount(0);
     await expect(today).toHaveText(fmtCount(treesAt(MOMENTS.field) + 10));
     await expect(grid.locator('[data-try-tree="37-1"]')).toHaveAttribute('data-s', 'today');
     await expect(page.locator(':focus')).toHaveAccessibleName('Row 37: shaped today');
@@ -209,6 +357,20 @@ test.describe('Try it', () => {
     await expect(status).toHaveText('Back to the map at 2:15 PM');
     await expect(grid.locator('[data-try-tree="37-1"]')).toHaveAttribute('data-s', 'ring');
     await expect(page.getByRole('button', { name: 'Undo' })).toHaveAttribute('aria-disabled', 'true');
+  });
+
+  test('every tree and row number is at least a 30px target, down to a 375px phone', async ({ page }) => {
+    await page.goto('/');
+    await page.addStyleTag({ content: '.sec { content-visibility: visible !important; }' });
+    const grid = page.getByRole('grid', { name: 'Block 2, rows 28 to 40' });
+    await grid.scrollIntoViewIfNeeded();
+    const sizes = await grid.evaluate((g) =>
+      [g.querySelector('[data-try-tree="28-1"]')!, g.querySelector('[data-try-row="28"]')!].map((e) => e.getBoundingClientRect()),
+    );
+    for (const r of sizes) {
+      expect(r.width).toBeGreaterThanOrEqual(30);
+      expect(r.height).toBeGreaterThanOrEqual(30);
+    }
   });
 
   test('Fill anchors on the first tap and fills to the second; Erase clears', async ({ page }) => {

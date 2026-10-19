@@ -23,7 +23,8 @@ import TryIt from './field/TryIt.astro';
 import { FIELD, FIELD_TREES, MOMENTS, OLD_NOTE, fmtCount, fmtTime, positionAt } from '../data/ledger';
 import { FLAG_PATH, ZOOM_TARGET, zoomSummary } from '../scripts/fieldstate';
 import { odometerHTML } from '../scripts/odometer';
-import { COUNTS, stripText } from './field/plan';
+import { COUNTS, stripText, zoomEdgeFade } from './field/plan';
+import { MAX_ZOOM_PITCH } from '../scripts/fieldmap';
 
 const Z = ZOOM_TARGET;
 /** The row the demo taps: the next row at 2:15 PM (37). */
@@ -34,6 +35,21 @@ const counts = [
   { key: 'today', value: COUNTS.today, label: 'today' },
 ] as const;
 const phoneLabel = `Time Card’s Trees tab at ${fmtTime(MOMENTS.field)}, ${FIELD.name}, zoom L, One mode. ${zoomSummary(Z, MOMENTS.field)}`;
+/** The static close-up's soft edges, in pitches (CSS turns them into px at its drawn scale). */
+const ef = zoomEdgeFade(Z);
+const zoomVars = [
+  `--tw:${ef.w}`,
+  `--th:${ef.h}`,
+  `--cap:${MAX_ZOOM_PITCH}px`,
+  `--l0:${ef.left.clear}`,
+  `--l1:${ef.left.solid.toFixed(3)}`,
+  `--r1:${ef.right.solid.toFixed(3)}`,
+  `--r0:${ef.right.clear}`,
+  `--t0:${ef.top.clear}`,
+  `--t1:${ef.top.solid.toFixed(3)}`,
+  `--b1:${ef.bottom.solid.toFixed(3)}`,
+  `--b0:${ef.bottom.clear}`,
+].join(';');
 ---
 
 <SectionShell id="field">
@@ -90,13 +106,14 @@ const phoneLabel = `Time Card’s Trees tab at ${fmtTime(MOMENTS.field)}, ${FIEL
         <FieldMap class="fm-map" />
         <div class="fm-edges motion-only" aria-hidden="true" data-field-edges></div>
         <div class="fm-overlay motion-only" aria-hidden="true">
-          <span class="fm-undo" data-field-undo>
+          <span class="fm-undo" data-field-undo aria-hidden="true">
             <Icon name="undo" size="16px" />
             Undo
           </span>
         </div>
       </div>
 
+      <div class="fm-sheet motion-only" aria-hidden="true" data-field-sheet></div>
       <div class="fm-foot">
         <ul class="fm-legend" aria-label="Map key" data-field-legend>
           <li><span class="sw sw-today" aria-hidden="true"></span>Today</li>
@@ -112,8 +129,15 @@ const phoneLabel = `Time Card’s Trees tab at ${fmtTime(MOMENTS.field)}, ${FIEL
         {FIELD.name} at {fmtTime(MOMENTS.field)}, this season: gold for this shift, green for earlier, rings still to do.
       </figcaption>
     </figure>
+    <script is:inline>
+      // Phones always get the upright overview: the map's data-orientation hook, set before its renderer starts.
+      (function () {
+        var c = document.querySelector('#field [data-field-fig] canvas[data-fieldmap]');
+        if (c && matchMedia('(max-width: 599.98px)').matches) c.setAttribute('data-orientation', 'portrait');
+      })();
+    </script>
 
-    <figure class="fm-fig fm-zoomfig static-only">
+    <figure class="fm-fig fm-zoomfig static-only" style={zoomVars}>
       <FieldMap view="zoom" class="fm-zoommap" />
       <figcaption>
         Up close: block {Z.block}, rows {Z.from} to {Z.to}, with row numbers on the left. The flag on row {OLD_NOTE.row}{' '}
@@ -205,11 +229,19 @@ const phoneLabel = `Time Card’s Trees tab at ${fmtTime(MOMENTS.field)}, ${FIEL
     stroke-linejoin: round;
     paint-order: stroke;
   }
+  /* The colour key: one line each, swatches centred in one column so the words line up. */
   .fm-key {
-    white-space: nowrap;
+    display: grid;
+    grid-template-columns: 14px auto;
+    align-items: center;
+    justify-content: start;
+    column-gap: 0.55em;
+  }
+  .fm-key:first-of-type {
+    margin-top: 0.45em;
   }
   .fm-key .sw {
-    margin-right: 0.4em;
+    justify-self: center;
   }
 
   .fm-top {
@@ -294,7 +326,7 @@ const phoneLabel = `Time Card’s Trees tab at ${fmtTime(MOMENTS.field)}, ${FIEL
     background-image: var(--tint-field);
     background-repeat: no-repeat;
     background-size: 100% var(--edge-vh, 100svh);
-    background-position: 0 var(--edge-y, 0px);
+    background-position: 0 calc(var(--edge-y, 0px) + var(--rise, 0px));
     --ex: 112px;
     --ey: 72px;
     -webkit-mask-image:
@@ -331,7 +363,16 @@ const phoneLabel = `Time Card’s Trees tab at ${fmtTime(MOMENTS.field)}, ${FIEL
   }
 
   .fm-foot {
+    position: relative;
     margin-top: 16px;
+  }
+  /* The Undo toast takes the legend's place for a moment (the scene tweens --toast-dim). */
+  .fm-overview[data-toast] .fm-legend {
+    opacity: calc(1 - var(--toast-dim, 0));
+  }
+  /* Phones only: the scrim under the card sheet. */
+  .fm-sheet {
+    display: none;
   }
   .fm-legend {
     list-style: none;
@@ -449,15 +490,36 @@ const phoneLabel = `Time Card’s Trees tab at ${fmtTime(MOMENTS.field)}, ${FIEL
   :global(html:not(.motion)) .fm-shot {
     order: 4;
   }
-  /* The close-up's dimmed context fades out at the edges instead of stopping at a hard line. */
+  /*
+   * The close-up's dimmed context (block 1's last column, rows 27 and 41) fades out at the edges
+   * instead of stopping at a hard line; rows 28–40, tree 10 and the row numbers stay whole. The
+   * stops are pitches from plan.ts (zoomEdgeFade) at the scale the map draws: the box has the
+   * close-up's aspect, so the pitch is min(24px, width / rect width), centred.
+   */
+  .fm-zoomfig {
+    container-type: inline-size;
+  }
   :global(html:not(.motion)) .fm-zoomfig :global(.fieldmap) {
-    -webkit-mask-image:
-      linear-gradient(90deg, transparent, #000 14%, #000 86%, transparent),
-      linear-gradient(180deg, transparent, #000 10%, #000 90%, transparent);
+    --s: min(var(--cap), 100cqw / var(--tw));
+    --mx: calc((100cqw - var(--tw) * var(--s)) / 2);
+    --my: calc((100cqw * var(--th) / var(--tw) - var(--th) * var(--s)) / 2);
+    --fx: linear-gradient(
+      90deg,
+      transparent calc(var(--mx) + var(--l0) * var(--s)),
+      #000 calc(var(--mx) + var(--l1) * var(--s)),
+      #000 calc(100% - var(--mx) - var(--r1) * var(--s)),
+      transparent calc(100% - var(--mx) - var(--r0) * var(--s))
+    );
+    --fy: linear-gradient(
+      180deg,
+      transparent calc(var(--my) + var(--t0) * var(--s)),
+      #000 calc(var(--my) + var(--t1) * var(--s)),
+      #000 calc(100% - var(--my) - var(--b1) * var(--s)),
+      transparent calc(100% - var(--my) - var(--b0) * var(--s))
+    );
+    -webkit-mask-image: var(--fx), var(--fy);
     -webkit-mask-composite: source-in;
-    mask-image:
-      linear-gradient(90deg, transparent, #000 14%, #000 86%, transparent),
-      linear-gradient(180deg, transparent, #000 10%, #000 90%, transparent);
+    mask-image: var(--fx), var(--fy);
     mask-composite: intersect;
   }
   @media (min-width: 900px) {
@@ -501,6 +563,24 @@ const phoneLabel = `Time Card’s Trees tab at ${fmtTime(MOMENTS.field)}, ${FIEL
   :global(html.motion) .fm-cam {
     transform-origin: 50% 100%;
   }
+  /* The heading fades line by line just before it reaches the field's own content (the scene sets
+     --cut from its position: plan.ts headCut), so nothing runs under the header, rail or strip. */
+  :global(html.motion #field .beat-head) {
+    -webkit-mask-image: linear-gradient(180deg, transparent calc(var(--cut, 0px) - 64px), #000 var(--cut, 0px));
+    mask-image: linear-gradient(180deg, transparent calc(var(--cut, 0px) - 64px), #000 var(--cut, 0px));
+  }
+  /* The moving layers are promoted only while the section is near (the scene toggles .fm-live). */
+  :global(html.motion #field.fm-live) .fm-overview {
+    will-change: opacity, transform;
+  }
+  :global(html.motion #field.fm-live) .fm-haze,
+  :global(html.motion #field.fm-live) .fm-edges,
+  :global(html.motion #field.fm-live) .fm-shot {
+    will-change: opacity;
+  }
+  :global(html.motion #field.fm-live) .fm-sheet {
+    will-change: opacity, translate;
+  }
   :global(html.motion) .fm-cam :global(.fieldmap) {
     height: 100%;
     aspect-ratio: auto;
@@ -536,16 +616,28 @@ const phoneLabel = `Time Card’s Trees tab at ${fmtTime(MOMENTS.field)}, ${FIEL
   :global(html.motion) .fm-card {
     opacity: 0;
   }
+  :global(html.motion) .fm-cards {
+    z-index: 3;
+  }
 
   /* ---------- MOTION, desktop (≥900px): the full-bleed field ---------- */
   @media (min-width: 900px) {
+    /* The heading starts just under where it begins to fade, whatever its height. */
     :global(html.motion #field .beat-head) {
-      --anchor: 40svh;
+      --anchor: calc(var(--chrome-h) + 150px);
+      translate: 0 0;
     }
-    /* The tilted field's far rows sit lower on a desktop screen: haze them into the horizon. */
+    /* The tilted field's far rows sit lower on a desktop screen: haze them into the horizon, and
+       its sides too, so the wide tilted field fades out before the viewport cuts its labels. */
     .fm-haze {
-      -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 10%, #000 58%, transparent 80%);
-      mask-image: linear-gradient(180deg, transparent 0%, #000 10%, #000 58%, transparent 80%);
+      /* The stage tint itself (the frame is the viewport here), so its side bands never show. */
+      background: var(--tint-field);
+      -webkit-mask-image:
+        linear-gradient(180deg, transparent 0%, #000 10%, #000 58%, transparent 80%),
+        linear-gradient(90deg, #000, transparent 9%, transparent 91%, #000);
+      mask-image:
+        linear-gradient(180deg, transparent 0%, #000 10%, #000 58%, transparent 80%),
+        linear-gradient(90deg, #000, transparent 9%, transparent 91%, #000);
     }
     :global(html.motion #field .frame-grid) {
       display: block;
@@ -596,7 +688,10 @@ const phoneLabel = `Time Card’s Trees tab at ${fmtTime(MOMENTS.field)}, ${FIEL
     }
   }
 
-  /* ---------- MOTION, mobile (<900px): the field fills the sticky frame ---------- */
+  /* ---------- MOTION, mobile (<900px): the map owns the sticky frame ----------
+     The counter strip on top; the map from there to the frame's foot (portrait, as wide as the
+     height allows); the legend at the foot and the card sheet above it lie over the map's last
+     rows with a scrim. The scene lifts the close-up clear of the cards and places the season chip. */
   @media (max-width: 899.98px) {
     :global(html.motion #field .frame) {
       height: calc(100svh - var(--sticky-top-mob));
@@ -608,15 +703,37 @@ const phoneLabel = `Time Card’s Trees tab at ${fmtTime(MOMENTS.field)}, ${FIEL
       height: 100%;
     }
     :global(html.motion) .fm-overview {
-      --sheet-h: 148px;
+      width: 100%;
       height: 100%;
       display: grid;
-      grid-template-rows: auto minmax(0, 1fr) auto var(--sheet-h);
+      grid-template-rows: auto minmax(0, 1fr);
       row-gap: 10px;
-      padding-bottom: 12px;
     }
+    /* The strip keeps a solid ground of its own: the risen close-up's context slides under it. */
     :global(html.motion) .fm-top {
       display: block;
+      position: relative;
+      z-index: 2;
+    }
+    :global(html.motion) .fm-top::before {
+      content: '';
+      position: absolute;
+      z-index: -1;
+      left: calc(-1 * var(--gutter));
+      right: calc(-1 * var(--gutter));
+      top: -4px;
+      bottom: -9px;
+      background: linear-gradient(180deg, #08140e calc(100% - 9px), rgba(8, 20, 14, 0));
+      pointer-events: none;
+    }
+    :global(html.motion) .fm-cam {
+      grid-row: 2;
+      min-height: 0;
+    }
+    /* The close-up rises clear of the card sheet (the scene sets --rise; the camera's own transform
+       belongs to GSAP, so the rise moves what is inside it). */
+    :global(html.motion) .fm-cam > :global(*) {
+      translate: 0 calc(-1 * var(--rise, 0px));
     }
     :global(html.motion) .fm-counts {
       display: grid;
@@ -639,27 +756,64 @@ const phoneLabel = `Time Card’s Trees tab at ${fmtTime(MOMENTS.field)}, ${FIEL
       font-family: var(--font-body);
       font-size: 12px;
     }
-    /* On a phone the season chip shows only for the season beat, over the close-up's dimmed top. */
+    /* The season chip shows only for the season beat, just above row 28 (the scene sets --season-top). */
     :global(html.motion) .fm-season {
       position: absolute;
-      top: 72px;
+      top: var(--season-top, 72px);
       right: 0;
       z-index: 2;
       min-height: 30px;
       font-size: 12px;
       opacity: 0;
     }
+    /* The legend at the frame's foot, over a short scrim of its own. */
+    :global(html.motion) .fm-foot {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 8px;
+      z-index: 2;
+      min-height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    :global(html.motion) .fm-foot::before {
+      content: '';
+      position: absolute;
+      z-index: -1;
+      left: calc(-1 * var(--gutter));
+      right: calc(-1 * var(--gutter));
+      bottom: -8px;
+      height: calc(100% + 8px + 22px);
+      background: linear-gradient(0deg, #0c1d14 calc(100% - 22px), rgba(12, 29, 20, 0));
+      pointer-events: none;
+    }
     :global(html.motion) .fm-legend {
       gap: 6px 14px;
       font-size: 12.5px;
       justify-content: center;
     }
+    /* The scrim under the card sheet: up while a card shows, a little above the tallest card. */
+    :global(html.motion) .fm-sheet {
+      display: block;
+      position: absolute;
+      z-index: 1;
+      left: calc(-1 * var(--gutter));
+      right: calc(-1 * var(--gutter));
+      bottom: 0;
+      height: var(--sheet-h, 200px);
+      background: linear-gradient(0deg, #0c1d14 calc(100% - 34px), rgba(12, 29, 20, 0.8) calc(100% - 20px), rgba(12, 29, 20, 0));
+      opacity: 0;
+      pointer-events: none;
+    }
+    /* The cards sit just above the legend, one at a time. */
     :global(html.motion) .fm-cards {
       position: absolute;
       left: var(--gutter);
       right: var(--gutter);
-      bottom: 12px;
-      height: 148px;
+      bottom: calc(16px + var(--fm-foot, 28px));
+      height: 0;
       display: block;
     }
     :global(html.motion) .fm-card {

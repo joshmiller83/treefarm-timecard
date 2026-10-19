@@ -1,7 +1,24 @@
 import { describe, expect, it } from 'vitest';
 import { EARLIER_COUNT, FIELD_TREES, MOMENTS, fieldShapedAt, treesAt } from '../../data/ledger.ts';
-import { BEATS, countStatus, treeStatus } from '../../scripts/fieldstate.ts';
-import { CARDS, COUNTS, WIN, cardAt, countsAt, seasonAt, stripText } from './plan.ts';
+import { BEATS, DOT_R, TODAY_SCALE, ZOOM_TARGET, blockRect, countStatus, dotCenter, targetRect, treeStatus } from '../../scripts/fieldstate.ts';
+import {
+  CARDS,
+  CLEAR,
+  COUNTS,
+  HEAD_FADE,
+  SETTLE,
+  SHEET,
+  WIN,
+  cardAt,
+  countsAt,
+  headCut,
+  phoneCloseUp,
+  riseAt,
+  seasonAt,
+  sheetTopAt,
+  stripText,
+  zoomEdgeFade,
+} from './plan.ts';
 
 const at = (p: number) => countsAt(p);
 
@@ -132,8 +149,126 @@ describe('the hand-offs', () => {
     expect(WIN.phoneIn[0]).toBeGreaterThan(WIN.mapOut[0] + 0.3 * (WIN.mapOut[1] - WIN.mapOut[0]));
   });
 
-  it('the heading is gone before the counter strip fades in under it', () => {
-    expect(WIN.headOut[1]).toBeLessThanOrEqual(WIN.chrome[0] + 0.05);
-    expect(WIN.headOut[0]).toBeGreaterThanOrEqual(WIN.phoneOut[0]);
+  it('desktop: the field fades in under the leaving phone and is whole before it flattens far', () => {
+    expect(WIN.camIn[0]).toBeGreaterThan(WIN.phoneOut[0]);
+    expect(WIN.camIn[0]).toBeLessThan(WIN.phoneOut[1]);
+    expect(WIN.camIn[1]).toBeLessThanOrEqual(WIN.flatten[0] + 0.25 * (WIN.flatten[1] - WIN.flatten[0]));
+  });
+
+  it('the close-up’s soft edges cover the whole camera move, in and out', () => {
+    expect(WIN.edgesIn[0]).toBeLessThanOrEqual(BEATS.zoomIn[0]);
+    expect(WIN.edgesIn[1]).toBeLessThanOrEqual(BEATS.zoomIn[0] + 0.03);
+    expect(WIN.edgesOut[0]).toBeGreaterThanOrEqual(WIN.mapOut[0]);
+    expect(WIN.edgesOut[1]).toBeGreaterThanOrEqual(BEATS.zoomOut[1]);
+  });
+
+  it('phones: the sheet’s scrim is up for exactly the three cards', () => {
+    expect(SHEET.in).toEqual(CARDS[0]!.in);
+    expect(SHEET.out).toEqual(CARDS[2]!.out);
+    expect(SETTLE[0]).toBeGreaterThanOrEqual(CARDS[1]!.out[0]);
+    expect(SETTLE[1]).toBeLessThanOrEqual(CARDS[2]!.in[1]);
+  });
+});
+
+describe('the heading fades by position, not by progress', () => {
+  it('desktop: what is left of it is gone before the field is nearly flat under it', () => {
+    expect(WIN.headOut[0]).toBeGreaterThanOrEqual(WIN.flatten[0]);
+    expect(WIN.headOut[1]).toBeLessThanOrEqual(WIN.flatten[0] + 0.65 * (WIN.flatten[1] - WIN.flatten[0]));
+  });
+
+  it('is whole until it nears the line, then fades over 48px, and is gone above it', () => {
+    const line = 105;
+    expect(headCut(line, 400)).toBe(0);
+    expect(headCut(line, line + HEAD_FADE)).toBe(0);
+    // Its top is at the line: the first 48px are fading, everything below is whole.
+    expect(headCut(line, line)).toBe(HEAD_FADE);
+    // 100px of it above the line: gone down to the line, fading to 48px below.
+    expect(headCut(line, line - 100)).toBe(100 + HEAD_FADE);
+  });
+});
+
+describe('the phone close-up clears the card sheet', () => {
+  // 375×667: the strip ends at 44, rows 28–40 span 155–460 before rising, card 2 tops at 394, card 3 at 432.
+  const short = { targetTop: 155, targetBottom: 460, stripBottom: 44, cardTops: [394, 432] as const, chipH: 30 };
+
+  it('centres the rows between the strip and each card, clear of both, with the chip above row 28', () => {
+    const { dz, chipTop } = phoneCloseUp(short);
+    const mid = (short.targetTop + short.targetBottom) / 2;
+    expect(dz[0]).toBe(mid - (44 + 394) / 2);
+    expect(dz[1]).toBe(mid - (44 + 432) / 2);
+    for (const [i, card] of [394, 432].entries()) {
+      expect(short.targetBottom - dz[i]! + CLEAR).toBeLessThanOrEqual(card);
+      expect(short.targetTop - dz[i]!).toBeGreaterThanOrEqual(short.stripBottom + CLEAR);
+    }
+    expect(chipTop).toBeGreaterThanOrEqual(short.stripBottom);
+    expect(chipTop + short.chipH).toBeLessThanOrEqual(short.targetTop - dz[1] - 6);
+  });
+
+  it('clears a card first when centring is not enough', () => {
+    // A tall card: centred, the rows would still touch it.
+    const { dz } = phoneCloseUp({ ...short, cardTops: [330, 432] });
+    expect(dz[0]).toBe(Math.min(155 - 44 - CLEAR, 460 + CLEAR - 330));
+  });
+
+  it('does not move when the rows already sit centred, and never slides them under the strip', () => {
+    const centred = phoneCloseUp({ ...short, cardTops: [600, 600] });
+    expect(centred.dz).toEqual([0, 0]);
+    const tiny = phoneCloseUp({ ...short, cardTops: [200, 220] });
+    expect(short.targetTop - tiny.dz[0]).toBe(short.stripBottom + CLEAR);
+    expect(tiny.chipTop).toBe(short.stripBottom + 4);
+  });
+
+  it('rides the camera, and eases from card 2’s rise to card 3’s while the cards swap', () => {
+    const dz = [80, 40] as const;
+    expect(riseAt(0.3, 0, dz)).toBe(0);
+    expect(riseAt(0.62, 1, dz)).toBe(80);
+    expect(riseAt(0.62, 0.5, dz)).toBe(40);
+    expect(riseAt(SETTLE[1], 1, dz)).toBe(40);
+    const mid = riseAt((SETTLE[0] + SETTLE[1]) / 2, 1, dz);
+    expect(mid).toBeGreaterThan(40);
+    expect(mid).toBeLessThan(80);
+    expect(riseAt(1, 0, dz)).toBe(0);
+  });
+});
+
+describe('the phone card sheet’s scrim', () => {
+  const tops = [541, 493, 541] as const;
+  it('sits at the top of the card that shows, and moves only while the cards swap', () => {
+    expect(sheetTopAt(0.2, tops)).toBe(541);
+    expect(sheetTopAt(0.45, tops)).toBe(541);
+    expect(sheetTopAt(0.6, tops)).toBe(493);
+    expect(sheetTopAt(0.69, tops)).toBe(493);
+    expect(sheetTopAt(0.8, tops)).toBe(541);
+    expect(sheetTopAt(1, tops)).toBe(541);
+    const swap = sheetTopAt((CARDS[0]!.out[0] + CARDS[1]!.in[1]) / 2, tops);
+    expect(swap).toBeGreaterThan(493);
+    expect(swap).toBeLessThan(541);
+  });
+});
+
+describe('the static close-up’s soft edges', () => {
+  const f = zoomEdgeFade();
+  const r = targetRect(ZOOM_TARGET);
+  const gold = DOT_R * TODAY_SCALE;
+
+  it('fade only the dimmed context: every dot of rows 28–40 and the row numbers stay whole', () => {
+    const top = dotCenter(2, ZOOM_TARGET.from, 1).y - gold - r.y;
+    const bottom = r.y + r.h - (dotCenter(2, ZOOM_TARGET.to, 10).y + gold);
+    const right = r.x + r.w - (dotCenter(2, 37, 10).x + gold);
+    expect(f.top.solid).toBeLessThan(top);
+    expect(f.bottom.solid).toBeLessThan(bottom);
+    expect(f.right.solid).toBeLessThan(right);
+    // Tree 10's whole gold dot is inside the opaque band (the old 86% stop cut it in half).
+    expect(dotCenter(2, 37, 10).x + gold - r.x).toBeLessThan(r.w - f.right.solid);
+    expect(f.left.solid).toBeLessThan(blockRect(2).x - 0.7 - 1.2 * 0.54 - r.x);
+    for (const s of [f.left, f.right, f.top, f.bottom]) expect(s.clear).toBeLessThan(s.solid);
+  });
+
+  it('fade most of block 1’s last column and rows 27 and 41', () => {
+    const col = dotCenter(1, 30, 10).x - r.x;
+    expect(col).toBeGreaterThan(f.left.clear);
+    expect(col).toBeLessThan(f.left.solid);
+    expect(dotCenter(2, 27, 1).y - r.y).toBeLessThan(f.top.solid);
+    expect(r.y + r.h - dotCenter(2, 41, 1).y).toBeLessThan(f.bottom.solid);
   });
 });
