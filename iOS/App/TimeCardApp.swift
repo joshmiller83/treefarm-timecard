@@ -3,7 +3,7 @@ import TimeCardCore
 
 @main
 struct TimeCardApp: App {
-    @State private var model = AppEnvironment.makeModel()
+    @State private var model = AppModel.shared
     @Environment(\.scenePhase) private var scenePhase
 
     init() {

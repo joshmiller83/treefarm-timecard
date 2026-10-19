@@ -109,6 +109,8 @@ targets:
         PRODUCT_NAME: TimeCardWidgets
         PRODUCT_BUNDLE_IDENTIFIER: $(BUNDLE_ID_PREFIX).timecard.widgets
         SKIP_INSTALL: YES
+        # Shared intents run in the app; in the extension their perform() compiles empty.
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: $(inherited) WIDGET_EXTENSION
     dependencies:
       - package: TimeCardCore
       - sdk: WidgetKit.framework

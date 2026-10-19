@@ -8,27 +8,36 @@
 
 /* Begin PBXBuildFile section */
 		00697163D13940091B2F4A8D /* JoinView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98BD916919AFEA594B96FDBB /* JoinView.swift */; };
+		0EC762F09BF83156A11A134F /* LiveActivityButtons.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97460A95F1CA9E6D45762BFE /* LiveActivityButtons.swift */; };
+		104D492C8C3A51F286665FD8 /* IntentRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91519E30548CFC57A34F19EE /* IntentRunner.swift */; };
 		11875192E9EAFECC79DABA39 /* Components.swift in Sources */ = {isa = PBXBuildFile; fileRef = 174CC43FB55650E3ADD75F46 /* Components.swift */; };
+		1C89058F02093C6506330C83 /* LiveActivityButtons.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97460A95F1CA9E6D45762BFE /* LiveActivityButtons.swift */; };
 		1E1B26C4A40FF877A255E691 /* AppEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = C130C9D6D6E12A2BCD39E059 /* AppEnvironment.swift */; };
 		210A451BC06E8FF049CC8269 /* TimeCardUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C111B64C0C07020B9DCCDD2 /* TimeCardUITests.swift */; };
-		3C424674117D78801127BD6F /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E03E30A48DFB12D248DB79BA /* SettingsView.swift */; };
+		3B3E0A8E54FB630EFF4F45D1 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF7548AC9CE7DC4BC309E713 /* SettingsView.swift */; };
+		3DFDFC60E9F3DEFA8A73D693 /* LiveActivityController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 265B9098E1A69BDACEBA441D /* LiveActivityController.swift */; };
+		4C4F9F482F05AA8C690EADED /* ReportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 165D9CB59A2B73311DD924DB /* ReportView.swift */; };
 		4CE2765501913B4EEF9A13AE /* TimeCardCore in Frameworks */ = {isa = PBXBuildFile; productRef = 1F16EF2DBAA82812E5FCBF05 /* TimeCardCore */; };
 		56E3F456E020D3F26D8FCE9D /* TimeCardCore in Frameworks */ = {isa = PBXBuildFile; productRef = 76760F4A041CFB039DF2E1BF /* TimeCardCore */; };
 		5840091B8188A4BF57AD73A8 /* PlatformTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A441859AAEFA8511A46EA2F /* PlatformTests.swift */; };
 		599CF5E9C4D373F558210B4B /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 6BC6220C858784A309DE828F /* Assets.xcassets */; };
+		5FE1436C2232590A373A6C7A /* LogView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8590FEBE4E0A048FDFC91F7 /* LogView.swift */; };
 		618B9907BE87D4087CF8B019 /* Fonts in Resources */ = {isa = PBXBuildFile; fileRef = 4533B607361861A2BBFEC580 /* Fonts */; };
 		6D9D98F9095F3172A1030E61 /* PlaceholderScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 234058F6C063B04E8BE8BA61 /* PlaceholderScreen.swift */; };
 		6E021FFA63E1736E7099AF2B /* DesignTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC14C784BB8F321617C3E862 /* DesignTests.swift */; };
 		7CA05566481CF06C0E9F30E1 /* Palette.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75E425709A1FCF4E60DE4173 /* Palette.swift */; };
 		822D64D9A13F48FE7A32851F /* ActivityKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 99943374729E87599B2C037E /* ActivityKit.framework */; };
 		96CED505F7707F4ED3F801B4 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E751EFB1A84C048A71D83B9 /* AppModel.swift */; };
+		9ABF6503163CD2383CE3F4C1 /* ClockView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0661937D9296096B85070F81 /* ClockView.swift */; };
 		A0E91B616D12F7A09D9CB812 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FB3543BFD49BF47889FBEFD /* RootView.swift */; };
 		A11346CECD3BFC51BA365381 /* AppModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1528797F8AD8C65C37F90E4 /* AppModelTests.swift */; };
 		A327B4C2DF3C355FFA9FA1F6 /* TimeCardApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1620ADB0A89E887DA3CBB17E /* TimeCardApp.swift */; };
 		A52443D525B164CED3CE9F97 /* TimeCardActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24D0A0F8E20930ACEF5AD5CB /* TimeCardActivityAttributes.swift */; };
+		A557B44473F43053CBA86614 /* TreesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB142D28E01DD5D7B047B8BA /* TreesView.swift */; };
 		B36F932D59108B2F4C40620E /* Appearance.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5935F4ACB9CB99F78AD24707 /* Appearance.swift */; };
 		B3A31CF1F267626DAE69CD97 /* SignInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB37F784FF57349039E30269 /* SignInView.swift */; };
 		B958CCE566260AFB7A9D922B /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 76F859F4EF55B8D49AECE08D /* SwiftUI.framework */; };
+		CF5BB610A45AA574D9D20AFF /* TeamView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27EE1EAFDEEE2B00BC480F2B /* TeamView.swift */; };
 		D13E042FE534FB7568A52475 /* ResetPasswordView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DF2BA924D3E91EFC54A8D18 /* ResetPasswordView.swift */; };
 		D37A27B39B55A8CA3FB8CE65 /* TimeCardWidgetsBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 576C231644ECC8C6932C2E33 /* TimeCardWidgetsBundle.swift */; };
 		E0B03D5A5C903A53DE4C5503 /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87281864A7B6C79D025F7336 /* MainTabView.swift */; };
@@ -78,12 +87,16 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		0661937D9296096B85070F81 /* ClockView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClockView.swift; sourceTree = "<group>"; };
 		1620ADB0A89E887DA3CBB17E /* TimeCardApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimeCardApp.swift; sourceTree = "<group>"; };
+		165D9CB59A2B73311DD924DB /* ReportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportView.swift; sourceTree = "<group>"; };
 		174CC43FB55650E3ADD75F46 /* Components.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Components.swift; sourceTree = "<group>"; };
 		20FB6B3A248F1A020FE728B8 /* Base.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Base.xcconfig; sourceTree = "<group>"; };
 		234058F6C063B04E8BE8BA61 /* PlaceholderScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaceholderScreen.swift; sourceTree = "<group>"; };
 		24D0A0F8E20930ACEF5AD5CB /* TimeCardActivityAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimeCardActivityAttributes.swift; sourceTree = "<group>"; };
+		265B9098E1A69BDACEBA441D /* LiveActivityController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityController.swift; sourceTree = "<group>"; };
 		268D96072E557AB5DA77E1FA /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
+		27EE1EAFDEEE2B00BC480F2B /* TeamView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeamView.swift; sourceTree = "<group>"; };
 		430050FEBA83C41B0D8C1F39 /* Typography.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Typography.swift; sourceTree = "<group>"; };
 		4533B607361861A2BBFEC580 /* Fonts */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Fonts; path = App/Resources/Fonts; sourceTree = SOURCE_ROOT; };
 		4E751EFB1A84C048A71D83B9 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
@@ -97,6 +110,8 @@
 		7DF2BA924D3E91EFC54A8D18 /* ResetPasswordView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResetPasswordView.swift; sourceTree = "<group>"; };
 		87281864A7B6C79D025F7336 /* MainTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainTabView.swift; sourceTree = "<group>"; };
 		8C42AEC580754A7C4570AB15 /* TimeCard.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = TimeCard.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		91519E30548CFC57A34F19EE /* IntentRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntentRunner.swift; sourceTree = "<group>"; };
+		97460A95F1CA9E6D45762BFE /* LiveActivityButtons.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityButtons.swift; sourceTree = "<group>"; };
 		98BD916919AFEA594B96FDBB /* JoinView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JoinView.swift; sourceTree = "<group>"; };
 		99943374729E87599B2C037E /* ActivityKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ActivityKit.framework; path = System/Library/Frameworks/ActivityKit.framework; sourceTree = SDKROOT; };
 		9BB263D26A2AD84BDE25A0AF /* TimeCardLiveActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimeCardLiveActivity.swift; sourceTree = "<group>"; };
@@ -111,8 +126,10 @@
 		C30229F8AB3A33531A84292B /* TimeCardTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = TimeCardTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		C80A940F649E97D3B59D935C /* TimeCard.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TimeCard.entitlements; sourceTree = "<group>"; };
 		CB04224614B08F77A07C9900 /* TimeCardWidgets.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TimeCardWidgets.entitlements; sourceTree = "<group>"; };
+		CB142D28E01DD5D7B047B8BA /* TreesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TreesView.swift; sourceTree = "<group>"; };
+		D8590FEBE4E0A048FDFC91F7 /* LogView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogView.swift; sourceTree = "<group>"; };
 		DC14C784BB8F321617C3E862 /* DesignTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignTests.swift; sourceTree = "<group>"; };
-		E03E30A48DFB12D248DB79BA /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		DF7548AC9CE7DC4BC309E713 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		E48D61AF82088B1C9CFDD3F2 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -155,8 +172,13 @@
 				87281864A7B6C79D025F7336 /* MainTabView.swift */,
 				234058F6C063B04E8BE8BA61 /* PlaceholderScreen.swift */,
 				9FB3543BFD49BF47889FBEFD /* RootView.swift */,
-				E03E30A48DFB12D248DB79BA /* SettingsView.swift */,
+				B8B900F3F38EF89350C35174 /* Clock */,
+				402A70B1184F9C8B793C17D8 /* Log */,
+				E6BE4CE63C61BC1F555318DA /* Report */,
+				A7A77BD1491F3A0F96AD91D2 /* Settings */,
 				A84423B86A419FC24C435507 /* SignIn */,
+				9EDC3ABE2AF545DE830BB132 /* Team */,
+				F1E0B8ACCE60232D5E481EB9 /* Trees */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -178,6 +200,22 @@
 				576C231644ECC8C6932C2E33 /* TimeCardWidgetsBundle.swift */,
 			);
 			path = Widgets;
+			sourceTree = "<group>";
+		};
+		402A70B1184F9C8B793C17D8 /* Log */ = {
+			isa = PBXGroup;
+			children = (
+				D8590FEBE4E0A048FDFC91F7 /* LogView.swift */,
+			);
+			path = Log;
+			sourceTree = "<group>";
+		};
+		5E15AAD02E82F97B8D92FD9F /* Intents */ = {
+			isa = PBXGroup;
+			children = (
+				97460A95F1CA9E6D45762BFE /* LiveActivityButtons.swift */,
+			);
+			path = Intents;
 			sourceTree = "<group>";
 		};
 		61AFA91A34AC33FBC20D4591 = {
@@ -215,6 +253,8 @@
 				C80A940F649E97D3B59D935C /* TimeCard.entitlements */,
 				1620ADB0A89E887DA3CBB17E /* TimeCardApp.swift */,
 				AD92A9BB98F18AE091154218 /* Design */,
+				8F460B0C21EE2F89DEB0C76B /* Intents */,
+				C59E7288246A6001B81585D0 /* LiveActivity */,
 				C1066138348FF72C70FA3308 /* Resources */,
 				191D080EB2B9269478332812 /* Views */,
 			);
@@ -247,6 +287,30 @@
 			path = Config;
 			sourceTree = "<group>";
 		};
+		8F460B0C21EE2F89DEB0C76B /* Intents */ = {
+			isa = PBXGroup;
+			children = (
+				91519E30548CFC57A34F19EE /* IntentRunner.swift */,
+			);
+			path = Intents;
+			sourceTree = "<group>";
+		};
+		9EDC3ABE2AF545DE830BB132 /* Team */ = {
+			isa = PBXGroup;
+			children = (
+				27EE1EAFDEEE2B00BC480F2B /* TeamView.swift */,
+			);
+			path = Team;
+			sourceTree = "<group>";
+		};
+		A7A77BD1491F3A0F96AD91D2 /* Settings */ = {
+			isa = PBXGroup;
+			children = (
+				DF7548AC9CE7DC4BC309E713 /* SettingsView.swift */,
+			);
+			path = Settings;
+			sourceTree = "<group>";
+		};
 		A84423B86A419FC24C435507 /* SignIn */ = {
 			isa = PBXGroup;
 			children = (
@@ -272,8 +336,17 @@
 			isa = PBXGroup;
 			children = (
 				24D0A0F8E20930ACEF5AD5CB /* TimeCardActivityAttributes.swift */,
+				5E15AAD02E82F97B8D92FD9F /* Intents */,
 			);
 			path = Shared;
+			sourceTree = "<group>";
+		};
+		B8B900F3F38EF89350C35174 /* Clock */ = {
+			isa = PBXGroup;
+			children = (
+				0661937D9296096B85070F81 /* ClockView.swift */,
+			);
+			path = Clock;
 			sourceTree = "<group>";
 		};
 		C1066138348FF72C70FA3308 /* Resources */ = {
@@ -283,6 +356,30 @@
 				4533B607361861A2BBFEC580 /* Fonts */,
 			);
 			path = Resources;
+			sourceTree = "<group>";
+		};
+		C59E7288246A6001B81585D0 /* LiveActivity */ = {
+			isa = PBXGroup;
+			children = (
+				265B9098E1A69BDACEBA441D /* LiveActivityController.swift */,
+			);
+			path = LiveActivity;
+			sourceTree = "<group>";
+		};
+		E6BE4CE63C61BC1F555318DA /* Report */ = {
+			isa = PBXGroup;
+			children = (
+				165D9CB59A2B73311DD924DB /* ReportView.swift */,
+			);
+			path = Report;
+			sourceTree = "<group>";
+		};
+		F1E0B8ACCE60232D5E481EB9 /* Trees */ = {
+			isa = PBXGroup;
+			children = (
+				CB142D28E01DD5D7B047B8BA /* TreesView.swift */,
+			);
+			path = Trees;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -456,17 +553,25 @@
 				1E1B26C4A40FF877A255E691 /* AppEnvironment.swift in Sources */,
 				96CED505F7707F4ED3F801B4 /* AppModel.swift in Sources */,
 				B36F932D59108B2F4C40620E /* Appearance.swift in Sources */,
+				9ABF6503163CD2383CE3F4C1 /* ClockView.swift in Sources */,
 				11875192E9EAFECC79DABA39 /* Components.swift in Sources */,
+				104D492C8C3A51F286665FD8 /* IntentRunner.swift in Sources */,
 				00697163D13940091B2F4A8D /* JoinView.swift in Sources */,
+				0EC762F09BF83156A11A134F /* LiveActivityButtons.swift in Sources */,
+				3DFDFC60E9F3DEFA8A73D693 /* LiveActivityController.swift in Sources */,
+				5FE1436C2232590A373A6C7A /* LogView.swift in Sources */,
 				E0B03D5A5C903A53DE4C5503 /* MainTabView.swift in Sources */,
 				7CA05566481CF06C0E9F30E1 /* Palette.swift in Sources */,
 				6D9D98F9095F3172A1030E61 /* PlaceholderScreen.swift in Sources */,
+				4C4F9F482F05AA8C690EADED /* ReportView.swift in Sources */,
 				D13E042FE534FB7568A52475 /* ResetPasswordView.swift in Sources */,
 				A0E91B616D12F7A09D9CB812 /* RootView.swift in Sources */,
-				3C424674117D78801127BD6F /* SettingsView.swift in Sources */,
+				3B3E0A8E54FB630EFF4F45D1 /* SettingsView.swift in Sources */,
 				B3A31CF1F267626DAE69CD97 /* SignInView.swift in Sources */,
+				CF5BB610A45AA574D9D20AFF /* TeamView.swift in Sources */,
 				EC667902F7B2D991519539B0 /* TimeCardActivityAttributes.swift in Sources */,
 				A327B4C2DF3C355FFA9FA1F6 /* TimeCardApp.swift in Sources */,
+				A557B44473F43053CBA86614 /* TreesView.swift in Sources */,
 				E9F3A70825BDE99356AD28AD /* Typography.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -475,6 +580,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				1C89058F02093C6506330C83 /* LiveActivityButtons.swift in Sources */,
 				A52443D525B164CED3CE9F97 /* TimeCardActivityAttributes.swift in Sources */,
 				E7B1BDB75CDE2C1F66B0B60D /* TimeCardLiveActivity.swift in Sources */,
 				D37A27B39B55A8CA3FB8CE65 /* TimeCardWidgetsBundle.swift in Sources */,
@@ -672,6 +778,7 @@
 				PRODUCT_NAME = TimeCardWidgets;
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) WIDGET_EXTENSION";
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
@@ -764,6 +871,7 @@
 				PRODUCT_NAME = TimeCardWidgets;
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) WIDGET_EXTENSION";
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;

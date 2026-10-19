@@ -4,6 +4,7 @@ import TimeCardCore
 /// Account, farm, sync status and sign out.
 struct SettingsView: View {
     @Environment(TimeCardSession.self) private var session
+    @Environment(\.dismiss) private var dismiss
     @State private var confirmingSignOut = false
 
     var body: some View {
@@ -33,6 +34,11 @@ struct SettingsView: View {
             }
             .screenBackground()
             .navigationTitle("Settings")
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }.accessibilityIdentifier("settings-done")
+                }
+            }
             .confirmationDialog("Sign out of Time Card?", isPresented: $confirmingSignOut, titleVisibility: .visible) {
                 Button("Sign out", role: .destructive) { Task { await session.signOut() } }
                 Button("Cancel", role: .cancel) {}

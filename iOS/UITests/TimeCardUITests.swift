@@ -34,6 +34,7 @@ final class TimeCardUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["clock-farm-name"].waitForExistence(timeout: 5))
         XCTAssertEqual(app.staticTexts["clock-farm-name"].label, "Pine Hollow Tree Farm")
 
+        XCTAssertFalse(app.tabBars.buttons["More"].exists, "the tab bar should never overflow")
         openTab("Team", in: app)
         XCTAssertTrue(app.navigationBars["Team"].waitForExistence(timeout: 5))
     }
@@ -41,7 +42,9 @@ final class TimeCardUITests: XCTestCase {
     func testSettingsShowsSyncStatusAndSignOut() {
         let app = launch()
         XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 10))
-        openTab("Settings", in: app)
+        let gear = app.buttons["settings-button"]
+        XCTAssertTrue(gear.waitForExistence(timeout: 5))
+        gear.tap()
         let summary = app.staticTexts["sync-summary"]
         XCTAssertTrue(summary.waitForExistence(timeout: 5))
         XCTAssertEqual(summary.label, "All changes saved")

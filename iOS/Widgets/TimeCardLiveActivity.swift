@@ -1,5 +1,6 @@
 import ActivityKit
 import SwiftUI
+import TimeCardCore
 import WidgetKit
 
 /// Placeholder Live Activity: the status and a running timer. The real lock-screen
@@ -17,7 +18,7 @@ struct TimeCardLiveActivity: Widget {
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
-                Text(timerInterval: context.state.timerStart...Date.distantFuture, countsDown: false)
+                Text(timerInterval: context.state.shownTimerStart...Date.distantFuture, countsDown: false)
                     .font(.title2.monospacedDigit().weight(.semibold))
                     .multilineTextAlignment(.trailing)
                     .frame(maxWidth: 120)
@@ -32,14 +33,14 @@ struct TimeCardLiveActivity: Widget {
                     Label(context.state.phase.title, systemImage: "leaf.fill")
                 }
                 DynamicIslandExpandedRegion(.trailing) {
-                    Text(timerInterval: context.state.timerStart...Date.distantFuture, countsDown: false)
+                    Text(timerInterval: context.state.shownTimerStart...Date.distantFuture, countsDown: false)
                         .monospacedDigit()
                         .frame(maxWidth: 80)
                 }
             } compactLeading: {
                 Image(systemName: "leaf.fill")
             } compactTrailing: {
-                Text(timerInterval: context.state.timerStart...Date.distantFuture, countsDown: false)
+                Text(timerInterval: context.state.shownTimerStart...Date.distantFuture, countsDown: false)
                     .monospacedDigit()
                     .frame(maxWidth: 56)
             } minimal: {
@@ -49,7 +50,7 @@ struct TimeCardLiveActivity: Widget {
     }
 }
 
-extension TimeCardActivityAttributes.ContentState.Phase {
+extension LiveSnapshot.Phase {
     var title: String {
         switch self {
         case .working: "Working"
@@ -59,9 +60,9 @@ extension TimeCardActivityAttributes.ContentState.Phase {
     }
 }
 
-extension TimeCardActivityAttributes.ContentState {
-    /// While working, the timer counts total worked time; on a break it counts the break.
-    var timerStart: Date {
-        phase == .working ? segmentStart.addingTimeInterval(-workedBefore) : segmentStart
+extension LiveSnapshot {
+    /// While working the timer counts total worked time; on a break it counts the break.
+    var shownTimerStart: Date {
+        phase == .working ? timerStart : (breakStart ?? timerStart)
     }
 }

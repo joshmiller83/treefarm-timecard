@@ -2,9 +2,9 @@ import SwiftUI
 import TimeCardCore
 
 enum AppTab: String, Hashable {
-    case clock, trees, log, report, team, settings
+    case clock, trees, log, report, team
 
-    /// UI-test runs can open on a tab with `-UITestTab settings`.
+    /// UI-test runs can open on a tab with `-UITestTab trees`.
     static var launchTab: AppTab {
         let args = ProcessInfo.processInfo.arguments
         guard let i = args.firstIndex(of: "-UITestTab"), i + 1 < args.count else { return .clock }
@@ -12,39 +12,31 @@ enum AppTab: String, Hashable {
     }
 }
 
-/// The signed-in app: Clock, Trees, Log, Report, Team (admins only) and Settings.
+/// The signed-in app: Clock, Trees, Log, Report and, for admins, Team.
+/// Settings opens from the gear on the Clock tab, so the tab bar never overflows into More.
 struct MainTabView: View {
     @Environment(TimeCardSession.self) private var session
     @State private var tab: AppTab = .launchTab
 
     var body: some View {
         TabView(selection: $tab) {
-            ClockPlaceholder()
+            ClockView()
                 .tabItem { Label("Clock", systemImage: "clock") }
                 .tag(AppTab.clock)
-            TreesPlaceholder()
+            TreesView()
                 .tabItem { Label("Trees", systemImage: "tree") }
                 .tag(AppTab.trees)
-            PlaceholderScreen(title: "Log", systemImage: "list.bullet.rectangle",
-                              headline: "Every shift, week by week",
-                              detail: "Your shifts grouped by week with totals, and an editor for times, breaks and notes.")
+            LogView()
                 .tabItem { Label("Log", systemImage: "list.bullet.rectangle") }
                 .tag(AppTab.log)
-            PlaceholderScreen(title: "Report", systemImage: "doc.text",
-                              headline: "A paper time card",
-                              detail: "Pick a week or any dates and print a clean time card as a PDF, or share a CSV.")
+            ReportView()
                 .tabItem { Label("Report", systemImage: "doc.text") }
                 .tag(AppTab.report)
             if session.isAdmin {
-                PlaceholderScreen(title: "Team", systemImage: "person.2",
-                                  headline: "Your crew",
-                                  detail: "Members and their hours, invite codes, roles and rates, and the field and block editor.")
+                TeamView()
                     .tabItem { Label("Team", systemImage: "person.2") }
                     .tag(AppTab.team)
             }
-            SettingsView()
-                .tabItem { Label("Settings", systemImage: "gearshape") }
-                .tag(AppTab.settings)
         }
         .safeAreaInset(edge: .top, spacing: 0) {
             Banners()
