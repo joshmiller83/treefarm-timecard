@@ -32,7 +32,7 @@ export const TRACK = { desk: '360vh', mob: '480vh' } as const;
 
 /** Where each copy beat sits (progress 0–1): its --at. */
 export const AT: Record<Mode, Record<BeatKey, number>> = {
-  desk: { break: 0.19, tree: 0.39, crew: 0.585, shift: 0.775, back: 0.945 },
+  desk: { break: 0.19, tree: 0.39, crew: 0.585, shift: 0.782, back: 0.955 },
   mob: { break: 0.17, tree: 0.35, crew: 0.54, shift: 0.725, back: 0.89 },
 };
 
@@ -213,11 +213,12 @@ export function plan(mode: Mode): Plan {
     la: backLa,
   };
 
-  // Copy fades. Desktop: in by progress as the beat rises, out by position (the scene's
-  // ScrollTriggers). Mobile: out over the phone; nothing fades in (the cards slide up).
+  // Copy fades. Desktop: in by progress as the beat rises (once the beat before it has
+  // nearly gone), out by position (the scene's ScrollTriggers). Mobile: out over the phone;
+  // nothing fades in (the cards slide up).
   const out = (b: Exclude<BeatKey, 'back'>): Span => [round(at[b] + MOB_OUT[b] - MOB_FADE), round(at[b] + MOB_OUT[b])];
   const fade = (b: BeatKey): { in: Span | null; out: Span | null } =>
-    mode === 'desk' ? { in: [round(at[b] - 0.12), round(at[b] - 0.05)], out: null } : { in: null, out: b === 'back' ? null : out(b) };
+    mode === 'desk' ? { in: [round(at[b] - 0.11), round(at[b] - 0.06)], out: null } : { in: null, out: b === 'back' ? null : out(b) };
   const copy = {
     head: { in: null, out: null },
     break: fade('break'),
