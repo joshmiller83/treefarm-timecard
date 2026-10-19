@@ -2,18 +2,24 @@
 /**
  * TREE NOTE SHEET (screens team): the sheet that rises over the Trees tab for one tree.
  * An iOS 26 medium-detent sheet: inset from the screen edges with concentric corners, a
- * grabber, the tree in Zilla Slab 24 pt, a close button, the tree's notes (flag chip, text,
- * author and time; newest first) and a 50 pt [Add note] button.
+ * grabber, the tree in Zilla Slab 24 pt, a close button, whether the tree is shaped (in the
+ * map's colors), the tree's notes (flag chip, text, author and time; newest first) and a 50 pt
+ * [Add note] button.
  *
  * Place it in AppChrome's `overlay` slot or after the tab as a sibling in the same layer.
- * Hooks: [data-sheet] (scenes slide it yPercent 100 → 0), [data-note="0"…] per note,
- * [data-flag-chip], [data-note-text], [data-note-byline], [data-add-note].
+ * Pass the host TreesTab's own `at` (and `who`), so the status bar clock, the map and the
+ * sheet's shaped line all tell the same time: <TreesTab at={x} …/><TreeNoteSheet at={x} />.
+ *
+ * Hooks: [data-sheet] is a full-width wrapper anchored to the screen's bottom edge that holds
+ * the visible sheet plus room for its shadow; scenes slide it yPercent 100 → 0, and at
+ * yPercent 100 the sheet and its shadow are wholly off the screen. Inside: [data-note="0"…]
+ * per note, [data-flag-chip], [data-note-text], [data-note-byline], [data-add-note].
  * A home indicator sits outside [data-sheet], so it stays put while the sheet moves.
  */
 import Icon from './Icon.astro';
 import AppKit from '../screens/AppKit.astro';
 import { noteSheet } from '../screens/notes/notes';
-import { MOMENTS, TREE_NOTE, type TreeNote } from '../../data/ledger';
+import { MOMENTS, TREE_NOTE, WORKER, type Person, type TreeNote } from '../../data/ledger';
 
 export interface Props {
   /** Default ledger TREE_NOTE. */
@@ -22,76 +28,93 @@ export interface Props {
   notes?: readonly TreeNote[];
   /** Sheet height as a fraction of the screen. Default 0.55. */
   height?: number;
-  /** Ledger minute the sheet is open at, for the tree's shaped line. Default MOMENTS.treeNote (2:33 PM). */
+  /** Ledger minute the sheet is open at: use the host TreesTab's `at`. Default MOMENTS.treeNote (2:33 PM). */
   at?: number;
+  /** Whose phone, for the shaped line's color (gold = their own shift). Default WORKER (Alex). */
+  who?: Person;
 }
-const { note = TREE_NOTE, height = 0.55, at = MOMENTS.treeNote } = Astro.props;
-const m = noteSheet(Astro.props.notes ?? [note], at);
+const { note = TREE_NOTE, height = 0.55, at = MOMENTS.treeNote, who = WORKER } = Astro.props;
+const m = noteSheet(Astro.props.notes ?? [note], at, who);
 ---
 
 <AppKit />
-<div class="sc ns-sheet" data-sheet style={`--sheet-h:${height}`}>
-  <div class="ns-grabber"></div>
-  <div class="ns-head">
-    <div class="ns-titles">
-      <div class="ns-title">{m.title}</div>
-      <div class="sc-sub">{m.subtitle}</div>
+<div class="sc ns-wrap" data-sheet style={`--sheet-h:${height}`}>
+  <div class="ns-sheet">
+    <div class="ns-grabber"></div>
+    <div class="ns-head">
+      <div class="ns-titles">
+        <div class="ns-title">{m.title}</div>
+        <div class="sc-sub">{m.subtitle}</div>
+      </div>
+      <span class="ns-close"><Icon name="xmark" size="calc(17 * var(--pt))" weight={2.4} /></span>
     </div>
-    <span class="ns-close"><Icon name="xmark" size="calc(17 * var(--pt))" weight={2.4} /></span>
-  </div>
 
-  <div class="ns-shaped" data-shaped={m.shaped.state}>
-    <span class="ns-mark"></span>
-    {m.shaped.text}
-  </div>
+    <div class="ns-shaped" data-shaped={m.shaped.state}>
+      <span class="ns-mark"></span>
+      {m.shaped.text}
+    </div>
 
-  <div class="sc-label ns-count">{m.count}</div>
-  <div class="ns-notes">
-    {
-      m.notes.map((n, i) => (
-        <div class="ns-note" data-note={i}>
-          <span class="sc-flag" data-tone={n.tone} data-flag-chip={i === 0 ? '' : undefined}>
-            <Icon name="flag.fill" />
-            {n.flag}
-          </span>
-          <div class="ns-text" data-note-text={i === 0 ? '' : undefined}>
-            {n.text}
-          </div>
-          <div class="ns-by" data-note-byline={i === 0 ? '' : undefined}>
-            <span class="sc-avatar" data-tint={n.author === 'Alex' ? 'fir' : n.author === 'Sam' ? 'sap' : 'bark'}>
-              {n.initial}
+    <div class="sc-label ns-count">{m.count}</div>
+    <div class="ns-notes">
+      {
+        m.notes.map((n, i) => (
+          <div class="ns-note" data-note={i}>
+            <span class="sc-flag" data-tone={n.tone} data-flag-chip={i === 0 ? '' : undefined}>
+              <Icon name="flag.fill" />
+              {n.flag}
             </span>
-            {n.byline}
+            <div class="ns-text" data-note-text={i === 0 ? '' : undefined}>
+              {n.text}
+            </div>
+            <div class="ns-by" data-note-byline={i === 0 ? '' : undefined}>
+              <span class="sc-avatar" data-tint={n.author === 'Alex' ? 'fir' : n.author === 'Sam' ? 'sap' : 'bark'}>
+                {n.initial}
+              </span>
+              {n.byline}
+            </div>
           </div>
-        </div>
-      ))
-    }
-  </div>
+        ))
+      }
+    </div>
 
-  <span class="sc-btn sc-btn--primary sc-btn--wide ns-add" data-add-note>
-    <Icon name="plus" size="calc(19 * var(--pt))" weight={2.4} />
-    Add note
-  </span>
+    <span class="sc-btn sc-btn--primary sc-btn--wide ns-add" data-add-note>
+      <Icon name="plus" size="calc(19 * var(--pt))" weight={2.4} />
+      Add note
+    </span>
+  </div>
 </div>
 <div class="ns-sheet-home" aria-hidden="true"></div>
 
 <style>
   /*
+   * The wrapper spans the screen's width from its bottom edge up to the sheet's top plus 40 pt
+   * of room for the shadow, so yPercent 100 moves the sheet and its shadow wholly off the
+   * screen. z-index 6 sits over the tab bar.
+   */
+  .ns-wrap {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 6;
+    height: calc(var(--sheet-h, 0.55) * 100% + 40 * var(--pt));
+    padding: calc(40 * var(--pt)) calc(6 * var(--pt)) calc(6 * var(--pt));
+    pointer-events: none;
+  }
+  /*
    * Inset 6 pt from the screen edges (iOS 26 partial-height sheets float), so the bottom
-   * corners run concentric with the 55 pt display corners. z-index 6 sits over the tab bar.
+   * corners run concentric with the 55 pt display corners. Opaque: a real sheet blurs what is
+   * under it, and a sharp see-through ghost would read as a glitch; the glass is in the top
+   * highlight and the inset hairline.
    */
   .ns-sheet {
-    position: absolute;
-    left: calc(6 * var(--pt));
-    right: calc(6 * var(--pt));
-    bottom: calc(6 * var(--pt));
-    z-index: 6;
-    height: calc(var(--sheet-h, 0.55) * 100% - 6 * var(--pt));
+    position: relative;
+    height: 100%;
     display: flex;
     flex-direction: column;
     padding: calc(18 * var(--pt)) calc(18 * var(--pt)) calc(30 * var(--pt));
     border-radius: calc(38 * var(--pt)) calc(38 * var(--pt)) calc(49 * var(--pt)) calc(49 * var(--pt));
-    background: rgba(250, 252, 249, 0.97);
+    background: var(--surface);
     color: var(--ink);
     box-shadow:
       0 calc(-1 * var(--pt)) 0 rgba(255, 255, 255, 0.9),

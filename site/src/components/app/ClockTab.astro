@@ -46,14 +46,16 @@ const m = clockTab(at, range);
     <HoursPayCard hours={m.hours} />
   </div>
   <div slot="overlay" class="ct-edge" aria-hidden="true"></div>
+  <div slot="overlay" class="ct-edge ct-edge--bottom" aria-hidden="true"></div>
 </AppChrome>
 
 <style>
   /*
-   * iOS 26's scroll edge effect: as the Clock tab scrolls, content fades out under the status
-   * bar and the floating toolbar instead of running into them. Surface-on-surface, so it is
-   * invisible at rest. z-index auto: it paints after the scroll content but stays under the
-   * chrome's status bar and toolbar (z 4) and under the phone's Dynamic Island.
+   * iOS 26's scroll edge effect: content fades out under the status bar and toolbar at the top
+   * and under the floating tab bar at the bottom instead of reading through the glass.
+   * Surface-on-surface, so over empty space it is invisible. z-index auto: it paints after the
+   * scroll content but stays under the chrome's status bar and toolbar (z 4), the tab bar (z 5),
+   * the home indicator (z 6) and the phone's Dynamic Island.
    */
   .ct-edge {
     position: absolute;
@@ -65,5 +67,16 @@ const m = clockTab(at, range);
       rgba(250, 252, 249, 0) 100%
     );
     pointer-events: none;
+  }
+  /* The tab bar floats 26–88 pt above the bottom: solid under it, then a soft fade above it. */
+  .ct-edge--bottom {
+    inset: auto 0 0;
+    height: calc(136 * var(--pt));
+    background: linear-gradient(
+      to top,
+      var(--surface) calc(64 * var(--pt)),
+      rgba(250, 252, 249, 0.9) calc(88 * var(--pt)),
+      rgba(250, 252, 249, 0) 100%
+    );
   }
 </style>

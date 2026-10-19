@@ -68,7 +68,7 @@ const moments = [
                 </Screen>
               </div>
             </Phone>
-            <p>range="{r}"</p>
+            <p>{r === 'season' ? 'range="season": the same shifts as the week until the ledger carries earlier ones' : `range="${r}"`}</p>
           </div>
         ))
       }
@@ -110,19 +110,19 @@ const moments = [
         <Phone label="Tree note sheet for block 2, row 36, tree 7: Needs attention. Leader’s broken. Needs a stake. Alex, today 2:33 PM" height={H}>
           <div class="screens" data-screens>
             <Screen stateId="lab-note" alt="" tone="light" final>
-              <TreesTab block={2} rows={[30, 40]} zoom="L" notes={[TREE_NOTE, OLD_NOTE]} />
-              <TreeNoteSheet />
+              <TreesTab at={MOMENTS.treeNote} block={2} rows={[30, 40]} zoom="L" notes={[TREE_NOTE, OLD_NOTE]} />
+              <TreeNoteSheet at={MOMENTS.treeNote} />
             </Screen>
           </div>
         </Phone>
-        <p>TreeNoteSheet over TreesTab (55%)</p>
+        <p>TreeNoteSheet over TreesTab (55%), both at 2:33 PM</p>
       </div>
       <div class="lab-cell">
         <Phone label="Tree note sheet for block 2, row 31, tree 4: Replant. Lost its top in the wind. Sam, Oct 9" height={H}>
           <div class="screens" data-screens>
             <Screen stateId="lab-note-old" alt="" tone="light" final>
-              <TreesTab block={2} rows={[28, 40]} zoom="L" notes={[TREE_NOTE, OLD_NOTE]} />
-              <TreeNoteSheet note={OLD_NOTE} />
+              <TreesTab at={MOMENTS.treeNote} block={2} rows={[28, 40]} zoom="L" notes={[TREE_NOTE, OLD_NOTE]} />
+              <TreeNoteSheet note={OLD_NOTE} at={MOMENTS.treeNote} />
             </Screen>
           </div>
         </Phone>

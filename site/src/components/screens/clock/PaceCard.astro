@@ -171,6 +171,10 @@ const lit = (row: PaceRow) => (highlight.includes(row) ? '' : undefined);
     line-height: calc(21 * var(--pt));
     letter-spacing: -0.02em;
   }
+  /* No lone 'pace' on the second line of 'About 179 hours left in North field at your pace'. */
+  .pc-note > span:not(.pc-bullet) {
+    text-wrap: pretty;
+  }
   .pc-bullet {
     flex: none;
     width: calc(6 * var(--pt));

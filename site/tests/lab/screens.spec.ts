@@ -93,6 +93,7 @@ test.describe('Clock tab at 3:40 PM', () => {
     await expect(hours.locator('[data-day="fri"]')).toHaveClass(/is-today/);
     await expect(hours.locator('[data-pay]')).toHaveText('•••');
     await expect(hours.locator('[data-pay-toggle]')).toHaveText('Show pay');
+    await expect(hours).toContainText('Week of Oct 12 – Oct 18. Breaks don’t count toward hours.');
     await expect(s.locator('[data-shift-notes]')).toContainText('Rows past 30 are tall. Slower going.');
   });
 
@@ -171,6 +172,34 @@ test.describe('Clock tab at 3:40 PM', () => {
     }
   });
 
+  test('a bottom scroll edge hides content under the floating tab bar', async ({ page }) => {
+    await open(page);
+    for (const id of ['lab-clock-top', 'lab-clock-pace', 'lab-clock-873']) {
+      const s = screen(page, id);
+      const box = await s.locator('.ct-edge--bottom').evaluate((el) => {
+        const scr = (el.closest('.screen') as HTMLElement).getBoundingClientRect();
+        const r = el.getBoundingClientRect();
+        return { top: (scr.bottom - r.top) / (scr.width / 393), bottom: (scr.bottom - r.bottom) / (scr.width / 393), z: getComputedStyle(el).zIndex };
+      });
+      // Covers the tab bar (26–88 pt above the bottom) with room to fade above it.
+      expect(box.top, id).toBeGreaterThan(120);
+      expect(Math.abs(box.bottom), id).toBeLessThan(0.5);
+      expect(box.z, id).toBe('auto');
+      // Painted over the scroll content (later in the same stacking context) and under the tab bar.
+      const order = await s.locator('.ct-edge--bottom').evaluate((el) => {
+        const app = el.closest('[data-app]')!;
+        const scroll = app.querySelector('[data-app-scroll]')!;
+        const bar = app.querySelector<HTMLElement>('[data-tabbar]')!;
+        return {
+          afterScroll: !!(scroll.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING),
+          scrollZ: getComputedStyle(scroll).zIndex,
+          barZ: Number(getComputedStyle(bar).zIndex),
+        };
+      });
+      expect(order, id).toEqual({ afterScroll: true, scrollZ: 'auto', barZ: 5 });
+    }
+  });
+
   test('a crop scrolls the layer to the pace card', async ({ page }) => {
     await open(page);
     const t = await screen(page, 'lab-clock-pace').locator('[data-scroll-layer]').evaluate((el) => getComputedStyle(el).transform);
@@ -211,6 +240,8 @@ test.describe('Team tab', () => {
       await expect(row.locator('[data-trees]')).toHaveText(trees!);
     }
     await expect(s.locator('[data-team-total]')).toHaveText('3 people · 106:29 h · 3,557 trees');
+    await expect(s.locator('.tm-sec-head').first()).toContainText('Oct 12 – Oct 18');
+    await expect(s.locator('[data-clock]').first()).toHaveText('3:00');
     await expect(s.locator('[data-invite]')).toHaveText('Invite someone');
     await expect(s.locator('[data-fields-row]')).toContainText('Fields & blocks');
     await expect(s.locator('[data-app="team"]')).not.toContainText(/code|expire|pay/i);
@@ -229,17 +260,50 @@ test.describe('Tree note sheet', () => {
     await expect(sheet.locator('[data-add-note]')).toHaveText('Add note');
     expect(Math.abs((await pt(sheet.locator('[data-add-note]'))).h - 50)).toBeLessThan(0.75);
 
-    // 55% of the screen, floating 6 pt in from the edges, over the tab bar.
-    const geo = await sheet.evaluate((el) => {
+    // The visible sheet: 55% of the screen, floating 6 pt in from the edges, over the tab bar.
+    const geo = await sheet.locator('.ns-sheet').evaluate((el) => {
       const scr = el.closest('.screen') as HTMLElement;
       const a = scr.getBoundingClientRect();
       const b = el.getBoundingClientRect();
-      return { frac: (b.height + 6 * (a.width / 393)) / a.height, inset: (b.left - a.left) / (a.width / 393) };
+      const unit = a.width / 393;
+      return {
+        frac: (b.height + 6 * unit) / a.height,
+        left: (b.left - a.left) / unit,
+        right: (a.right - b.right) / unit,
+        bottom: (a.bottom - b.bottom) / unit,
+      };
     });
     expect(geo.frac).toBeCloseTo(0.55, 2);
-    expect(geo.inset).toBeCloseTo(6, 0);
+    expect(geo.left).toBeCloseTo(6, 0);
+    expect(geo.right).toBeCloseTo(6, 0);
+    expect(geo.bottom).toBeCloseTo(6, 0);
     const tabbarZ = await s.locator('[data-tabbar]').evaluate((el) => Number(getComputedStyle(el).zIndex));
     expect(Number(await sheet.evaluate((el) => getComputedStyle(el).zIndex))).toBeGreaterThan(tabbarZ);
+    // Opaque, so nothing under it ghosts through behind the title.
+    const bg = await sheet.locator('.ns-sheet').evaluate((el) => getComputedStyle(el).backgroundColor);
+    expect(bg).toMatch(/^rgb\(/);
+  });
+
+  test('at yPercent 100 the sheet and its shadow are wholly off the screen', async ({ page }) => {
+    await open(page);
+    const sheet = screen(page, 'lab-note').locator('[data-sheet]');
+    // The scenes' from-state (yPercent 100 is translateY(100%) of the wrapper).
+    await sheet.evaluate((el) => ((el as HTMLElement).style.transform = 'translateY(100%)'));
+    const gap = await sheet.locator('.ns-sheet').evaluate((el) => {
+      const scr = (el.closest('.screen') as HTMLElement).getBoundingClientRect();
+      return (el.getBoundingClientRect().top - scr.bottom) / (scr.width / 393);
+    });
+    // The shadow reaches 30 pt above the sheet (40 pt blur, 10 pt down).
+    expect(gap).toBeGreaterThanOrEqual(30);
+  });
+
+  test('the sheet and its map tell the same time', async ({ page }) => {
+    await open(page);
+    for (const id of ['lab-note', 'lab-note-old']) {
+      await expect(screen(page, id).locator('[data-map]')).toHaveAttribute('data-at', '873');
+      await expect(screen(page, id).locator('[data-clock]').first()).toHaveText('2:33');
+    }
+    await expect(screen(page, 'lab-note').locator('[data-shaped]')).toHaveText('Shaped today at 2:14 PM by Alex');
   });
 
   test('the flag vocabulary is exactly the three flags', async ({ page }) => {

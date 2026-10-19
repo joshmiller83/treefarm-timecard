@@ -2,7 +2,7 @@
 /**
  * The big status card at the top of the Clock tab (StatusCardView): fir while working, sap
  * on a break or lunch, surface off the clock. Pill with a pulse light, the running h:mm:ss in
- * Plex Mono (an odometer DayClock rolls), 'worked today', the clocked-in line, and the
+ * Plex Mono 52 pt like the app (an odometer DayClock rolls), 'worked today', the clocked-in line, and the
  * two glove buttons. Hooks: [data-status-card], [data-timer], [data-break-line].
  */
 import { odometerHTML } from '../../../scripts/odometer';
@@ -174,19 +174,19 @@ const timerMode = live ? 'worked' : 'fixed';
     white-space: nowrap;
   }
 
+  /*
+   * The app's tcTimer: Plex Mono SemiBold 52 pt, tracking -1 (Typography.swift on app-clock).
+   * The brief said 40 pt; the app's own size wins because real captures replace this screen.
+   */
   .st-timer {
     position: relative;
-    margin-top: calc(12 * var(--pt));
-    font-size: calc(50 * var(--pt));
+    margin-top: calc(10 * var(--pt));
+    font-size: calc(52 * var(--pt));
     line-height: 1.04;
-    letter-spacing: -0.045em;
+    letter-spacing: calc(-1 * var(--pt));
   }
   .st-timer :global(.odo) {
     font-weight: 600;
-  }
-  /* Plex Mono's colons are a full cell wide; pull them in like the app's -1 pt tracking. */
-  .st-timer :global(.odo-s) {
-    margin: 0 -0.07em;
   }
   .st-worked {
     margin-top: calc(2 * var(--pt));
