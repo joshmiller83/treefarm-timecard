@@ -124,8 +124,10 @@ test.describe('clock-out', () => {
       await expect(sec(page).locator('[data-co-chip="csv"]')).toHaveCSS('opacity', '1');
       await scrollTrack(page, 1);
       // The stage phone is back at rest for the next chapter.
-      const t = await page.locator('[data-stage] [data-phone]').evaluate((el) => getComputedStyle(el).transform);
-      expect(t === 'none' || t === 'matrix(1, 0, 0, 1, 0, 0)').toBe(true);
+      const phone = page.locator('[data-stage] [data-phone]');
+      await expect
+        .poll(() => phone.evaluate((el) => getComputedStyle(el).transform), { timeout: 5000 })
+        .toMatch(/^(none|matrix\(1, 0, 0, 1, 0, 0\))$/);
     } else {
       // Mobile: the paper is in flow after the track, full width, as stacked day blocks.
       await scrollTrack(page, 1.6);
@@ -169,7 +171,9 @@ test.describe('clock-out with reduced motion', () => {
     const quiet = sec(page).locator('[data-screen="lock-1631-quiet"]');
     await quiet.scrollIntoViewIfNeeded();
     await expect(quiet).toBeVisible();
-    await expect(quiet.locator('[data-snippet-text]')).toHaveText(ANSWER.replace(/ /g, ' ').replace(/ /g, ' '), { useInnerText: true });
+    // textContent: WebKit leaves innerText empty in a content-visibility: auto section.
+    const said = await quiet.locator('[data-snippet-text]').textContent();
+    expect(said?.replace(/\s+/g, ' ').trim()).toBe(ANSWER);
     await expect(quiet.locator('[data-la]')).toHaveCount(0);
     // The light part: the Report tab beside the fully printed paper, the note and the chips.
     for (const sel of ['[data-co-report]', '[data-paper]', '[data-co-note]', '[data-co-chip="pdf"]', '[data-co-chip="csv"]']) {
