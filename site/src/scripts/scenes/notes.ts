@@ -22,6 +22,7 @@
 import { registerScene, type SceneContext } from '../scene.ts';
 import { MOMENTS, liveActivityAt } from '../../data/ledger.ts';
 import { setWave } from '../wave.ts';
+import { setText } from '../text.ts';
 import { activityView } from '../../components/system/lockscreen/activity.ts';
 import { plan, type BeatKey, type Span } from '../../sections/notes/plan.ts';
 import { TRANSCRIPT_PARTS } from '../../sections/notes/copy.ts';
@@ -35,7 +36,8 @@ const BREAK_PILL = liveActivityAt(MOMENTS.break).pill;
 
 registerScene(
   'notes',
-  (ctx: SceneContext) => {
+  // A generator: each beat is its own part of the build (the core runs a part per idle callback).
+  function* (ctx: SceneContext) {
     const { tl, day, util, gsap, section, isDesk } = ctx;
     // ctx.screens can be another section's container when the stage holds several during a
     // hand-over (a jump straight to #notes): find ours by its own layer ids.
@@ -67,7 +69,7 @@ registerScene(
      */
     const textAt = (el: El | null, before: string, after: string, at: number) => {
       if (!el) return;
-      tl.to({}, { duration: 0.0005, onStart: () => void (el.textContent = after), onReverseComplete: () => void (el.textContent = before) }, at);
+      tl.to({}, { duration: 0.0005, onStart: () => setText(el, after), onReverseComplete: () => setText(el, before) }, at);
     };
     /** Markup text a from-state overwrites, restored when the scene is reverted. */
     const written = new Map<El, string>();
@@ -212,6 +214,8 @@ registerScene(
       ctx.trigger({ trigger: h2, start: 'top 75%', once: true, onEnter: () => rise.play() });
     }
 
+    yield;
+
     // =======================================================================
     // BREAK · lock-1430-break: from "Row 36 marked · Undo" at 2:16 to gold at 2:30
     // =======================================================================
@@ -287,6 +291,8 @@ registerScene(
     // Identical pixels (same lock screen, same gold card, the clock back): hand over silently.
     swap(L.brk, L.tree, P.break.swap);
 
+    yield;
+
     // =======================================================================
     // TREE NOTE · lock-1433-treenote, then unlock
     // =======================================================================
@@ -343,6 +349,8 @@ registerScene(
       util.sheen(tl, P.tree.unlock[0]);
     }
 
+    yield;
+
     // =======================================================================
     // CREW · the flag drops, the map scrolls, the sheet rises (trees-1433-flag → -note)
     // =======================================================================
@@ -391,6 +399,8 @@ registerScene(
       }
     }
 
+    yield;
+
     // =======================================================================
     // SHIFT NOTE · lock-1436-dictation
     // =======================================================================
@@ -428,6 +438,8 @@ registerScene(
       to(strip, { clipPath: 'inset(0% 0% 0% 0%)', y: 0, duration: dur(P.shift.strip), ease: 'power2.out' }, P.shift.strip[0]);
     }
     swap(L.shift, L.back, P.shift.swap);
+
+    yield;
 
     // =======================================================================
     // BACK · lock-1444-back: tap Back to work at 2:44, green again
@@ -483,5 +495,5 @@ registerScene(
       }
     };
   },
-  { dayStart: MOMENTS.island },
+  { dayStart: MOMENTS.island, invalidate: false },
 );

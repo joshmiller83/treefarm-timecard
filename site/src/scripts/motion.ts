@@ -12,9 +12,10 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { SplitText } from 'gsap/SplitText';
 import { CHAPTERS, chapter, type ChapterId, type TintKey } from '../data/chapters.ts';
 import { day, startDayClock, type DayTrack } from './dayclock.ts';
-import { getScene, type SceneContext } from './scene.ts';
+import { getScene, type SceneCleanup, type SceneContext, type SceneEntry } from './scene.ts';
 import { createStage, type Stage } from './stage.ts';
 import { createUtil } from './util.ts';
+import { setOdometerInstant } from './odometer.ts';
 
 gsap.registerPlugin(ScrollTrigger, SplitText);
 ScrollTrigger.config({ ignoreMobileResize: true });
@@ -77,20 +78,19 @@ export function boot(): void {
   // ---- Ambient loops: only while scrolling + 5 s, never while paused ----
   let idleTimer = 0;
   const runAmbients = (run: boolean) => ambients.forEach((a) => (run && !paused ? a.resume() : a.pause()));
-  // While the reader scrolls, odometers jump instead of easing. The class goes on the chapter
-  // in charge and the stage only (not on <html>): toggling it there restyled every
-  // odometer on the page twice per scroll.
+  // While the reader scrolls, odometers jump instead of easing: a flag the columns read as
+  // they move (odometer.ts). A class on a chapter restyled its whole subtree twice a scroll.
   let scrolling = false;
   ScrollTrigger.addEventListener('scrollStart', () => {
     scrolling = true;
-    for (const el of [active, stage?.el]) el?.classList.add('scrubbing');
+    setOdometerInstant(true);
     clock.wake();
     clearTimeout(idleTimer);
     runAmbients(true);
   });
   ScrollTrigger.addEventListener('scrollEnd', () => {
     scrolling = false;
-    document.querySelectorAll('.scrubbing').forEach((el) => el.classList.remove('scrubbing'));
+    setOdometerInstant(false);
     clock.idle();
     clearTimeout(idleTimer);
     idleTimer = window.setTimeout(() => runAmbients(false), IDLE_LOOPS_MS);
@@ -101,6 +101,69 @@ export function boot(): void {
     if (paused) clock.wake();
     runAmbients(!paused);
   }) as EventListener);
+
+  // ---- Off-stage screen layers skip style, layout and paint ----
+  // A built chapter stacks every state of its phone as layers and its scene fades between
+  // them. A layer nobody can see (opacity 0, or slid a whole screen away) gets
+  // content-visibility: hidden, so the clocks and odometers written into it each frame cost
+  // nothing, and it comes back (as it was) the frame it is needed. Checked every tick: a
+  // few inline-style reads per layer, never a style or layout read.
+  interface Watched {
+    el: HTMLElement;
+    off: boolean;
+  }
+  const layerSets = new Map<HTMLElement, Watched[]>();
+  const layerShown = (el: HTMLElement) => {
+    const o = el.style.opacity;
+    const op = o === '' ? (el.hasAttribute('data-final') ? 1 : 0) : Number(o);
+    if (!(op > 0.001)) return false;
+    const c = (el as HTMLElement & { _gsap?: { xPercent?: number; yPercent?: number } })._gsap;
+    return !c || (Math.abs(c.yPercent ?? 0) < 99.9 && Math.abs(c.xPercent ?? 0) < 99.9);
+  };
+  const syncLayers = () => {
+    for (const list of layerSets.values()) {
+      for (const w of list) {
+        const off = !layerShown(w.el);
+        if (off === w.off) continue;
+        w.off = off;
+        w.el.style.contentVisibility = off ? 'hidden' : '';
+      }
+    }
+  };
+  const watchLayers = (section: HTMLElement) => {
+    const own = document.querySelector<HTMLElement>(`[data-screens][data-section="${section.id}"]`);
+    const els = new Set<HTMLElement>();
+    for (const r of [section, own]) r?.querySelectorAll<HTMLElement>('.screens > .layer').forEach((l) => els.add(l));
+    layerSets.set(
+      section,
+      Array.from(els, (el) => ({ el, off: false })),
+    );
+    syncLayers();
+  };
+  const unwatchLayers = (section: HTMLElement) => {
+    for (const w of layerSets.get(section) ?? []) w.el.style.removeProperty('content-visibility');
+    layerSets.delete(section);
+  };
+  gsap.ticker.add(syncLayers);
+
+  /** An idle moment for a scene's next part, cut short when `urgent()` turns true. */
+  const idlePart = (urgent: () => boolean) =>
+    new Promise<void>((resolve) => {
+      let done = false;
+      const go = () => {
+        if (done) return;
+        done = true;
+        resolve();
+      };
+      if ('requestIdleCallback' in window) requestIdleCallback(go, { timeout: 400 });
+      else setTimeout(go, 40);
+      const poll = () => {
+        if (done) return;
+        if (urgent()) go();
+        else requestAnimationFrame(poll);
+      };
+      requestAnimationFrame(poll);
+    });
 
   // ---- Chapters: which section is in charge of the day ----
   const activate = (section: HTMLElement) => {
@@ -157,6 +220,7 @@ export function boot(): void {
       const built = new Set<HTMLElement>();
       let firstBatch = true;
 
+      let alive = true;
       const build = async (section: HTMLElement) => {
         if (built.has(section)) return;
         built.add(section);
@@ -168,97 +232,200 @@ export function boot(): void {
           console.warn(`[motion] scene ${id} failed to load`, err);
         }
         const entry = getScene(id);
-        if (entry && (desk ? entry.options.desk !== false : entry.options.mob !== false)) {
-          context.add(() => buildScene(section, entry.build, entry.options));
+        if (entry && alive && (desk ? entry.options.desk !== false : entry.options.mob !== false)) {
+          await buildScene(section, entry.build, entry.options);
         }
         if (id === 'hero') root.classList.remove('intro-wait');
       };
 
-      const buildScene = (section: HTMLElement, sceneBuild: NonNullable<ReturnType<typeof getScene>>['build'], options: NonNullable<ReturnType<typeof getScene>>['options']) => {
-        const id = section.id as ChapterId;
-        const track = section.querySelector<HTMLElement>('.track') ?? section;
-        // The section's non-final screen layers ship as <template data-layer> (Screen.astro):
-        // put them in place now, wherever its screens are (the stage may hold them).
-        const own = section.querySelector<HTMLElement>('[data-screens]') ?? document.querySelector<HTMLElement>(`[data-screens][data-section="${id}"]`);
-        let placed = 0;
-        for (const root of [section, own]) {
-          for (const t of Array.from(root?.querySelectorAll<HTMLTemplateElement>('template[data-layer]') ?? [])) {
-            t.replaceWith(t.content);
-            placed += 1;
-          }
-        }
-        // The clocks and timers in those layers join the DayClock if this chapter is in charge.
-        if (placed && active === section) {
-          clock.scope(stage && isDesk ? [stage.el, section] : [section]);
-          clock.render(true);
-        }
-        const natural = (desk ? section.dataset.desk : section.dataset.mob) === 'auto';
-        const tl = gsap.timeline({
-          defaults: { ease: 'none' },
-          scrollTrigger: {
-            trigger: track,
-            start: options.start ?? (natural ? 'top 80%' : 'top top'),
-            end: options.end ?? (natural ? 'bottom 20%' : 'bottom bottom'),
-            scrub: options.scrub ?? 0.6,
-            invalidateOnRefresh: true,
-          },
-        });
-        (tl as GSAPTimeline & { dayStart?: number }).dayStart = options.dayStart ?? chapter(id).minute;
-        const screens = section.querySelector<HTMLElement>('[data-screens]') ?? (stage?.owner() === section ? stage.slot.querySelector<HTMLElement>('[data-screens]') : null);
-        const roots = () => [section, ...(screens && !section.contains(screens) ? [screens] : [])];
-        const ctx: SceneContext = {
-          id,
-          section,
-          tl,
-          phone: desk && stage ? stage.phone : sectionPhone(section),
-          screens,
-          extras: section.querySelector<HTMLElement>('.extras'),
-          frame: section.querySelector<HTMLElement>('.frame'),
-          beats: Array.from(section.querySelectorAll<HTMLElement>('.beat')),
-          q: <T extends Element = HTMLElement>(sel: string) => roots().flatMap((r) => Array.from(r.querySelectorAll<T>(sel))),
-          q1: <T extends Element = HTMLElement>(sel: string) => {
-            for (const r of roots()) {
-              const hit = r.querySelector<T>(sel);
-              if (hit) return hit;
+      /**
+       * Builds a section's scene inside this breakpoint's context, in parts: each of its
+       * template layers is placed (and gets its first style and layout) on its own, then the
+       * scene's build runs; a scene written as a generator yields between its beats, and each
+       * beat is a part too. The first part runs now and each later one in its own idle callback,
+       * so no build is one long task; all the rest run at once when the section comes within a
+       * quarter of a viewport (it must be whole before it shows).
+       */
+      const buildScene = (section: HTMLElement, sceneBuild: SceneEntry['build'], options: SceneEntry['options']) =>
+        new Promise<void>((resolve) => {
+          const id = section.id as ChapterId;
+          let tl: GSAPTimeline | null = null;
+          let steps: Iterator<unknown, SceneCleanup> | null = null;
+          let cleanup: SceneCleanup = undefined;
+          let started = false;
+          let finished = false;
+          let part = 0;
+          let busy = 0;
+          let first = 0;
+          const time = (fn: () => void) => {
+            const t0 = performance.now();
+            if (!first) first = t0;
+            try {
+              fn();
+            } catch (err) {
+              console.warn(`[motion] scene ${id} failed to build`, err);
+              steps = null;
             }
-            return null;
-          },
-          day,
-          clock,
-          isDesk: desk,
-          util,
-          gsap,
-          ScrollTrigger,
-          SplitText,
-          stage: desk ? stage : null,
-          trigger: (vars) => ScrollTrigger.create(vars),
-          tint: setTint,
-        };
-        let cleanup: void | (() => void) = undefined;
-        const t0 = performance.now();
-        try {
-          cleanup = sceneBuild(ctx);
-        } catch (err) {
-          console.warn(`[motion] scene ${id} failed to build`, err);
-        }
-        // In the performance timeline (DevTools, and the perf spec): how long each build took.
-        performance.measure(`tf:scene:${id}`, { start: t0, end: performance.now() });
-        const tr = day.peek(tl);
-        if (tr) {
-          sectionTracks.set(section, tr);
-          if (active === section) day.source = tr;
-        }
-        // Normalize to duration 1 so every spec reads in progress units.
-        const d = tl.duration();
-        if (d < 1) tl.to({}, { duration: 1 - d }, d);
-        else if (d > 1.0001) console.warn(`[motion] scene ${id} runs past progress 1 (${d.toFixed(3)})`);
-        return cleanup || undefined;
-      };
+            const t1 = performance.now();
+            busy += t1 - t0;
+            // In the performance timeline (DevTools, and the perf spec): each part's cost.
+            performance.measure(`tf:chunk:${id}:${part++}`, { start: t0, end: t1 });
+          };
+          const finish = (watch = true) => {
+            if (finished) return;
+            finished = true;
+            if (tl) {
+              const tr = day.peek(tl);
+              if (tr) {
+                sectionTracks.set(section, tr);
+                if (active === section) day.source = tr;
+              }
+              // Normalize to duration 1 so every spec reads in progress units.
+              const d = tl.duration();
+              if (d < 1) tl.to({}, { duration: 1 - d }, d);
+              else if (d > 1.0001) console.warn(`[motion] scene ${id} runs past progress 1 (${d.toFixed(3)})`);
+            }
+            if (watch && started) watchLayers(section);
+            performance.measure(`tf:scene:${id}`, { start: first || performance.now(), end: performance.now(), detail: { busy, parts: part } });
+            resolve();
+          };
+
+          // The section's non-final screen layers ship as <template data-layer> (Screen.astro).
+          const own = section.querySelector<HTMLElement>('[data-screens]') ?? document.querySelector<HTMLElement>(`[data-screens][data-section="${id}"]`);
+          const templates = new Set<HTMLTemplateElement>();
+          for (const r of [section, own]) r?.querySelectorAll<HTMLTemplateElement>('template[data-layer]').forEach((t) => templates.add(t));
+          const queue: Array<() => void> = Array.from(templates, (t) => () => {
+            if (!t.isConnected) return;
+            const layer = t.content.firstElementChild as HTMLElement | null;
+            t.replaceWith(t.content);
+            // Its first style and layout happen here, in this part, not in the next frame.
+            void layer?.offsetWidth;
+          });
+
+          /** The scene's first part: its timeline, its context, its build up to the first yield. */
+          const startScene = () => {
+            started = true;
+            context.add(() => {
+              time(() => {
+                // The clocks and timers in the placed layers join the DayClock if this chapter is in charge.
+                if (templates.size && active === section) {
+                  clock.scope(stage && isDesk ? [stage.el, section] : [section]);
+                  clock.render(true);
+                }
+                const track = section.querySelector<HTMLElement>('.track') ?? section;
+                const natural = (desk ? section.dataset.desk : section.dataset.mob) === 'auto';
+                tl = gsap.timeline({
+                  defaults: { ease: 'none' },
+                  scrollTrigger: {
+                    trigger: track,
+                    start: options.start ?? (natural ? 'top 80%' : 'top top'),
+                    end: options.end ?? (natural ? 'bottom 20%' : 'bottom bottom'),
+                    scrub: options.scrub ?? 0.6,
+                    invalidateOnRefresh: options.invalidate !== false,
+                  },
+                });
+                (tl as GSAPTimeline & { dayStart?: number }).dayStart = options.dayStart ?? chapter(id).minute;
+                const screens = section.querySelector<HTMLElement>('[data-screens]') ?? (stage?.owner() === section ? stage.slot.querySelector<HTMLElement>('[data-screens]') : null);
+                const roots = () => [section, ...(screens && !section.contains(screens) ? [screens] : [])];
+                const ctx: SceneContext = {
+                  id,
+                  section,
+                  tl,
+                  phone: desk && stage ? stage.phone : sectionPhone(section),
+                  screens,
+                  extras: section.querySelector<HTMLElement>('.extras'),
+                  frame: section.querySelector<HTMLElement>('.frame'),
+                  beats: Array.from(section.querySelectorAll<HTMLElement>('.beat')),
+                  q: <T extends Element = HTMLElement>(sel: string) => roots().flatMap((r) => Array.from(r.querySelectorAll<T>(sel))),
+                  q1: <T extends Element = HTMLElement>(sel: string) => {
+                    for (const r of roots()) {
+                      const hit = r.querySelector<T>(sel);
+                      if (hit) return hit;
+                    }
+                    return null;
+                  },
+                  day,
+                  clock,
+                  isDesk: desk,
+                  util,
+                  gsap,
+                  ScrollTrigger,
+                  SplitText,
+                  stage: desk ? stage : null,
+                  trigger: (vars) => ScrollTrigger.create(vars),
+                  tint: setTint,
+                };
+                const r = sceneBuild(ctx);
+                if (r && typeof (r as Iterator<unknown>).next === 'function') {
+                  const it = r as Iterator<unknown, SceneCleanup>;
+                  const head = it.next();
+                  if (head.done) cleanup = head.value;
+                  else steps = it;
+                } else cleanup = r as SceneCleanup;
+              });
+              // The context calls this on revert (a breakpoint change), whatever part the build reached.
+              return () => {
+                steps = null;
+                finish(false);
+                unwatchLayers(section);
+                cleanup?.();
+              };
+            });
+          };
+          /** The scene's next beat, inside this breakpoint's context (so the revert undoes it too). */
+          const stepScene = () => {
+            const it = steps;
+            if (!it) return;
+            context.add(() =>
+              time(() => {
+                const r = it.next();
+                if (r.done) {
+                  cleanup = r.value;
+                  steps = null;
+                }
+              }),
+            );
+          };
+          const more = () => queue.length > 0 || !started || !!steps;
+          const next = () => {
+            const job = queue.shift();
+            if (job) time(job);
+            else if (!started) startScene();
+            else stepScene();
+          };
+
+          // On screen already (a jump, a deep link): the whole build now. Within a quarter of a
+          // viewport: a part per frame. Further away: a part per idle callback.
+          const box = section.getBoundingClientRect();
+          const margin = innerHeight * 0.25;
+          let seen = box.top < innerHeight && box.bottom > 0;
+          let near = box.top < innerHeight + margin && box.bottom > -margin;
+          if (seen) {
+            while (more() && alive) next();
+            return finish();
+          }
+          next();
+          const nearIO = new IntersectionObserver((e) => (near = e.some((x) => x.isIntersecting)), { rootMargin: '25% 0px 25% 0px' });
+          const seenIO = new IntersectionObserver((e) => (seen = e.some((x) => x.isIntersecting)));
+          nearIO.observe(section);
+          seenIO.observe(section);
+          void (async () => {
+            while (more() && alive) {
+              if (near) await new Promise<void>((r) => requestAnimationFrame(() => r()));
+              else await idlePart(() => near);
+              if (!alive) break;
+              if (seen) while (more() && alive) next();
+              else next();
+            }
+            nearIO.disconnect();
+            seenIO.disconnect();
+            finish();
+          })();
+        });
 
       // On the first load, a scene that is near but not yet on screen (the voice chapter under the
       // hero) waits until the hero's load sequence has played, the reader scrolls, or 4 s pass, and
       // then builds in its own idle task: the intro never shares a frame with a scene's build.
-      let alive = true;
       const later: HTMLElement[] = [];
       let flushed = false;
       const idle = () =>
@@ -425,10 +592,22 @@ export function boot(): void {
   });
 
   // ---- Refresh after fonts and on layout changes ----
+  // A refresh re-measures every trigger and re-renders the built scenes (a long task on a slow
+  // phone), so it waits for the page to be still and the main thread idle: never mid-scroll,
+  // and never more than 2 s late.
   let refreshTimer = 0;
   const refresh = () => {
     clearTimeout(refreshTimer);
-    refreshTimer = window.setTimeout(() => ScrollTrigger.refresh(), 150);
+    const deadline = performance.now() + 2000;
+    const go = () => {
+      if (scrolling && performance.now() < deadline) {
+        refreshTimer = window.setTimeout(go, 200);
+        return;
+      }
+      if ('requestIdleCallback' in window) requestIdleCallback(() => ScrollTrigger.refresh(), { timeout: 500 });
+      else ScrollTrigger.refresh();
+    };
+    refreshTimer = window.setTimeout(go, 150);
   };
   void document.fonts?.ready.then(refresh);
   const main = document.querySelector('main');
