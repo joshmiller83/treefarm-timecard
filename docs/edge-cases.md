@@ -35,7 +35,11 @@ Each line here has a test, written before the code it covers. The test name is i
 - Days offline, then hundreds of changes pushed in batches.
 - A push retried after a timeout is applied once.
 - A pull while edits are waiting keeps the local edits.
-- A token that expires while offline keeps every local change and asks to sign in again.
+- A token that expires while offline keeps every local change and asks to sign in again; someone else signing in over unsynced work is refused before anything is wiped [signingInAgainAsSomeoneElseCantWipeUnsyncedWork].
+- A clock-in refused because a shift is already open moves its trees to that shift; only a lost tree drops the local copy [aRefusedClockInKeepsItsCopyAndMovesItsTreesToTheOpenShift].
+- A role change pulls the farm again under the new role; a demoted admin's phone forgets other people's shifts [aPromotedWorkerGetsEveryonesHoursAndRealRates, aDemotedAdminsPhoneForgetsOtherPeoplesHours].
+- Signing out waits for a sync on its way and sends waiting changes first [signingOutDuringASlowPullLeavesNothingBehind, signingOutRightAfterASaveSendsItFirst].
+- An edit is stamped after the version it replaces, even when this phone's clock is behind [anEditIsAlwaysAfterWhatItReplaces].
 - Expired or used invite codes; a mistyped code with dashes or lowercase letters still works.
 - The last admin can't demote or remove themself.
 - A removed member's hours stay, but they can't sign in to that farm.
