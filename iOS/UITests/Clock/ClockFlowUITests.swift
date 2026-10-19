@@ -258,6 +258,18 @@ final class ClockFlowUITests: XCTestCase {
         waitFor(again, label: "Hide pay")
     }
 
+    /// Advanced shows the server in use and offers no switch the app wouldn't make.
+    func testAdvancedShowsTheServerInUse() {
+        let app = launch(["-UITestOpen", "settings", "-UITestScrollTo", "advanced"])
+        let advanced = app.buttons["advanced-toggle"]
+        XCTAssertTrue(advanced.waitForExistence(timeout: 10))
+        for _ in 0..<6 where !advanced.isHittable { app.swipeUp() }
+        advanced.tap()
+        XCTAssertTrue(element("server-in-use", in: app).waitForExistence(timeout: 5))
+        XCTAssertFalse(app.textFields["server-url"].exists)
+        shot(app, "Settings: advanced")
+    }
+
     func testPastShiftsOpensTheLog() throws {
         let app = launch()
         XCTAssertTrue(app.buttons["clock-in"].waitForExistence(timeout: 10))

@@ -88,6 +88,7 @@ struct StartTimeSheet: View {
     /// Runs the change and says how it went.
     var onSave: (Date) -> FieldReply
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.dynamicTypeSize) private var typeSize
     @State private var picked: Date
     @State private var problem: String?
 
@@ -142,7 +143,8 @@ struct StartTimeSheet: View {
                 }
             }
         }
-        .presentationDetents([.fraction(0.75), .large])
+        // At the largest text sizes the whole height, so Save isn't below the fold.
+        .presentationDetents(typeSize.isAccessibilitySize ? [.large] : [.fraction(0.75), .large])
         .presentationDragIndicator(.visible)
     }
 

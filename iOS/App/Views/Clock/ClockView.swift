@@ -60,13 +60,21 @@ struct ClockView: View {
                 // At the top, clear of the row tiles, Break and Undo people tap next; and
                 // taps pass straight through it, so a gloved tap never lands on the message.
                 if let toast {
-                    ToastView(toast: toast)
-                        .padding(.horizontal, 16)
-                        .padding(.top, 6)
-                        .frame(maxWidth: 640)
-                        .transition(.move(edge: .top).combined(with: .opacity))
-                        .allowsHitTesting(false)
-                        .id(toast.id)
+                    VStack(spacing: 0) {
+                        ToastView(toast: toast)
+                            .padding(.horizontal, 16)
+                            .padding(.top, 6)
+                            .frame(maxWidth: 640)
+                            .frame(maxWidth: .infinity)
+                            .padding(.bottom, 14)
+                            .background(Palette.bg, ignoresSafeAreaEdges: .top)
+                        // What's under the message fades out instead of being cut through.
+                        LinearGradient(colors: [Palette.bg, Palette.bg.opacity(0)], startPoint: .top, endPoint: .bottom)
+                            .frame(height: 22)
+                    }
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                    .allowsHitTesting(false)
+                    .id(toast.id)
                 }
             }
         }
