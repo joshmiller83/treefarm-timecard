@@ -55,7 +55,7 @@ const lit = tiles.map((t) => t.row);
     </ul>
   </div>
 
-  <div class="beat pace-more" data-beat="2" style={`--at:${AT.bullets}`}>
+  <div class="beat pace-more" data-beat="2" style={`--at:${AT.bullets};--at-mob:${AT.bulletsMob}`}>
     <ul class="pace-bullets">
       {
         COPY.bullets.map((b, i) => (
@@ -116,6 +116,21 @@ const lit = tiles.map((t) => t.row);
     padding: 0;
     display: grid;
   }
+  /* Desktop: the numbers scale with the window's height too, so the three tiles fit a
+     laptop screen (1366 × 657, 1280 × 600) with room before the bullets. */
+  @media (min-width: 900px) {
+    .pace-tiles {
+      --text-stat: clamp(3rem, min(1.8rem + 6vw, 10.5svh), 7rem);
+    }
+  }
+  @media (min-width: 900px) and (max-height: 800px) {
+    .pace-tile {
+      padding: 12px 0 14px;
+    }
+    .pace-tile + .pace-tile .pace-tile-rule {
+      top: calc(12px + var(--text-stat) * 0.08);
+    }
+  }
   .pace-tile {
     position: relative;
     padding: 18px 0 20px;
@@ -144,14 +159,15 @@ const lit = tiles.map((t) => t.row);
     font-family: var(--font-mono);
     font-weight: 500;
     font-size: var(--text-stat);
-    line-height: 1.08;
+    /* Tight to the figures, so the unit sits right under its number, not between two stats. */
+    line-height: 0.92;
     letter-spacing: -0.03em;
     font-variant-numeric: tabular-nums;
     color: var(--on-stage);
   }
   .pace-unit {
     display: block;
-    margin-top: 6px;
+    margin-top: 10px;
     max-width: 26ch;
     font-family: var(--font-body);
     font-weight: 600;
@@ -166,7 +182,7 @@ const lit = tiles.map((t) => t.row);
   .pace-tile-rule {
     position: absolute;
     left: max(-22px, calc(10px - var(--gutter) - max(0px, (100vw - var(--maxw)) / 2 - var(--gutter))));
-    top: calc(var(--text-stat) * 0.17);
+    top: calc(var(--text-stat) * 0.08);
     width: 3px;
     height: calc(var(--text-stat) * 0.76);
     border-radius: 3px;
@@ -174,7 +190,7 @@ const lit = tiles.map((t) => t.row);
     transform-origin: 50% 50%;
   }
   .pace-tile + .pace-tile .pace-tile-rule {
-    top: calc(18px + var(--text-stat) * 0.17);
+    top: calc(18px + var(--text-stat) * 0.08);
   }
 
   /* Rolling digits (motion only; the plain number is the static page and the fallback). */
@@ -190,11 +206,11 @@ const lit = tiles.map((t) => t.row);
   }
   .pace-roll :global(.roll-d) {
     display: inline-block;
-    height: 1.08em;
+    height: 0.92em;
     overflow: hidden;
     /* A drum, not a window: digits fade at the clip's edges while they roll. */
-    -webkit-mask-image: linear-gradient(transparent, #000 12%, #000 88%, transparent);
-    mask-image: linear-gradient(transparent, #000 12%, #000 88%, transparent);
+    -webkit-mask-image: linear-gradient(transparent, #000 9%, #000 93%, transparent);
+    mask-image: linear-gradient(transparent, #000 9%, #000 93%, transparent);
   }
   .pace-roll :global(.roll-col) {
     display: flex;
@@ -203,8 +219,8 @@ const lit = tiles.map((t) => t.row);
   .pace-roll :global(.roll-col > span),
   .pace-roll :global(.roll-s) {
     display: block;
-    height: 1.08em;
-    line-height: 1.08em;
+    height: 0.92em;
+    line-height: 0.92em;
     text-align: center;
   }
   /* Plex Mono gives the colon a full cell; at stat size that reads '1 : 46'. Tighten it
@@ -319,7 +335,7 @@ const lit = tiles.map((t) => t.row);
     .pace-tile-rule,
     .pace-tile + .pace-tile .pace-tile-rule {
       left: 0;
-      top: calc(2px + 2rem * 0.17);
+      top: calc(2px + 2rem * 0.08);
       height: calc(2rem * 0.76);
     }
     .pace-bullets {
@@ -345,7 +361,8 @@ const lit = tiles.map((t) => t.row);
       margin-top: 36px;
     }
     /* The mobile card sits a little earlier so all three tiles reveal inside the viewport. */
-    :global(html.motion) .pace-stats {
+    :global(html.motion) .pace-stats,
+    :global(html.motion) .pace-more {
       --at: var(--at-mob) !important;
     }
   }

@@ -219,8 +219,12 @@ export function beatsFor(desk: boolean): Beats {
   return desk ? { ...BEATS } : { ...BEATS, ...BEATS_MOB };
 }
 
-/** Where the copy beats sit (SectionShell --at). The tiles card sits earlier below 900px. */
-export const AT = { stats: 0.45, statsMob: 0.34, bullets: 0.88 } as const;
+/**
+ * Where the copy beats sit (SectionShell --at). The tiles card sits earlier below 900px.
+ * On desktop the stats and the bullets sit far enough apart (.4 → .94 of a 220vh track) that
+ * the bullets never print through the tiles, down to laptop heights (1280 × 600).
+ */
+export const AT = { stats: 0.4, statsMob: 0.34, bullets: 0.94, bulletsMob: 0.88 } as const;
 
 // ---------------------------------------------------------------------------
 // The time-lapse (3:00 → 3:40 PM on the Live Activity)
