@@ -11,6 +11,8 @@ struct TreesView: View {
     @State private var listChoice: Bool?
     @State private var typing = false
     @State private var addingShift = false
+    /// "Fix the times" on a shift left open.
+    @State private var fixingShift: ShiftToFix?
     @State private var chromeHeight: CGFloat = 0
 
     static let zoomKey = "trees.zoom"
@@ -43,12 +45,20 @@ struct TreesView: View {
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
         }
-        .sheet(isPresented: $addingShift) {
+        .sheet(isPresented: $addingShift, onDismiss: {
+            refresh()
+            model.finishAddingShift()
+        }) {
             ShiftEditorView(shiftId: nil)
+        }
+        .sheet(item: $fixingShift) { shift in
+            ShiftEditorView(shiftId: shift.id)
         }
         .task {
             // Siri and the lock screen remember where you're working; open there until a field is picked.
-            model.workingFieldId = AppModel.shared.actions.state()?.position?.fieldId
+            let position = AppModel.shared.actions.state()?.position
+            model.workingFieldId = position?.fieldId
+            model.workingBlockId = position?.next?.blockId
             await TreesDemoSeed.runIfRequested(model: AppModel.shared)
         }
     }
@@ -112,7 +122,12 @@ struct TreesView: View {
     private var chrome: some View {
         VStack(alignment: .leading, spacing: 10) {
             FieldHeader(model: model, showsList: showsList) { listChoice = !showsList }
-            MarkingForBar(model: model, clockIn: { model.clockIn() }, addShift: { addingShift = true })
+            MarkingForBar(model: model, clockIn: { model.clockIn() },
+                          addShift: {
+                              model.beginAddingShift()
+                              addingShift = true
+                          },
+                          fixShift: { fixingShift = ShiftToFix(id: $0) })
             ModePicker(model: model)
             MessageBar(model: model)
         }
@@ -167,6 +182,10 @@ struct TreesView: View {
 
     // MARK: Model
 
+    private struct ShiftToFix: Identifiable {
+        var id: UUID
+    }
+
     private func refresh() {
         model.update(snapshot: session.snapshot, farm: session.farm, me: session.membership)
     }
@@ -174,10 +193,12 @@ struct TreesView: View {
     @MainActor
     static func makeModel() -> TreeMapModel {
         let app = AppModel.shared
-        let zoom = app.mode == .live ? MapZoom(rawValue: UserDefaults.standard.string(forKey: zoomKey) ?? "") ?? .m
+        // The first time, trees open at L: the biggest targets for gloved fingers.
+        let zoom = app.mode == .live ? MapZoom(rawValue: UserDefaults.standard.string(forKey: zoomKey) ?? "") ?? .l
                                      : TreesDemoSeed.zoom() ?? .m
         let model = TreeMapModel(save: { try app.session.save($0) },
                                  perform: { app.actions.perform($0) },
+                                 canUndoElsewhere: { app.actions.canUndo },
                                  zoom: zoom)
         model.onTreesChanged = { app.actions.publishLiveSnapshot() }
         return model

@@ -1,11 +1,11 @@
 import SwiftUI
 import TimeCardCore
 
-/// "Type row and tree numbers": for when tapping tiny dots with gloves on is no fun.
+/// "Type row and tree numbers": for when tapping tiny dots with gloves on is no fun. It opens
+/// on the block last typed into or scrolled to (else where Siri says you're working).
 struct TypeNumbersSheet: View {
     @Bindable var model: TreeMapModel
     @Environment(\.dismiss) private var dismiss
-    @State private var blockId: UUID?
     @State private var fromRow = ""
     @State private var toRow = ""
     @State private var fromTree = ""
@@ -15,7 +15,7 @@ struct TypeNumbersSheet: View {
     private enum Box: Hashable { case fromRow, toRow, fromTree, toTree }
 
     private var block: Block? {
-        model.blocks.first { $0.id == blockId } ?? model.blocks.first
+        model.typingBlock
     }
 
     var body: some View {
@@ -26,7 +26,7 @@ struct TypeNumbersSheet: View {
                         VStack(alignment: .leading, spacing: 6) {
                             SectionLabel("Block")
                             Menu {
-                                Picker("Block", selection: Binding(get: { block?.id }, set: { blockId = $0 })) {
+                                Picker("Block", selection: Binding(get: { block?.id }, set: { model.typingBlockId = $0 })) {
                                     ForEach(model.blocks) { b in
                                         Text(b.displayName).tag(Optional(b.id))
                                     }

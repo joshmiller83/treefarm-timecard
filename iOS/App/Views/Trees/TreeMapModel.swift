@@ -3,6 +3,43 @@ import Foundation
 import Observation
 import TimeCardCore
 
+/// The few sentences the Trees tab needs that TreeFarmKit doesn't have yet, kept in one
+/// place until the Kit gains them (each says where it belongs). Everything else the tab
+/// says comes from `MarkMessages`, `Speech` and `FieldEngine`.
+enum TreesWording {
+    /// Kit: `MarkMessages.fillStart(_:)`. Fill mode, after the first tree.
+    static func fillStart(_ tree: TreeRef, in block: Block) -> String {
+        "Start: \(block.label(tree)). Now tap the last tree."
+    }
+
+    /// Kit: `MarkMessages.zoomedInto(_:)`. After a tap on a block in the whole-field view.
+    static func zoomedInto(_ block: Block) -> String {
+        "Showing \(block.displayName). Tap All to see the whole field again."
+    }
+
+    /// Kit: `Speech.clockedInSince(_:calendar:)`. The Clock tab's stale-shift warning says the same.
+    static func clockedInSince(_ shift: Shift, calendar: FarmCalendar) -> String {
+        "You’ve been clocked in since \(Fmt.day(shift.start, calendar)) at \(Fmt.time(shift.start, calendar))."
+    }
+
+    /// Kit: with `clockedInSince`. The Clock tab adds the same advice.
+    static let fixTheTimes = "If you forgot to clock out, fix the times."
+
+    /// Kit: `MarkMessages.noteGone`. Editing or deleting a note someone deleted on another phone.
+    static let noteGone = "That note was deleted."
+    /// Kit: `MarkMessages.notePermission(.edit)`.
+    static let onlyAuthorEdits = "Only the person who wrote a note, or an admin, can change it."
+    /// Kit: `MarkMessages.notePermission(.delete)`.
+    static let onlyAuthorDeletes = "Only the person who wrote a note, or an admin, can delete it."
+    /// Kit: `Speech.saveFailed`. FieldActions says the same when its save fails.
+    static let saveFailed = "Couldn’t save that on this phone. Try again."
+
+    /// Kit: `MarkMessages.rowStatus(_:)`. A VoiceOver swipe up on a row with no free tree.
+    static func rowStatus(_ row: RowRef, in block: Block, _ summary: String) -> String {
+        "\(block.label(row: row.row)): \(summary)."
+    }
+}
+
 /// The line under the mode picker: a hint, what the last tap did, or why it did nothing.
 struct MapMessage: Equatable, Sendable {
     enum Tone: Equatable, Sendable {
@@ -51,6 +88,11 @@ struct OpenTree: Identifiable, Equatable, Sendable {
 struct MapEdit: Sendable {
     var shiftId: UUID
     var change: MarkChange
+
+    /// Every tree it touched is still on a live block.
+    func fits(_ blocks: [UUID: Block]) -> Bool {
+        (change.added + change.removed).allSatisfy { blocks[$0.tree.blockId]?.contains($0.tree) == true }
+    }
 }
 
 /// The Trees tab's brain: which field and shift, what a tap does, the map's layout, undo,
@@ -71,10 +113,18 @@ final class TreeMapModel {
     }
     /// The field Siri and the lock screen are working in, used until a field is picked.
     var workingFieldId: UUID?
-    /// The shift picked under "Marking trees for"; nil means the open shift, then the latest.
-    var chosenShiftId: UUID? {
+    /// The block Siri and the lock screen are working in, for typed numbers.
+    var workingBlockId: UUID?
+    /// The shift picked under "Marking trees for"; nil follows the clock: the open shift,
+    /// then the latest. Picking the open shift stores nil (`pickShift`), so the next clock-in
+    /// moves the map to the new shift.
+    private(set) var chosenShiftId: UUID? {
         didSet { if chosenShiftId != oldValue { shiftChanged() } }
     }
+    /// The block typed numbers go to: the last one typed into, zoomed into or scrolled to.
+    var typingBlockId: UUID?
+    /// FieldActions (Siri, the lock screen, a note added here) has something to undo.
+    private(set) var canUndoElsewhere = false
     var mode: MapMode = .one {
         didSet {
             guard mode != oldValue else { return }
@@ -104,22 +154,28 @@ final class TreeMapModel {
 
     @ObservationIgnored private let save: ([SyncRecord]) throws -> Void
     @ObservationIgnored private let perform: (FieldCommand) -> FieldReply
+    @ObservationIgnored private let fieldCanUndo: () -> Bool
     @ObservationIgnored private let now: () -> Date
     /// Called after the trees change, so the lock screen catches up.
     @ObservationIgnored var onTreesChanged: () -> Void = {}
     @ObservationIgnored private var pendingDirty: Set<RowRef>? = []
     @ObservationIgnored private var cachedLayout: (key: LayoutKey, layout: FieldLayout)?
     @ObservationIgnored private var scrollToken = 0
+    /// My shifts when "Add a shift" opened, to find the one it added.
+    @ObservationIgnored private var shiftsBeforeAdding: Set<UUID>?
 
-    static let saveFailed = "Couldn’t save that on this phone. Try again."
+    /// How many of my latest shifts the "Marking trees for" menu lists.
+    static let pickerLimit = 60
 
     init(save: @escaping ([SyncRecord]) throws -> Void,
          perform: @escaping (FieldCommand) -> FieldReply,
+         canUndoElsewhere: @escaping () -> Bool = { false },
          now: @escaping () -> Date = Date.init,
          zoom: MapZoom = .m,
          mode: MapMode = .one) {
         self.save = save
         self.perform = perform
+        self.fieldCanUndo = canUndoElsewhere
         self.now = now
         self.zoom = zoom
         self.lastPreset = zoom == .all ? .m : zoom
@@ -134,6 +190,7 @@ final class TreeMapModel {
             if data != nil { data = nil; markDirty(nil) }
             return
         }
+        defer { canUndoElsewhere = fieldCanUndo() }
         guard var current = data, current.me.userId == me.userId, current.farm.id == farm.id else {
             data = TreeMapData(snapshot: snapshot, farm: farm, me: me)
             undoStack = UndoStack()
@@ -142,6 +199,8 @@ final class TreeMapModel {
             return
         }
         let shiftBefore = markingShift?.id
+        let openBefore = current.openShift?.id
+        let blocksBefore = current.blocks
         let dirty = current.update(snapshot: snapshot, farm: farm, me: me)
         data = current
         if markingShift?.id != shiftBefore {
@@ -149,9 +208,20 @@ final class TreeMapModel {
         } else if dirty != [] {
             markDirty(dirty)
         }
+        if let open = current.openShift?.id, open != openBefore {
+            // Clocked in (here, by Siri or on the lock screen): marks go on the new shift,
+            // as the web time card did. A first tree picked for the old shift is dropped.
+            chosenShiftId = nil
+            setAnchor(nil)
+        }
         if let id = chosenShiftId, current.shift(id) == nil { chosenShiftId = nil }
         if undoStack.entries.contains(where: { current.shift($0.shiftId) == nil }) {
             undoStack.removeAll { current.shift($0.shiftId) == nil }
+        }
+        if current.blocks != blocksBefore {
+            // A block was deleted or made smaller: its edits can't be taken back onto the map.
+            let live = Dictionary(current.blocks.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+            undoStack.removeAll { !$0.fits(live) }
         }
     }
 
@@ -194,6 +264,33 @@ final class TreeMapModel {
         return marking.id != open.id
     }
 
+    /// Marking for the shift on the clock, but it began on an earlier day or has run past
+    /// 16 hours: someone may have forgotten to clock out, so today's trees would land on it.
+    var isMarkingStaleShift: Bool {
+        guard let data, let marking = markingShift, marking.id == openShift?.id else { return false }
+        let now = now()
+        return Hours.isStale(marking, now: now, calendar: data.calendar) || Hours.forgotToClockOut(marking, now: now)
+    }
+
+    /// "You’ve been clocked in since Sun, Oct 18 at 8:00 AM." when `isMarkingStaleShift`.
+    var staleShiftNote: String? {
+        guard isMarkingStaleShift, let shift = markingShift, let data else { return nil }
+        return TreesWording.clockedInSince(shift, calendar: data.calendar)
+    }
+
+    /// The "Marking trees for" menu: my latest shifts, plus the one picked if it's older.
+    var pickerShifts: [Shift] {
+        var shifts = Array(myShifts.prefix(Self.pickerLimit))
+        if let marking = markingShift, !shifts.contains(where: { $0.id == marking.id }) { shifts.append(marking) }
+        return shifts
+    }
+
+    /// The open shift began today (so "today’s shift" is the right name for it).
+    var openShiftIsToday: Bool {
+        guard let open = openShift, let cal = data?.calendar else { return false }
+        return cal.isSameDay(open.start, now())
+    }
+
     func treeCount(_ shift: Shift) -> Int {
         data?.treeCount(shift) ?? 0
     }
@@ -208,15 +305,48 @@ final class TreeMapModel {
         return text
     }
 
+    /// A shift picked in the menu. The open shift is stored as nil, so marking keeps
+    /// following the clock to the next shift.
+    func pickShift(_ id: UUID?) {
+        chosenShiftId = id == openShift?.id ? nil : id
+    }
+
     func useOpenShift() {
-        chosenShiftId = openShift?.id
+        chosenShiftId = nil
     }
 
     /// Clocks in from the Trees tab (no shift yet), in the field on screen.
     func clockIn() {
-        let reply = perform(.clockIn(fieldId: field?.id))
-        message = MapMessage(reply.speech, tone: reply.succeeded ? .done : .warning)
+        let reply = performCommand(.clockIn(fieldId: field?.id))
         if reply.succeeded { chosenShiftId = nil }
+        message = MapMessage(reply.speech, tone: reply.succeeded ? .done : .warning)
+    }
+
+    /// "Add a shift" opened: remember my shifts so the new one can be picked after.
+    func beginAddingShift() {
+        shiftsBeforeAdding = Set(myShifts.map(\.id))
+    }
+
+    /// "Add a shift" closed: mark trees for the shift it added, as the web time card did.
+    func finishAddingShift() {
+        defer { shiftsBeforeAdding = nil }
+        guard let before = shiftsBeforeAdding, let added = myShifts.first(where: { !before.contains($0.id) }) else { return }
+        pickShift(added.id)
+    }
+
+    /// The map stopped moving with this block in the middle: typed numbers go there next.
+    func mapSettled(on blockId: UUID?) {
+        if let blockId { typingBlockId = blockId }
+    }
+
+    /// Where typed numbers go: the block last typed into, zoomed into or scrolled to, else
+    /// the one Siri says you're working in, else the field's first.
+    var typingBlock: Block? {
+        let blocks = blocks
+        for id in [typingBlockId, workingBlockId] {
+            if let id, let block = blocks.first(where: { $0.id == id }) { return block }
+        }
+        return blocks.first
     }
 
     // MARK: Zoom and layout
@@ -284,7 +414,8 @@ final class TreeMapModel {
         setZoom(lastPreset)
         scrollToken += 1
         scrollRequest = MapScrollRequest(blockId: blockId, token: scrollToken)
-        message = MapMessage("Showing \(block.displayName). Tap All to see the whole field again.", tone: .hint)
+        typingBlockId = blockId
+        message = MapMessage(TreesWording.zoomedInto(block), tone: .hint)
     }
 
     func tapRow(_ row: RowRef) {
@@ -344,7 +475,7 @@ final class TreeMapModel {
         guard let anchor else {
             guard markContext() != nil else { return }
             setAnchor(tree)
-            message = MapMessage("Start: \(block.label(tree)). Now tap the last tree.", tone: .hint, action: .cancelFill)
+            message = MapMessage(TreesWording.fillStart(tree, in: block), tone: .hint, action: .cancelFill)
             return
         }
         setAnchor(nil)
@@ -368,7 +499,7 @@ final class TreeMapModel {
             setAnchor(nil)
             message = nil
         case .markFor(let shiftId):
-            chosenShiftId = shiftId
+            pickShift(shiftId)
             message = nil
         }
     }
@@ -380,6 +511,7 @@ final class TreeMapModel {
     @discardableResult
     func typeRange(blockId: UUID, fromRow: Int, toRow: Int?, fromTree: Int?, toTree: Int?, add: Bool) -> Bool {
         guard let data, let block = data.block(blockId) else { return false }
+        typingBlockId = blockId
         var rows = (fromRow - 1, (toRow ?? fromRow) - 1)
         var trees = ((fromTree ?? 1) - 1, (toTree ?? block.treesPerRow) - 1)
         if rows.1 < rows.0 { rows = (rows.1, rows.0) }
@@ -408,16 +540,30 @@ final class TreeMapModel {
 
     // MARK: Undo
 
-    var canUndo: Bool { !undoStack.isEmpty }
+    /// The map's own edits, or else what Siri and the lock screen can undo.
+    var canUndo: Bool { !undoStack.isEmpty || canUndoElsewhere }
 
+    /// Takes back the map's last edit. With none left, falls back to FieldActions' undo
+    /// (a note added here, or a row Siri marked), like the lock screen's Undo.
     func undo() {
         setAnchor(nil)
         while let edit = undoStack.pop() {
-            guard data?.shift(edit.shiftId) != nil else { continue }
+            guard let data, data.shift(edit.shiftId) != nil else { continue }
             let inverse = edit.change.inverse(now: now().roundedToMillisecond)
-            let records = (inverse.added + inverse.removed).map(SyncRecord.treeMark)
+            // Never bring marks back onto a block that's gone or got smaller since.
+            let added = inverse.added.filter { data.block($0.tree.blockId)?.contains($0.tree) == true }
+            let records = (added + inverse.removed).map(SyncRecord.treeMark)
+            guard !records.isEmpty else {
+                message = MapMessage(Speech.blockGone, tone: .warning)
+                return
+            }
             guard apply(records) else { undoStack.push(edit); return }
             message = MapMessage(MarkMessages.undid, tone: .done)
+            return
+        }
+        if canUndoElsewhere {
+            let reply = performCommand(.undo)
+            message = MapMessage(reply.speech, tone: reply.succeeded ? .done : .warning)
             return
         }
         message = MapMessage(Speech.nothingToUndo, tone: .warning)
@@ -454,7 +600,7 @@ final class TreeMapModel {
         do {
             try save(records)
         } catch {
-            message = MapMessage(Self.saveFailed, tone: .warning)
+            message = MapMessage(TreesWording.saveFailed, tone: .warning)
             return false
         }
         if var current = data {
@@ -478,7 +624,9 @@ final class TreeMapModel {
     }
 
     func performCommand(_ command: FieldCommand) -> FieldReply {
-        perform(command)
+        let reply = perform(command)
+        canUndoElsewhere = fieldCanUndo()
+        return reply
     }
 
     func saveRecords(_ records: [SyncRecord]) -> Bool {
@@ -516,6 +664,8 @@ final class TreeMapModel {
 
     private func shiftChanged() {
         setAnchor(nil)
+        // "Marked 12 trees…" was about the other shift.
+        message = nil
         markDirty(nil)
     }
 }

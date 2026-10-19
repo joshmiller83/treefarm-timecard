@@ -30,6 +30,8 @@ final class TreeMapFixture {
     var commands: [FieldCommand] = []
     var failSaves = false
     var reply = FieldReply(speech: "Noted.", succeeded: true)
+    /// Whether FieldActions (Siri, the lock screen) has something to undo.
+    var fieldCanUndo = false
 
     private(set) lazy var model: TreeMapModel = {
         let model = TreeMapModel(
@@ -42,6 +44,7 @@ final class TreeMapFixture {
                 commands.append(command)
                 return reply
             },
+            canUndoElsewhere: { [unowned self] in fieldCanUndo },
             now: { [unowned self] in now })
         model.viewportWidth = 360
         model.update(snapshot: snapshot, farm: farm, me: me)
@@ -94,6 +97,26 @@ final class TreeMapFixture {
     /// Hands the model whatever the session would see now.
     func sync() {
         model.update(snapshot: snapshot, farm: farm, me: me)
+    }
+
+    /// Clocks out of the open shift, as Siri or the Clock tab would.
+    func clockOut() {
+        guard var shift = open else { return }
+        shift.end = now
+        snapshot.apply(.shift(shift))
+        open = nil
+        sync()
+    }
+
+    /// Clocks in somewhere else (Siri, the lock screen, the Clock tab) a few minutes from now.
+    @discardableResult
+    func clockInElsewhere(after minutes: Double = 5) -> Shift {
+        now = now.addingTimeInterval(minutes * 60)
+        let shift = Shift(userId: me.userId, farmId: farm.id, start: now, rateCents: 2000)
+        snapshot.apply(.shift(shift))
+        open = shift
+        sync()
+        return shift
     }
 
     func tree(_ block: Block, row: Int, tree: Int) -> TreeRef {

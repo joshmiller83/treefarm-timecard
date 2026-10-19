@@ -9,12 +9,15 @@ import UIKit
 struct TreeMapView: UIViewRepresentable {
     var model: TreeMapModel
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.colorSchemeContrast) private var contrast
+    @Environment(\.accessibilityDifferentiateWithoutColor) private var differentiateWithoutColor
 
     func makeUIView(context: Context) -> TreeMapScrollView {
         let view = TreeMapScrollView()
         view.onTap = { [weak model] point in model?.tap(at: point) }
         view.onLongPress = { [weak model] point in model?.longPress(at: point) }
         view.onPinchEnd = { [weak model] width in model?.pinchEnded(cellWidth: width) }
+        view.onSettled = { [weak model] blockId in model?.mapSettled(on: blockId) }
         view.rowValue = { [weak model] row in model?.rowSummary(row)?.value ?? "" }
         return view
     }
@@ -24,17 +27,36 @@ struct TreeMapView: UIViewRepresentable {
         let revision = model.revision
         let key = model.layoutKey
         let request = model.scrollRequest
-        let scheme = colorScheme
-        let scene = MapScene(
+        let look = MapLook(dark: colorScheme == .dark, highContrast: contrast == .increased)
+        var scene = MapScene(
             layout: model.layout,
             index: model.data?.index ?? MarkIndex(marks: []),
             markingShiftId: model.markingShift?.id,
             noteTrees: Set(model.data?.notesByTree.keys.map { $0 } ?? []),
             anchor: model.anchor,
             focus: model.openTree?.tree)
+        scene.pips = differentiateWithoutColor
         view.fieldName = model.field?.name ?? ""
         view.apply(scene: scene, layoutKey: key, revision: revision, dirty: model.takeDirtyRows(),
-                   style: scheme == .dark ? .dark : .light, scrollTo: request)
+                   look: look, scrollTo: request)
+    }
+}
+
+/// Light or dark, and whether Increase Contrast is on: what the map's colors depend on.
+struct MapLook: Equatable {
+    var dark: Bool
+    var highContrast: Bool
+
+    var traits: UITraitCollection { MapPalette.traits(dark: dark, highContrast: highContrast) }
+}
+
+/// Lets the map's tap through only when the map is still. A touch that stops a flick just
+/// stops it, as on the web map, instead of also marking whatever tree it landed on.
+private final class TapGate: NSObject, UIGestureRecognizerDelegate {
+    weak var map: TreeMapScrollView?
+
+    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
+        !(map?.isGliding ?? false)
     }
 }
 
@@ -95,6 +117,8 @@ final class TreeMapScrollView: UIScrollView, UIScrollViewDelegate {
     var onLongPress: (CGPoint) -> Void = { _ in }
     /// Returns the zoom the model settled on.
     var onPinchEnd: (CGFloat) -> MapZoom? = { _ in nil }
+    /// The map came to rest with this block in the middle.
+    var onSettled: (UUID?) -> Void = { _ in }
     var rowValue: (RowRef) -> String = { _ in "" }
     var fieldName = ""
 
@@ -105,8 +129,11 @@ final class TreeMapScrollView: UIScrollView, UIScrollViewDelegate {
     private var rowElementCache: [RowRef: MapRowElement] = [:]
     private var layoutKey: TreeMapModel.LayoutKey?
     private var revision = -1
-    private var style: UIUserInterfaceStyle = .unspecified
+    private var look: MapLook?
     private var lastScroll: MapScrollRequest?
+    private let tapGate = TapGate()
+    /// When the map last moved on its own after a flick.
+    private var lastGlide: CFTimeInterval = 0
     /// Where the visible middle was before a zoom, so the same trees stay under the eyes.
     private var focusBeforeRelayout: (blockId: UUID, x: CGFloat, y: CGFloat)?
 
@@ -137,6 +164,8 @@ final class TreeMapScrollView: UIScrollView, UIScrollViewDelegate {
         addGestureRecognizer(longPress)
         let tap = UITapGestureRecognizer(target: self, action: #selector(tapped(_:)))
         tap.require(toFail: longPress)
+        tapGate.map = self
+        tap.delegate = tapGate
         addGestureRecognizer(tap)
 
         accessibilityIdentifier = "tree-map"
@@ -148,18 +177,18 @@ final class TreeMapScrollView: UIScrollView, UIScrollViewDelegate {
     // MARK: New content
 
     func apply(scene: MapScene, layoutKey: TreeMapModel.LayoutKey, revision: Int, dirty: Set<RowRef>?,
-               style: UIUserInterfaceStyle, scrollTo request: MapScrollRequest?) {
+               look: MapLook, scrollTo request: MapScrollRequest?) {
         let relayout = layoutKey != self.layoutKey
-        let restyle = style != self.style
+        let restyle = look != self.look || scene.pips != painter.scene.pips
         let sameField = layoutKey.field == self.layoutKey?.field
         // A new size keeps the same trees in the middle; anything else keeps the scroll position.
         if relayout && sameField && layoutKey.zoom != self.layoutKey?.zoom && focusBeforeRelayout == nil {
             focusBeforeRelayout = visibleFocus()
         }
         painter.scene = scene
-        if restyle {
-            self.style = style
-            painter.palette = MapPalette(traits: UITraitCollection(userInterfaceStyle: style))
+        if look != self.look {
+            self.look = look
+            painter.palette = MapPalette(traits: look.traits)
         }
 
         if relayout {
@@ -266,6 +295,29 @@ final class TreeMapScrollView: UIScrollView, UIScrollViewDelegate {
 
     func viewForZooming(in scrollView: UIScrollView) -> UIView? {
         content
+    }
+
+    /// Still moving after a flick, or stopped by a touch a moment ago.
+    var isGliding: Bool {
+        isDecelerating || CACurrentMediaTime() - lastGlide < 0.08
+    }
+
+    func scrollViewDidScroll(_ scrollView: UIScrollView) {
+        if isDecelerating { lastGlide = CACurrentMediaTime() }
+    }
+
+    func scrollViewDidEndDragging(_ scrollView: UIScrollView, willDecelerate decelerate: Bool) {
+        if !decelerate { reportSettled() }
+    }
+
+    func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) {
+        reportSettled()
+    }
+
+    /// Typed numbers go to the block the map came to rest on.
+    private func reportSettled() {
+        guard !painter.scene.layout.metrics.isOverview else { return }
+        onSettled(visibleFocus()?.blockId)
     }
 
     func scrollViewWillBeginZooming(_ scrollView: UIScrollView, with view: UIView?) {

@@ -30,7 +30,7 @@ struct TreeCardView: View {
             }
         }
         .sheet(item: $editing) { draft in
-            NoteEditorView(model: model, draft: draft)
+            NoteEditorView(model: model, draft: draft, onGone: { problem = $0 })
                 .presentationDetents([.large])
         }
         .confirmationDialog("Delete this note?", isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } }),
@@ -57,8 +57,7 @@ struct TreeCardView: View {
                     .buttonStyle(GloveButtonStyle(kind: info.state == .thisShift ? .secondary : .primary))
                     .accessibilityIdentifier("tree-card-toggle")
                 }
-                notes(info)
-                if let problem { ErrorMessage(text: problem) }
+                // Above the notes, so it's in reach at the half-height card however many there are.
                 Button {
                     editing = NoteDraft(tree: info.tree)
                 } label: {
@@ -66,6 +65,8 @@ struct TreeCardView: View {
                 }
                 .buttonStyle(info.canToggle ? .gloveSecondary : .glovePrimary)
                 .accessibilityIdentifier("tree-card-add-note")
+                if let problem { ErrorMessage(text: problem) }
+                notes(info)
             }
             .padding(16)
             .frame(maxWidth: 640)
@@ -77,7 +78,7 @@ struct TreeCardView: View {
         HStack(alignment: .center, spacing: 14) {
             ZStack {
                 switch info.state {
-                case .notShaped: Circle().strokeBorder(Palette.treeEmpty, lineWidth: 3)
+                case .notShaped: Circle().strokeBorder(Color.mapTreeEmpty, lineWidth: 3)
                 case .thisShift: Circle().fill(Palette.sap)
                 case .earlier: Circle().fill(Palette.fir)
                 }
@@ -202,6 +203,8 @@ struct NoteDraft: Identifiable, Equatable {
 struct NoteEditorView: View {
     @Bindable var model: TreeMapModel
     @State var draft: NoteDraft
+    /// The note was deleted on another phone while this was open: the editor closes and says so.
+    var onGone: (String) -> Void = { _ in }
     @Environment(\.dismiss) private var dismiss
     @FocusState private var focused: Bool
     @State private var problem: String?
@@ -280,7 +283,12 @@ struct NoteEditorView: View {
     private func save() {
         if let id = draft.noteId {
             if let problem = model.editNote(id, body: draft.body, flag: draft.flag) {
-                self.problem = problem
+                if problem == TreesWording.noteGone {
+                    onGone(problem)
+                    dismiss()
+                } else {
+                    self.problem = problem
+                }
                 return
             }
         } else {

@@ -103,10 +103,11 @@ extension TreeMapModel {
         return reply
     }
 
-    /// Saves changes to a note. Nil when saved, else what went wrong.
+    /// Saves changes to a note. Nil when saved, else what went wrong
+    /// (`TreesWording.noteGone` when someone deleted it on another phone).
     func editNote(_ id: UUID, body: String, flag: NoteFlag) -> String? {
-        guard let data, var note = data.notes[id] else { return Speech.blockGone }
-        guard note.authorId == data.me.userId || data.isAdmin else { return "Only the person who wrote a note, or an admin, can change it." }
+        guard let data, var note = data.notes[id], note.isLive else { return TreesWording.noteGone }
+        guard note.authorId == data.me.userId || data.isAdmin else { return TreesWording.onlyAuthorEdits }
         let text = Limits.clampNotes(body)
         guard !text.isEmpty else { return Speech.emptyNote }
         guard text != note.body || flag != note.flag else { return nil }
@@ -118,8 +119,8 @@ extension TreeMapModel {
 
     /// Removes a note (it syncs as deleted). Nil when done, else what went wrong.
     func deleteNote(_ id: UUID) -> String? {
-        guard let data, var note = data.notes[id] else { return nil }
-        guard note.authorId == data.me.userId || data.isAdmin else { return "Only the person who wrote a note, or an admin, can delete it." }
+        guard let data, var note = data.notes[id], note.isLive else { return TreesWording.noteGone }
+        guard note.authorId == data.me.userId || data.isAdmin else { return TreesWording.onlyAuthorDeletes }
         let at = currentTime()
         note.deletedAt = at
         note.updatedAt = at
@@ -127,7 +128,7 @@ extension TreeMapModel {
     }
 
     private func saveNote(_ note: TreeNote) -> String? {
-        saveRecords([.treeNote(note)]) ? nil : Self.saveFailed
+        saveRecords([.treeNote(note)]) ? nil : TreesWording.saveFailed
     }
 
     // MARK: Field progress
@@ -187,7 +188,7 @@ extension TreeMapModel {
         guard let data, let block = data.block(row.blockId), block.contains(row) else { return }
         if up {
             guard let free = data.index.freePositions(in: row, block: block).first else {
-                if let summary = rowSummary(row) { show(MapMessage("\(block.label(row: row.row)): \(summary.value).", tone: .hint)) }
+                if let summary = rowSummary(row) { show(MapMessage(TreesWording.rowStatus(row, in: block, summary.value), tone: .hint)) }
                 return
             }
             toggle(TreeRef(blockId: block.id, row: row.row, position: free))

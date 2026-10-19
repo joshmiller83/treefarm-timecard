@@ -17,6 +17,7 @@ struct FieldHeader: View {
                     Image(systemName: showsList ? "map" : "list.bullet")
                         .font(.title3.weight(.semibold))
                         .foregroundStyle(Palette.firText)
+                        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
                         .frame(width: GloveButtonStyle.minHeight, height: GloveButtonStyle.minHeight)
                         .background(Palette.surface, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                         .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Palette.line, lineWidth: 1))
@@ -105,6 +106,8 @@ private struct ProgressLine: View {
 
 /// What the dots mean.
 struct MapLegend: View {
+    @Environment(\.accessibilityDifferentiateWithoutColor) private var pips
+
     var body: some View {
         ViewThatFits(in: .horizontal) {
             HStack(spacing: 14) { items }
@@ -128,9 +131,16 @@ struct MapLegend: View {
         note
     }
 
-    private var notYet: some View { item("Not yet") { Circle().strokeBorder(Palette.treeEmpty, lineWidth: 1.5) } }
+    private var notYet: some View { item("Not yet") { Circle().strokeBorder(Color.mapTreeEmpty, lineWidth: 1.6) } }
     private var earlier: some View { item("Earlier") { Circle().fill(Palette.fir) } }
-    private var thisShift: some View { item("This shift") { Circle().fill(Palette.sap) } }
+    private var thisShift: some View {
+        item("This shift") {
+            ZStack {
+                Circle().fill(Palette.sap)
+                if pips { Circle().fill(Palette.surface).padding(3.5) }
+            }
+        }
+    }
     private var note: some View { item("Note") { NoteCorner().fill(Palette.rust).padding(1) } }
 
     private func item<S: View>(_ title: String, @ViewBuilder swatch: () -> S) -> some View {
@@ -153,22 +163,36 @@ struct NoteCorner: Shape {
     }
 }
 
-/// "Marking trees for": which shift new marks go on, with a note when it isn't the one on the clock.
+/// "Marking trees for": which shift new marks go on, with a note when it isn't the one on
+/// the clock, or when the one on the clock was left open from an earlier day.
 struct MarkingForBar: View {
     @Bindable var model: TreeMapModel
     var clockIn: () -> Void
     var addShift: () -> Void
+    /// Opens the shift editor on this shift ("Fix the times").
+    var fixShift: (UUID) -> Void
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    /// Gold when trees go somewhere other than today's shift on the clock.
+    private var highlighted: Bool { model.isMarkingEarlierShift || model.isMarkingStaleShift }
 
     var body: some View {
         if let shift = model.markingShift {
             VStack(alignment: .leading, spacing: 8) {
                 picker(shift)
                 if model.isMarkingEarlierShift {
-                    note("This is an earlier shift, not the one you’re clocked in on.", button: "Switch to today’s shift") {
+                    note("This is an earlier shift, not the one you’re clocked in on.",
+                         button: model.openShiftIsToday ? "Switch to today’s shift" : "Switch to the shift you’re on",
+                         id: "use-open-shift") {
                         model.useOpenShift()
                     }
+                } else if let stale = model.staleShiftNote {
+                    note("\(stale) \(TreesWording.fixTheTimes)", button: "Fix the times", id: "trees-fix-times", icon: "exclamationmark.triangle.fill") {
+                        fixShift(shift.id)
+                    }
+                    .accessibilityIdentifier("trees-stale-shift")
                 } else if model.openShift == nil {
-                    note("You’re not clocked in, so trees you mark go on this shift.", button: nil) {}
+                    note("You’re not clocked in, so trees you mark go on this shift.", button: nil, id: nil) {}
                 }
             }
         } else {
@@ -178,8 +202,8 @@ struct MarkingForBar: View {
 
     private func picker(_ shift: Shift) -> some View {
         Menu {
-            Picker("Marking trees for", selection: Binding(get: { model.markingShift?.id }, set: { model.chosenShiftId = $0 })) {
-                ForEach(model.myShifts.prefix(60)) { s in
+            Picker("Marking trees for", selection: Binding(get: { model.markingShift?.id }, set: { model.pickShift($0) })) {
+                ForEach(model.pickerShifts) { s in
                     Text(model.shiftTitle(s)).tag(Optional(s.id))
                 }
             }
@@ -191,50 +215,68 @@ struct MarkingForBar: View {
                         .tracking(0.8)
                         .lineLimit(1)
                         .dynamicTypeSize(...DynamicTypeSize.xxLarge)
-                        .foregroundStyle(model.isMarkingEarlierShift ? Palette.sapInk : Palette.muted)
+                        .foregroundStyle(highlighted ? Palette.sapInk : Palette.muted)
                     Text(model.shiftTitle(shift))
                         .font(.callout.weight(.semibold))
                         .foregroundStyle(Palette.ink)
-                        .lineLimit(2)
+                        .lineLimit(nil)
+                        .fixedSize(horizontal: false, vertical: true)
                         .multilineTextAlignment(.leading)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                Spacer(minLength: 4)
                 Image(systemName: "chevron.up.chevron.down")
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(Palette.firText)
+                    .dynamicTypeSize(...DynamicTypeSize.accessibility1)
             }
             .padding(.horizontal, 14)
-            .padding(.vertical, 5)
+            .padding(.vertical, 6)
             .frame(maxWidth: .infinity, minHeight: GloveButtonStyle.minHeight, alignment: .leading)
-            .background(model.isMarkingEarlierShift ? Palette.sapSoft : Palette.surface, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .background(highlighted ? Palette.sapSoft : Palette.surface, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
             .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .strokeBorder(model.isMarkingEarlierShift ? Palette.sap : Palette.line, lineWidth: 1))
+                .strokeBorder(highlighted ? Palette.sap : Palette.line, lineWidth: 1))
             .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         }
+        .dynamicTypeSize(...DynamicTypeSize.accessibility2)
         .accessibilityLabel("Marking trees for")
         .accessibilityValue(model.shiftTitle(shift))
+        .accessibilityHint("Picks the shift new marks go on.")
         .accessibilityIdentifier("marking-for")
     }
 
-    private func note(_ text: String, button: String?, action: @escaping () -> Void) -> some View {
-        HStack(spacing: 10) {
-            Text(text)
-                .font(.footnote)
-                .foregroundStyle(Palette.sapInk)
-                .fixedSize(horizontal: false, vertical: true)
-                .frame(maxWidth: .infinity, alignment: .leading)
+    private func note(_ text: String, button: String?, id: String?, icon: String? = nil, action: @escaping () -> Void) -> some View {
+        // Side by side when there's room; the button drops below the words at the largest sizes.
+        let layout = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
+                                                  : AnyLayout(HStackLayout(spacing: 10))
+        return layout {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                if let icon {
+                    Image(systemName: icon)
+                        .foregroundStyle(Palette.sap)
+                        .accessibilityHidden(true)
+                }
+                Text(text)
+                    .foregroundStyle(Palette.sapInk)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .font(.footnote)
+            .frame(maxWidth: .infinity, alignment: .leading)
             if let button {
                 Button(button, action: action)
                     .font(.footnote.weight(.semibold))
                     .foregroundStyle(Palette.sapInk)
+                    .multilineTextAlignment(.center)
                     .padding(.horizontal, 14)
-                    .frame(minHeight: GloveButtonStyle.minHeight)
+                    .frame(minWidth: GloveButtonStyle.minHeight, minHeight: GloveButtonStyle.minHeight)
                     .background(Palette.sapSoft, in: Capsule())
                     .overlay(Capsule().strokeBorder(Palette.sap, lineWidth: 1))
-                    .accessibilityIdentifier("use-open-shift")
+                    .contentShape(Capsule())
+                    .accessibilityIdentifier(id ?? "")
             }
         }
         .padding(.horizontal, 4)
+        .dynamicTypeSize(...DynamicTypeSize.accessibility2)
+        .accessibilityElement(children: .contain)
     }
 
     private var noShift: some View {

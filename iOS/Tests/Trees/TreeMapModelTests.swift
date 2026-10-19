@@ -34,12 +34,123 @@ struct TreeMapModelTests {
 
     @Test func anEarlierShiftCanBePickedAndSwitchedBack() {
         let f = TreeMapFixture()
-        f.model.chosenShiftId = f.earlier.id
+        f.model.pickShift(f.earlier.id)
         #expect(f.model.markingShift?.id == f.earlier.id)
         #expect(f.model.isMarkingEarlierShift)
         #expect(f.model.takeDirtyRows() == nil, "every shaped tree changes color")
         f.model.useOpenShift()
         #expect(f.model.markingShift?.id == f.open?.id)
+        #expect(f.model.chosenShiftId == nil, "back to following the clock")
+    }
+
+    @Test func pickingTheOpenShiftFollowsTheClock() {
+        let f = TreeMapFixture()
+        f.model.pickShift(f.earlier.id)
+        #expect(f.model.chosenShiftId == f.earlier.id)
+        f.model.pickShift(f.open!.id)
+        #expect(f.model.chosenShiftId == nil)
+        f.model.perform(.markFor(shiftId: f.open!.id))
+        #expect(f.model.chosenShiftId == nil)
+    }
+
+    @Test func switchBackFollowsTheNextClockIn() {
+        let f = TreeMapFixture()
+        f.model.pickShift(f.earlier.id)
+        f.model.useOpenShift()
+        f.clockOut()
+        let next = f.clockInElsewhere()
+        #expect(f.model.markingShift?.id == next.id)
+        #expect(!f.model.isMarkingEarlierShift)
+        f.model.tap(at: f.point(f.block2, row: 2, tree: 2))
+        #expect(f.live(f.tree(f.block2, row: 2, tree: 2))?.shiftId == next.id)
+    }
+
+    @Test func clockingInElsewhereResetsTheMarkingShift() {
+        let f = TreeMapFixture()
+        f.model.pickShift(f.earlier.id)
+        f.model.mode = .fill
+        f.model.tap(at: f.point(f.block2, row: 9, tree: 1))
+        #expect(f.model.anchor != nil)
+        f.clockOut()
+        #expect(f.model.markingShift?.id == f.earlier.id, "clocking out keeps the shift you picked")
+        let next = f.clockInElsewhere()
+        #expect(f.model.chosenShiftId == nil)
+        #expect(f.model.markingShift?.id == next.id)
+        #expect(f.model.anchor == nil, "the first tree was for the old shift")
+        f.model.mode = .one
+        f.model.tap(at: f.point(f.block2, row: 9, tree: 2))
+        #expect(f.live(f.tree(f.block2, row: 9, tree: 2))?.shiftId == next.id)
+    }
+
+    @Test func pickingAnotherShiftClearsTheLastMessage() {
+        let f = TreeMapFixture()
+        f.model.tap(at: f.rowNumber(f.block1, row: 8))
+        #expect(f.model.message != nil)
+        f.model.pickShift(f.earlier.id)
+        #expect(f.model.message == nil, "“Marked 12 trees…” was about the other shift")
+    }
+
+    @Test func clockingInFromTheMapKeepsItsMessage() {
+        let f = TreeMapFixture()
+        f.model.pickShift(f.earlier.id)
+        f.reply = FieldReply(speech: "Clocked in at 9:00.", succeeded: true)
+        f.model.clockIn()
+        #expect(f.model.chosenShiftId == nil)
+        #expect(f.model.message == MapMessage("Clocked in at 9:00.", tone: .done))
+    }
+
+    @Test func thePickerListsAPickedShiftOlderThanTheList() {
+        let f = TreeMapFixture()
+        // Sixty short shifts after Oct 18 push the Oct 18 shift off the list.
+        for i in 0..<TreeMapModel.pickerLimit {
+            let start = f.earlier.end!.addingTimeInterval(Double(i + 1) * 600)
+            f.snapshot.apply(.shift(Shift(userId: f.me.userId, farmId: f.farm.id, start: start, end: start.addingTimeInterval(300), rateCents: 2000)))
+        }
+        f.sync()
+        #expect(f.model.pickerShifts.count == TreeMapModel.pickerLimit)
+        #expect(!f.model.pickerShifts.contains { $0.id == f.earlier.id })
+        f.model.perform(.markFor(shiftId: f.earlier.id))
+        #expect(f.model.pickerShifts.count == TreeMapModel.pickerLimit + 1)
+        #expect(f.model.pickerShifts.last?.id == f.earlier.id)
+    }
+
+    @Test func aShiftAddedFromTheMapIsPicked() {
+        let f = TreeMapFixture(clockedIn: false)
+        f.model.beginAddingShift()
+        let added = Shift(userId: f.me.userId, farmId: f.farm.id, start: f.calendar.date(on: DayKey(year: 2026, month: 10, day: 16), hour: 8, minute: 0),
+                          end: f.calendar.date(on: DayKey(year: 2026, month: 10, day: 16), hour: 12, minute: 0), rateCents: 2000)
+        f.snapshot.apply(.shift(added))
+        f.sync()
+        f.model.finishAddingShift()
+        #expect(f.model.markingShift?.id == added.id)
+
+        f.model.beginAddingShift()
+        f.model.finishAddingShift()
+        #expect(f.model.markingShift?.id == added.id, "cancelling the editor changes nothing")
+    }
+
+    // MARK: A shift left open
+
+    @Test func aShiftLeftOpenSinceYesterdayIsFlagged() {
+        let f = TreeMapFixture(clockedIn: false)
+        let start = f.calendar.date(on: DayKey(year: 2026, month: 10, day: 18), hour: 15, minute: 0)
+        let left = Shift(userId: f.me.userId, farmId: f.farm.id, start: start, rateCents: 2000)
+        f.snapshot.apply(.shift(left))
+        f.sync()
+        #expect(f.model.markingShift?.id == left.id)
+        #expect(!f.model.isMarkingEarlierShift)
+        #expect(f.model.isMarkingStaleShift)
+        #expect(f.model.staleShiftNote == "You’ve been clocked in since Sun, Oct 18 at 3:00 PM.")
+    }
+
+    @Test func todaysShiftIsFlaggedAfterSixteenHours() {
+        let f = TreeMapFixture()
+        #expect(!f.model.isMarkingStaleShift)
+        #expect(f.model.staleShiftNote == nil)
+        f.now = f.open!.start.addingTimeInterval(16 * 3600 + 1)
+        #expect(f.model.isMarkingStaleShift)
+        f.model.pickShift(f.earlier.id)
+        #expect(!f.model.isMarkingStaleShift, "an earlier, closed shift has its own note")
     }
 
     @Test func shiftTitlesReadLikeTheArtifact() {
@@ -190,7 +301,7 @@ struct TreeMapModelTests {
 
     @Test func undoBringsBackClearedTrees() {
         let f = TreeMapFixture()
-        f.model.chosenShiftId = f.earlier.id
+        f.model.pickShift(f.earlier.id)
         f.model.tap(at: f.rowNumber(f.block1, row: 3))
         #expect(f.model.message?.text == "Cleared 12 trees from Block 1, row 3.")
         f.model.undo()
@@ -201,13 +312,62 @@ struct TreeMapModelTests {
 
     @Test func undoSkipsEditsOnADeletedShift() {
         let f = TreeMapFixture()
-        f.model.chosenShiftId = f.earlier.id
+        f.model.pickShift(f.earlier.id)
         f.model.tap(at: f.point(f.block2, row: 1, tree: 1))
         var gone = f.earlier
         gone.deletedAt = f.now
         f.snapshot.apply(.shift(gone))
         f.sync()
         #expect(!f.model.canUndo)
+    }
+
+    @Test func undoNeverPutsMarksOnADeletedBlock() {
+        let f = TreeMapFixture()
+        f.model.tap(at: f.rowNumber(f.block2, row: 4))
+        f.model.tap(at: f.rowNumber(f.block2, row: 4))
+        #expect(f.live(f.tree(f.block2, row: 4, tree: 1)) == nil)
+        var gone = f.block2
+        gone.deletedAt = f.now
+        f.snapshot.apply(.block(gone))
+        f.sync()
+        #expect(!f.model.canUndo, "both edits were in the deleted block")
+        f.model.undo()
+        #expect(f.model.message == MapMessage(Speech.nothingToUndo, tone: .warning))
+        #expect(!f.snapshot.marks.values.contains { $0.tree.blockId == f.block2.id && $0.isLive })
+    }
+
+    @Test func undoNeverPutsMarksPastTheEndOfAShrunkBlock() {
+        let f = TreeMapFixture()
+        f.model.tap(at: f.rowNumber(f.block2, row: 2))
+        f.model.tap(at: f.rowNumber(f.block2, row: 20))
+        f.model.tap(at: f.rowNumber(f.block2, row: 20))
+        var shorter = f.block2
+        shorter.rowCount = 10
+        f.snapshot.apply(.block(shorter))
+        f.sync()
+        #expect(f.model.canUndo, "row 2 still fits")
+        f.model.undo()
+        #expect(f.live(f.tree(f.block2, row: 2, tree: 1)) == nil)
+        #expect(!f.snapshot.marks.values.contains { $0.tree.blockId == f.block2.id && $0.tree.row >= 10 && $0.isLive })
+    }
+
+    @Test func undoFallsBackToTheLockScreensUndo() {
+        let f = TreeMapFixture()
+        #expect(!f.model.canUndo)
+        f.fieldCanUndo = true
+        f.sync()
+        #expect(f.model.canUndo)
+        f.reply = FieldReply(speech: "Undid the note on row 3, tree 5.", succeeded: true)
+        f.model.undo()
+        #expect(f.commands == [.undo])
+        #expect(f.model.message == MapMessage("Undid the note on row 3, tree 5.", tone: .done))
+
+        // The map's own edits come first.
+        f.commands = []
+        f.model.toggle(f.tree(f.block2, row: 5, tree: 5))
+        f.model.undo()
+        #expect(f.commands.isEmpty)
+        #expect(f.model.message == MapMessage(MarkMessages.undid, tone: .done))
     }
 
     // MARK: Nothing to mark with
@@ -235,7 +395,7 @@ struct TreeMapModelTests {
         let f = TreeMapFixture()
         f.failSaves = true
         f.model.tap(at: f.rowNumber(f.block1, row: 5))
-        #expect(f.model.message == MapMessage(TreeMapModel.saveFailed, tone: .warning))
+        #expect(f.model.message == MapMessage(TreesWording.saveFailed, tone: .warning))
         #expect(!f.model.canUndo)
         #expect(f.model.rowSummary(RowRef(blockId: f.block1.id, row: 4))?.shaped == 0)
     }
@@ -412,6 +572,20 @@ struct TreeMapModelTests {
         #expect(try #require(f.model.treeInfo(tree)).notes.map(\.body) == ["Leaning"])
     }
 
+    @Test func aNoteDeletedElsewhereSaysSo() {
+        let f = TreeMapFixture(role: .worker)
+        let tree = f.tree(f.block1, row: 4, tree: 2)
+        var note = f.note(on: tree, by: f.me, body: "Staked it")
+        f.snapshot.apply(.treeNote(note))
+        f.sync()
+        note.deletedAt = f.now
+        f.snapshot.apply(.treeNote(note))
+        f.sync()
+        #expect(f.model.editNote(note.id, body: "Staked it twice", flag: .none) == TreesWording.noteGone)
+        #expect(f.model.deleteNote(note.id) == TreesWording.noteGone)
+        #expect(f.saved.isEmpty)
+    }
+
     // MARK: Typed numbers
 
     @Test func typedNumbersMarkAndUnmark() {
@@ -431,6 +605,26 @@ struct TreeMapModelTests {
         #expect(!f.model.typeRange(blockId: f.block1.id, fromRow: 2, toRow: nil, fromTree: 1, toTree: 13, add: true))
         #expect(f.model.message?.text == "Trees go from 1 to 12 in each row of Block 1.")
         #expect(f.saved.isEmpty)
+    }
+
+    @Test func typedNumbersStartOnTheBlockInUse() {
+        let f = TreeMapFixture()
+        #expect(f.model.typingBlock?.id == f.block1.id)
+        f.model.workingBlockId = f.block3.id
+        #expect(f.model.typingBlock?.id == f.block3.id, "where Siri says you’re working")
+        f.model.mapSettled(on: f.block2.id)
+        #expect(f.model.typingBlock?.id == f.block2.id, "the block in the middle of the map")
+        f.model.typeRange(blockId: f.block3.id, fromRow: 1, toRow: nil, fromTree: nil, toTree: nil, add: true)
+        #expect(f.model.typingBlock?.id == f.block3.id, "the last block typed into")
+        f.model.chosenFieldId = f.creek.id
+        #expect(f.model.typingBlock?.id == f.model.blocks.first?.id, "another field starts on its first block")
+    }
+
+    @Test func zoomingIntoABlockTypesThere() {
+        let f = TreeMapFixture()
+        f.model.setZoom(.all)
+        f.model.zoomInto(f.block2.id)
+        #expect(f.model.typingBlock?.id == f.block2.id)
     }
 
     // MARK: Progress
@@ -530,7 +724,7 @@ struct TreeMapModelTests {
         f.model.chosenFieldId = big.id
         #expect(f.model.progress?.shaped == 8_540)
         let tap = clock.measure {
-            f.model.chosenShiftId = f.open?.id
+            f.model.pickShift(f.open?.id)
             f.model.tap(at: f.rowNumber(blocks[13], row: 61))
         }
         #expect(f.model.message?.text == "Every tree in Block 14, row 61 was shaped on another day.")

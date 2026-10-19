@@ -2,8 +2,8 @@ import SwiftUI
 import TimeCardCore
 
 /// The map as a list: blocks, then rows. It's what VoiceOver users get, and anyone can switch
-/// to it. Each row is one element: double-tap marks or clears it (like tapping its number),
-/// swipe up or down marks or unmarks one tree, and "Trees in this row" lists every tree.
+/// to it. Each row is one element: activating it marks or clears it (like tapping its number),
+/// adjusting it marks or unmarks one tree, and "Trees in this row" lists every tree.
 struct TreeRowsList: View {
     @Bindable var model: TreeMapModel
     @State private var detail: RowRef?
@@ -92,7 +92,7 @@ private struct RowCell: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(block.label(row: row.row))
         .accessibilityValue(summary?.value ?? "")
-        .accessibilityHint("Double-tap to mark or clear the row. Swipe up or down to mark or unmark one tree.")
+        .accessibilityHint("Marks or clears the row. Adjust to mark or unmark one tree.")
         .accessibilityAddTraits(.isButton)
         .accessibilityAction { model.tapRow(row) }
         .accessibilityAdjustableAction { direction in
@@ -155,7 +155,7 @@ struct RowDetailView: View {
                                 .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
-                        .accessibilityHint("Double-tap to mark or unmark this tree.")
+                        .accessibilityHint("Marks or unmarks this tree.")
                         Button("Notes") { card = OpenTree(tree: tree) }
                             .font(.subheadline.weight(.semibold))
                             .foregroundStyle(Palette.firText)

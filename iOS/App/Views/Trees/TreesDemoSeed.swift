@@ -8,10 +8,13 @@ import TimeCardCore
 ///   notes two trees (one by Sam), so the map shows every state.
 /// - `-UITestBigField`: adds "Big Field" first in the list: 14 blocks of 61 rows × 10 trees
 ///   (8,540 trees) side by side, with Sam's 710 marks, the size of the real farm.
+/// - `-UITestTreesStaleShift`: the demo admin forgot to clock out: still on the clock since
+///   7:00 AM yesterday, with row 5 of block 1 marked on that shift (use instead of the seed).
 /// - `-UITestTreesZoom all|xs|s|m|l`: the map size to open at (UI-test runs always start at M otherwise).
 @MainActor
 enum TreesDemoSeed {
     static let seedArgument = "-UITestTreesSeed"
+    static let staleShiftArgument = "-UITestTreesStaleShift"
     static let bigFieldArgument = "-UITestBigField"
     static let zoomArgument = "-UITestTreesZoom"
     private static var done = false
@@ -24,7 +27,8 @@ enum TreesDemoSeed {
     static func runIfRequested(model app: AppModel, arguments: [String] = ProcessInfo.processInfo.arguments) async {
         guard app.mode != .live, !done else { return }
         let seed = arguments.contains(seedArgument), big = arguments.contains(bigFieldArgument)
-        guard seed || big else { return }
+        let stale = arguments.contains(staleShiftArgument)
+        guard seed || big || stale else { return }
         done = true
         let session = app.session
         // The demo farm arrives with the first sync.
@@ -38,6 +42,17 @@ enum TreesDemoSeed {
 
         if big, let season = snapshot.activeSeason, let sam, let samShift {
             try? session.save(bigField(farm: farm, season: season, sam: sam, shift: samShift))
+        }
+        if stale, let north = snapshot.fields.values.first(where: { $0.name == "North Field" }),
+           let block1 = snapshot.blocks.values.first(where: { $0.fieldId == north.id && $0.name == "1" }) {
+            if snapshot.openShift(for: me.userId) == nil {
+                let cal = FarmCalendar(farm: farm)
+                let start = cal.addDays(cal.startOfDay(Date()), -1).addingTimeInterval(7 * 3600)
+                let left = Shift(userId: me.userId, farmId: farm.id, start: start, rateCents: me.rateCents,
+                                 updatedAt: Date().roundedToMillisecond)
+                try? session.save([.shift(left)])
+            }
+            app.actions.perform(.markRow(RowRef(blockId: block1.id, row: 4)))
         }
         if seed, let north = snapshot.fields.values.first(where: { $0.name == "North Field" }),
            let block1 = snapshot.blocks.values.first(where: { $0.fieldId == north.id && $0.name == "1" }) {

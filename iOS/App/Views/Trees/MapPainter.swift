@@ -1,8 +1,39 @@
 import CoreGraphics
+import SwiftUI
 import TimeCardCore
 import UIKit
 
-/// The map's colors, resolved for light or dark, as Core Graphics colors.
+/// The map's quiet colors, with stronger versions for Increase Contrast. The default look is
+/// the web time card's; with Increase Contrast on, "not yet" rings and block outlines reach
+/// at least 3:1 against the map in both themes (WCAG 1.4.11).
+///
+/// These belong in the asset catalog as "High Contrast" appearances of TreeEmpty and
+/// BlockLine; until then the map resolves them here.
+enum MapColors {
+    static let treeEmpty = dynamic("TreeEmpty", lightHigh: 0x678770, darkHigh: 0x6B8A76)
+    static let blockLine = dynamic("BlockLine", lightHigh: 0x62806B, darkHigh: 0x688572)
+
+    private static func dynamic(_ name: String, lightHigh: UInt32, darkHigh: UInt32) -> UIColor {
+        UIColor { traits in
+            guard traits.accessibilityContrast == .high else {
+                return (UIColor(named: name) ?? .gray).resolvedColor(with: traits)
+            }
+            return rgb(traits.userInterfaceStyle == .dark ? darkHigh : lightHigh)
+        }
+    }
+
+    private static func rgb(_ hex: UInt32) -> UIColor {
+        UIColor(red: CGFloat((hex >> 16) & 0xFF) / 255, green: CGFloat((hex >> 8) & 0xFF) / 255,
+                blue: CGFloat(hex & 0xFF) / 255, alpha: 1)
+    }
+}
+
+extension Color {
+    /// "Not shaped yet" rings, stronger with Increase Contrast.
+    static let mapTreeEmpty = Color(uiColor: MapColors.treeEmpty)
+}
+
+/// The map's colors, resolved for light or dark and the contrast setting, as Core Graphics colors.
 struct MapPalette {
     var empty: CGColor
     var done: CGColor
@@ -14,21 +45,34 @@ struct MapPalette {
     var firText: CGColor
     var note: CGColor
     var focus: CGColor
+    var surface: CGColor
+    /// Increase Contrast is on: rings and outlines draw heavier too.
+    var highContrast: Bool
 
     init(traits: UITraitCollection) {
         func color(_ name: String) -> CGColor {
             (UIColor(named: name) ?? .gray).resolvedColor(with: traits).cgColor
         }
-        empty = color("TreeEmpty")
+        empty = MapColors.treeEmpty.resolvedColor(with: traits).cgColor
         done = color("Fir")
         mine = color("Sap")
         muted = color("Muted")
         ink = color("Ink")
         stripe = color("Stripe")
-        line = color("BlockLine")
+        line = MapColors.blockLine.resolvedColor(with: traits).cgColor
         firText = color("FirText")
         note = color("Rust")
         focus = color("Ink")
+        surface = color("Surface")
+        highContrast = traits.accessibilityContrast == .high
+    }
+
+    /// Light or dark, normal or Increase Contrast.
+    static func traits(dark: Bool, highContrast: Bool) -> UITraitCollection {
+        UITraitCollection(traitsFrom: [
+            UITraitCollection(userInterfaceStyle: dark ? .dark : .light),
+            UITraitCollection(accessibilityContrast: highContrast ? .high : .normal),
+        ])
     }
 }
 
@@ -44,6 +88,9 @@ struct MapScene {
     var anchor: TreeRef?
     /// The tree whose card is open.
     var focus: TreeRef?
+    /// Differentiate Without Color: this shift's dots get a hole in the middle, so they
+    /// read apart from earlier ones by shape as well as gold and green.
+    var pips = false
 
     static let empty = MapScene(layout: FieldLayout(blocks: [], metrics: .m), index: MarkIndex(marks: []),
                                 markingShiftId: nil, noteTrees: [], anchor: nil, focus: nil)
@@ -105,7 +152,7 @@ struct MapPainter {
         let radius: CGFloat = m.isOverview ? 3 : 8
         ctx.addPath(CGPath(roundedRect: f.outline.insetBy(dx: 0.75, dy: 0.75), cornerWidth: radius, cornerHeight: radius, transform: nil))
         ctx.setStrokeColor(palette.line)
-        ctx.setLineWidth(m.isOverview ? 1 : 1.5)
+        ctx.setLineWidth(m.isOverview ? 1 : (palette.highContrast ? 2 : 1.5))
         ctx.strokePath()
 
         drawTrees(f, rect: rect, ctx: ctx)
@@ -124,19 +171,24 @@ struct MapPainter {
         let rad = max(1.8, small * 0.37)
         let radEmpty = max(1.4, rad * 0.68)
         let square = m.isOverview ? max(1, cw - (cw >= 4 ? 1 : 0.35)) : 0
-        let empty = CGMutablePath(), done = CGMutablePath(), mine = CGMutablePath()
+        let pip = scene.pips && !m.isOverview ? max(1, rad * 0.4) : 0
+        let empty = CGMutablePath(), done = CGMutablePath(), mine = CGMutablePath(), pips = CGMutablePath()
         let columns = visible(columns: f, rect), lines = visible(lines: f, rect)
         for c in columns {
             for l in lines {
                 let tree = f.isDown ? TreeRef(blockId: f.block.id, row: c, position: l) : TreeRef(blockId: f.block.id, row: l, position: c)
                 let x = f.grid.minX + CGFloat(c) * cw, y = f.grid.minY + CGFloat(l) * ch
                 let mark = scene.index.mark(at: tree)
-                let path = mark == nil ? empty : (mark?.shiftId == scene.markingShiftId ? mine : done)
+                let isMine = mark != nil && mark?.shiftId == scene.markingShiftId
+                let path = mark == nil ? empty : (isMine ? mine : done)
                 if m.isOverview {
                     path.addRect(CGRect(x: x, y: y, width: square, height: square))
                 } else {
                     let r = mark == nil ? radEmpty : rad
                     path.addEllipse(in: CGRect(x: x + cw / 2 - r, y: y + ch / 2 - r, width: 2 * r, height: 2 * r))
+                    if pip > 0, isMine {
+                        pips.addEllipse(in: CGRect(x: x + cw / 2 - pip, y: y + ch / 2 - pip, width: 2 * pip, height: 2 * pip))
+                    }
                 }
             }
         }
@@ -146,7 +198,7 @@ struct MapPainter {
             ctx.fillPath()
         } else {
             ctx.setStrokeColor(palette.empty)
-            ctx.setLineWidth(small < 9 ? 1 : 1.3)
+            ctx.setLineWidth(Self.ringWidth(cell: small, highContrast: palette.highContrast))
             ctx.addPath(empty)
             ctx.strokePath()
         }
@@ -156,6 +208,17 @@ struct MapPainter {
         ctx.setFillColor(palette.mine)
         ctx.addPath(mine)
         ctx.fillPath()
+        if pip > 0 {
+            ctx.setFillColor(palette.surface)
+            ctx.addPath(pips)
+            ctx.fillPath()
+        }
+    }
+
+    /// A "not yet" ring's stroke: heavier at M and L, where there's room, and with Increase Contrast.
+    static func ringWidth(cell: CGFloat, highContrast: Bool) -> CGFloat {
+        let base: CGFloat = cell < 9 ? 1 : (cell >= 15 ? 1.6 : 1.3)
+        return highContrast ? base + 0.4 : base
     }
 
     // MARK: Labels
