@@ -48,6 +48,8 @@ test('has the meta, social and structured data', async ({ page }) => {
   await expect(page.locator('link[rel=canonical]')).toHaveAttribute('href', 'https://treefarm.joshnliz.com/');
   await expect(page.locator('meta[property="og:image"]')).toHaveAttribute('content', 'https://treefarm.joshnliz.com/og.png');
   await expect(page.locator('meta[name="twitter:card"]')).toHaveAttribute('content', 'summary_large_image');
+  // No viewport-fit=cover: nothing on the page pads for the notch, so iOS keeps it in the safe area.
+  await expect(page.locator('meta[name="viewport"]')).toHaveAttribute('content', 'width=device-width, initial-scale=1');
   const ld = JSON.parse((await page.locator('script[type="application/ld+json"]').textContent()) ?? '{}');
   const types = ld['@graph'].map((n: { '@type': string }) => n['@type']);
   expect(types).toEqual(['SoftwareSourceCode', 'SoftwareApplication']);
