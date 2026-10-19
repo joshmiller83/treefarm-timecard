@@ -13,8 +13,12 @@ struct WorkoutSummaryContent: Equatable {
     var detail: String?
     /// "avg 104 · max 151", beside a heart.
     var heart: String?
+    /// "Average heart rate 104, maximum 151": the heart is hidden from VoiceOver.
+    var heartAccessibility: String?
     /// "1,120 kcal · 7:41 act.", beside a flame.
     var energy: String?
+    /// "1,120 calories, 7 hours 41 minutes active".
+    var energyAccessibility: String?
 
     init(closed: ClosedShift?, summary: WorkoutSummary?, waitingForPhone: Bool) {
         if let closed {
@@ -25,7 +29,9 @@ struct WorkoutSummaryContent: Equatable {
         }
         if let summary {
             heart = WatchDisplay.summaryHeartLine(avg: summary.avgHeartRate, max: summary.maxHeartRate)
+            heartAccessibility = WorkoutWords.summaryHeartAccessibility(avg: summary.avgHeartRate, max: summary.maxHeartRate)
             energy = WatchDisplay.summaryEnergyLine(kcal: summary.activeKcal, active: summary.activeDuration)
+            energyAccessibility = WorkoutWords.summaryEnergyAccessibility(kcal: summary.activeKcal, active: summary.activeDuration)
         }
     }
 }
@@ -89,10 +95,10 @@ struct WorkoutSummaryView: View {
                     .minimumScaleFactor(0.75)
             }
             if heart, let line = content.heart {
-                metric(line, glyph: WatchDisplay.Glyph.heart, tint: WorkoutPalette.heart)
+                metric(line, spoken: content.heartAccessibility, glyph: WatchDisplay.Glyph.heart, tint: WorkoutPalette.heart)
             }
             if energy, let line = content.energy {
-                metric(line, glyph: WatchDisplay.Glyph.energy, tint: WorkoutPalette.energy)
+                metric(line, spoken: content.energyAccessibility, glyph: WatchDisplay.Glyph.energy, tint: WorkoutPalette.energy)
             }
         }
         .multilineTextAlignment(.center)
@@ -100,7 +106,7 @@ struct WorkoutSummaryView: View {
         .accessibilityElement(children: .combine)
     }
 
-    private func metric(_ line: String, glyph: String, tint: Color) -> some View {
+    private func metric(_ line: String, spoken: String?, glyph: String, tint: Color) -> some View {
         HStack(spacing: 4) {
             Image(systemName: glyph)
                 .foregroundStyle(dimmed ? tint.opacity(0.6) : tint)
@@ -109,6 +115,7 @@ struct WorkoutSummaryView: View {
             Text(line)
                 .foregroundStyle(.white.opacity(dimmed ? 0.6 : 0.9))
                 .monospacedDigit()
+                .accessibilityLabel(spoken ?? line)
         }
         .font(.footnote)
         .lineLimit(1)

@@ -69,6 +69,8 @@ struct WorkoutScreenshotTests {
         }
         try shoot("onboarding-reminder", Self.screens[2]) { HealthOnboardingCard(step: .reminder) {} }
         try shoot("onboarding-ax", Self.screens[0], type: .accessibility3) { HealthOnboardingCard(step: .health) {} }
+        try shoot("onboarding-ax", Self.screens[3], type: .accessibility3) { HealthOnboardingCard(step: .health) {} }
+        try shoot("onboarding-reminder-ax", Self.screens[0], type: .accessibility3) { HealthOnboardingCard(step: .reminder) {} }
     }
 
     @Test func theBannersAndTheTodayLines() throws {

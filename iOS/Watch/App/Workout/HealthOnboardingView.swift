@@ -33,15 +33,22 @@ struct HealthOnboardingCard: View {
     let onAllow: () -> Void
 
     @Environment(\.workoutSizeOverride) private var sizeOverride
+    @Environment(\.dynamicTypeSize) private var typeSize
     private var size: WorkoutSize { sizeOverride ?? .current }
+
+    /// How the calorie (or reminder) note is set.
+    private enum Note { case full, shrinking, hidden }
 
     var body: some View {
         VStack(spacing: 8) {
-            // Never a scroll view: it would take Double Tap from Allow Health.
+            // Never a scroll view: it would take Double Tap from Allow Health. Last resort: at
+            // the standard text sizes the note may shrink a little (the 40 mm watch); at the
+            // accessibility sizes it never shrinks below what the person chose, it goes instead
+            // (VoiceOver still reads it).
             ViewThatFits(in: .vertical) {
-                message(showGlyph: true, fixed: true)
-                message(showGlyph: false, fixed: true)
-                message(showGlyph: false, fixed: false)
+                message(showGlyph: true, note: .full)
+                message(showGlyph: false, note: .full)
+                message(showGlyph: false, note: typeSize.isAccessibilitySize ? .hidden : .shrinking)
             }
             .frame(maxHeight: .infinity)
 
@@ -56,7 +63,7 @@ struct HealthOnboardingCard: View {
         .animation(.easeInOut(duration: 1), value: step)
     }
 
-    private func message(showGlyph: Bool, fixed: Bool) -> some View {
+    private func message(showGlyph: Bool, note: Note) -> some View {
         VStack(spacing: 4) {
             if showGlyph {
                 Image(systemName: step.glyph)
@@ -71,13 +78,16 @@ struct HealthOnboardingCard: View {
                 .font(.headline)
                 .foregroundStyle(.white)
                 .minimumScaleFactor(0.7)
-            Text(step.body)
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-                .minimumScaleFactor(0.5)
+            if note != .hidden {
+                Text(step.body)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .minimumScaleFactor(note == .shrinking ? 0.7 : 1)
+            }
         }
         .multilineTextAlignment(.center)
-        .fixedSize(horizontal: false, vertical: fixed)
+        .fixedSize(horizontal: false, vertical: note == .full)
         .accessibilityElement(children: .combine)
+        .accessibilityHint(note == .hidden ? step.body : "")
     }
 }

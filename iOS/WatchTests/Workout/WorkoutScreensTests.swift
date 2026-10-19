@@ -51,6 +51,23 @@ struct WorkoutScreensTests {
         #expect(!everything.contains("$"))
     }
 
+    @Test func theSummaryReadsItsNumbersInWords() {
+        // The heart and the flame are hidden from VoiceOver, so the numbers say what they are.
+        let content = WorkoutSummaryContent(closed: closed, summary: summary, waitingForPhone: false)
+        #expect(content.heartAccessibility == "Average heart rate 104, maximum 151")
+        #expect(content.energyAccessibility == "1,120 calories, 7 hours 41 minutes active")
+
+        var partial = summary
+        partial.avgHeartRate = nil
+        partial.activeKcal = nil
+        partial.activeDuration += 50
+        let less = WorkoutSummaryContent(closed: closed, summary: partial, waitingForPhone: false)
+        #expect(less.heartAccessibility == "Maximum heart rate 151")
+        // The minutes the screen shows ("7:41 act."), not rounded up.
+        #expect(less.energyAccessibility == "7 hours 41 minutes active")
+        #expect(WorkoutSummaryContent(closed: closed, summary: nil, waitingForPhone: false).heartAccessibility == nil)
+    }
+
     @Test func whileTheClockOutWaitsTheTreesAreTheWatchsOwnCount() {
         let content = WorkoutSummaryContent(closed: closed, summary: summary, waitingForPhone: true)
         #expect(content.detail == "412 trees · waiting for iPhone")
@@ -78,7 +95,7 @@ struct WorkoutScreensTests {
             WorkoutStatus(WorkoutLive(recording: recording))
         }
         #expect(status(.recording)?.text == "Recording shift workout")
-        #expect(status(.paused)?.text == "Recording shift workout")
+        #expect(status(.paused)?.text == "Workout paused")
         #expect(status(.waitingForClockOut)?.text == "Clock-out waiting for iPhone")
         #expect(status(.stoppedUnexpectedly)?.text == "Recording stopped")
         #expect(status(.stoppedUnexpectedly)?.offersRecordAgain == true)
@@ -91,6 +108,14 @@ struct WorkoutScreensTests {
     @Test func theHeartLineIsLiveFromTheWorkout() {
         #expect(WorkoutStatus.heartLine(WorkoutLive(heartRate: 103.6, kcal: 612.2, recording: .recording)) == "104 bpm · 612 kcal")
         #expect(WorkoutStatus.heartLine(WorkoutLive(recording: .recording)) == nil)
+    }
+
+    @Test func theHeartLineReadsInWords() {
+        #expect(WorkoutStatus.heartLineAccessibility(WorkoutLive(heartRate: 103.6, kcal: 612.2, recording: .recording))
+                == "Heart rate 104, 612 calories")
+        #expect(WorkoutStatus.heartLineAccessibility(WorkoutLive(heartRate: 98, recording: .recording)) == "Heart rate 98")
+        #expect(WorkoutStatus.heartLineAccessibility(WorkoutLive(kcal: 1, recording: .recording)) == "1 calorie")
+        #expect(WorkoutStatus.heartLineAccessibility(WorkoutLive(recording: .recording)) == nil)
     }
 
     // MARK: The first-launch card
