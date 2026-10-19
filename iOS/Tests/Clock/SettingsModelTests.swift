@@ -89,6 +89,25 @@ struct ProfileFormTests {
         #expect(form.records(for: f.me, openShift: nil, now: now).isEmpty)
     }
 
+    @Test func aChangeFromElsewhereShowsWhenYouHaventTouchedTheForm() throws {
+        let form = ProfileForm(member: f.me)
+        var raised = f.me
+        raised.rateCents = 1950
+        let fresh = try #require(form.refreshed(from: f.me, to: raised, editing: false))
+        #expect(fresh.rate == "19.50")
+        // Comparing with the new record would have kept the old $18.00 on screen, ready to save back.
+        #expect(form.isChanged(from: raised))
+    }
+
+    @Test func yourEditsStayWhenAChangeArrives() {
+        var form = ProfileForm(member: f.me)
+        var raised = f.me
+        raised.rateCents = 1950
+        #expect(form.refreshed(from: f.me, to: raised, editing: true) == nil)
+        form.job = "Lead"
+        #expect(form.refreshed(from: f.me, to: raised, editing: false) == nil)
+    }
+
     @Test func longEntriesAreHeldToTheLimit() throws {
         var form = ProfileForm(member: f.me)
         form.name = String(repeating: "n", count: 120)
@@ -132,8 +151,51 @@ struct ServerAddressTests {
     }
 }
 
+@Suite("Which server to use")
+struct ServerChoiceTests {
+    func defaults() throws -> UserDefaults {
+        try #require(UserDefaults(suiteName: "ServerChoiceTests-\(UUID().uuidString)"))
+    }
+
+    @Test func theSchemeThenThisPhoneThenTheStandardServer() throws {
+        let d = try defaults()
+        #expect(ServerAddress.resolve(environment: [:], defaults: d) == TimeCardCore.defaultServerURL)
+        let saved = try ServerAddress.parse("https://tc.example.com").get()
+        ServerAddress.save(saved, in: d)
+        #expect(ServerAddress.resolve(environment: [:], defaults: d) == saved)
+        let dev = ServerAddress.resolve(environment: ["TIMECARD_SERVER_URL": "http://localhost:8790"], defaults: d)
+        #expect(dev.absoluteString == "http://localhost:8790")
+    }
+
+    @Test func aNewServerMeansSigningOutFirst() throws {
+        let standard = TimeCardCore.defaultServerURL
+        let other = try ServerAddress.parse("https://tc.example.com").get()
+        // Signed in before this setting existed: that was the standard server.
+        #expect(!ServerAddress.mustSignOut(signedInServer: nil, using: standard))
+        #expect(ServerAddress.mustSignOut(signedInServer: nil, using: other))
+        #expect(!ServerAddress.mustSignOut(signedInServer: "https://TC.example.com/", using: other))
+        #expect(ServerAddress.mustSignOut(signedInServer: other.absoluteString, using: standard))
+        #expect(ServerAddress.mustSignOut(signedInServer: "https://tc.example.com:8443", using: other))
+    }
+
+    /// Settings offers a new server only once the app really switches to it.
+    @MainActor @Test func theSwitchIsOfferedOnlyWhenTheAppMakesIt() throws {
+        guard ServerAddress.isEditable else { return }
+        let before = UserDefaults.standard.string(forKey: ServerAddress.defaultsKey)
+        defer { UserDefaults.standard.set(before, forKey: ServerAddress.defaultsKey) }
+        ServerAddress.save(try ServerAddress.parse("https://tc.example.com").get())
+        #expect(AppEnvironment.serverURL.absoluteString == "https://tc.example.com")
+    }
+}
+
 @Suite("Siri phrases")
 struct SiriPhraseTests {
+    @Test func startTimeExampleIsOneSiriKnows() {
+        // A shortcut phrase can't carry a spoken time; Siri asks for it.
+        #expect(SiriPhrases.examples.contains { $0.phrase == "Fix my start time in Time Card" })
+        #expect(!SiriPhrases.examples.contains { $0.phrase.contains("7:30") })
+    }
+
     @Test func everyPhraseNamesTheApp() {
         #expect(SiriPhrases.examples.count >= 8)
         for example in SiriPhrases.examples {

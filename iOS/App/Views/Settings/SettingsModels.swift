@@ -56,6 +56,14 @@ struct ProfileForm: Equatable {
         return Limits.clampName(name) != member.displayName || Limits.clampName(job) != member.jobTitle || cents != member.rateCents
     }
 
+    /// Your Member record changed while the form was showing (an admin set your rate, another
+    /// phone renamed you): the form to show now, or nil to keep this one because you're
+    /// editing or changed something since the `old` values.
+    func refreshed(from old: Member, to new: Member, editing: Bool) -> ProfileForm? {
+        guard !editing, !isChanged(from: old) else { return nil }
+        return ProfileForm(member: new)
+    }
+
     /// The records to save: the member, and the shift you're on when the rate changed (it
     /// should pay at the new rate; finished shifts keep theirs). Empty when there's nothing
     /// to save or something to fix.
@@ -81,6 +89,36 @@ struct ProfileForm: Equatable {
 /// out) and read when the app starts.
 enum ServerAddress {
     static let defaultsKey = "server.url"
+    /// Which server issued the sign-in this phone holds.
+    static let signedInServerKey = "server.signedInWith"
+
+    /// Whether Settings offers to change the server. Off until `AppEnvironment.serverURL`
+    /// reads `resolve()` and signs out on a change of server (see `mustSignOut`), so the
+    /// card never promises a switch that doesn't happen.
+    static let isEditable = false
+
+    /// The server this launch uses: `TIMECARD_SERVER_URL` from the scheme (development), then
+    /// the address saved here, then the standard server.
+    static func resolve(environment: [String: String] = ProcessInfo.processInfo.environment,
+                        defaults: UserDefaults = .standard) -> URL {
+        if let override = environment["TIMECARD_SERVER_URL"], let url = URL(string: override) { return url }
+        return saved(in: defaults) ?? TimeCardCore.defaultServerURL
+    }
+
+    /// True when the sign-in on this phone (and the farm records with it) came from another
+    /// server than `server`: sign out and clear the store before the first request, so the old
+    /// token never goes to the new host. No record means the standard server, as before.
+    static func mustSignOut(signedInServer: String?, using server: URL) -> Bool {
+        let before = signedInServer.flatMap(URL.init(string:)) ?? TimeCardCore.defaultServerURL
+        return key(before) != key(server)
+    }
+
+    /// Scheme, host, port and path, ignoring case in the host and a trailing slash.
+    private static func key(_ url: URL) -> String {
+        var path = url.path
+        while path.hasSuffix("/") { path.removeLast() }
+        return "\(url.scheme?.lowercased() ?? "")://\(url.host?.lowercased() ?? ""):\(url.port.map(String.init) ?? "")\(path)"
+    }
 
     struct Problem: Error, Equatable {
         var message: String
@@ -139,7 +177,7 @@ enum SiriPhrases {
         Example(phrase: "I’m in block 3 in Time Card", does: "Moves where your next rows start"),
         Example(phrase: "Add a note in Time Card", does: "Adds what you say to today’s notes"),
         Example(phrase: "How many trees in Time Card?", does: "Trees today, your pace, and your row"),
-        Example(phrase: "I started at 7:30 in Time Card", does: "Fixes your start time"),
+        Example(phrase: "Fix my start time in Time Card", does: "Asks when you started, then changes it"),
         Example(phrase: "Clock out with Time Card", does: "Asks first, then ends your shift"),
     ]
 }

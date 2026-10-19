@@ -86,9 +86,9 @@ struct ProfileCard: View {
         }
         .card()
         .onChange(of: form) { if message != nil { withAnimation { message = nil } } }
-        .onChange(of: member) { _, new in
+        .onChange(of: member) { old, new in
             // Someone (an admin, another phone) changed it: show theirs unless you're editing.
-            if field == nil && !form.isChanged(from: member) { form = ProfileForm(member: new) }
+            if let fresh = form.refreshed(from: old, to: new, editing: field != nil) { form = fresh }
         }
         .toolbar {
             if field == .rate {
@@ -250,14 +250,21 @@ struct VoiceCard: View {
 struct LockScreenCard: View {
     @State private var enabled = ActivityAuthorizationInfo().areActivitiesEnabled
     @Environment(\.openURL) private var openURL
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .firstTextBaseline) {
-                SectionLabel("Lock screen")
-                Spacer()
-                StatusPill(text: enabled ? "Live Activities on" : "Live Activities off", tone: enabled ? .working : .alert)
-                    .accessibilityIdentifier("live-activities-status")
+            if typeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: 8) {
+                    label
+                    pill
+                }
+            } else {
+                HStack(alignment: .firstTextBaseline) {
+                    label
+                    Spacer()
+                    pill
+                }
             }
             Text(enabled
                  ? "While you’re clocked in, your timer, next three rows and a Break button show on the lock screen. There’s no Clock out there, so a pocket tap can’t end your shift."
@@ -286,6 +293,20 @@ struct LockScreenCard: View {
                 withAnimation { enabled = value }
             }
         }
+    }
+
+    /// Never broken mid-word: it shrinks a little before it would wrap.
+    private var label: some View {
+        SectionLabel("Lock screen")
+            .lineLimit(1)
+            .minimumScaleFactor(0.6)
+    }
+
+    private var pill: some View {
+        StatusPill(text: enabled ? "Live Activities on" : "Live Activities off", tone: enabled ? .working : .alert)
+            .lineLimit(1)
+            .minimumScaleFactor(0.5)
+            .accessibilityIdentifier("live-activities-status")
     }
 }
 
@@ -321,7 +342,20 @@ struct AdvancedCard: View {
             .accessibilityValue(open ? "Shown" : "Hidden")
             .accessibilityIdentifier("advanced-toggle")
 
-            if open {
+            if open && !ServerAddress.isEditable {
+                Text("Server")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Palette.ink)
+                Text(inUse.absoluteString)
+                    .font(.footnote.monospaced())
+                    .foregroundStyle(Palette.ink)
+                    .textSelection(.enabled)
+                    .accessibilityIdentifier("server-in-use")
+                Text("Your farm’s records sync with this server.")
+                    .font(.footnote)
+                    .foregroundStyle(Palette.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else if open {
                 Text("Server")
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(Palette.ink)

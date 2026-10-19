@@ -15,7 +15,9 @@ struct SettingsView: View {
                 VStack(alignment: .leading, spacing: 16) {
                     AccountCard()
                     if let member = session.membership {
+                        // A fresh form per farm and person, so a switch never carries the last farm's values over.
                         ProfileCard(member: member)
+                            .id("\(member.farmId)/\(member.userId)")
                     }
                     FarmCard()
                     VoiceCard().id("voice")
@@ -87,35 +89,72 @@ struct SettingsView: View {
 
 private struct AccountCard: View {
     @Environment(TimeCardSession.self) private var session
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
-        HStack(alignment: .center, spacing: 14) {
-            Text(initials)
+        Group {
+            if typeSize.isAccessibilitySize {
+                // The initials circle is decoration; at the largest sizes the words get the room.
+                details
+            } else {
+                HStack(alignment: .center, spacing: 14) {
+                    Text(initials)
+                        .font(.tcHeadline)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.5)
+                        .foregroundStyle(Palette.firText)
+                        .frame(width: 54, height: 54)
+                        .background(Palette.firSoft, in: Circle())
+                        .accessibilityHidden(true)
+                    details
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .card()
+        .accessibilityElement(children: .combine)
+    }
+
+    private var details: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(name)
                 .font(.tcHeadline)
-                .foregroundStyle(Palette.firText)
-                .frame(width: 54, height: 54)
-                .background(Palette.firSoft, in: Circle())
-                .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 4) {
-                Text(name)
-                    .font(.tcHeadline)
-                    .foregroundStyle(Palette.ink)
-                Text(session.me?.user.email ?? "")
-                    .font(.subheadline)
-                    .foregroundStyle(Palette.muted)
-                if let membership = session.membership {
+                .foregroundStyle(Palette.ink)
+                .fixedSize(horizontal: false, vertical: true)
+            Text(session.me?.user.email ?? "")
+                .font(.subheadline)
+                .foregroundStyle(Palette.muted)
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
+                .truncationMode(.middle)
+            if let membership = session.membership {
+                let pill = StatusPill(text: membership.role == .admin ? "Admin" : "Crew", tone: membership.role == .admin ? .working : .off)
+                    .fixedSize()
+                if typeSize.isAccessibilitySize {
+                    VStack(alignment: .leading, spacing: 6) {
+                        pill
+                        job(membership)
+                    }
+                    .padding(.top, 2)
+                } else {
                     HStack(spacing: 8) {
-                        StatusPill(text: membership.role == .admin ? "Admin" : "Crew", tone: membership.role == .admin ? .working : .off)
-                        if !membership.jobTitle.isEmpty {
-                            Text(membership.jobTitle).font(.subheadline).foregroundStyle(Palette.muted)
-                        }
+                        pill
+                        job(membership)
                     }
                     .padding(.top, 2)
                 }
             }
         }
-        .card()
-        .accessibilityElement(children: .combine)
+    }
+
+    @ViewBuilder
+    private func job(_ membership: Member) -> some View {
+        if !membership.jobTitle.isEmpty {
+            Text(membership.jobTitle)
+                .font(.subheadline)
+                .foregroundStyle(Palette.muted)
+                .fixedSize(horizontal: false, vertical: true)
+        }
     }
 
     private var name: String {
