@@ -5,7 +5,7 @@
  * Runs in the page projects (desktop 1440 × 900, mobile 375 × 812) against the built site.
  */
 import AxeBuilder from '@axe-core/playwright';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 
 const REPO = 'https://github.com/joshmiller83/treefarm-timecard';
 const DOCS = `${REPO}/tree/main/docs`;
@@ -29,6 +29,25 @@ async function arrive(page: Page) {
     await page.waitForTimeout(150);
   }
   await page.evaluate((y) => window.scrollTo(0, y), Math.max(0, top - 80));
+}
+
+/** Waits until an element has faded all the way in and stopped moving (its reveal is done). */
+async function settled(loc: Locator) {
+  await loc.scrollIntoViewIfNeeded();
+  await expect
+    .poll(
+      () =>
+        loc.evaluate(async (el) => {
+          const box = () => el.getBoundingClientRect().top;
+          const a = box();
+          await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+          let o = 1;
+          for (let n: Element | null = el; n; n = n.parentElement) o *= Number(getComputedStyle(n).opacity);
+          return o === 1 && box() === a;
+        }),
+      { timeout: 10_000 },
+    )
+    .toBe(true);
 }
 
 /**
@@ -114,8 +133,10 @@ for (const mode of ['reduced', 'motion'] as const) {
         await expect.poll(() => page.locator('[data-stage]').evaluate((s) => getComputedStyle(s).opacity)).toBe('0');
       }
 
-      // Final state: nothing faded, the ring drawn, the command typed.
-      await expect.poll(() => finalState(page), { timeout: 8000 }).toEqual([]);
+      // Final state once the reader has scrolled past it all: nothing faded, the ring drawn,
+      // the command typed.
+      await page.locator('body > footer').scrollIntoViewIfNeeded();
+      await expect.poll(() => finalState(page), { timeout: 10_000 }).toEqual([]);
       expect(problems).toEqual([]);
     });
 
@@ -205,8 +226,7 @@ test.describe('motion', () => {
     await page.goto('/');
     await arrive(page);
     const primary = page.locator('#open').getByRole('link', { name: 'Follow along on GitHub' });
-    await primary.scrollIntoViewIfNeeded();
-    await page.waitForTimeout(1200);
+    await settled(primary);
     const box = (await primary.boundingBox())!;
     const before = await page.evaluate(() => scrollY);
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
@@ -223,8 +243,7 @@ test.describe('motion', () => {
     await page.goto('/');
     await arrive(page);
     const copy = page.locator('#open').getByRole('button', { name: /copy/i });
-    await copy.scrollIntoViewIfNeeded();
-    await page.waitForTimeout(1200); // the card fades up 16px as it arrives
+    await settled(copy); // the card fades up 16px as it arrives
     await copy.click();
     await expect(page.locator('#open [data-copy-status]')).toHaveText('Copied');
     expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(COMMAND);
