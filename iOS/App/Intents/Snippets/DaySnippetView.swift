@@ -26,14 +26,15 @@ struct SnippetStat: Equatable, Identifiable {
 
     /// The three numbers for a topic, the asked-about one first.
     static func stats(for card: DayCard) -> [SnippetStat] {
-        let worked = SnippetStat(value: Fmt.hm(card.workedToday), label: "worked today",
-                                 spoken: "\(Fmt.spokenDuration(card.workedToday)) worked today", focus: false)
+        let span = card.span.words
+        let worked = SnippetStat(value: Fmt.hm(card.worked), label: "worked \(span)",
+                                 spoken: "\(Fmt.spokenDuration(card.worked)) worked \(span)", focus: false)
         let week = SnippetStat(value: Fmt.hm(card.workedWeek), label: "this week",
                                spoken: "\(Fmt.spokenDuration(card.workedWeek)) this week", focus: false)
-        let trees = SnippetStat(value: Fmt.count(card.treesToday), label: card.treesToday == 1 ? "tree today" : "trees today",
-                                spoken: "\(Fmt.plural(card.treesToday, "tree")) today", focus: false)
+        let trees = SnippetStat(value: Fmt.count(card.trees), label: (card.trees == 1 ? "tree " : "trees ") + span,
+                                spoken: "\(Fmt.plural(card.trees, "tree")) \(span)", focus: false)
         let rate = SnippetStat(value: Speech.rate(card.treesPerHour), label: "trees an hour",
-                               spoken: "\(Speech.rate(card.treesPerHour)) trees an hour today", focus: false)
+                               spoken: "\(Speech.rate(card.treesPerHour)) trees an hour \(span)", focus: false)
         let season = SnippetStat(value: Speech.rate(card.seasonTreesPerHour), label: "season pace",
                                  spoken: "season pace \(Speech.rate(card.seasonTreesPerHour)) an hour", focus: false)
         func focused(_ s: SnippetStat) -> SnippetStat {
@@ -145,15 +146,12 @@ struct DaySnippetCard: View {
         }
     }
 
+    /// "Row 6" set as a heading: it names a place, like a sign at the end of the row.
     private func bigRow(_ here: DayCard.Spot) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 6) {
-            Text("Row").font(.tcTitle)
-            Text(String(here.row))
-                .font(.custom(Typeface.numberSemiBold, size: 44, relativeTo: .largeTitle))
-                .monospacedDigit()
-        }
-        .foregroundStyle(Palette.firText)
-        .fixedSize()
+        Text("Row \(here.row)")
+            .font(.custom(Typeface.headingBold, size: 40, relativeTo: .largeTitle))
+            .foregroundStyle(Palette.firText)
+            .fixedSize()
     }
 
     private func blockName(_ here: DayCard.Spot) -> some View {
@@ -187,7 +185,9 @@ struct DaySnippetCard: View {
             Image(systemName: "arrow.forward.circle.fill")
                 .foregroundStyle(Palette.fir)
                 .accessibilityHidden(true)
-            (Text("Row ").font(.body.weight(.semibold)) + Text(String(here.row)).font(.tcNumber.weight(.semibold)))
+            Text("Row \(here.row)")
+                .font(.body.weight(.semibold))
+                .monospacedDigit()
                 .foregroundStyle(Palette.ink)
             Text(here.block)
                 .font(.subheadline)
@@ -203,7 +203,8 @@ struct DaySnippetCard: View {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Text("next").font(.caption).foregroundStyle(Palette.muted)
                 Text(card.next.map { $0.block == here.block ? String($0.row) : "\($0.block), \($0.row)" }.joined(separator: ", "))
-                    .font(.tcNumberSmall)
+                    .font(.footnote.weight(.medium))
+                    .monospacedDigit()
                     .foregroundStyle(Palette.ink)
             }
             .fixedSize()
@@ -233,9 +234,9 @@ struct DaySnippetCard: View {
     }
 
     private func chip(_ spot: DayCard.Spot) -> some View {
-        let row = Text(spot.block == card.here?.block ? "Row " : "\(spot.block), row ").font(.footnote.weight(.semibold))
-            + Text(String(spot.row)).font(.tcNumberSmall.weight(.semibold))
-        return row
+        Text(spot.block == card.here?.block ? "Row \(spot.row)" : "\(spot.block), row \(spot.row)")
+            .font(.footnote.weight(.semibold))
+            .monospacedDigit()
             .foregroundStyle(Palette.firText)
             .padding(.horizontal, 10)
             .padding(.vertical, 5)
@@ -334,8 +335,8 @@ private struct StatView: View {
 }
 
 #Preview("Status cards") {
-    let card = DayCard(topic: .trees, phase: .working, fieldName: "North Field", workedToday: 6 * 3600 + 40 * 60,
-                       workedWeek: 31 * 3600 + 12 * 60, treesToday: 212, treesPerHour: 33.8, seasonTreesPerHour: 29.4,
+    let card = DayCard(topic: .trees, phase: .working, fieldName: "North Field", worked: 6 * 3600 + 40 * 60,
+                       workedWeek: 31 * 3600 + 12 * 60, trees: 212, treesPerHour: 33.8, seasonTreesPerHour: 29.4,
                        here: .init(block: "Block 2", row: 15), next: [.init(block: "Block 2", row: 16), .init(block: "Block 2", row: 17)],
                        fieldShaped: 1204, fieldTotal: 8540, pay: nil, payHidden: false)
     ScrollView {

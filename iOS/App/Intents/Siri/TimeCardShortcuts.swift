@@ -60,6 +60,10 @@ struct TimeCardShortcuts: AppShortcutsProvider {
                 "Go on \(\.$kind) with \(.applicationName)",
                 "Going to \(\.$kind) in \(.applicationName)",
                 "\(\.$kind) time in \(.applicationName)",
+                // A break unless lunch is said.
+                "Take a break with \(.applicationName)",
+                "Start a break in \(.applicationName)",
+                "Go on break with \(.applicationName)",
             ],
             shortTitle: "Take a Break",
             systemImageName: "cup.and.saucer")

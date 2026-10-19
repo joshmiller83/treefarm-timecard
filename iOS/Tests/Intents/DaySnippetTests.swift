@@ -12,8 +12,8 @@ import UIKit
 @Suite("Status card")
 struct DaySnippetTests {
     static let sample = DayCard(
-        topic: .trees, phase: .working, fieldName: "North Field", workedToday: 6 * 3600 + 40 * 60, workedWeek: 31 * 3600 + 12 * 60,
-        treesToday: 212, treesPerHour: 31.8, seasonTreesPerHour: 29.4, here: .init(block: "Block 2", row: 15),
+        topic: .trees, phase: .working, fieldName: "North Field", worked: 6 * 3600 + 40 * 60, workedWeek: 31 * 3600 + 12 * 60,
+        trees: 212, treesPerHour: 31.8, seasonTreesPerHour: 29.4, here: .init(block: "Block 2", row: 15),
         next: [.init(block: "Block 2", row: 16), .init(block: "Block 2", row: 17)], fieldShaped: 1204, fieldTotal: 8540,
         pay: nil, payHidden: false)
 
@@ -48,13 +48,33 @@ struct DaySnippetTests {
         let card = try #require(await voice.status(.trees).card)
         #expect(card.phase == .working)
         #expect(card.fieldName == "North Field")
-        #expect(card.treesToday == 12)
+        #expect(card.trees == 12)
+        #expect(card.span == .today)
         #expect(card.here == .init(block: "Block 1", row: 6))
         #expect(card.next == [.init(block: "Block 1", row: 7), .init(block: "Block 1", row: 8)])
         #expect(card.fieldShaped == 60)
         #expect(card.fieldTotal == 4 * 20 * 12)
         _ = await voice.takeBreak(.lunch, reason: nil, askReason: Speaker(nil).ask)
         #expect(await voice.status(.hours).card?.phase == .lunch)
+    }
+
+    /// Working past midnight: the card counts the open shift, as the Clock tab does,
+    /// instead of an empty "today".
+    @Test func pastMidnightTheCardCountsTheShift() async throws {
+        let model = await Demo.model()
+        let me = try #require(model.session.membership)
+        let farm = try #require(model.session.farm)
+        let cal = FarmCalendar(farm: farm)
+        let start = cal.addDays(cal.startOfDay(Date()), -1).addingTimeInterval(22 * 3600)
+        try model.save([.shift(Shift(userId: me.userId, farmId: farm.id, start: start, rateCents: me.rateCents))])
+        let voice = Demo.voice(model)
+        _ = await voice.nextRow()
+        let card = try #require(await voice.status(.trees).card)
+        #expect(card.span == .thisShift)
+        #expect(card.trees == 12)
+        #expect(abs(card.worked - Date().timeIntervalSince(start)) < 5)
+        let stats = SnippetStat.stats(for: card)
+        #expect(stats.map(\.label) == ["trees this shift", "trees an hour", "worked this shift"])
     }
 
     @Test(arguments: [StatusTopic.summary, .hours, .trees, .whereAmI, .pace, .pay])

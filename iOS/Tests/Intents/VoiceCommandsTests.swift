@@ -342,7 +342,10 @@ struct VoiceCommandsTests {
         let unlocked = await voice.status(.pay)
         #expect(unlocked.speech.hasPrefix("$"))
         let pay = try #require(unlocked.card?.pay)
-        #expect(pay.todayCents > 2900, "about an hour and a half at $20")
+        let open = try #require(Demo.openShift(model))
+        if Calendar.current.isDateInToday(open.start) {
+            #expect(pay.todayCents > 2900, "about an hour and a half at $20")
+        }
         // The card's numbers and what Siri said are the same.
         #expect(unlocked.speech == "\(Fmt.usd(cents: pay.todayCents)) today, \(Fmt.usd(cents: pay.weekCents)) this week.")
 

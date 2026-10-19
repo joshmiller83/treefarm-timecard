@@ -25,12 +25,21 @@ struct DayCard: Equatable, Sendable {
         var row: Int
     }
 
+    /// What "worked" and "trees" count: today, or the open shift when it began on an earlier
+    /// day (past midnight), as the Clock tab's "worked this shift".
+    enum Span: Equatable, Sendable {
+        case today, thisShift
+
+        var words: String { self == .today ? "today" : "this shift" }
+    }
+
     var topic: StatusTopic
     var phase: Phase
     var fieldName: String
-    var workedToday: TimeInterval
+    var span: Span = .today
+    var worked: TimeInterval
     var workedWeek: TimeInterval
-    var treesToday: Int
+    var trees: Int
     var treesPerHour: Double
     var seasonTreesPerHour: Double
     /// The row you're on, and the two after it.
@@ -65,7 +74,8 @@ struct DayCard: Equatable, Sendable {
         let count: (Shift) -> Int = { state.treeCount($0, index: index) }
         let today = shifts.filter { cal.isSameDay($0.start, now) }
         let hours = Hours.summary(shifts: shifts, now: now, calendar: cal)
-        let day = Pace.stats(today, now: now, treeCount: count)
+        let stale = state.openShift.flatMap { Hours.isStale($0, now: now, calendar: cal) ? $0 : nil }
+        let day = Pace.stats(stale.map { [$0] } ?? today, now: now, treeCount: count)
         let season = Pace.stats(shifts, now: now, treeCount: count)
 
         let phase: Phase = switch state.openShift.map({ $0.openBreak?.kind }) {
@@ -96,9 +106,10 @@ struct DayCard: Equatable, Sendable {
             topic: topic,
             phase: phase,
             fieldName: state.currentField?.name ?? "",
-            workedToday: hours.today,
+            span: stale == nil ? .today : .thisShift,
+            worked: Hours.bigClock(shifts: shifts, now: now, calendar: cal),
             workedWeek: hours.week,
-            treesToday: day.trees,
+            trees: day.trees,
             treesPerHour: day.treesPerHour,
             seasonTreesPerHour: season.treesPerHour,
             here: spots.first,

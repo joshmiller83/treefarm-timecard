@@ -48,6 +48,7 @@
 		A327B4C2DF3C355FFA9FA1F6 /* TimeCardApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1620ADB0A89E887DA3CBB17E /* TimeCardApp.swift */; };
 		A52443D525B164CED3CE9F97 /* TimeCardActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24D0A0F8E20930ACEF5AD5CB /* TimeCardActivityAttributes.swift */; };
 		A557B44473F43053CBA86614 /* TreesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB142D28E01DD5D7B047B8BA /* TreesView.swift */; };
+		AFD51769D4A8F4A7C1BACF0E /* ShortcutsUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92E2CEA81441D10E9ACFA2FB /* ShortcutsUITests.swift */; };
 		B36F932D59108B2F4C40620E /* Appearance.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5935F4ACB9CB99F78AD24707 /* Appearance.swift */; };
 		B3A31CF1F267626DAE69CD97 /* SignInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB37F784FF57349039E30269 /* SignInView.swift */; };
 		B5541E598750BA078CC799CD /* VoiceCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4BC9B762AD9A1EA2EA656E33 /* VoiceCatalog.swift */; };
@@ -148,6 +149,7 @@
 		8C42AEC580754A7C4570AB15 /* TimeCard.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = TimeCard.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		904D9F76E48F461975CF2B70 /* IntentSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntentSupport.swift; sourceTree = "<group>"; };
 		91519E30548CFC57A34F19EE /* IntentRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntentRunner.swift; sourceTree = "<group>"; };
+		92E2CEA81441D10E9ACFA2FB /* ShortcutsUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutsUITests.swift; sourceTree = "<group>"; };
 		97313E8FA51B7FD0FC1071AA /* TimeCardShortcuts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimeCardShortcuts.swift; sourceTree = "<group>"; };
 		97460A95F1CA9E6D45762BFE /* LiveActivityButtons.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityButtons.swift; sourceTree = "<group>"; };
 		98BD916919AFEA594B96FDBB /* JoinView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JoinView.swift; sourceTree = "<group>"; };
@@ -329,6 +331,7 @@
 			isa = PBXGroup;
 			children = (
 				7C111B64C0C07020B9DCCDD2 /* TimeCardUITests.swift */,
+				C280E5962FB60731D2B95AE1 /* Intents */,
 			);
 			path = UITests;
 			sourceTree = "<group>";
@@ -471,6 +474,14 @@
 				4533B607361861A2BBFEC580 /* Fonts */,
 			);
 			path = Resources;
+			sourceTree = "<group>";
+		};
+		C280E5962FB60731D2B95AE1 /* Intents */ = {
+			isa = PBXGroup;
+			children = (
+				92E2CEA81441D10E9ACFA2FB /* ShortcutsUITests.swift */,
+			);
+			path = Intents;
 			sourceTree = "<group>";
 		};
 		C59E7288246A6001B81585D0 /* LiveActivity */ = {
@@ -665,6 +676,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				AFD51769D4A8F4A7C1BACF0E /* ShortcutsUITests.swift in Sources */,
 				210A451BC06E8FF049CC8269 /* TimeCardUITests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
