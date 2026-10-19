@@ -58,6 +58,14 @@ struct HealthTests {
         }
     }
 
+    @Test func onlyServingSchedulesBackups() {
+        #expect(AppConfig.isServeCommand(["Run"]))
+        #expect(AppConfig.isServeCommand(["Run", "serve", "--port", "9000"]))
+        #expect(!AppConfig.isServeCommand(["Run", "--help"]))
+        #expect(!AppConfig.isServeCommand(["Run", "bootstrap", "--email", "x"]))
+        #expect(!AppConfig.isServeCommand(["Run", "backup"]))
+    }
+
     @Test func configReadsTheEnvironment() {
         let config = AppConfig.fromEnvironment([
             "TIMECARD_HOST": "0.0.0.0",

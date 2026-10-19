@@ -44,6 +44,12 @@ public struct AppConfig: Sendable {
         return c
     }
 
+    /// True for `Run` and `Run serve ...`: only a serving process schedules backups.
+    public static func isServeCommand(_ arguments: [String]) -> Bool {
+        guard let command = arguments.dropFirst().first else { return true }
+        return command == "serve"
+    }
+
     /// In-memory database, the lowest bcrypt cost and an injectable clock.
     public static func testing(now: @escaping @Sendable () -> Date) -> AppConfig {
         var c = AppConfig()

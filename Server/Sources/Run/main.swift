@@ -11,8 +11,7 @@ let eventLoopGroup = MultiThreadedEventLoopGroup(numberOfThreads: 1)
 let app = try await Application.make(env, .shared(eventLoopGroup))
 
 var config = AppConfig.fromEnvironment(ProcessInfo.processInfo.environment)
-let command = env.arguments.dropFirst().first
-config.scheduleBackups = command == nil || command == "serve" || command?.hasPrefix("-") == true
+config.scheduleBackups = AppConfig.isServeCommand(env.arguments)
 
 do {
     try await configure(app, config: config)
