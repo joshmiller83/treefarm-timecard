@@ -7,10 +7,10 @@
  *   'Trees' · [North field ▾] [All XS S M L] · optional sync line · [One|Fill|Erase] [Undo]
  *   the map: pinned block header, row numbers in a 26 pt gutter, striped block, dots
  *   bottom accessory: legend chips · floating tab bar
- *   overlays: conflict banner, TreeNoteSheet
+ *   overlays: conflict banner (a toast just above the legend), TreeNoteSheet
  *
  * Gold = this person's current shift, green = shaped earlier by anyone (crew included),
- * ring = not yet (decisions.md #4). States come from treeStatus() in src/scripts/fieldmap.ts.
+ * ring = not yet (decisions.md #4). States come from treeStatus() in src/scripts/fieldstate.ts.
  *
  * Hooks: [data-map] (root of the map; data-at/-who/-zoom/-mode/-block), [data-map-row="37"],
  * [data-block-row="2-37"], [data-tree="2-37-4"] (fills: --e green, --g gold, see
@@ -23,7 +23,7 @@ import AppChrome from './AppChrome.astro';
 import Icon from './Icon.astro';
 import TreeNoteSheet from './TreeNoteSheet.astro';
 import { FIELD, MOMENTS, fmtClock, positionAt, type TreeNote } from '../../data/ledger';
-import { notesAt, treeStatus } from '../../scripts/fieldmap';
+import { notesAt, treeStatus } from '../../scripts/fieldstate';
 import { odometerHTML } from '../../scripts/odometer';
 import { APP_ZOOM, appOverviewSVG, appTreeMarkup, nextId } from './trees/markup';
 
@@ -31,6 +31,11 @@ export interface Props {
   /** Ledger minute for which trees are gold. Default MOMENTS.field. */
   at?: number;
   block: number;
+  /**
+   * The rows this screen is about. The map always runs to the bottom of the screen; when
+   * [from, to] fits in the band between the controls and the legend it is centred there,
+   * otherwise `from` is the first row shown. An open sheet overrides both (its row stays above it).
+   */
   rows: [from: number, to: number];
   zoom?: 'All' | 'XS' | 'S' | 'M' | 'L';
   mode?: 'one' | 'fill' | 'erase';
@@ -42,6 +47,12 @@ export interface Props {
   notes?: TreeNote[];
   /** 'Offline · 2 changes waiting' | 'Synced' */
   syncLine?: string | null;
+  /**
+   * Reserve the sync line's 38 pt row even when there is no line (an empty, hidden
+   * [data-sync-line]), so states with and without one share the same map geometry and a
+   * scene can slide the line in. Default: true when there is a sync line.
+   */
+  syncSlot?: boolean;
   /** CONFLICT_MESSAGE */
   banner?: string | null;
   noService?: boolean;
@@ -59,6 +70,7 @@ const {
   pending = [],
   notes,
   syncLine = null,
+  syncSlot = !!syncLine,
   banner = null,
   noService = false,
   sheet = null,
@@ -69,19 +81,29 @@ const markers = notes ?? notesAt(at);
 const pos = who === 'Alex' ? positionAt(at) : null;
 const currentRow = pos && pos.block === block ? pos.row : null;
 
-// With a sheet open (it covers the lower half), scroll so the note's row is the third one shown.
-let first = rows[0];
-if (sheet && sheet.block === block && zoom !== 'All' && (sheet.row < first || sheet.row > first + 2)) first = Math.max(1, sheet.row - 2);
-
 const offline = syncLine?.match(/^Offline · (\d+) change(s?) waiting$/) ?? null;
 const synced = syncLine === 'Synced';
 
 // The map runs from under the controls to the bottom of the screen (under the tab bar).
-const mapTop = syncLine ? 282 : 244;
+const slot = syncSlot || !!syncLine;
+const mapTop = slot ? 282 : 244;
 const mapHeight = 852 - mapTop + 8;
+/** Top of the legend accessory (bottom 100 pt, 38 pt tall): rows above it are in clear view. */
+const LEGEND_TOP = 852 - 100 - 38;
 
 const uid = nextId('tt');
 const z = zoom === 'All' ? null : APP_ZOOM[zoom];
+
+// Which row the map starts at: [from, to] centred in the clear band when it fits, else `from`.
+let first = rows[0];
+if (z) {
+  const fit = Math.floor((LEGEND_TOP - mapTop - 40) / z.ch);
+  const span = rows[1] - rows[0] + 1;
+  if (span <= fit) first = rows[0] - Math.floor((fit - span) / 2);
+  first = Math.max(1, Math.min(first, FIELD.rowsPerBlock - fit + 1, rows[0]));
+}
+// With a sheet open (it covers the lower half), scroll so the note's row is the third one shown.
+if (sheet && sheet.block === block && zoom !== 'All' && (sheet.row < first || sheet.row > first + 2)) first = Math.max(1, sheet.row - 2);
 const mapHTML =
   zoom === 'All'
     ? appOverviewSVG({ status, notes: markers, target: block, id: uid })
@@ -121,6 +143,9 @@ const modeIndex = MODES.findIndex((m) => m.id === mode);
         }
       </span>
     </div>
+    {
+      !syncLine && slot && <div class="tt-sync tt-sync--slot" data-sync-line data-sync="none" aria-hidden="true" />
+    }
     {
       syncLine && (
         <div
@@ -299,6 +324,11 @@ const modeIndex = MODES.findIndex((m) => m.id === mode);
     background: #d9eadd;
     color: var(--fir);
   }
+  /* An empty slot keeps the map where it is when the line is not there yet. */
+  .tt-sync--slot {
+    visibility: hidden;
+    width: calc(120 * var(--pt));
+  }
   .tt-sync :global(.odo) {
     font-family: var(--font-mono);
     font-weight: 600;
@@ -428,13 +458,14 @@ const modeIndex = MODES.findIndex((m) => m.id === mode);
     outline: calc(2.5 * var(--pt)) solid var(--fir);
     outline-offset: calc(3 * var(--pt));
   }
-  /* Note marker: a rust badge with a white flag on the tree's upper right. */
+  /* Note marker: a rust badge with a white flag on the tree's upper right, kept (at least 60%)
+     inside its own row's band so it is clear which row has the note; never taller than a row. */
   .tt-map :global(.tm-note) {
     position: absolute;
     z-index: 1;
-    --b: max(calc(10 * var(--pt)), calc(var(--dot) * 1.02));
-    left: calc(var(--gut) + var(--ins) + (var(--t) + 0.5) * var(--cw) + var(--dot) * 0.5 - var(--b) * 0.5);
-    top: calc(50% - var(--dot) * 0.5 - var(--b) * 0.5);
+    --b: min(var(--ch), max(calc(10 * var(--pt)), calc(var(--dot) * 1.02)));
+    left: calc(var(--gut) + var(--ins) + (var(--t) + 0.5) * var(--cw) + var(--dot) * 0.35 - var(--b) * 0.5);
+    top: calc(50% - var(--dot) * 0.5 - var(--b) * 0.2);
     width: var(--b);
     height: var(--b);
     display: grid;
@@ -531,14 +562,15 @@ const modeIndex = MODES.findIndex((m) => m.id === mode);
   }
 
   /* ---------- Bottom: scroll-edge fade, legend accessory ---------- */
+  /* Like iOS 26's scroll-edge effect: only behind the bottom bars, starting just above the legend. */
   .tt-fade {
     position: absolute;
     left: 0;
     right: 0;
     bottom: 0;
     z-index: 3;
-    height: calc(230 * var(--pt));
-    background: linear-gradient(rgba(250, 252, 249, 0), rgba(250, 252, 249, 0.86) 40%, rgba(250, 252, 249, 0.97) 62%);
+    height: calc(150 * var(--pt));
+    background: linear-gradient(rgba(250, 252, 249, 0), rgba(250, 252, 249, 0.9) 55%, rgba(250, 252, 249, 0.97));
     pointer-events: none;
   }
   .tt-legend {
@@ -593,13 +625,15 @@ const modeIndex = MODES.findIndex((m) => m.id === mode);
     color: #fff;
   }
 
-  /* ---------- Conflict banner (ink, a 4 pt rust rule, white 15 pt) ---------- */
+  /* ---------- Conflict banner (ink, a 4 pt rust rule, white 15 pt) ----------
+     An in-app toast just above the legend accessory, clear of the nav bar and the title; a scene
+     slides it up from below (yPercent). */
   .tt-banner {
     position: absolute;
     z-index: 6;
-    top: calc(58 * var(--pt));
-    left: calc(12 * var(--pt));
-    right: calc(12 * var(--pt));
+    bottom: calc(146 * var(--pt));
+    left: calc(16 * var(--pt));
+    right: calc(16 * var(--pt));
     overflow: hidden;
     padding: calc(15 * var(--pt)) calc(18 * var(--pt)) calc(15 * var(--pt)) calc(30 * var(--pt));
     border-radius: calc(20 * var(--pt));

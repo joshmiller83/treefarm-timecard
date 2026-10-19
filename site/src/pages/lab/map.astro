@@ -9,7 +9,7 @@ import Screen from '../../components/phone/Screen.astro';
 import TreesTab from '../../components/app/TreesTab.astro';
 import FieldMap from '../../components/FieldMap.astro';
 import { CONFLICT_MESSAGE, MOMENTS, OLD_NOTE, TREE_NOTE, fmtTime } from '../../data/ledger';
-import { BEATS } from '../../scripts/fieldmap';
+import { BEATS } from '../../scripts/fieldstate';
 
 /** The phone's screen is 393 CSS px wide (real size) when the viewport allows. */
 const REAL = 'min(910px, calc((100vw - 32px) * 852 / 393))';
@@ -36,9 +36,9 @@ const states: Array<{ id: string; caption: string; label: string; props: Tab }> 
   },
   {
     id: 'trees-1447-block3',
-    caption: `crew · ${fmtTime(MOMENTS.crew)} · block 3 rows 6–16 · online`,
+    caption: `crew · ${fmtTime(MOMENTS.crew)} · block 3 rows 6–16 · online (sync slot kept)`,
     label: 'Trees tab on block 3: rows 1 to 10 green.',
-    props: { at: MOMENTS.crew, block: 3, rows: [6, 16] },
+    props: { at: MOMENTS.crew, block: 3, rows: [6, 16], syncSlot: true },
   },
   {
     id: 'trees-1456-offline',
@@ -69,12 +69,14 @@ const zooms: Array<{ zoom: Tab['zoom']; rows: [number, number] }> = [
 const modes: Array<Tab['mode']> = ['fill', 'erase'];
 
 const frames = [
-  { p: 0.2, what: 'tilted in · rows 14–36 still rings' },
+  { p: 0.2, what: 'overview · rows 14–36 still rings' },
   { p: 0.41, what: 'rows flipping to gold, one a beat' },
-  { p: 0.6, what: 'zoomed · row 37 touched' },
+  { p: 0.55, what: 'zooming in, the field turning upright' },
+  { p: 0.6, what: 'close-up · row 37 touched' },
   { p: 0.65, what: 'row 37 filled (then undone)' },
   { p: 0.8, what: 'next season: rings, the note stays' },
-  { p: 0.94, what: 'fills back, zooming out' },
+  { p: 0.905, what: 'fills coming back as the camera pulls out' },
+  { p: 0.94, what: 'zooming out, turning back' },
 ];
 ---
 
