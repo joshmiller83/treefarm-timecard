@@ -35,6 +35,7 @@ struct ProfileCard: View {
                     .focused($field, equals: .name)
                     .submitLabel(.next)
                     .onSubmit { field = .job }
+                    .accessibilityLabel("Your name")
                     .accessibilityIdentifier("profile-name")
             }
             labeled("Job") {
@@ -44,6 +45,7 @@ struct ProfileCard: View {
                     .focused($field, equals: .job)
                     .submitLabel(.next)
                     .onSubmit { field = .rate }
+                    .accessibilityLabel("Job")
                     .accessibilityIdentifier("profile-job")
             }
             labeled("Hourly pay") {
@@ -56,11 +58,15 @@ struct ProfileCard: View {
                         .font(.tcNumber)
                         .keyboardType(.decimalPad)
                         .focused($field, equals: .rate)
+                        // The whole 54 pt box takes the tap, not just the line of text.
+                        .frame(maxWidth: .infinity, minHeight: GloveButtonStyle.minHeight)
                         .accessibilityLabel("Hourly pay in dollars")
                         .accessibilityIdentifier("profile-rate")
                 }
                 .padding(.horizontal, 14)
                 .frame(minHeight: GloveButtonStyle.minHeight)
+                .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .onTapGesture { field = .rate }
                 .background(Palette.surface, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                 .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Palette.line, lineWidth: 1))
             }
