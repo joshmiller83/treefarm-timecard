@@ -16,7 +16,6 @@ enum VoiceText {
     // Questions. The same words are in each parameter's `requestValueDialog`.
     static let whichRow = "Which row?"
     static let whichBlock = "Which block?"
-    static let whichField = "Which field?"
     static let whichTree = "Which tree?"
     static let firstTree = "First tree?"
     static let lastTree = "Last tree?"
@@ -24,5 +23,4 @@ enum VoiceText {
     static let whatsTheBreakFor = "What’s the break for?"
     static let anyFlag = "Any flag? Needs attention, dead, replant, or none."
     static let whatTime = "What time did you start?"
-    static let whatToDo = "Add a note, note a tree, mark trees, or fix your start time?"
 }
