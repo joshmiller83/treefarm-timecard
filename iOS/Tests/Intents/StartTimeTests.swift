@@ -44,3 +44,14 @@ struct StartTimeTests {
         #expect(StartTime.resolve(spoken, now: at(18, 9, 0), phoneCalendar: phone, farm: farm) == at(18, 7, 30))
     }
 }
+
+@Suite("Voice log")
+struct VoiceLogTests {
+    /// The log names the command and never what was said.
+    @Test func commandNamesLeaveOutWhatWasSaid() {
+        #expect(VoiceCommands.name(of: .undo) == "undo")
+        #expect(VoiceCommands.name(of: .addShiftNote("Fuel low")) == "addShiftNote")
+        #expect(VoiceCommands.name(of: .markRow(RowRef(blockId: UUID(), row: 3))) == "markRow")
+        #expect(VoiceCommands.name(of: .startBreak(.lunch, reason: "doctor")) == "startBreak")
+    }
+}

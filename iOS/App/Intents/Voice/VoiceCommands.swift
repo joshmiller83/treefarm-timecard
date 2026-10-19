@@ -1,4 +1,5 @@
 import Foundation
+import os
 import TimeCardCore
 
 /// What Siri says back, and the card it shows for status questions.
@@ -220,7 +221,15 @@ struct VoiceCommands {
         if let blocked = await blocker() { return .failed(blocked) }
         let reply = actions.perform(command)
         if reply.succeeded { onChange() }
+        Self.log.info("\(Self.name(of: command), privacy: .public): \(reply.succeeded ? "done" : "refused", privacy: .public)")
         return VoiceReply(reply)
+    }
+
+    nonisolated static let log = Logger(subsystem: Bundle.main.bundleIdentifier ?? "timecard", category: "voice")
+
+    /// The command's name for the log, without what was said ("addShiftNote", "markRow").
+    nonisolated static func name(of command: FieldCommand) -> String {
+        Mirror(reflecting: command).children.first?.label ?? String(describing: command)
     }
 
     /// What the command would fail with right now, by TreeFarmKit's rules, saving nothing.

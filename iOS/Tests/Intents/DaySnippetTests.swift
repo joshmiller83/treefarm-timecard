@@ -32,6 +32,12 @@ struct DaySnippetTests {
         #expect(pace.map(\.value) == ["32", "29", "212"])
     }
 
+    @Test func theLargestTextKeepsToWhatWasAsked() {
+        #expect(SnippetStat.essentials(for: Self.sample).map(\.value) == ["212"])
+        #expect(SnippetStat.essentials(for: Self.sample.with(topic: .summary)).map(\.label) == ["worked today", "trees today"])
+        #expect(SnippetStat.essentials(for: Self.sample.with(topic: .whereAmI)).isEmpty)
+    }
+
     @Test func payShowsOnlyWhenItMay() {
         var card = Self.sample.with(topic: .pay)
         #expect(SnippetStat.stats(for: card).isEmpty)
@@ -85,7 +91,8 @@ struct DaySnippetTests {
         for (name, scheme, size) in looks {
             let image = try #require(render(card, scheme: scheme, size: size), "\(topic) \(name)")
             #expect(image.size.width == 370)
-            #expect(image.size.height > 100 && image.size.height < (size.isAccessibilitySize ? 900 : 330), "\(topic) \(name): \(image.size.height)")
+            // Siri shows about 340 points of card before it cuts it off.
+            #expect(image.size.height > 100 && image.size.height < 340, "\(topic) \(name): \(image.size.height)")
             save(image, "\(topic.rawValue)-\(name)")
         }
         if topic == .pay {

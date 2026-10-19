@@ -30,6 +30,7 @@ enum IntentRunner {
         if let blocked = await voice.blocker() { return FieldReply(speech: blocked, succeeded: false) }
         let reply = voice.actions.perform(command)
         if reply.succeeded { voice.onChange() }
+        VoiceCommands.log.info("button \(VoiceCommands.name(of: command), privacy: .public): \(reply.succeeded ? "done" : "refused", privacy: .public)")
         return reply
     }
 

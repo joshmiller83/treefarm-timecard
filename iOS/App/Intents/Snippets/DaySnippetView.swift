@@ -24,6 +24,16 @@ struct SnippetStat: Equatable, Identifiable {
 
     var id: String { label }
 
+    /// At the largest text sizes Siri has room for only the numbers that were asked about.
+    static func essentials(for card: DayCard) -> [SnippetStat] {
+        let all = stats(for: card)
+        switch card.topic {
+        case .summary: return Array(all.prefix(2))
+        case .whereAmI: return []
+        default: return all.filter(\.focus)
+        }
+    }
+
     /// The three numbers for a topic, the asked-about one first.
     static func stats(for card: DayCard) -> [SnippetStat] {
         let span = card.span.words
@@ -57,20 +67,25 @@ struct SnippetStat: Equatable, Identifiable {
 
 struct DaySnippetCard: View {
     let card: DayCard
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    /// Siri gives a card only so much height, so at the largest text sizes it keeps to
+    /// what was asked: the status, then the asked-about numbers or where you are.
+    private var roomy: Bool { !typeSize.isAccessibilitySize }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: roomy ? 14 : 10) {
             header
             if card.topic == .whereAmI {
                 whereBlock
-                StatRow(stats: SnippetStat.stats(for: card), compact: true)
+                if roomy { StatRow(stats: SnippetStat.stats(for: card), compact: true) }
             } else if card.topic == .pay && card.pay == nil {
                 payHidden
             } else {
-                StatRow(stats: SnippetStat.stats(for: card), compact: false)
+                StatRow(stats: roomy ? SnippetStat.stats(for: card) : SnippetStat.essentials(for: card), compact: false)
                 if card.topic != .pay { rowLine }
             }
-            if card.fieldTotal > 0 && card.topic != .pay { progress }
+            if roomy && card.fieldTotal > 0 && card.topic != .pay { progress }
         }
         .padding(.horizontal, 18)
         .padding(.vertical, 16)
@@ -88,7 +103,7 @@ struct DaySnippetCard: View {
             }
             VStack(alignment: .leading, spacing: 8) {
                 pill
-                fieldTitle
+                if roomy { fieldTitle }
             }
         }
     }
