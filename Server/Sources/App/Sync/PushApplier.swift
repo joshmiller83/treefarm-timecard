@@ -31,7 +31,18 @@ struct PushApplier {
     var store: RecordStore { RecordStore(db: db) }
     var isAdmin: Bool { caller.role == .admin }
 
+    /// Every rejection carries the server's copy of the record when there is one the
+    /// caller may see (redacted as a pull would be), so the device can take it.
     func apply(_ record: SyncRecord) async throws -> Outcome {
+        let outcome = try await applyRecord(record)
+        guard case .rejected(let reason, let message, nil) = outcome,
+              let stored = try await store.find(record.kind, record.entityId, farm: farmId),
+              Visibility.canSee(stored.record, caller: caller)
+        else { return outcome }
+        return .rejected(reason, message, Visibility.redact(stored.record, for: caller))
+    }
+
+    private func applyRecord(_ record: SyncRecord) async throws -> Outcome {
         guard let farm = try await store.farm(farmId) else {
             return .rejected(.notFound, "That farm doesn’t exist.")
         }
