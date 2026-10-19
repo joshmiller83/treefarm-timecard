@@ -198,7 +198,7 @@ struct TreesView: View {
         let zoom = app.mode == .live ? MapZoom(rawValue: UserDefaults.standard.string(forKey: zoomKey) ?? "") ?? .l
                                      : TreesDemoSeed.zoom() ?? .m
         let model = TreeMapModel(save: { try app.session.save($0) },
-                                 perform: { app.actions.perform($0) },
+                                 perform: { app.performInApp($0) },
                                  canUndoElsewhere: { app.actions.canUndo },
                                  zoom: zoom)
         model.onTreesChanged = { app.actions.publishLiveSnapshot() }

@@ -4,8 +4,9 @@ import TimeCardCore
 /// The Clock tab: the big status card, where you're working with the lock screen's row
 /// buttons, trees this shift, pace, shift notes, and hours and pay. Settings opens from the gear.
 ///
-/// Every clock and row button runs through `AppModel.actions` (FieldActions), the same path
-/// Siri and the Live Activity take, and shows what Siri would have said as a toast.
+/// Every clock and row button runs through `AppModel.actions` (FieldActions, by way of
+/// `performInApp`, which also teaches Siri), the same path Siri and the Live Activity take,
+/// and shows what Siri would have said as a toast.
 struct ClockView: View {
     @Environment(AppModel.self) private var model
     @Environment(TimeCardSession.self) private var session
@@ -267,7 +268,7 @@ struct ClockView: View {
     private func run(_ command: FieldCommand, toastFailures: Bool = true) -> FieldReply {
         notes.flush()
         confirmingOut = false
-        let reply = withAnimation(.easeInOut(duration: 0.25)) { model.actions.perform(command) }
+        let reply = withAnimation(.easeInOut(duration: 0.25)) { model.performInApp(command) }
         refresh += 1
         if reply.succeeded || toastFailures {
             withAnimation(.spring(duration: 0.3)) { toast = ClockToast(text: reply.speech, succeeded: reply.succeeded) }

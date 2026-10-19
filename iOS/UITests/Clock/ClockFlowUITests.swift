@@ -259,6 +259,8 @@ final class ClockFlowUITests: XCTestCase {
     }
 
     /// Advanced shows the server in use and offers no switch the app wouldn't make.
+    /// Advanced shows the server in use, and a new address waits for the next launch, where
+    /// the app signs out of the old server first.
     func testAdvancedShowsTheServerInUse() {
         let app = launch(["-UITestOpen", "settings", "-UITestScrollTo", "advanced"])
         let advanced = app.buttons["advanced-toggle"]
@@ -266,8 +268,21 @@ final class ClockFlowUITests: XCTestCase {
         for _ in 0..<6 where !advanced.isHittable { app.swipeUp() }
         advanced.tap()
         XCTAssertTrue(element("server-in-use", in: app).waitForExistence(timeout: 5))
-        XCTAssertFalse(app.textFields["server-url"].exists)
+        let field = app.textFields["server-url"]
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        for _ in 0..<4 where !field.isHittable { app.swipeUp() }
+        field.tap()
+        field.typeText("tc.example.com")
+        app.buttons["server-save"].tap()
+        let notice = element("server-switch-notice", in: app)
+        XCTAssertTrue(notice.waitForExistence(timeout: 5))
+        XCTAssertTrue(notice.label.contains("tc.example.com"), notice.label)
         shot(app, "Settings: advanced")
+        // Back to the standard server, so later launches start clean.
+        let standard = app.buttons["Use the standard server"]
+        for _ in 0..<4 where !standard.isHittable { app.swipeUp() }
+        standard.tap()
+        XCTAssertFalse(notice.waitForExistence(timeout: 2))
     }
 
     func testPastShiftsOpensTheLog() throws {

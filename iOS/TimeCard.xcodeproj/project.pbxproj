@@ -75,7 +75,6 @@
 		66D8154FA1A61F124D958732 /* FieldEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B14AC507F05B6862E8A7B44C /* FieldEditorView.swift */; };
 		6A265E8C34294AE0BF363700 /* MemberDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 54FF44A725331B73B1F493BC /* MemberDetailView.swift */; };
 		6D2BFA8559FA4120E85FBFD9 /* BlockEditorSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78A90D01A6F75D6B04851CA5 /* BlockEditorSheet.swift */; };
-		6D9D98F9095F3172A1030E61 /* PlaceholderScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 234058F6C063B04E8BE8BA61 /* PlaceholderScreen.swift */; };
 		6E021FFA63E1736E7099AF2B /* DesignTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC14C784BB8F321617C3E862 /* DesignTests.swift */; };
 		6EF90B4E86E9BD5BD693DBB2 /* LiveActivityViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95CD0060D5CE617E29FF42B8 /* LiveActivityViews.swift */; };
 		7065716ED4BFDC638A3D82E7 /* ClockStyles.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2D5BD8F2781DF7FC276319C /* ClockStyles.swift */; };
@@ -232,7 +231,6 @@
 		1E346D5AD0B402D132B5AD3B /* MemberEditSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemberEditSheet.swift; sourceTree = "<group>"; };
 		20FB6B3A248F1A020FE728B8 /* Base.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Base.xcconfig; sourceTree = "<group>"; };
 		2328766C739E85CA22130473 /* CrewRoster.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CrewRoster.swift; sourceTree = "<group>"; };
-		234058F6C063B04E8BE8BA61 /* PlaceholderScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaceholderScreen.swift; sourceTree = "<group>"; };
 		24D0A0F8E20930ACEF5AD5CB /* TimeCardActivityAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimeCardActivityAttributes.swift; sourceTree = "<group>"; };
 		265B9098E1A69BDACEBA441D /* LiveActivityController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityController.swift; sourceTree = "<group>"; };
 		268D96072E557AB5DA77E1FA /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
@@ -444,7 +442,6 @@
 			isa = PBXGroup;
 			children = (
 				87281864A7B6C79D025F7336 /* MainTabView.swift */,
-				234058F6C063B04E8BE8BA61 /* PlaceholderScreen.swift */,
 				9FB3543BFD49BF47889FBEFD /* RootView.swift */,
 				B8B900F3F38EF89350C35174 /* Clock */,
 				402A70B1184F9C8B793C17D8 /* Log */,
@@ -1197,7 +1194,6 @@
 				7CA05566481CF06C0E9F30E1 /* Palette.swift in Sources */,
 				C4E80B0FB4CCCA4786D2F2D0 /* PaperCardView.swift in Sources */,
 				B0E0EF4804907D35BC00E872 /* PaperTimeCard.swift in Sources */,
-				6D9D98F9095F3172A1030E61 /* PlaceholderScreen.swift in Sources */,
 				E2F0087D56FC1F75ED8F6864 /* ReportCSV.swift in Sources */,
 				017D2D4BC39CB0DA6FCCE053 /* ReportContent.swift in Sources */,
 				A657019F230B5308E216014F /* ReportExport.swift in Sources */,

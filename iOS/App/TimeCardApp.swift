@@ -16,7 +16,11 @@ struct TimeCardApp: App {
                 .environment(model)
                 .environment(model.session)
                 .tint(Palette.fir)
-                .task { await model.start() }
+                .task {
+                    await model.start()
+                    // Siri learns the rows, blocks and fields by name, and follows the farm from here on.
+                    SiriSuggestions.shared.follow(model)
+                }
         }
         .onChange(of: scenePhase) { _, phase in
             switch phase {

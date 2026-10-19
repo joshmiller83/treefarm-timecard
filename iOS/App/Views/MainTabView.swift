@@ -41,6 +41,8 @@ struct MainTabView: View {
         .safeAreaInset(edge: .top, spacing: 0) {
             Banners()
         }
+        // Buttons like the Clock tab's "Past shifts" and "Open the map" switch tabs.
+        .environment(\.openTab, OpenTabAction { [tab = $tab] in tab.wrappedValue = $0 })
     }
 }
 

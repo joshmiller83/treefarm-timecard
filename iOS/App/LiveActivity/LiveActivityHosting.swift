@@ -57,7 +57,8 @@ final class ActivityKitHost: LiveActivityHosting {
             case .stale: .stale
             case .ended: .ended
             case .dismissed: .dismissed
-            @unknown default: .dismissed
+            // Pending (iOS 26: scheduled for later) and anything newer: not a card on screen.
+            default: .dismissed
             }
             return LiveActivityRecord(id: activity.id, attributes: activity.attributes, state: state)
         }

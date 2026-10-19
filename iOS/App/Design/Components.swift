@@ -13,7 +13,7 @@ struct GloveButtonStyle: ButtonStyle {
         case destructive
     }
 
-    static let minHeight: CGFloat = 54
+    nonisolated static let minHeight: CGFloat = 54
 
     var kind: Kind = .primary
     @Environment(\.isEnabled) private var isEnabled

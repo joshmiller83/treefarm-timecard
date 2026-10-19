@@ -92,10 +92,10 @@ enum ServerAddress {
     /// Which server issued the sign-in this phone holds.
     static let signedInServerKey = "server.signedInWith"
 
-    /// Whether Settings offers to change the server. Off until `AppEnvironment.serverURL`
-    /// reads `resolve()` and signs out on a change of server (see `mustSignOut`), so the
-    /// card never promises a switch that doesn't happen.
-    static let isEditable = false
+    /// Whether Settings offers to change the server. `AppEnvironment` reads `resolve()` at
+    /// launch and signs out of the old server first (`AppEnvironment.adoptServer`), so the
+    /// switch the card promises happens the next time Time Card opens.
+    static let isEditable = true
 
     /// The server this launch uses: `TIMECARD_SERVER_URL` from the scheme (development), then
     /// the address saved here, then the standard server.

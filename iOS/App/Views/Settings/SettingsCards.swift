@@ -314,12 +314,13 @@ struct LockScreenCard: View {
 
 /// Which server to use. Most people never open this.
 struct AdvancedCard: View {
+    @Environment(TimeCardSession.self) private var session
     @State private var open = false
     @State private var text = ServerAddress.saved()?.absoluteString ?? ""
     @State private var saved = ServerAddress.saved()
     @State private var problem: String?
 
-    private var inUse: URL { AppEnvironment.serverURL }
+    private var inUse: URL { AppEnvironment.serverInUse }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -372,13 +373,16 @@ struct AdvancedCard: View {
                     .font(.footnote.monospaced())
                     .foregroundStyle(Palette.muted)
                     .accessibilityIdentifier("server-in-use")
-                if let saved, saved != inUse {
-                    Text("Time Card switches to \(saved.host() ?? saved.absoluteString) the next time it opens. You’ll sign in there.")
+                // What's saved (`saved` redraws this card) decides the next launch's server.
+                let next = AppEnvironment.serverURL
+                if next != inUse {
+                    Text(switchNotice(to: next))
                         .font(.footnote)
                         .foregroundStyle(Palette.sapInk)
                         .padding(10)
                         .background(Palette.sapSoft, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
                         .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("server-switch-notice")
                 }
                 if let problem { ErrorMessage(text: problem) }
                 HStack(spacing: 10) {
@@ -401,6 +405,17 @@ struct AdvancedCard: View {
             }
         }
         .card()
+    }
+
+    /// Switching signs out of the server in use, and changes still waiting to sync stay behind.
+    private func switchNotice(to server: URL) -> String {
+        var notice = "Time Card switches to \(server.host() ?? server.absoluteString) the next time it opens. You’ll sign in there."
+        let pending = session.syncStatus.pendingCount
+        if pending > 0 {
+            notice += " " + (pending == 1 ? "1 change hasn’t" : "\(pending) changes haven’t")
+                + " reached \(inUse.host() ?? inUse.absoluteString) yet. Let \(pending == 1 ? "it" : "them") sync before you close Time Card, or \(pending == 1 ? "it’s" : "they’re") left behind."
+        }
+        return notice
     }
 
     private func save() {

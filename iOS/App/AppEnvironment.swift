@@ -41,11 +41,15 @@ enum AppEnvironment {
     }
 
     private static func makeLive() -> AppModel {
+        let server = serverURL
+        serverInUse = server
         let tokens = KeychainTokenStore(service: Bundle.main.bundleIdentifier ?? "timecard")
-        let api = URLSessionAPIClient(baseURL: serverURL, tokens: tokens)
+        let api = URLSessionAPIClient(baseURL: server, tokens: tokens)
         let appGroup = Bundle.main.object(forInfoDictionaryKey: "TimeCardAppGroup") as? String
         do {
             let store = try LocalStore.onDisk(directory: AppDatabase.directory(appGroup: appGroup))
+            // Before the session reads its token: a sign-in from another server stays there.
+            try adoptServer(server, store: store, tokens: tokens)
             return AppModel(session: TimeCardSession(store: store, api: api, tokens: tokens, deviceName: UIDevice.current.name), mode: .live)
         } catch {
             // Don't quietly run on a throwaway database: say so and stop there.
@@ -56,12 +60,28 @@ enum AppEnvironment {
         }
     }
 
-    /// The server to talk to: `TIMECARD_SERVER_URL` in the scheme's environment for
-    /// development, else production.
+    /// The server the next launch talks to: `TIMECARD_SERVER_URL` in the scheme's environment
+    /// for development, then the address saved in Settings, then the standard server.
     static var serverURL: URL {
-        if let override = ProcessInfo.processInfo.environment["TIMECARD_SERVER_URL"], let url = URL(string: override) {
-            return url
+        ServerAddress.resolve()
+    }
+
+    /// The server this launch talks to. A new address saved in Settings is used from the next
+    /// launch, after `adoptServer` has signed out of the old one.
+    private(set) static var serverInUse: URL = ServerAddress.resolve()
+
+    /// Makes `server` the one this phone's sign-in belongs to. When the token and the farm
+    /// records on this phone came from another server, forgets them first (as signing out
+    /// does), so the old token never goes to the new host and the old farm never syncs there.
+    /// Returns true when it signed out.
+    @discardableResult
+    static func adoptServer(_ server: URL, store: LocalStore, tokens: TokenStore, defaults: UserDefaults = .standard) throws -> Bool {
+        let signedOut = ServerAddress.mustSignOut(signedInServer: defaults.string(forKey: ServerAddress.signedInServerKey), using: server)
+        if signedOut {
+            try tokens.clear()
+            try store.wipe()
         }
-        return TimeCardCore.defaultServerURL
+        defaults.set(server.absoluteString, forKey: ServerAddress.signedInServerKey)
+        return signedOut
     }
 }
