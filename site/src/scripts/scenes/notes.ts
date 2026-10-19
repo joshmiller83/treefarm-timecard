@@ -232,7 +232,7 @@ registerScene(
         set(one(la, '[data-pill-face="break"]'), { opacity: 0 });
         set(one(la, '[data-undo]'), { opacity: 1 });
         set(one(la, '[data-worked-line]'), { opacity: 0 });
-        set(rows, { scaleX: 1, transformOrigin: '100% 50%' });
+        set(rows, { scaleX: 1, opacity: 1, transformOrigin: '100% 50%' });
         set(one(la, '[data-break-btn]'), { opacity: 1 });
         set(one(la, '[data-back-btn]'), { clipPath: 'inset(0% 100% 0% 0%)' });
 
@@ -245,7 +245,8 @@ registerScene(
         to(one(la, '[data-pill-face="break"]'), { opacity: 1, duration: d * 0.25, ease: 'none' }, s[0] + d * 0.1);
         to(one(la, '[data-undo]'), { opacity: 0, duration: d * 0.2, ease: 'none' }, s[0]);
         to(one(la, '[data-worked-line]'), { opacity: 1, duration: d * 0.3, ease: 'none' }, s[0] + d * 0.2);
-        if (rows.length) tl.to(rows.slice().reverse(), { scaleX: 0, duration: d * 0.35, stagger: d * 0.08, ease: 'power2.in' }, s[0] + d * 0.05);
+        // Each row button folds into its right edge (the text fades as it narrows, so it never squashes).
+        if (rows.length) tl.to(rows.slice().reverse(), { scaleX: 0, opacity: 0, duration: d * 0.35, stagger: d * 0.08, ease: 'power2.in' }, s[0] + d * 0.05);
         to(one(la, '[data-break-btn]'), { opacity: 0, duration: d * 0.2, ease: 'none' }, s[0] + d * 0.1);
         to(one(la, '[data-back-btn]'), { clipPath: 'inset(0% 0% 0% 0%)', duration: d * 0.45, ease: 'power2.inOut' }, s[0] + d * 0.45);
       }
@@ -391,21 +392,26 @@ registerScene(
         set(one(la, '[data-pill-face="clock"]'), { opacity: 0 });
         set(one(la, '[data-pill-face="break"]'), { opacity: 1 });
         set(one(la, '[data-worked-line]'), { opacity: 1 });
-        set(rows, { scaleX: 0, transformOrigin: '0% 50%' });
+        set(rows, { scaleX: 0, opacity: 0, transformOrigin: '0% 50%' });
         set(one(la, '[data-break-btn]'), { opacity: 0 });
         set(back, { clipPath: 'inset(0% 0% 0% 0%)' });
 
         if (back) util.tap(tl, back, P.back.tap);
         const s = P.back.la;
         const d = dur(s);
-        tl.set(la, { attr: { 'data-state': 'working' } }, s[0]);
+        // The card stays in its break state until the gold face has gone, then turns green
+        // (white timer, the field back in the place line) with the short face text behind it.
+        tl.set(la, { attr: { 'data-state': 'working' } }, s[0] + d * 0.28);
         to(one(la, '[data-la-break]'), { opacity: 0, duration: d * 0.5, ease: 'power1.inOut' }, s[0]);
         to(one(la, '[data-pill-face="break"]'), { opacity: 0, duration: d * 0.25, ease: 'none' }, s[0]);
         to(one(la, '[data-pill-face="clock"]'), { opacity: 1, duration: d * 0.25, ease: 'none' }, s[0] + d * 0.1);
-        textAt(pillBreak, BREAK_PILL, SHORT_BREAK, s[0] + d * 0.3);
+        textAt(pillBreak, BREAK_PILL, SHORT_BREAK, s[0] + d * 0.26);
         to(one(la, '[data-worked-line]'), { opacity: 0, duration: d * 0.2, ease: 'none' }, s[0]);
         to(back, { clipPath: 'inset(0% 0% 0% 100%)', duration: d * 0.4, ease: 'power2.inOut' }, s[0] + d * 0.05);
-        if (rows.length) tl.to(rows, { scaleX: 1, duration: d * 0.35, stagger: d * 0.08, ease: 'back.out(1.4)' }, s[0] + d * 0.3);
+        if (rows.length) {
+          tl.to(rows, { scaleX: 1, duration: d * 0.35, stagger: d * 0.08, ease: 'back.out(1.4)' }, s[0] + d * 0.3);
+          tl.to(rows, { opacity: 1, duration: d * 0.2, stagger: d * 0.08, ease: 'power1.out' }, s[0] + d * 0.38);
+        }
         to(one(la, '[data-break-btn]'), { opacity: 1, duration: d * 0.25, ease: 'none' }, s[0] + d * 0.6);
       }
     }

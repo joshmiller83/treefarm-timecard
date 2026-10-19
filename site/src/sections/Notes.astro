@@ -558,6 +558,16 @@ const split = (s: string) => {
     display: contents;
   }
 
+  /* ---------- Tablets in portrait: cards keep a reading width, centred under the phone ---------- */
+  @media (min-width: 600px) and (max-width: 899.98px) {
+    :global(html.motion .sec[data-mob='sticky'][data-layout='beats']) .beat.nb[data-nb] {
+      left: 50%;
+      right: auto;
+      width: min(34rem, 100% - 2 * var(--gutter));
+      translate: -50% -50%;
+    }
+  }
+
   /* ---------- Short desktop viewports: tighter beats, so neighbours never touch ---------- */
   @media (min-width: 900px) and (max-height: 820px) {
     :global(html.motion) .nb {
