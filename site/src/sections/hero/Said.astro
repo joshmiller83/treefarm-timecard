@@ -1,0 +1,74 @@
+---
+/**
+ * The spoken line, “Clock in with Time Card.”: Display M with gold curly quotes, under a
+ * small 'You' speaker label (the voice section's convention). Rendered twice by Hero.astro:
+ * 'figure' sits above the section's own phone (mobile, reduced motion, no JS); 'stage'
+ * floats beside the desktop stage phone. Words are spans ([data-said-word]) for the load
+ * sequence. aria-hidden: the figure's caption carries the words for screen readers.
+ */
+import Icon from '../../components/app/Icon.astro';
+import { SIRI } from '../../data/siri.ts';
+import { spokenWords } from './copy.ts';
+
+interface Props {
+  where: 'figure' | 'stage';
+}
+const { where } = Astro.props;
+const words = spokenWords(SIRI.clockIn.said);
+const NBSP = ' ';
+---
+
+<p class:list={['hero-said', `hero-said--${where}`]} data-said={where} aria-hidden="true">
+  <span class="hero-said-who" data-said-word><Icon name="waveform" size="15px" weight={2} />You</span>
+  <span class="hero-said-line">
+    {
+      words.map((w, i) => (
+        <>
+          {/* one line: whitespace inside the span would open a gap after the quote */}
+          <span class="hero-w" data-said-word>{w.open && <span class="hero-q hero-q--open">“</span>}{w.text}{w.close && <span class="hero-q hero-q--close">”</span>}</span>{i < words.length - 1 && (w.glue ? NBSP : ' ')}{words[i + 1]?.glue && <br class="hero-said-br" />}
+        </>
+      ))
+    }
+  </span>
+</p>
+
+<style>
+  .hero-said {
+    display: grid;
+    gap: 12px;
+    margin: 0;
+    color: var(--on-stage);
+  }
+  .hero-said-who {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-family: var(--font-mono);
+    font-weight: 500;
+    font-size: 0.75rem;
+    line-height: 1;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--gold-lit);
+  }
+  .hero-said-who :global(svg) {
+    flex: none;
+  }
+  .hero-said-line {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: var(--text-m);
+    line-height: 1.1;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+  }
+  .hero-q {
+    color: var(--gold-lit);
+  }
+  /* The line breaks before the app's name, except as one line over a static desktop phone. */
+  @media (min-width: 900px) {
+    .hero-said--figure .hero-said-br {
+      display: none;
+    }
+  }
+</style>
