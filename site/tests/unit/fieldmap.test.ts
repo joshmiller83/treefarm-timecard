@@ -44,6 +44,7 @@ import {
   visibleCells,
   fitView,
   zoomSummary,
+  createTryIt,
 } from '../../src/scripts/fieldmap.ts';
 import { APP_ZOOM, appMapWindow, appTreeMarkup } from '../../src/components/app/trees/markup.ts';
 
@@ -367,5 +368,61 @@ describe('the Trees tab map window', () => {
     expect(html).toMatch(/data-tree="2-36-1" data-s="today"/);
     expect(html).toMatch(/data-tree="2-37-1" data-s="ring"/);
     expect(html).not.toContain('<script');
+  });
+});
+
+describe('Try it (the small interactive copy of block 2 rows 28–40)', () => {
+  it('starts from the 2:15 ledger state', () => {
+    const t = createTryIt();
+    expect(t.rows).toEqual([28, 40]);
+    expect(t.get(36, 1)).toBe(TODAY);
+    expect(t.get(37, 1)).toBe(EMPTY);
+    expect(t.canUndo).toBe(false);
+  });
+
+  it('a row number marks the whole row, and again clears it', () => {
+    const t = createTryIt();
+    expect(t.rowTap(37)).toBe('Row 37 marked, 10 trees');
+    expect(Array.from({ length: 10 }, (_, i) => t.get(37, i + 1))).toEqual(Array(10).fill(TODAY));
+    expect(t.rowTap(37)).toBe('Row 37 cleared, 10 trees');
+    expect(t.get(37, 4)).toBe(EMPTY);
+  });
+
+  it('one mode toggles a tree; erase clears; undo pops; reset restores', () => {
+    const t = createTryIt();
+    expect(t.treeTap(38, 4, 'one')).toBe('Row 38, tree 4 marked');
+    expect(t.treeTap(38, 4, 'one')).toBe('Row 38, tree 4 unmarked');
+    expect(t.treeTap(36, 2, 'erase')).toBe('Row 36, tree 2 unmarked');
+    expect(t.treeTap(39, 2, 'erase')).toBe('Row 39, tree 2 isn’t marked');
+    expect(t.undo()).toBe('Undid your last change');
+    expect(t.get(36, 2)).toBe(TODAY);
+    t.rowTap(40);
+    expect(t.reset()).toBe('Back to the map at 2:15 PM');
+    expect(t.get(40, 1)).toBe(EMPTY);
+    expect(t.canUndo).toBe(false);
+    expect(t.undo()).toBe('Nothing to undo');
+  });
+
+  it('fill anchors on the first tap and fills to the second, in reading order', () => {
+    const t = createTryIt();
+    expect(t.treeTap(37, 9, 'fill')).toBe('Row 37, tree 9. Now tap the last tree');
+    expect(t.anchor).toEqual({ row: 37, tree: 9 });
+    expect(t.treeTap(38, 2, 'fill')).toBe('Marked 4 trees, from row 37, tree 9 to row 38, tree 2');
+    expect([t.get(37, 8), t.get(37, 9), t.get(37, 10), t.get(38, 1), t.get(38, 2), t.get(38, 3)]).toEqual([EMPTY, TODAY, TODAY, TODAY, TODAY, EMPTY]);
+    expect(t.anchor).toBeNull();
+    // Backwards works too, and tapping the anchor again starts over.
+    t.treeTap(40, 3, 'fill');
+    expect(t.treeTap(40, 3, 'fill')).toBe('Start over: tap the first tree');
+    t.treeTap(40, 3, 'fill');
+    expect(t.treeTap(40, 1, 'fill')).toBe('Marked 3 trees, from row 40, tree 1 to row 40, tree 3');
+  });
+
+  it('never changes trees someone else shaped', () => {
+    const t = createTryIt({ block: 2, from: 10, to: 16 });
+    expect(t.get(12, 1)).toBe(EARLIER_S);
+    expect(t.treeTap(12, 1, 'one')).toBe('Row 12, tree 1 was shaped earlier');
+    expect(t.rowTap(12)).toBe('Every tree in row 12 was shaped earlier');
+    expect(t.treeTap(12, 1, 'erase')).toBe('Row 12, tree 1 was shaped earlier');
+    expect(t.canUndo).toBe(false);
   });
 });

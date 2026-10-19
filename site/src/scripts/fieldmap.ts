@@ -37,6 +37,7 @@ import {
   OLD_NOTE,
   TREE_NOTE,
   WORKER,
+  fmtTime,
   type Mark,
   type Minute,
   type Person,
@@ -517,6 +518,124 @@ export function sceneState(p: number): MapState {
 export function finalState(view: 'overview' | 'zoom' = 'overview', at: Minute = MOMENTS.field): MapState {
   const z = view === 'zoom' ? 1 : 0;
   return { at, reveal: null, camera: z, labels: z, demo: 0, season: 0, pulse: 0, touch: 0, undo: 0 };
+}
+
+// ---------------------------------------------------------------------------
+// Try it (pure): the page's small interactive copy of block 2 rows 28–40
+
+export type TapMode = 'one' | 'fill' | 'erase';
+
+export interface TryIt {
+  /** The rows shown, inclusive. */
+  readonly rows: [number, number];
+  /** Fill mode's first tree, waiting for the second tap. */
+  readonly anchor: { row: number; tree: number } | null;
+  readonly canUndo: boolean;
+  get(row: number, tree: number): TreeState;
+  /** A row number: marks the row's free trees, or clears yours when none are free (always in erase). */
+  rowTap(row: number, mode?: TapMode): string;
+  treeTap(row: number, tree: number, mode: TapMode): string;
+  undo(): string;
+  /** Back to the ledger state. */
+  reset(): string;
+}
+
+/**
+ * The Try it strip's model: starts from the ledger at `at`, never changes trees someone else
+ * shaped (green), and returns the sentence for the polite live region after every action.
+ * Nothing is saved anywhere.
+ */
+export function createTryIt(target: ZoomTarget = ZOOM_TARGET, at: Minute = MOMENTS.field): TryIt {
+  const n = target.to - target.from + 1;
+  const start = new Uint8Array(n * ACROSS);
+  const ledger = treeStatus({ at });
+  for (let r = 0; r < n; r += 1)
+    for (let t = 0; t < ACROSS; t += 1) start[r * ACROSS + t] = statusOf(ledger, target.block, target.from + r, t + 1);
+  let cells = start.slice();
+  const history: Uint8Array[] = [];
+  let anchor: { row: number; tree: number } | null = null;
+  const at0 = (row: number, tree: number) => (row - target.from) * ACROSS + tree - 1;
+  const trees = (k: number) => `${k} tree${k === 1 ? '' : 's'}`;
+  const spot = (row: number, tree: number) => `row ${row}, tree ${tree}`;
+  const Spot = (row: number, tree: number) => `Row ${row}, tree ${tree}`;
+  const commit = (next: Uint8Array) => {
+    history.push(cells);
+    cells = next;
+  };
+  return {
+    rows: [target.from, target.to],
+    get anchor() {
+      return anchor;
+    },
+    get canUndo() {
+      return history.length > 0;
+    },
+    get: (row, tree) => (cells[at0(row, tree)] ?? EMPTY) as TreeState,
+    rowTap(row, mode = 'one') {
+      anchor = null;
+      const idx = Array.from({ length: ACROSS }, (_, t) => at0(row, t + 1));
+      const free = idx.filter((i) => cells[i] === EMPTY);
+      const mine = idx.filter((i) => cells[i] === TODAY);
+      const next = cells.slice();
+      if (mode === 'erase' || (free.length === 0 && mine.length > 0)) {
+        if (mine.length === 0) return `Nothing in row ${row} is marked`;
+        for (const i of mine) next[i] = EMPTY;
+        commit(next);
+        return `Row ${row} cleared, ${trees(mine.length)}`;
+      }
+      if (free.length === 0) return `Every tree in row ${row} was shaped earlier`;
+      for (const i of free) next[i] = TODAY;
+      commit(next);
+      return `Row ${row} marked, ${trees(free.length)}`;
+    },
+    treeTap(row, tree, mode) {
+      const i = at0(row, tree);
+      const v = cells[i];
+      if (v === EARLIER_S) return `${Spot(row, tree)} was shaped earlier`;
+      const next = cells.slice();
+      if (mode === 'fill') {
+        if (!anchor) {
+          anchor = { row, tree };
+          return `${Spot(row, tree)}. Now tap the last tree`;
+        }
+        if (anchor.row === row && anchor.tree === tree) {
+          anchor = null;
+          return 'Start over: tap the first tree';
+        }
+        const [a, b] = [at0(anchor.row, anchor.tree), i].sort((x, y) => x - y) as [number, number];
+        anchor = null;
+        let k = 0;
+        for (let j = a; j <= b; j += 1)
+          if (next[j] === EMPTY) {
+            next[j] = TODAY;
+            k += 1;
+          }
+        const from = { row: target.from + Math.floor(a / ACROSS), tree: (a % ACROSS) + 1 };
+        const to = { row: target.from + Math.floor(b / ACROSS), tree: (b % ACROSS) + 1 };
+        if (k === 0) return 'Nothing new to mark there';
+        commit(next);
+        return `Marked ${trees(k)}, from ${spot(from.row, from.tree)} to ${spot(to.row, to.tree)}`;
+      }
+      anchor = null;
+      if (mode === 'erase' && v !== TODAY) return `${Spot(row, tree)} isn’t marked`;
+      next[i] = v === TODAY ? EMPTY : TODAY;
+      commit(next);
+      return `${Spot(row, tree)} ${v === TODAY ? 'unmarked' : 'marked'}`;
+    },
+    undo() {
+      anchor = null;
+      const prev = history.pop();
+      if (!prev) return 'Nothing to undo';
+      cells = prev;
+      return 'Undid your last change';
+    },
+    reset() {
+      anchor = null;
+      cells = start.slice();
+      history.length = 0;
+      return `Back to the map at ${fmtTime(at)}`;
+    },
+  };
 }
 
 // ---------------------------------------------------------------------------
