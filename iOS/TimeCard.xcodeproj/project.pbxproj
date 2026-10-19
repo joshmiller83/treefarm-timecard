@@ -8,17 +8,21 @@
 
 /* Begin PBXBuildFile section */
 		0E8449B04A969C40998D13B1 /* TimeCardAppTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 420785D527412FCEF20D0502 /* TimeCardAppTests.swift */; };
+		11875192E9EAFECC79DABA39 /* Components.swift in Sources */ = {isa = PBXBuildFile; fileRef = 174CC43FB55650E3ADD75F46 /* Components.swift */; };
 		210A451BC06E8FF049CC8269 /* TimeCardUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C111B64C0C07020B9DCCDD2 /* TimeCardUITests.swift */; };
 		4CE2765501913B4EEF9A13AE /* TimeCardCore in Frameworks */ = {isa = PBXBuildFile; productRef = 1F16EF2DBAA82812E5FCBF05 /* TimeCardCore */; };
 		56E3F456E020D3F26D8FCE9D /* TimeCardCore in Frameworks */ = {isa = PBXBuildFile; productRef = 76760F4A041CFB039DF2E1BF /* TimeCardCore */; };
 		599CF5E9C4D373F558210B4B /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 6BC6220C858784A309DE828F /* Assets.xcassets */; };
 		618B9907BE87D4087CF8B019 /* Fonts in Resources */ = {isa = PBXBuildFile; fileRef = 4533B607361861A2BBFEC580 /* Fonts */; };
+		6E021FFA63E1736E7099AF2B /* DesignTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC14C784BB8F321617C3E862 /* DesignTests.swift */; };
+		7CA05566481CF06C0E9F30E1 /* Palette.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75E425709A1FCF4E60DE4173 /* Palette.swift */; };
 		822D64D9A13F48FE7A32851F /* ActivityKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 99943374729E87599B2C037E /* ActivityKit.framework */; };
 		A327B4C2DF3C355FFA9FA1F6 /* TimeCardApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1620ADB0A89E887DA3CBB17E /* TimeCardApp.swift */; };
 		A52443D525B164CED3CE9F97 /* TimeCardActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24D0A0F8E20930ACEF5AD5CB /* TimeCardActivityAttributes.swift */; };
 		B958CCE566260AFB7A9D922B /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 76F859F4EF55B8D49AECE08D /* SwiftUI.framework */; };
 		D37A27B39B55A8CA3FB8CE65 /* TimeCardWidgetsBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 576C231644ECC8C6932C2E33 /* TimeCardWidgetsBundle.swift */; };
 		E7B1BDB75CDE2C1F66B0B60D /* TimeCardLiveActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BB263D26A2AD84BDE25A0AF /* TimeCardLiveActivity.swift */; };
+		E9F3A70825BDE99356AD28AD /* Typography.swift in Sources */ = {isa = PBXBuildFile; fileRef = 430050FEBA83C41B0D8C1F39 /* Typography.swift */; };
 		EC667902F7B2D991519539B0 /* TimeCardActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24D0A0F8E20930ACEF5AD5CB /* TimeCardActivityAttributes.swift */; };
 		F2DC4499FFD5F66BA1844426 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 268D96072E557AB5DA77E1FA /* WidgetKit.framework */; };
 		FF6FFF5EDAE4581A8CD35E19 /* TimeCardWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 9DE6B97E96723E748D99793B /* TimeCardWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
@@ -64,13 +68,16 @@
 
 /* Begin PBXFileReference section */
 		1620ADB0A89E887DA3CBB17E /* TimeCardApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimeCardApp.swift; sourceTree = "<group>"; };
+		174CC43FB55650E3ADD75F46 /* Components.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Components.swift; sourceTree = "<group>"; };
 		20FB6B3A248F1A020FE728B8 /* Base.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Base.xcconfig; sourceTree = "<group>"; };
 		24D0A0F8E20930ACEF5AD5CB /* TimeCardActivityAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimeCardActivityAttributes.swift; sourceTree = "<group>"; };
 		268D96072E557AB5DA77E1FA /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		420785D527412FCEF20D0502 /* TimeCardAppTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimeCardAppTests.swift; sourceTree = "<group>"; };
+		430050FEBA83C41B0D8C1F39 /* Typography.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Typography.swift; sourceTree = "<group>"; };
 		4533B607361861A2BBFEC580 /* Fonts */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Fonts; path = App/Resources/Fonts; sourceTree = SOURCE_ROOT; };
 		576C231644ECC8C6932C2E33 /* TimeCardWidgetsBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimeCardWidgetsBundle.swift; sourceTree = "<group>"; };
 		6BC6220C858784A309DE828F /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		75E425709A1FCF4E60DE4173 /* Palette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Palette.swift; sourceTree = "<group>"; };
 		76F859F4EF55B8D49AECE08D /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 		7C111B64C0C07020B9DCCDD2 /* TimeCardUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimeCardUITests.swift; sourceTree = "<group>"; };
 		8C42AEC580754A7C4570AB15 /* TimeCard.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = TimeCard.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -83,6 +90,7 @@
 		C30229F8AB3A33531A84292B /* TimeCardTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = TimeCardTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		C80A940F649E97D3B59D935C /* TimeCard.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TimeCard.entitlements; sourceTree = "<group>"; };
 		CB04224614B08F77A07C9900 /* TimeCardWidgets.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TimeCardWidgets.entitlements; sourceTree = "<group>"; };
+		DC14C784BB8F321617C3E862 /* DesignTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignTests.swift; sourceTree = "<group>"; };
 		E48D61AF82088B1C9CFDD3F2 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -170,6 +178,7 @@
 				E48D61AF82088B1C9CFDD3F2 /* Info.plist */,
 				C80A940F649E97D3B59D935C /* TimeCard.entitlements */,
 				1620ADB0A89E887DA3CBB17E /* TimeCardApp.swift */,
+				AD92A9BB98F18AE091154218 /* Design */,
 				C1066138348FF72C70FA3308 /* Resources */,
 			);
 			path = App;
@@ -186,6 +195,7 @@
 		7588F740A0F71B2E229CDF3C /* Tests */ = {
 			isa = PBXGroup;
 			children = (
+				DC14C784BB8F321617C3E862 /* DesignTests.swift */,
 				420785D527412FCEF20D0502 /* TimeCardAppTests.swift */,
 			);
 			path = Tests;
@@ -197,6 +207,16 @@
 				20FB6B3A248F1A020FE728B8 /* Base.xcconfig */,
 			);
 			path = Config;
+			sourceTree = "<group>";
+		};
+		AD92A9BB98F18AE091154218 /* Design */ = {
+			isa = PBXGroup;
+			children = (
+				174CC43FB55650E3ADD75F46 /* Components.swift */,
+				75E425709A1FCF4E60DE4173 /* Palette.swift */,
+				430050FEBA83C41B0D8C1F39 /* Typography.swift */,
+			);
+			path = Design;
 			sourceTree = "<group>";
 		};
 		AFEFE8022AC39DB82A76F156 /* Shared */ = {
@@ -366,6 +386,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				6E021FFA63E1736E7099AF2B /* DesignTests.swift in Sources */,
 				0E8449B04A969C40998D13B1 /* TimeCardAppTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -382,8 +403,11 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				11875192E9EAFECC79DABA39 /* Components.swift in Sources */,
+				7CA05566481CF06C0E9F30E1 /* Palette.swift in Sources */,
 				EC667902F7B2D991519539B0 /* TimeCardActivityAttributes.swift in Sources */,
 				A327B4C2DF3C355FFA9FA1F6 /* TimeCardApp.swift in Sources */,
+				E9F3A70825BDE99356AD28AD /* Typography.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
