@@ -8,13 +8,13 @@
  *              each at the minute Alex marks the row
  *   [.10, .18] unlock: the lock layer slides up, the Clock tab settles from .94
  *   [.19, .29] the tab scrolls to the pace card and parks it under the toolbar
- *   .30 .38 .46  one page tile at a time: it rises in, its digits roll (triggered), and the
- *              matching pace row on the phone draws its gold rule
+ *   .30 .38 .46  one page tile at a time lights (triggered): its rule draws, it rises in, its
+ *              digits roll, and the matching pace row on the phone draws its gold rule
  *   [.55, .65] on to Hours & pay; the week's bars grow from the baseline, Friday last, in gold
  *   .77 .80    a tap on the eye-slash 'Show pay'; the masked pay pulses once; the small print
  *   [.88, .99] back to the top, and the lock screen returns: the phone ends at rest on it
  *
- * Scrubbed (ctx.tl) except the digit rolls and the bars, which are short time-based tweens
+ * Scrubbed (ctx.tl) except the tiles lighting and the bars, which are short time-based tweens
  * played and reversed as the scrubbed playhead crosses their marks. No pins: SectionShell's
  * sticky frame holds the phone.
  */
@@ -112,41 +112,31 @@ registerScene(
       tl.fromTo(scroll, { yPercent: () => stops().endPct }, { yPercent: 0, duration: span(BEATS.back), ease: 'power2.inOut', immediateRender: false }, BEATS.back[0]);
     }
 
-    // ---- The page tiles, each with its phone row's gold rule ----
+    // ---- The page tiles, each lit with its phone row's gold rule ----
+    // Each tile lights as one short, time-based piece (played as the scrubbed playhead
+    // crosses its mark, reversed on the way back), so the rule, the rise and the rolling
+    // digits always finish together however fast or slowly the page is scrolled.
     const tiles = q<HTMLElement>('[data-tile]');
-    const rolls: GSAPTimeline[] = [];
-    tiles.forEach((tile, i) => {
-      const at = BEATS.tiles[i] ?? BEATS.tiles.at(-1)!;
+    const lights: GSAPTimeline[] = [];
+    for (const tile of tiles) {
       const face = tile.querySelector('.pace-tile-face');
-      const rule = tile.querySelector('[data-tile-rule]');
       const line = tile.querySelector('[data-tile-line]');
-      if (line) {
-        gsap.set(line, { scaleX: 0 });
-        tl.fromTo(line, { scaleX: 0 }, { scaleX: 1, duration: BEATS.tileDur * 1.4, ease: 'power2.inOut', immediateRender: false }, at - 0.02);
-      }
-      const phoneRule = $(`${CLOCK} [data-pace-row="${tile.dataset.row}"] [data-pace-rule]`);
-      if (face) {
-        // Desktop: the tile rises in. Below 900px its card is already on screen, so the tile
-        // waits as a ghost (zeros at 30%) and lights up as its digits roll.
-        const from = isDesk ? { opacity: 0, y: 16 } : { opacity: 0.3, y: 0 };
-        gsap.set(face, from);
-        tl.fromTo(face, from, { opacity: 1, y: 0, duration: BEATS.tileDur, ease: 'power2.out', immediateRender: false }, at);
-      }
-      for (const r of [rule, phoneRule]) {
-        if (!r) continue;
-        gsap.set(r, { scaleY: 0 });
-        tl.fromTo(r, { scaleY: 0 }, { scaleY: 1, duration: BEATS.tileDur * 0.8, ease: 'power2.out', immediateRender: false }, at + 0.012);
-      }
-      // The digits: each column spins from 0 to its digit in the second cycle (triggered, .7 s).
+      const rules = [tile.querySelector('[data-tile-rule]'), $(`${CLOCK} [data-pace-row="${tile.dataset.row}"] [data-pace-rule]`)].filter(
+        (r): r is Element => !!r,
+      );
       const roll = tile.querySelector<HTMLElement>('[data-roll]');
       const cols = roll ? Array.from(roll.querySelectorAll<HTMLElement>('.roll-col')) : [];
-      const to = rollStops(roll?.dataset.rollText ?? '');
-      const t = gsap.timeline({ paused: true });
-      if (cols.length) {
-        t.fromTo(cols, { y: 0, yPercent: 0 }, { y: 0, yPercent: (k: number) => to[k] ?? 0, duration: 0.7, ease: 'power3.out', stagger: 0.07 });
-      }
-      rolls.push(t);
-    });
+      const stops = rollStops(roll?.dataset.rollText ?? '');
+      const t = gsap.timeline({ paused: true, defaults: { ease: 'power3.out' } });
+      if (line) t.fromTo(line, { scaleX: 0 }, { scaleX: 1, duration: 0.5, ease: 'power2.inOut' }, 0);
+      // Desktop: the tile rises in. Below 900px its card is already on screen, so the tile
+      // waits as a ghost (zeros at 30%) and lights up as its digits roll.
+      if (face) t.fromTo(face, isDesk ? { opacity: 0, y: 16 } : { opacity: 0.3, y: 0 }, { opacity: 1, y: 0, duration: 0.5 }, 0.06);
+      // Every column spins from 0 to its digit in the second cycle: no counting, no drift.
+      if (cols.length) t.fromTo(cols, { y: 0, yPercent: 0 }, { y: 0, yPercent: (k: number) => stops[k] ?? 0, duration: 0.8, stagger: 0.07 }, 0.06);
+      if (rules.length) t.fromTo(rules, { scaleY: 0 }, { scaleY: 1, duration: 0.4, ease: 'power2.out' }, 0.16);
+      lights.push(t);
+    }
 
     // ---- Hours & pay: the bars grow from the baseline (triggered), Friday last ----
     const bars = $$(`${CLOCK} [data-hours-card] [data-bar]`);
@@ -154,8 +144,8 @@ registerScene(
     if (bars.length) grow.fromTo(bars, { scaleY: 0, transformOrigin: '50% 100%' }, { scaleY: 1, duration: 0.55, ease: 'power3.out', stagger: 0.06 });
 
     // Triggered tweens follow the scrubbed playhead: forward plays, back reverses.
-    const marks = [...BEATS.tiles.slice(0, rolls.length), BEATS.bars];
-    const players = [...rolls, grow];
+    const marks = [...BEATS.tiles.slice(0, lights.length), BEATS.bars];
+    const players = [...lights, grow];
     let last = 0;
     tl.eventCallback('onUpdate', () => {
       const p = tl.progress();

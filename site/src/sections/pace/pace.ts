@@ -57,7 +57,7 @@ export const COPY = {
     { before: 'This week’s hours and pay sit in a bar chart. ', em: `Hide your pay with one${NBSP}tap.` },
   ] as Bullet[],
   small: 'Pay is hidden in every screen on this page, the way you can hide it in the app.',
-  caption: 'The Clock tab at 3:40 PM, with pay hidden.',
+  caption: 'The Clock tab at 3:40 PM, from the top down to Hours & pay, with pay hidden.',
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -145,7 +145,6 @@ export interface Beats {
   unlock: Span;
   toPace: Span;
   tiles: Three;
-  tileDur: number;
   bullets: Three;
   toHours: Span;
   bars: number;
@@ -163,10 +162,8 @@ export const BEATS: Beats = {
   unlock: [0.1, 0.18],
   /** In-phone scroll from the top to the pace card. */
   toPace: [0.19, 0.29],
-  /** One tile (and its phone row's gold rule) per beat, with a triggered roll. */
+  /** One tile lights per mark (triggered): rule, rise, rolling digits, and the phone row's gold rule. */
   tiles: [0.3, 0.38, 0.46],
-  /** How long each tile's reveal takes. */
-  tileDur: 0.05,
   /** Desktop: the bullets come in one by one as the copy reaches them. */
   bullets: [0.52, 0.58, 0.64],
   /** In-phone scroll from the pace card to the end (Hours & pay). */

@@ -161,15 +161,15 @@ const tiles = tilesAt();
   .pace-tile-rule {
     position: absolute;
     left: -22px;
-    top: 0.2em;
+    top: calc(var(--text-stat) * 0.17);
     width: 3px;
-    height: calc(var(--text-stat) * 0.78);
+    height: calc(var(--text-stat) * 0.76);
     border-radius: 3px;
     background: var(--gold-lit);
     transform-origin: 50% 50%;
   }
   .pace-tile + .pace-tile .pace-tile-rule {
-    top: calc(18px + 0.2em);
+    top: calc(18px + var(--text-stat) * 0.17);
   }
 
   /* Rolling digits (motion only; the plain number is the static page and the fallback). */
@@ -273,8 +273,8 @@ const tiles = tilesAt();
   :global(html:not(.motion)) .pace-crops {
     --phone-h: min(62svh, 560px);
   }
-  :global(html:not(.motion)) .pace-phone--bottom {
-    margin-top: 48px;
+  :global(html:not(.motion)) .pace-crops > :global(.pace-phone--bottom) {
+    margin-top: 56px;
   }
 
   /* ---------- Below 900px: compact tiles in a row, in a card ---------- */
@@ -303,8 +303,8 @@ const tiles = tilesAt();
     .pace-tile-rule,
     .pace-tile + .pace-tile .pace-tile-rule {
       left: 0;
-      top: 6px;
-      height: 1.6rem;
+      top: calc(2px + 2rem * 0.17);
+      height: calc(2rem * 0.76);
     }
     .pace-bullets {
       gap: 12px;
@@ -325,8 +325,8 @@ const tiles = tilesAt();
       --phone-h: min(calc((100vw - 2 * var(--gutter) - 14px) / 2 * 879 / 420), 460px);
       gap: 14px;
     }
-    :global(html:not(.motion)) .pace-phone--bottom {
-      margin-top: 32px;
+    :global(html:not(.motion)) .pace-crops > :global(.pace-phone--bottom) {
+      margin-top: 36px;
     }
     /* The mobile card sits a little earlier so all three tiles reveal inside the viewport. */
     :global(html.motion) .pace-stats {
