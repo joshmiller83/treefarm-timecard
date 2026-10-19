@@ -11,7 +11,7 @@ const chips = ['This week', 'Last week', 'This month', 'Pick dates'] as const;
 const slug = (s: string) => s.toLowerCase().replace(/\s+/g, '-');
 ---
 
-<AppChrome title="Report" tab="report">
+<AppChrome title="Report" tab="report" time="4:31">
   <div class="chips">
     {chips.map((c) => <span data-range-chip={slug(c)} data-selected={c === range ? '' : undefined}>{c}</span>)}
   </div>

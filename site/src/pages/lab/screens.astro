@@ -1,0 +1,35 @@
+---
+/** Lab: screens (owner). */
+import Lab from '../../layouts/Lab.astro';
+import Phone from '../../components/phone/Phone.astro';
+import Screen from '../../components/phone/Screen.astro';
+import ClockTab from '../../components/app/ClockTab.astro';
+import TeamTab from '../../components/app/TeamTab.astro';
+import TreesTab from '../../components/app/TreesTab.astro';
+import TreeNoteSheet from '../../components/app/TreeNoteSheet.astro';
+---
+
+<Lab title="screens" owner="screens">
+  <div class="lab-row">
+    <div class="lab-cell">
+      <Phone label="Clock tab" height="760px">
+        <div class="screens" data-screens><Screen stateId="lab-clock" alt="" tone="light" final><ClockTab /></Screen></div>
+      </Phone>
+      <p>ClockTab 3:40 PM</p>
+    </div>
+    <div class="lab-cell">
+      <Phone label="Team tab" height="760px">
+        <div class="screens" data-screens><Screen stateId="lab-team" alt="" tone="light" final><TeamTab /></Screen></div>
+      </Phone>
+      <p>TeamTab</p>
+    </div>
+    <div class="lab-cell">
+      <Phone label="Tree note" height="760px">
+        <div class="screens" data-screens>
+          <Screen stateId="lab-note" alt="" tone="light" final><TreesTab block={2} rows={[30, 40]} /><TreeNoteSheet /></Screen>
+        </div>
+      </Phone>
+      <p>TreeNoteSheet over TreesTab</p>
+    </div>
+  </div>
+</Lab>

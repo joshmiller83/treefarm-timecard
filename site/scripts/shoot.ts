@@ -148,6 +148,8 @@ async function main() {
         written.push(file);
       }
       if (!args['no-full']) {
+        // content-visibility: auto skips far sections, which a full-page capture would show blank.
+        await page.addStyleTag({ content: '.sec { content-visibility: visible !important; }' });
         await page.evaluate(() => window.scrollTo(0, 0));
         await pause(settle);
         const file = join(outDir, `${tag}-full.png`);

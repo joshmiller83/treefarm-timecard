@@ -1,0 +1,173 @@
+---
+/** Lab: foundation. The shared chrome, glyphs, icon and tokens. */
+import Lab from '../../layouts/Lab.astro';
+import Phone from '../../components/phone/Phone.astro';
+import Screen from '../../components/phone/Screen.astro';
+import AppChrome from '../../components/app/AppChrome.astro';
+import Icon from '../../components/app/Icon.astro';
+import AppIcon from '../../components/AppIcon.astro';
+import DayMark from '../../components/DayMark.astro';
+import { ICON_NAMES } from '../../components/app/icons';
+
+const tabs = ['clock', 'trees', 'log', 'report', 'team'] as const;
+const titles = { clock: 'Clock', trees: 'Trees', log: 'Log', report: 'Report', team: 'Team' };
+const swatches = [
+  ['--stage', '#08140D'],
+  ['--stage-2', '#0E2117'],
+  ['--card-dark', '#10221A'],
+  ['--on-stage', '#F2F5EF'],
+  ['--on-stage-muted', '#A8BBAE'],
+  ['--gold-lit', '#E2A644'],
+  ['--fir-lit', '#88CFA4'],
+  ['--fir-mid', '#2E7A4E'],
+  ['--bg', '#ECF1EC'],
+  ['--surface', '#FAFCF9'],
+  ['--ink', '#14221A'],
+  ['--muted', '#556A5C'],
+  ['--fir', '#1D5B3A'],
+  ['--gold', '#B57A12'],
+  ['--sap-soft', '#F5E6C6'],
+  ['--rust', '#A2391F'],
+];
+---
+
+<Lab title="foundation" owner="foundation">
+  <section>
+    <h2>AppChrome, every tab</h2>
+    <div class="lab-row">
+      {
+        tabs.map((tab) => (
+          <div class="lab-cell">
+            <Phone label={`${titles[tab]} tab`} height="560px">
+              <div class="screens" data-screens>
+                <Screen stateId={`lab-chrome-${tab}`} alt="" tone="light" final>
+                  <AppChrome
+                    title={titles[tab]}
+                    tab={tab}
+                    time="3:40"
+                    trailing={tab === 'clock' ? [{ icon: 'gear' }] : tab === 'trees' ? [{ icon: 'undo' }] : []}
+                    subtitle={tab === 'trees' ? 'North field' : undefined}
+                  >
+                    <div class="fake-card" />
+                    <div class="fake-card short" />
+                  </AppChrome>
+                </Screen>
+              </div>
+            </Phone>
+            <p>{tab}</p>
+          </div>
+        ))
+      }
+    </div>
+  </section>
+
+  <section>
+    <h2>Glyphs</h2>
+    <ul class="glyphs">
+      {
+        ICON_NAMES.map((n) => (
+          <li>
+            <Icon name={n} size="28px" />
+            <span>{n}</span>
+          </li>
+        ))
+      }
+    </ul>
+  </section>
+
+  <section>
+    <h2>App icon and DayMark</h2>
+    <div class="lab-row">
+      <div class="lab-cell"><AppIcon /><p>AppIcon 192</p></div>
+      <div class="lab-cell"><AppIcon size="64px" uid="ai2" /><p>64</p></div>
+      <div class="lab-cell"><DayMark size={28} /><p>DayMark 28 (static)</p></div>
+      <div class="lab-cell"><DayMark size={96} /><p>DayMark 96</p></div>
+      <div class="lab-cell"><span class="dm-demo"><DayMark size={96} /></span><p>2:14 PM</p></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Type</h2>
+    <p class="eyebrow">2:14 PM · Lock screen</p>
+    <p class="display-xl">Keep your gloves on.</p>
+    <p class="display-l">Your time card, right on the lock screen.</p>
+    <p class="spoken"><q>Clock in with Time Card.</q></p>
+    <p class="siri-reply">Clocked in at 7:02. You’re on block 2, row 14.</p>
+    <p class="body">Body copy in Public Sans: clock in, mark your rows and take lunch by voice.</p>
+    <p class="stat">34 <span class="stat-unit">trees an hour</span></p>
+  </section>
+
+  <section>
+    <h2>Colors</h2>
+    <ul class="swatches">
+      {
+        swatches.map(([name, hex]) => (
+          <li>
+            <span class="sw" style={`background:var(${name})`} />
+            <span class="mono">{name}</span>
+            <span class="mono muted">{hex}</span>
+          </li>
+        ))
+      }
+    </ul>
+  </section>
+</Lab>
+
+<style>
+  .fake-card {
+    height: calc(140 * var(--pt));
+    border-radius: calc(20 * var(--pt));
+    background: #fff;
+    box-shadow: 0 1px 2px rgba(20, 34, 26, 0.06), 0 0 0 0.5px rgba(20, 34, 26, 0.06);
+    margin-bottom: calc(12 * var(--pt));
+  }
+  .fake-card.short {
+    height: calc(90 * var(--pt));
+  }
+  .glyphs {
+    list-style: none;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 12px;
+  }
+  .glyphs li {
+    display: grid;
+    justify-items: center;
+    gap: 8px;
+    padding: 16px 8px;
+    border-radius: 12px;
+    background: var(--surface);
+    color: var(--ink);
+  }
+  .glyphs span {
+    font-family: var(--font-mono);
+    font-size: 11px;
+  }
+  .dm-demo :global(.daymark) {
+    --angle: 427deg !important;
+    --ring: 0.475 !important;
+  }
+  .dm-demo :global(.dm-track) {
+    opacity: 0.28;
+  }
+  .swatches {
+    list-style: none;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 12px;
+  }
+  .swatches li {
+    display: grid;
+    gap: 4px;
+  }
+  .sw {
+    height: 56px;
+    border-radius: 12px;
+    border: 1px solid var(--stage-line);
+  }
+  section > p {
+    margin-bottom: 12px;
+  }
+</style>

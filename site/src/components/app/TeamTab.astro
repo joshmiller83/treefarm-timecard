@@ -10,7 +10,7 @@ export interface Props {
 const { rows = TEAM } = Astro.props;
 ---
 
-<AppChrome title="Team" tab="team">
+<AppChrome title="Team" tab="team" time="3:00">
   {
     rows.map((r) => (
       <div data-team-row={r.name}>

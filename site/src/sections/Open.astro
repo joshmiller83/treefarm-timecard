@@ -6,9 +6,19 @@
  */
 import SectionShell from '../components/SectionShell.astro';
 import AppIcon from '../components/AppIcon.astro';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 const REPO = 'https://github.com/joshmiller83/treefarm-timecard';
 const DOCS = `${REPO}/tree/main/docs`;
+// The terminal card renders only if the repo README really has the command (brief: open).
+const COMMAND = 'swift test --package-path Packages/TreeFarmKit';
+let hasCommand = false;
+try {
+  hasCommand = readFileSync(join(process.cwd(), '..', 'README.md'), 'utf8').includes(COMMAND);
+} catch {
+  hasCommand = false;
+}
 const stack = ['SwiftUI', 'App Intents', 'ActivityKit', 'Vapor', 'SQLite', 'Cloudflare Tunnel', 'MIT'];
 ---
 
@@ -25,7 +35,7 @@ const stack = ['SwiftUI', 'App Intents', 'ActivityKit', 'Vapor', 'SQLite', 'Clou
       your farm runs itself. Ours runs on a Mac at home behind a Cloudflare Tunnel. Every rule is written test-first.
     </p>
     <ul class="stack">{stack.map((s) => <li class="chip">{s}</li>)}</ul>
-    <p class="term mono"><span class="prompt" aria-hidden="true">$</span> swift test --package-path Packages/TreeFarmKit</p>
+    {hasCommand && <p class="term mono">{COMMAND}</p>}
     <div class="cta">
       <a class="btn btn-fir" href={REPO} rel="noopener">Follow along on GitHub</a>
       <a class="btn btn-ghost" href={DOCS} rel="noopener">Read the docs</a>
@@ -54,9 +64,11 @@ const stack = ['SwiftUI', 'App Intents', 'ActivityKit', 'Vapor', 'SQLite', 'Clou
     font-size: 0.875rem;
     overflow-wrap: anywhere;
   }
-  .prompt {
+  /* The '$' prompt is CSS content so the page text never contains a dollar sign. */
+  .term::before {
+    content: '$';
     color: var(--gold-lit);
-    margin-right: 8px;
+    margin-right: 10px;
   }
   .cta {
     display: flex;

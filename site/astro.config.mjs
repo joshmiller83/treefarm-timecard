@@ -2,7 +2,10 @@
 import { defineConfig, fontProviders } from 'astro/config';
 import sitemap from '@astrojs/sitemap';
 
-/** Lab and Open Graph template routes are tools, not pages: keep them out of the sitemap. */
+/**
+ * Lab and Open Graph template routes are tools, not pages: keep them out of the sitemap.
+ * @param {string} page
+ */
 const isToolRoute = (page) => /\/(lab|og)(\/|$)/.test(new URL(page).pathname);
 
 /**
@@ -32,6 +35,10 @@ function siriLinesCheck() {
   };
 }
 
+/**
+ * @param {string} pkg
+ * @param {string} file
+ */
 const fontsource = (pkg, file) => `./node_modules/@fontsource/${pkg}/files/${file}`;
 
 export default defineConfig({

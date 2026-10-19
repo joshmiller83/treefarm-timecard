@@ -341,11 +341,22 @@ q::after {
 }
 .pill-status::before {
   content: '';
+  flex: none;
   width: 7px;
   height: 7px;
   border-radius: 50%;
   background: currentColor;
-  opacity: 0.85;
+}
+@media (max-width: 359.98px) {
+  .pill-status {
+    white-space: normal;
+    font-size: 0.6875rem;
+    letter-spacing: 0;
+    padding-inline: 10px;
+  }
+  .pill-status::before {
+    display: none;
+  }
 }
 .chip {
   display: inline-flex;

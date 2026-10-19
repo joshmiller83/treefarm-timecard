@@ -196,7 +196,7 @@ export function boot(): void {
         trigger: (vars) => ScrollTrigger.create(vars),
         tint: setTint,
       };
-      let cleanup: void | (() => void);
+      let cleanup: void | (() => void) = undefined;
       try {
         cleanup = sceneBuild(ctx);
       } catch (err) {

@@ -1,0 +1,45 @@
+---
+/** Lab: map (owner). */
+import Lab from '../../layouts/Lab.astro';
+import Phone from '../../components/phone/Phone.astro';
+import Screen from '../../components/phone/Screen.astro';
+import TreesTab from '../../components/app/TreesTab.astro';
+import FieldMap from '../../components/FieldMap.astro';
+import { CONFLICT_MESSAGE, MOMENTS, OLD_NOTE, TREE_NOTE } from '../../data/ledger';
+---
+
+<Lab title="map" owner="map">
+  <section>
+    <h2>TreesTab</h2>
+    <div class="lab-row">
+      <div class="lab-cell">
+        <Phone label="Trees tab, block 2" height="760px">
+          <div class="screens" data-screens><Screen stateId="lab-trees-1" alt="" tone="light" final><TreesTab block={2} rows={[28, 40]} notes={[OLD_NOTE, TREE_NOTE]} /></Screen></div>
+        </Phone>
+        <p>block 2 rows 28–40, 2:15 PM</p>
+      </div>
+      <div class="lab-cell">
+        <Phone label="Trees tab offline" height="760px">
+          <div class="screens" data-screens>
+            <Screen stateId="lab-trees-2" alt="" tone="light" final>
+              <TreesTab at={MOMENTS.alexRow12} block={3} rows={[6, 16]} pending={[{ block: 3, row: 11 }, { block: 3, row: 12 }]} syncLine="Offline · 2 changes waiting" noService />
+            </Screen>
+          </div>
+        </Phone>
+        <p>offline</p>
+      </div>
+      <div class="lab-cell">
+        <Phone label="Trees tab synced" height="760px">
+          <div class="screens" data-screens>
+            <Screen stateId="lab-trees-3" alt="" tone="light" final><TreesTab at={MOMENTS.synced} block={3} rows={[6, 16]} syncLine="Synced" banner={CONFLICT_MESSAGE} /></Screen>
+          </div>
+        </Phone>
+        <p>synced + banner</p>
+      </div>
+    </div>
+  </section>
+  <section>
+    <h2>FieldMap</h2>
+    <FieldMap />
+  </section>
+</Lab>

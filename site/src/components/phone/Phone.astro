@@ -16,7 +16,7 @@ export interface Props {
 }
 
 const { label, height, variant = 'inline', decorative = false, class: cls } = Astro.props;
-const a11y = decorative || !label ? { 'aria-hidden': 'true' as const } : { role: 'img', 'aria-label': label };
+const hidden = decorative || !label;
 ---
 
 <div
@@ -24,7 +24,9 @@ const a11y = decorative || !label ? { 'aria-hidden': 'true' as const } : { role:
   data-phone
   data-variant={variant}
   style={height ? `--phone-h:${height}` : undefined}
-  {...a11y}
+  role={hidden ? undefined : 'img'}
+  aria-label={hidden ? undefined : label}
+  aria-hidden={hidden ? 'true' : undefined}
 >
   <div class="phone-body" aria-hidden="true">
     <div class="screen">

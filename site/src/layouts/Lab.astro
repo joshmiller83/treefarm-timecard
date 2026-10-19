@@ -1,0 +1,83 @@
+---
+/**
+ * Layout for /lab pages: component workbenches for the parallel teams. noindex, out of the
+ * sitemap, static (no motion gate) unless a page opts in with `motion`.
+ */
+import Base from './Base.astro';
+
+interface Props {
+  title: string;
+  owner: string;
+  /** Run the motion gate on this page (to test scenes or timers). */
+  motion?: boolean;
+}
+const { title, owner, motion = false } = Astro.props;
+---
+
+<Base title={`${title} · Lab · Time Card`} noindex noMotion={!motion}>
+  <div class="lab" data-theme="dark">
+    <header class="lab-head">
+      <a href="/lab/">← Lab</a>
+      <h1>{title}</h1>
+      <p class="mono">owner: {owner}</p>
+    </header>
+    <main id="content" class="lab-main">
+      <slot />
+    </main>
+  </div>
+</Base>
+
+<style>
+  .lab {
+    min-height: 100svh;
+    background: linear-gradient(180deg, #0b1a14, #12281c);
+  }
+  .lab-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 8px 24px;
+    padding: 24px var(--gutter);
+    border-bottom: 1px solid var(--stage-line);
+  }
+  .lab-head a {
+    color: var(--fir-lit);
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+  }
+  .lab-head h1 {
+    font-family: var(--font-display);
+    font-size: 2rem;
+  }
+  .lab-head p {
+    color: var(--on-stage-muted);
+    font-size: 0.875rem;
+  }
+  .lab-main {
+    padding: 32px var(--gutter) 96px;
+    display: grid;
+    gap: 56px;
+  }
+  .lab-main :global(.lab-row) {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 32px;
+  }
+  .lab-main :global(.lab-cell) {
+    display: grid;
+    justify-items: center;
+    gap: 10px;
+  }
+  .lab-main :global(.lab-cell > p) {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--on-stage-muted);
+  }
+  .lab-main :global(h2) {
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    margin-bottom: 16px;
+  }
+</style>

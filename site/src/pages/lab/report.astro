@@ -1,0 +1,32 @@
+---
+/** Lab: report (owner). */
+import Lab from '../../layouts/Lab.astro';
+import Phone from '../../components/phone/Phone.astro';
+import Screen from '../../components/phone/Screen.astro';
+import ReportTab from '../../components/app/ReportTab.astro';
+import PaperTimeCard from '../../components/PaperTimeCard.astro';
+---
+
+<Lab title="report" owner="report">
+  <div class="lab-row">
+    <div class="lab-cell">
+      <Phone label="Report tab" height="760px">
+        <div class="screens" data-screens><Screen stateId="lab-report" alt="" tone="light" final><ReportTab /></Screen></div>
+      </Phone>
+      <p>ReportTab</p>
+    </div>
+  </div>
+  <section class="paper-bench" data-theme="light">
+    <h2>PaperTimeCard</h2>
+    <PaperTimeCard />
+  </section>
+</Lab>
+
+<style>
+  .paper-bench {
+    padding: 32px;
+    border-radius: 20px;
+    background: var(--bg);
+    color: var(--ink);
+  }
+</style>

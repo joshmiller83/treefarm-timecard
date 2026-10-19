@@ -1,0 +1,63 @@
+---
+/** Lab: device-a (owner). Show every state of your components at small and large sizes. */
+import Lab from '../../layouts/Lab.astro';
+import Phone from '../../components/phone/Phone.astro';
+import Screen from '../../components/phone/Screen.astro';
+import LockScreen from '../../components/phone/LockScreen.astro';
+import LiveActivity from '../../components/phone/LiveActivity.astro';
+import { MOMENTS, fmtClock } from '../../data/ledger';
+
+const states = [
+  { at: MOMENTS.clockIn, note: '7:02 working' },
+  { at: MOMENTS.lunch, note: '12:01 lunch' },
+  { at: MOMENTS.lockScreen, note: '2:14 working' },
+  { at: MOMENTS.tapped, note: '2:14 tapped' },
+  { at: MOMENTS.treeNote, note: '2:33 break' },
+  { at: MOMENTS.clockOut, note: '4:31 working' },
+];
+---
+
+<Lab title="device-a" owner="device-a">
+  <section>
+    <h2>Live Activity states</h2>
+    <div class="lab-row">
+      {
+        states.map((s) => (
+          <div class="lab-cell">
+            <Phone label={`Lock screen at ${s.note}`} height="560px">
+              <div class="screens" data-screens>
+                <Screen stateId={`lab-${s.at}`} alt="" final>
+                  <LockScreen time={fmtClock(s.at)} live={false}>
+                    <LiveActivity at={s.at} fixed />
+                  </LockScreen>
+                </Screen>
+              </div>
+            </Phone>
+            <p>{s.note}</p>
+          </div>
+        ))
+      }
+    </div>
+  </section>
+  <section>
+    <h2>Sizes</h2>
+    <div class="lab-row">
+      {
+        ['300px', '460px', '760px'].map((h) => (
+          <div class="lab-cell">
+            <Phone label="Lock screen" height={h}>
+              <div class="screens" data-screens>
+                <Screen stateId="lab-size" alt="" final>
+                  <LockScreen time="2:14" live={false}>
+                    <LiveActivity at={MOMENTS.lockScreen} fixed />
+                  </LockScreen>
+                </Screen>
+              </div>
+            </Phone>
+            <p>{h}</p>
+          </div>
+        ))
+      }
+    </div>
+  </section>
+</Lab>

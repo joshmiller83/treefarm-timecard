@@ -175,7 +175,7 @@ export const MARKS: readonly Mark[] = [
   b2(34, t(13, 56)),
   b2(35, t(14, 0), 'app', 2), // two trees of row 35 on the map: 212 at 2:01
   b2(35, t(14, 12), 'app', 8), // the rest of row 35: 220 at 2:14
-  b2(36, t(14, 14) + 0.5, 'lock-screen'), // the tap on [Row 36]: 230
+  b2(36, t(14, 14) + 0.01, 'lock-screen'), // the tap on [Row 36], under a second after 2:14: 230
   // Sharpening shears 2:30–2:44, then Alex helps Sam finish block 3
   { at: t(14, 50), block: 3, row: 11, trees: 10, by: 'Alex', via: 'app', offline: true },
   { at: t(14, 56), block: 3, row: 12, trees: 10, by: 'Alex', via: 'app', offline: true, rejected: true },
@@ -203,7 +203,7 @@ export const MOMENTS = {
   back: t(12, 31),
   status: t(14, 1),
   lockScreen: t(14, 14),
-  tapped: t(14, 14) + 0.5,
+  tapped: t(14, 14) + 0.01,
   field: t(14, 15),
   island: t(14, 16),
   break: t(14, 30),

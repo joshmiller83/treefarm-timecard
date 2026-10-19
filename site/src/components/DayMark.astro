@@ -61,7 +61,8 @@ const uid = 'dm';
   .dm-hand {
     transform-box: view-box;
     transform-origin: 512px 520px;
-    transform: rotate(var(--angle));
+    /* a touch smaller than the app icon's tree so it clears the ring at every angle */
+    transform: rotate(var(--angle)) scale(0.86);
   }
   .dm-track {
     opacity: 0;

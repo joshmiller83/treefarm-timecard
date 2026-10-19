@@ -1,0 +1,89 @@
+---
+/** Lab: device-b (owner). */
+import Lab from '../../layouts/Lab.astro';
+import Phone from '../../components/phone/Phone.astro';
+import Screen from '../../components/phone/Screen.astro';
+import LockScreen from '../../components/phone/LockScreen.astro';
+import DynamicIsland from '../../components/phone/DynamicIsland.astro';
+import SiriSnippet from '../../components/phone/SiriSnippet.astro';
+import SiriGlow from '../../components/phone/SiriGlow.astro';
+import DictationWave from '../../components/phone/DictationWave.astro';
+import ControlsCard from '../../components/ControlsCard.astro';
+import { SIRI } from '../../data/siri';
+---
+
+<Lab title="device-b" owner="device-b">
+  <section>
+    <h2>Siri</h2>
+    <div class="lab-row">
+      <div class="lab-cell">
+        <Phone label="Siri misheard check" height="560px">
+          <div class="screens" data-screens>
+            <Screen stateId="lab-siri-1" alt="" final>
+              <LockScreen time="7:18" live={false}>
+                <Fragment slot="top"><SiriGlow /><SiriSnippet text={SIRI.misheard.reply} choices={SIRI.misheard.choices} chosen="No" /></Fragment>
+              </LockScreen>
+            </Screen>
+          </div>
+        </Phone>
+        <p>snippet + choices</p>
+      </div>
+      <div class="lab-cell">
+        <Phone label="Dictation" height="560px">
+          <div class="screens" data-screens>
+            <Screen stateId="lab-siri-2" alt="" final>
+              <LockScreen time="2:36" live={false}>
+                <Fragment slot="top"><SiriGlow /><DictationWave transcript={SIRI.shiftNote.answer} /></Fragment>
+              </LockScreen>
+            </Screen>
+          </div>
+        </Phone>
+        <p>dictation</p>
+      </div>
+      <div class="lab-cell">
+        <Phone label="Reduced motion glow" height="560px">
+          <div class="screens" data-screens>
+            <Screen stateId="lab-siri-3" alt="" final>
+              <LockScreen time="2:01" live={false}>
+                <Fragment slot="top"><SiriGlow still /><SiriSnippet text={SIRI.howMany.reply} /></Fragment>
+              </LockScreen>
+            </Screen>
+          </div>
+        </Phone>
+        <p>still glow</p>
+      </div>
+    </div>
+  </section>
+  <section>
+    <h2>Dynamic Island</h2>
+    <div class="lab-row">
+      {
+        (['rest', 'compact', 'expanded'] as const).map((size) => (
+          <div class="lab-cell">
+            <Phone label={`Dynamic Island ${size}`} height="560px">
+              <div class="screens" data-screens>
+                <Screen stateId={`lab-island-${size}`} alt="" final>
+                  <div class="home" />
+                  <DynamicIsland size={size} />
+                </Screen>
+              </div>
+            </Phone>
+            <p>{size}</p>
+          </div>
+        ))
+      }
+    </div>
+  </section>
+  <section>
+    <h2>ControlsCard</h2>
+    <ControlsCard />
+  </section>
+</Lab>
+
+<style>
+  .home {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(160deg, #1d4a33, #0d2418);
+  }
+</style>
