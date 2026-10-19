@@ -1,0 +1,154 @@
+# Generate TimeCard.xcodeproj with `xcodegen generate` (brew install xcodegen), run in this folder.
+# The generated project is committed too, so XcodeGen is only needed to change targets or settings.
+name: TimeCard
+options:
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+  developmentLanguage: en
+configFiles:
+  Debug: Config/Base.xcconfig
+  Release: Config/Base.xcconfig
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    CODE_SIGN_STYLE: Automatic
+    TARGETED_DEVICE_FAMILY: "1"
+    SUPPORTS_MACCATALYST: NO
+    SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
+    SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: NO
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+    DEAD_CODE_STRIPPING: YES
+    # Colors are read through Palette (App/Design), so Xcode's generated asset symbols would clash.
+    ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS: NO
+packages:
+  TimeCardCore:
+    path: TimeCardCore
+targets:
+  TimeCard:
+    type: application
+    platform: iOS
+    sources:
+      - path: App
+        excludes:
+          - "Resources/Fonts/**"
+      # A folder reference keeps each font next to its OFL.txt inside the app bundle.
+      - path: App/Resources/Fonts
+        type: folder
+        buildPhase: resources
+      - Shared
+    info:
+      path: App/Info.plist
+      properties:
+        CFBundleDisplayName: Time Card
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        # Siri sometimes hears the app's name differently.
+        INAlternativeAppNames:
+          - INAlternativeAppName: Tree Card
+          - INAlternativeAppName: Tree Farm
+        NSSupportsLiveActivities: true
+        ITSAppUsesNonExemptEncryption: false
+        LSRequiresIPhoneOS: true
+        TimeCardAppGroup: group.$(BUNDLE_ID_PREFIX).timecard
+        UIAppFonts:
+          - Fonts/ZillaSlab/ZillaSlab-SemiBold.ttf
+          - Fonts/ZillaSlab/ZillaSlab-Bold.ttf
+          - Fonts/IBMPlexMono/IBMPlexMono-Medium.ttf
+          - Fonts/IBMPlexMono/IBMPlexMono-SemiBold.ttf
+        UIBackgroundModes:
+          - fetch
+          - processing
+        BGTaskSchedulerPermittedIdentifiers:
+          - $(PRODUCT_BUNDLE_IDENTIFIER).sync
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+        UILaunchScreen:
+          UIColorName: Bg
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+    entitlements:
+      path: App/TimeCard.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.$(BUNDLE_ID_PREFIX).timecard
+    settings:
+      base:
+        PRODUCT_NAME: TimeCard
+        PRODUCT_BUNDLE_IDENTIFIER: $(BUNDLE_ID_PREFIX).timecard
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+    dependencies:
+      - target: TimeCardWidgets
+      - package: TimeCardCore
+  TimeCardWidgets:
+    type: app-extension
+    platform: iOS
+    sources:
+      - Widgets
+      - Shared
+    info:
+      path: Widgets/Info.plist
+      properties:
+        CFBundleDisplayName: Time Card
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        TimeCardAppGroup: group.$(BUNDLE_ID_PREFIX).timecard
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    entitlements:
+      path: Widgets/TimeCardWidgets.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.$(BUNDLE_ID_PREFIX).timecard
+    settings:
+      base:
+        PRODUCT_NAME: TimeCardWidgets
+        PRODUCT_BUNDLE_IDENTIFIER: $(BUNDLE_ID_PREFIX).timecard.widgets
+        SKIP_INSTALL: YES
+    dependencies:
+      - package: TimeCardCore
+      - sdk: WidgetKit.framework
+      - sdk: SwiftUI.framework
+      - sdk: ActivityKit.framework
+  TimeCardTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - Tests
+    dependencies:
+      - target: TimeCard
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(BUNDLE_ID_PREFIX).timecard.tests
+        GENERATE_INFOPLIST_FILE: YES
+  TimeCardUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - UITests
+    dependencies:
+      - target: TimeCard
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(BUNDLE_ID_PREFIX).timecard.uitests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: TimeCard
+schemes:
+  TimeCard:
+    build:
+      targets:
+        TimeCard: all
+    run:
+      config: Debug
+    test:
+      config: Debug
+      gatherCoverageData: true
+      targets:
+        - TimeCardTests
+        - TimeCardUITests
+    archive:
+      config: Release

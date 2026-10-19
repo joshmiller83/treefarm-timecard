@@ -1,0 +1,59 @@
+name: iOS
+
+on:
+  push:
+    paths:
+      - "iOS/**"
+      - "Packages/**"
+      - ".github/workflows/ios.yml"
+  pull_request:
+    paths:
+      - "iOS/**"
+      - "Packages/**"
+      - ".github/workflows/ios.yml"
+
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  core:
+    name: TimeCardCore (swift test)
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Pick the newest Xcode
+        run: |
+          ls -d /Applications/Xcode*.app
+          XCODE=$(ls -d /Applications/Xcode_*.app | grep -vi beta | sort -V | tail -1)
+          echo "Using $XCODE"
+          sudo xcode-select -s "$XCODE/Contents/Developer"
+          xcodebuild -version
+          swift --version
+      - uses: actions/cache@v4
+        with:
+          path: iOS/TimeCardCore/.build
+          key: core-${{ runner.os }}-${{ hashFiles('iOS/TimeCardCore/Package.resolved', 'iOS/TimeCardCore/Package.swift') }}
+          restore-keys: core-${{ runner.os }}-
+      - run: swift test --package-path iOS/TimeCardCore
+
+  app:
+    name: App (simulator build)
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Pick the newest Xcode with an iOS SDK
+        run: |
+          ls -d /Applications/Xcode*.app
+          XCODE=$(ls -d /Applications/Xcode_*.app | grep -vi beta | sort -V | tail -1)
+          echo "Using $XCODE"
+          sudo xcode-select -s "$XCODE/Contents/Developer"
+          xcodebuild -version
+          xcodebuild -showsdks | grep -i iphonesimulator
+      - name: Build for the simulator
+        run: |
+          xcodebuild build \
+            -project iOS/TimeCard.xcodeproj \
+            -scheme TimeCard \
+            -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO
