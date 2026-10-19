@@ -217,46 +217,89 @@ buttons 46 pt tall, radius 14 pt, 8 pt gap. **Never a clock-out button.**
 export interface Props {
   size?: 'rest' | 'compact' | 'expanded';
   row?: number;                 // 37
-  time?: string;                // '6:29' (compact)
+  time?: string;                // '6:29' (compact, H:MM)
   timer?: string;               // '6:29:10' (expanded)
   field?: string;               // 'North field'
   block?: string;               // 'Block 2'
   rows?: [number, number];      // [37, 38] plus Break
+  trees?: number;               // 230 (expanded, under the place)
+  /** DayClock drives both timers (data-timer="worked"). Default false (fixed). */
+  live?: boolean;
+  /** Normal flow, for crops outside a phone (fits its container, max 1 px/pt). */
+  inline?: boolean;
 }
 ```
 
 Hooks: `[data-island]` (one element; width/height/border-radius tween between rest 126×37,
-compact 250×37, expanded 371×160 radius 44; absolutely positioned, `contain: layout`),
-`[data-island-compact]`, `[data-island-expanded]` (content; fades in at 70% of the morph),
-`[data-timer]` inside expanded. Sits at y 11 pt over Phone's rest island.
+compact 250×37, expanded 371×160 radius 44; absolutely positioned, `contain: layout`; the
+static size is `data-size`), `[data-island-compact]`, `[data-island-expanded]` (content;
+fades in at 70% of the morph), `[data-island-time]` (compact H:MM; with `live` a DayClock
+`data-timer="worked"` clipped to H:MM so it agrees with the expanded timer), `[data-timer]`
+inside expanded, `[data-island-row="37"]`, `[data-island-row="38"]`, `[data-island-break]`
+(the expanded buttons: `util.tap` targets), `[data-island-lens]` (the front camera, drawn at
+x 241, y 29.5 pt at every size). Sits at y 11 pt, z-index 8 inside the screen, above every
+screen layer. Phone's own rest island (`[data-island-rest]`, the hardware) paints over its
+middle, since `.screen` is its own stacking context: black on black with the lens in the same
+place, so it never shows; the island draws its own lens too, for crops and stacking changes.
+
+Layout: nothing crosses the camera cutout (the rest island, x 133.5–259.5 pt). Compact:
+'Row 37' in the left ear (x 78.5–126), the fir and '6:29' in the right ear (x 265–311).
+Expanded: the badge and the solid 'On the clock' pill (#2E7A4E, white, like the Live
+Activity's) sit on the camera's centre line, y 29.5 pt; the pill starts right of x 265.5.
+
+**The status bar yields.** Put the island in the same `<Screen>` layer as the status bar.
+In a layer whose island is compact or expanded, the status-bar time (`[data-statusbar]
+[data-clock]`) moves 30 pt left (`translate`), from the left ear's centre (x 68) to the outer
+ear's (x 38), clear of the island; the signal bars, `[data-wifi]` and `[data-no-service]`
+fade, leaving the battery; expanded, the whole status bar fades (the island covers it). All
+of it follows the custom property `--island-yield` on the layer: 0 rest, 1 compact,
+2 expanded (the static value follows `data-size`). Scenes that morph the island tween
+`--island-yield` on the `[data-screen]` layer in step with the width, e.g.
+`tl.fromTo(layer, { '--island-yield': 0 }, { '--island-yield': 1 }, at)`.
+Relies on StatusBar's hooks `[data-statusbar]`, `[data-clock]`, `[data-bar]`, `[data-wifi]`,
+`[data-no-service]`.
 
 ### `phone/SiriSnippet.astro`
 
 ```ts
 export interface Props {
-  text: string;                 // from SIRI.*.reply
+  text: string;                 // from SIRI.*.reply (or .ask)
   choices?: readonly string[];  // ['Yes', 'No']
   /** Which choice shows as tapped in the final state. */
   chosen?: string;
+  /** Top of the card in pt. Default 64. */
+  top?: number;
 }
 ```
 
 Hooks: `[data-snippet]` (card at y 64 pt, 361 pt wide, radius 26, rgba(28,32,30,.92)),
-`[data-snippet-text]` (17 pt white; util.typeIn target), `[data-choice="Yes"]`, `[data-choice="No"]`
-(40 pt chips; Yes filled #2E7A4E, No outlined). Header: 20 pt app icon + 'TIME CARD' 11 pt.
+`[data-snippet-text]` (17 pt white; util.typeIn target) with the reply pre-split into
+`[data-word="0".."n"]` spans (karaoke-ready), `[data-choice="Yes"]`, `[data-choice="No"]`
+(40 pt chips; Yes filled #2E7A4E, No outlined), `[data-choice-ring]` inside each chip (the
+gold "tapped" outline: opacity 0 → 1). Header: 20 pt app icon + 'TIME CARD' 11 pt.
+The reply wraps greedily (`text-wrap: pretty`) and keeps numbers with their units ('block 2',
+'row 14', '10 trees', '34 an hour', '8 hours 30 minutes').
+
+**Siri covers the lock screen's clock.** A `[data-lock]` holding a `[data-snippet]` or a
+`[data-wave]` hides its own `[data-date]`, big `[data-clock]` and padlock (opacity 0; the
+static final state). Scenes that drop the card in fade those three from 1 to 0 over the same
+span as the `[data-snippet]`/`[data-wave]` drop-in (`tl.fromTo(chrome, { opacity: 1 },
+{ opacity: 0 }, at)`). The padlock is matched as `[data-padlock], .lock-padlock`
+(device-a: a `[data-padlock]` hook on it would be welcome).
 
 ### `phone/SiriGlow.astro`
 
 ```ts
 export interface Props {
-  /** Reduced motion: a faint static border instead of the glow. */
+  /** true: the faint static border; false: always the full glow; omitted: full glow under
+      html.motion, faint border without it. */
   still?: boolean;
 }
 ```
 
 Hooks: `[data-glow]` (opacity), `[data-glow-ring]` (rotation). A conic gradient
-(#88CFA4, #7FB2D9, #C9A0E0, #E2A644) masked to the screen's inner edge, 6 pt wide.
-Generic, not Apple's asset.
+(#88CFA4, #7FB2D9, #C9A0E0, #E2A644) masked to the screen's inner edge, 6 pt wide (the still
+border too). Generic, not Apple's asset.
 
 ### `phone/DictationWave.astro` and `src/scripts/wave.ts`
 
@@ -266,15 +309,26 @@ export interface Props {
   seed?: number;          // 7
   /** Progress to draw statically (0–1). */
   progress?: number;
-  /** Transcript typed under the wave. */
+  /** Transcript typed under the wave; without one the card says 'Listening…'. */
   transcript?: string;    // SIRI.shiftNote.answer
+  /** Top of the card in pt. Default 64. */
+  top?: number;
 }
 // wave.ts
+export const WAVE_MIN: number; // 0.1, a resting bar (a round dot)
 export function waveHeights(progress: number, seed?: number, bars?: number): number[]; // 0–1 each, deterministic
+export function setWave(wave: HTMLElement | null | undefined, progress: number): void; // writes --h on each bar
 ```
 
-Hooks: `[data-wave]`, `[data-wave-bar]` (scaleY from waveHeights), `[data-transcript]`.
-Bars 3 pt wide, 2 pt gap. Unit-test that the same progress gives the same heights.
+Hooks: `[data-wave]` (card; `data-seed`, `data-bars`), `[data-wave-bar]` (one bar; its height
+h is the custom property `--h`, drawn with transforms only: a middle scaled to h·36 − 3 pt
+and two 3 pt round caps moved to ±(h·18 − 1.5) pt), `[data-transcript]` with
+`[data-word]` spans, `[data-listening]` ('Listening…'). Bars 3 pt wide, 2 pt gap. Scenes
+scrub it with `setWave(waveEl, progress)`.
+
+**One card at a time.** The wave and the snippet share Siri's slot (y 64 pt). When Siri
+answers, the SiriSnippet **replaces** the wave card in the same slot (crossfade); never
+stack them. Like the snippet, the wave hides the lock screen's date, clock and padlock.
 
 ### `ControlsCard.astro` (page level, real text)
 
@@ -282,14 +336,17 @@ Bars 3 pt wide, 2 pt gap. Unit-test that the same progress gives the same height
 export interface Props {
   /** Highlight the Action button in gold. Default true. */
   highlightAction?: boolean;
+  class?: string;
 }
 ```
 
 A `--card-dark` card: three round 64 px tiles 'Next row', 'Break', 'Clock in', plus an
-outline of a phone's left edge with the Action button in gold and the label
-'Action button → Next row'. Hooks: `[data-controls]`, `[data-control="next-row"|"break"|"clock-in"]`,
-`[data-action-button]` (glow layer: opacity pulse). Include the qualifier text in the section,
-not here: Action button on iPhones that have one; Control Center needs iOS 18 or later.
+outline of a phone's left edge (fading out down and to the right) with the Action button in
+gold and the label 'Action button → Next row'. Hooks: `[data-controls]`,
+`[data-control="next-row"|"break"|"clock-in"]`, `[data-action-button]` (glow layer: opacity
+pulse), `[data-action-key]` (the gold button shape), `[data-action-label]` (the label: fade or
+slide in). Include the qualifier text in the section, not here: Action button on iPhones that
+have one; Control Center needs iOS 18 or later.
 
 ---
 

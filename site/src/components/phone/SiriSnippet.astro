@@ -1,22 +1,85 @@
 ---
-/** STUB (device-b): replace the look, keep the Props and hooks in CONTRACT.md. */
+/**
+ * SiriSnippet (device-b): the card Siri shows at the top of the screen when Time Card answers.
+ * 361 pt wide at y 64 pt, radius 26, rgba(28,32,30,.92), padding 14 pt. Header: the 20 pt app
+ * icon and 'TIME CARD' (11 pt, .08em). Reply text 17 pt white. Optional 40 pt Yes/No chips.
+ *
+ * Hooks
+ *   [data-snippet]                       the card (drop in: y -12/-16 → 0, opacity)
+ *   [data-snippet-text]                  the reply (util.typeIn / util.karaoke target)
+ *     > [data-word="0".."n"]             the reply pre-split into word spans (karaoke-ready
+ *                                        without SplitText; SplitText still works inside them)
+ *   [data-choice="Yes"|"No"]             the chips (util.tap target)
+ *     > [data-choice-ring]               the gold "chosen" outline: opacity 0 → 1
+ *
+ * On a lock screen the card covers Siri's slot, so a [data-lock] that holds a snippet (or a
+ * DictationWave) hides its date, big clock and padlock (opacity 0, the static final state).
+ * Scenes that drop the card in fade those from 1 to 0 over the same span.
+ *
+ * The reply wraps like iOS (greedy, `text-wrap: pretty`), with numbers kept on the line of
+ * their units: 'block 2', 'row 14', 'tree 7', '10 trees', '26 rows', '34 an hour',
+ * '8 hours 30 minutes' never split.
+ *
+ * Text always comes from SIRI.* in src/data/siri.ts; never type a Siri line by hand.
+ */
+import { ICON, firTiers } from '../../data/icon';
+
 export interface Props {
+  /** From SIRI.*.reply (or .ask). */
   text: string;
+  /** Chips under the reply, e.g. SIRI.misheard.choices (['Yes', 'No']). */
   choices?: readonly string[];
+  /** Which choice shows as tapped (gold outline) in the final state. */
   chosen?: string;
+  /** Top of the card in pt from the screen's top. Default 64. */
+  top?: number;
 }
-const { text, choices = [], chosen } = Astro.props;
+const { text, choices = [], chosen, top = 64 } = Astro.props;
+
+// Keep places ('block 2', 'row 14', 'tree 7') and amounts ('10 trees', '26 rows', '34 an hour',
+// '8 hours 30 minutes') on one line: their spaces become no-break spaces.
+const NB = '\u00a0';
+const words = text
+  .trim()
+  .replace(/\b(block|row|tree|Block|Row|Tree) (\d+)/g, `$1${NB}$2`)
+  .replace(/(\d+) an hour\b/g, `$1${NB}an${NB}hour`)
+  .replace(/(\d+) (hours?|minutes?|seconds?|trees?|rows?)\b/g, `$1${NB}$2`)
+  .replace(/\b(hours?|minutes?) (\d+)/g, `$1${NB}$2`)
+  .split(/[ \t\n]+/); // not \s, which would split the no-break spaces again
+const { center: c, ringR, ringW, trunk, colors } = ICON;
+const tiers = firTiers();
 ---
 
-<div class="snip" data-snippet>
-  <div class="snip-hd">TIME CARD <span class="snip-stub">· SiriSnippet stub · device-b</span></div>
-  <div class="snip-text" data-snippet-text>{text}</div>
+<div class="snip" data-snippet data-chosen={chosen} style={top !== 64 ? `--snip-top:${top}` : undefined}>
+  <div class="snip-hd">
+    <span class="snip-icon">
+      <svg viewBox="0 0 1024 1024" aria-hidden="true" focusable="false">
+        <circle cx={c.x} cy={c.y} r={ringR} fill="none" stroke={colors.ring} stroke-width={ringW * 1.6}></circle>
+        <rect x={trunk.x} y={trunk.y} width={trunk.w} height={trunk.h} rx={trunk.r} fill={colors.trunk}></rect>
+        {tiers.map((t) => <path d={t.d} fill={t.fill} />)}
+      </svg>
+    </span>
+    <span class="snip-app">TIME CARD</span>
+  </div>
+  <div class="snip-text" data-snippet-text>
+    {
+      words.map((w, i) => (
+        <>
+          {i > 0 && ' '}
+          <span class="w" data-word={i}>
+            {w}
+          </span>
+        </>
+      ))
+    }
+  </div>
   {
     choices.length > 0 && (
       <div class="snip-choices">
-        {choices.map((c) => (
-          <span class:list={['chip', c === chosen && 'is-chosen']} data-choice={c}>
-            {c}
+        {choices.map((choice, i) => (
+          <span class:list={['snip-chip', i === 0 ? 'snip-chip--primary' : 'snip-chip--secondary', choice === chosen && 'is-chosen']} data-choice={choice}>
+            <span class="snip-chip-label">{choice}</span>
+            <i class="snip-chip-ring" data-choice-ring />
           </span>
         ))}
       </div>
@@ -28,45 +91,106 @@ const { text, choices = [], chosen } = Astro.props;
   .snip {
     position: absolute;
     left: calc(16 * var(--pt));
-    top: calc(64 * var(--pt));
+    top: calc(var(--snip-top, 64) * var(--pt));
     width: calc(361 * var(--pt));
-    padding: calc(14 * var(--pt));
+    padding: calc(14 * var(--pt)) calc(16 * var(--pt)) calc(16 * var(--pt));
     border-radius: calc(26 * var(--pt));
-    background: rgba(28, 32, 30, 0.92);
+    /* The brief's material (--siri-card) over an opaque underlay. There is no backdrop blur
+       (never animate one), and without it a translucent card shows crisp ghost text of the
+       lock-screen clock, which a real material never does. */
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0) 48%),
+      linear-gradient(var(--siri-card), var(--siri-card)),
+      #121614;
+    /* A glass edge: a hairline highlight on top, a soft baked shadow under (never animated). */
+    box-shadow:
+      inset 0 calc(0.75 * var(--pt)) 0 rgba(255, 255, 255, 0.14),
+      inset 0 0 0 calc(0.75 * var(--pt)) rgba(255, 255, 255, 0.06),
+      0 calc(12 * var(--pt)) calc(32 * var(--pt)) rgba(0, 0, 0, 0.32);
     color: #fff;
     font-family: var(--font-system);
-    z-index: 5;
-    outline: 1px dashed rgba(226, 166, 68, 0.6);
+    -webkit-font-smoothing: antialiased;
+    z-index: 7;
   }
+
   .snip-hd {
+    display: flex;
+    align-items: center;
+    gap: calc(8 * var(--pt));
+    height: calc(20 * var(--pt));
+  }
+  .snip-icon {
+    flex: none;
+    width: calc(20 * var(--pt));
+    height: calc(20 * var(--pt));
+    border-radius: calc(4.6 * var(--pt));
+    background: linear-gradient(180deg, #2b7d52, #154a2e);
+    box-shadow: inset 0 0 0 calc(0.5 * var(--pt)) rgba(255, 255, 255, 0.12);
+    overflow: hidden;
+  }
+  .snip-icon svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+  .snip-app {
     font-size: calc(11 * var(--pt));
+    font-weight: 600;
     letter-spacing: 0.08em;
-    opacity: 0.7;
+    line-height: 1;
+    color: rgba(255, 255, 255, 0.62);
   }
-  .snip-stub {
-    letter-spacing: 0;
-  }
+
   .snip-text {
-    margin-top: calc(6 * var(--pt));
+    margin-top: calc(9 * var(--pt));
     font-size: calc(17 * var(--pt));
-    line-height: 1.3;
+    line-height: calc(22 * var(--pt));
+    font-weight: 400;
+    letter-spacing: -0.008em;
+    /* Greedy like iOS, without a lone last word. */
+    text-wrap: pretty;
   }
+
   .snip-choices {
     display: flex;
     gap: calc(8 * var(--pt));
-    margin-top: calc(10 * var(--pt));
+    margin-top: calc(14 * var(--pt));
   }
-  .chip {
+  .snip-chip {
+    position: relative;
     flex: 1;
     height: calc(40 * var(--pt));
     display: grid;
     place-items: center;
-    border-radius: 999px;
-    border: 1.5px solid rgba(255, 255, 255, 0.5);
+    border-radius: calc(20 * var(--pt));
     font-size: calc(16 * var(--pt));
+    font-weight: 600;
+    letter-spacing: -0.01em;
   }
-  .chip:first-child {
+  .snip-chip--primary {
     background: #2e7a4e;
-    border-color: #2e7a4e;
+  }
+  .snip-chip--secondary {
+    box-shadow: inset 0 0 0 calc(1.5 * var(--pt)) rgba(255, 255, 255, 0.42);
+  }
+  .snip-chip-ring {
+    position: absolute;
+    inset: calc(-3.5 * var(--pt));
+    border-radius: calc(23.5 * var(--pt));
+    border: calc(2 * var(--pt)) solid var(--gold-lit);
+    opacity: 0;
+    pointer-events: none;
+  }
+  .is-chosen .snip-chip-ring {
+    opacity: 1;
+  }
+  .snip-chip--secondary.is-chosen {
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  /* Siri's card takes the top of the lock screen: the date, the big clock and the padlock
+     give way (only the lock screen's own children, not the status bar's clock). */
+  :global([data-lock]:has([data-snippet], [data-wave]) > :is([data-date], [data-clock], [data-padlock], .lock-padlock)) {
+    opacity: 0;
   }
 </style>
