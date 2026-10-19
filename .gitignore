@@ -1,0 +1,23 @@
+.DS_Store
+xcuserdata/
+DerivedData/
+build/
+dist/
+.build/
+.swiftpm/
+*.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/
+Package.resolved.bak
+
+# Personal signing settings (copy iOS/Config/Local.xcconfig.example)
+iOS/Config/Local.xcconfig
+
+# Server data never belongs in git
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+Server/data/
+Server/backups/
+
+# Real time-card exports used for one-time imports
+import/
+*.export.json
