@@ -58,6 +58,7 @@ struct CreateSchema: AsyncMigration {
             .field("starts_at", .datetime)
             .field("ends_at", .datetime)
             .field("seq", .int64, .required)
+            .field("created_seq", .int64, .required)
             .field("updated_at", .datetime, .required)
             .field("deleted_at", .datetime)
             .field("json", .string, .required)

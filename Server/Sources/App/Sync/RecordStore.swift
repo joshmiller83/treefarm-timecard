@@ -46,6 +46,7 @@ struct RecordStore {
             .filter(\.$kind == record.kind.rawValue)
             .filter(\.$entityId == record.entityId)
             .first() ?? RecordModel()
+        if model.id == nil { model.createdSeq = seq }
         model.kind = record.kind.rawValue
         model.entityId = record.entityId
         model.farmId = farm

@@ -37,6 +37,8 @@ public func configure(_ app: Application, config: AppConfig) async throws {
     app.middleware.use(RouteLoggingMiddleware(logLevel: .info))
     app.middleware.use(APIErrorMiddleware())
 
+    app.asyncCommands.use(ImportArtifactCommand(), as: "import-artifact")
+
     try routes(app)
 }
 

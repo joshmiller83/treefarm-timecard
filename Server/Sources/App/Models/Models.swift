@@ -118,6 +118,8 @@ final class RecordModel: Model, @unchecked Sendable {
     @OptionalField(key: "ends_at") var endsAt: Date?
     /// Monotonic across the whole server; a pull asks for everything after a seq.
     @Field(key: "seq") var seq: Int64
+    /// The seq the record was first stored at; equal to `seq` until it's changed.
+    @Field(key: "created_seq") var createdSeq: Int64
     @Field(key: "updated_at") var updatedAt: Date
     @OptionalField(key: "deleted_at") var deletedAt: Date?
     @Field(key: "json") var json: String
