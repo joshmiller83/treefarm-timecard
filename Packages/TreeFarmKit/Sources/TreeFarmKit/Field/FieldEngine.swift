@@ -312,7 +312,7 @@ public enum FieldEngine {
         let ctx = try marking(state, now)
         guard let field = state.currentField else { throw FieldFailure(Speech.noField) }
         let walker = state.walker(for: field)
-        guard !walker.blocks.isEmpty else { throw FieldFailure("\(field.name) has no blocks yet. Add them in the Trees tab.") }
+        guard !walker.blocks.isEmpty else { throw FieldFailure(Speech.noBlocks(field, isAdmin: state.me.role == .admin)) }
         let index = state.index
         let from = FieldState.valid(state.position?.next, in: walker)
         guard let row = walker.nextRows(from: from, count: 1, index: index).first else {

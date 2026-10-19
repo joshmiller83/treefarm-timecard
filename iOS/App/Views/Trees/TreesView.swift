@@ -89,10 +89,10 @@ struct TreesView: View {
         } else if model.blocks.isEmpty {
             VStack(alignment: .leading, spacing: 16) {
                 FieldHeader(model: model, showsList: showsList) { listChoice = !showsList }
-                emptyFarm(title: "\(model.field?.name ?? "This field") has no blocks yet",
-                          detail: model.data?.isAdmin == true
-                            ? "Add blocks of rows in the Team tab, beside or below each other the way they stand in the field."
-                            : "Ask an admin to add this field’s blocks.")
+                // The same sentence the Clock tab and Siri say.
+                emptyFarm(title: "No blocks yet",
+                          detail: model.field.map { Speech.noBlocks($0, isAdmin: model.data?.isAdmin == true) }
+                            ?? "Ask an admin to add this field’s blocks.")
                 Spacer()
             }
             .padding(16)

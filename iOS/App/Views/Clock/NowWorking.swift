@@ -54,7 +54,7 @@ struct NowWorking: Equatable {
             waiting = nil
             if let field = state.currentField {
                 done = state.walker(for: field).blocks.isEmpty
-                    ? "\(field.name) has no blocks yet. Add them in the Trees tab."
+                    ? Speech.noBlocks(field, isAdmin: state.me.role == .admin)
                     : "Every row in \(field.name) is shaped."
             } else {
                 done = Speech.noField

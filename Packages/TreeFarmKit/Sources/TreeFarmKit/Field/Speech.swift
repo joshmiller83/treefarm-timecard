@@ -4,7 +4,14 @@ import Foundation
 public enum Speech {
     public static let notClockedIn = "You’re not clocked in. Say \"clock in with Time Card\" first."
     public static let noSeason = "There’s no active season. Ask an admin to start one."
-    public static let noField = "There’s no field set up yet. Add one in the Trees tab."
+    /// Fields and blocks are set up in the admin-only Team tab.
+    public static let noField = "There’s no field set up yet. An admin adds fields in the Team tab."
+    /// A field with no blocks: admins add them in the Team tab; workers ask an admin.
+    public static func noBlocks(_ field: Field, isAdmin: Bool) -> String {
+        isAdmin ? "\(field.name) has no blocks yet. Add them in the Team tab."
+                : "\(field.name) has no blocks yet. Ask an admin to add \(field.name)’s blocks."
+    }
+
     public static let blockGone = "That block isn’t on the map anymore."
     public static let emptyNote = "The note was empty, so nothing was saved."
     public static let nothingToUndo = "There’s nothing to undo."

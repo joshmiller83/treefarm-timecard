@@ -159,6 +159,14 @@ struct FieldEngineTests {
         if case .success(let o) = r { #expect(o.lastAction == "Row 1, block 2 marked") }
     }
 
+    @Test mutating func aFieldWithNoBlocksSaysWhoAddsThem() {
+        f.state.blocks = []
+        _ = FieldEngine.run(.clockIn(fieldId: nil), &f.state, &undo, at: f.monday9)
+        #expect(FieldEngine.run(.markNextRow, &f.state, &undo, at: f.at(1)).speech == "North has no blocks yet. Ask an admin to add North’s blocks.")
+        f.state.me.role = .admin
+        #expect(FieldEngine.run(.markNextRow, &f.state, &undo, at: f.at(2)).speech == "North has no blocks yet. Add them in the Team tab.")
+    }
+
     @Test mutating func theLastOpenRowAndThenAFinishedField() {
         f.state.marks = f.samShaped(f.block1, rows: [1, 2, 3, 4, 5], on: f.monday9) + f.samShaped(f.block2, rows: [1, 2], on: f.monday9)
         _ = FieldEngine.run(.clockIn(fieldId: nil), &f.state, &undo, at: f.monday9)
