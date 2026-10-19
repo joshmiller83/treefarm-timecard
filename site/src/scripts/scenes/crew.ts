@@ -20,7 +20,7 @@ import { TEAM } from '../../data/ledger.ts';
 import { setOdometer } from '../odometer.ts';
 import { AT, AT_MOB, DAY_FROM, DAY_TRACK, DAY_TRACK_MOB } from '../../sections/crew/schedule.ts';
 import { POSES, PULL, posePoint, wirePath, type Pose } from '../../sections/crew/geometry.ts';
-import { CONFLICT, KEPT, REJECTED, WAITING } from '../../sections/crew/story.ts';
+import { CONFLICT, KEPT, REJECTED, WAITING, WAITING_FIRST } from '../../sections/crew/story.ts';
 
 type Win = readonly [number, number];
 const span = (w: Win) => w[1] - w[0];
@@ -231,7 +231,7 @@ registerScene(
       if (count) setOdometer(count, String(n));
       if (plural) plural.textContent = n === 1 ? '' : 's';
     };
-    setCount(1);
+    setCount(WAITING_FIRST);
     tl.set(L0, { opacity: 0 }, A.offlineLayer);
     tl.set(L1, { opacity: 1 }, A.offlineLayer);
 
@@ -291,8 +291,10 @@ registerScene(
       tl.set(lab12, { attr: { class: plainClass } }, A.fill12[1]);
       tl.set(capEnd, { attr: { class: capClass } }, A.fill12[1]);
     }
-    const n = { v: 1 };
-    tl.fromTo(n, { v: 1 }, { v: WAITING, duration: span(A.count), ease: 'none', immediateRender: false, onUpdate: () => setCount(Math.round(n.v)) }, A.count[0]);
+    // Row 12's ten tree marks join the outbox together: 10 → 20 changes, a whole row at a time.
+    const n = { v: WAITING_FIRST };
+    const per = Math.max(1, WAITING_FIRST);
+    tl.fromTo(n, { v: WAITING_FIRST }, { v: WAITING, duration: span(A.count), ease: 'none', immediateRender: false, onUpdate: () => setCount(Math.round(n.v / per) * per) }, A.count[0]);
     if (pkA2) tl.to(pkA2.el, { opacity: 1, duration: span(A.queue2) }, A.queue2[0]);
 
     // ================= [.42, .6] back in range: sync, first mark wins =================

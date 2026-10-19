@@ -28,10 +28,15 @@ export const CONFLICT: Mark = must(
   'first crew mark on the rejected row',
 );
 
-/** Changes waiting on Alex's phone at 2:56. */
-export const WAITING = OFFLINE_MARKS.filter((m) => m.at <= MOMENTS.alexRow12).length;
+/**
+ * Changes waiting on Alex's phone at 2:56: the outbox holds one entry per tree mark, so two
+ * whole rows queue 20 (the app: '20 changes waiting to sync').
+ */
+export const WAITING = OFFLINE_MARKS.filter((m) => m.at <= MOMENTS.alexRow12).reduce((n, m) => n + m.trees, 0);
+/** Waiting after the first offline row (10). */
+export const WAITING_FIRST = OFFLINE_MARKS[0]?.trees ?? 0;
 
-/** The Trees tab's offline line, as the app words it. */
+/** The Trees tab's offline line (the app's SyncState summary, prefixed with Offline). */
 export const syncLine = (n: number) => `Offline · ${n} change${n === 1 ? '' : 's'} waiting`;
 export const OFFLINE_LINE = syncLine(WAITING);
 export const SYNCED_LINE = 'Synced';
@@ -70,4 +75,4 @@ export const STEPS = [
 ] as const;
 
 /** The figure's caption: first mark wins, told with the ledger's times. */
-export const CAPTION = `First mark wins. ${CONFLICT.by} marked row ${CONFLICT.row} at ${fmtTime(CONFLICT.at)}. You marked it again at ${fmtTime(REJECTED.at)} with no signal, so when your phone syncs it says “${CONFLICT_MESSAGE}”`;
+export const CAPTION = `First mark wins. ${CONFLICT.by} marked row ${CONFLICT.row} at ${fmtTime(CONFLICT.at)}. You marked it too, at ${fmtTime(REJECTED.at)} with no signal. When your phone syncs, it tells you ${CONFLICT.by} got there first.`;

@@ -2,8 +2,9 @@
 /**
  * THE CREW · 2:47 PM · Block 3 (brief: sections[crew]).
  *
- * One live map for the whole crew, offline marks that sync later, first mark wins (with the
- * app's exact message), admins and workers, and the farm's own small server.
+ * One map for the whole crew (synced, not live: no push yet), offline marks that sync later,
+ * first mark wins (with the server's exact per-tree message), admins and workers, and the
+ * farm's own small server.
  *
  * Static first: the server markup is the composed no-motion figure (three phones in a row on
  * desktop, stacked on mobile: offline, synced, the owner's Team tab, under a static server
@@ -36,7 +37,7 @@ const [stepOff, stepSync, stepOwner] = STEPS;
 
 <SectionShell id="crew" track={track}>
   <Fragment slot="intro">
-    <p>{COPY.body}</p>
+    <p>{COPY.lead} {COPY.body}</p>
   </Fragment>
 
   <div class="beat crew-beat" data-beat="1" style={`--at:${b1};--at-mob:${m1}`}>

@@ -3,10 +3,14 @@
  * lead and the rest so the page can set the lead in the brighter ink. crew.test.ts checks
  * every line against the brief word for word.
  */
-import { CONFLICT_MESSAGE } from '../../data/ledger.ts';
+import { CONFLICT_MESSAGE, MOMENTS, fmtClock } from '../../data/ledger.ts';
 
 export const COPY = {
-  body: 'Everyone on the crew shares one live map. When Sam marks a row, it shows up on your phone too.',
+  /** Why Alex is in block 3: the ledger has Alex helping Sam finish it from 2:47. */
+  lead: `At ${fmtClock(MOMENTS.crew)} you go help Sam finish block 3.`,
+  // 'one map', not the brief's 'one live map': the app syncs after each change and on launch,
+  // foreground, network return and background refresh, with no live push yet (truth rule 4).
+  body: 'Everyone on the crew shares one map. When Sam marks a row, it shows up on your phone too.',
   offline: {
     lead: 'No signal at the back of the field? Keep working.',
     rest: 'Time Card saves your marks on your phone and syncs when you’re back in range.',

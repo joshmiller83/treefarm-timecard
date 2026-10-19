@@ -9,7 +9,7 @@ import { CONFLICT_MESSAGE, MOMENTS, OFFLINE, TEAM, fmtTime } from '../../data/le
 import { COPY, copyLines } from './copy.ts';
 import { POSES, poseBounds, posePoint, wirePath, type Pose } from './geometry.ts';
 import { AT, AT_MOB, DAY_FROM, DAY_TRACK, DAY_TRACK_MOB, TRACK_MOB, dayAt, windows, type Schedule } from './schedule.ts';
-import { CAPTION, CONFLICT, KEPT, LABELS, OFFLINE_LINE, REJECTED, STEPS, WAITING, syncLine } from './story.ts';
+import { CAPTION, CONFLICT, KEPT, LABELS, OFFLINE_LINE, REJECTED, STEPS, WAITING, WAITING_FIRST, syncLine } from './story.ts';
 
 const brief = JSON.parse(readFileSync(fileURLToPath(new URL('../../../../docs/landing/brief.json', import.meta.url)), 'utf8')) as {
   sections: Array<{ id: string; headline: string; body: string; bullets: string[]; eyebrow: string }>;
@@ -19,8 +19,9 @@ const spec = brief.sections.find((s) => s.id === 'crew')!;
 const plain = (s: string) => s.replace(/[’‘]/g, "'").replace(/[“”]/g, '"').replace(/\s+/g, ' ').trim();
 
 describe('the story (all from the ledger)', () => {
-  it('uses the exact conflict message', () => {
-    expect(CONFLICT_MESSAGE).toBe('Row 12 was shaped by Sam on Oct 16.');
+  it('uses the server’s exact per-tree conflict message (PushApplier.taken)', () => {
+    expect(CONFLICT_MESSAGE).toBe('Row 12, tree 1 in Block 3 was shaped by Sam on Oct 16.');
+    expect(CONFLICT_MESSAGE).toContain(`Block ${CONFLICT.block}`);
   });
 
   it('keeps first-mark-wins: Sam marks row 12 before Alex does, offline', () => {
@@ -36,8 +37,10 @@ describe('the story (all from the ledger)', () => {
   it('marks rows 11 and 12 offline, keeps 11 and loses 12', () => {
     expect(KEPT.map((m) => m.row)).toEqual([11]);
     expect(REJECTED.row).toBe(12);
-    expect(WAITING).toBe(2);
-    expect(OFFLINE_LINE).toBe('Offline · 2 changes waiting');
+    // One outbox entry per tree mark: two whole rows queue twenty.
+    expect(WAITING).toBe(20);
+    expect(WAITING_FIRST).toBe(10);
+    expect(OFFLINE_LINE).toBe('Offline · 20 changes waiting');
     expect(syncLine(1)).toBe('Offline · 1 change waiting');
   });
 
@@ -68,7 +71,9 @@ describe('the story (all from the ledger)', () => {
 
   it('captions the static figure with ledger times', () => {
     expect(STEPS.map((s) => s.time)).toEqual([fmtTime(MOMENTS.alexRow12), fmtTime(MOMENTS.synced), fmtTime(MOMENTS.synced)]);
-    expect(CAPTION).toContain(CONFLICT_MESSAGE);
+    // Paraphrased, not quoted: the phone shows the server's message, and the caption says what it means.
+    expect(CAPTION).not.toContain('“');
+    expect(CAPTION).toContain(`it tells you ${CONFLICT.by} got there first`);
     expect(CAPTION).toContain(fmtTime(CONFLICT.at));
     expect(CAPTION).toContain(fmtTime(REJECTED.at));
   });
@@ -251,8 +256,12 @@ describe('the second phone', () => {
 
 describe('the copy', () => {
   it('is the brief’s headline, body and five lines, word for word', () => {
-    expect(plain(COPY.body)).toBe(plain(spec.body));
-    expect(copyLines().map(plain)).toEqual(spec.bullets.map(plain));
+    // Two deliberate departures from the brief (truth rules 4 and 6): 'one map', not 'one live
+    // map' (no live push yet), and the server's real per-tree message in the quote.
+    expect(plain(COPY.body)).toBe(plain(spec.body).replace('one live map', 'one map'));
+    const briefQuote = 'Row 12 was shaped by Sam on Oct 16.';
+    expect(copyLines().map(plain)).toEqual(spec.bullets.map((b) => plain(b.replace(briefQuote, CONFLICT_MESSAGE))));
+    expect(COPY.lead).toBe('At 2:47 you go help Sam finish block 3.');
   });
 
   it('quotes the conflict message exactly', () => {

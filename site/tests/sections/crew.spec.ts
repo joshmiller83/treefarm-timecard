@@ -8,7 +8,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { AT, AT_MOB } from '../../src/sections/crew/schedule';
 import { settle, watch } from '../e2e/helpers';
 
-const CONFLICT = 'Row 12 was shaped by Sam on Oct 16.';
+const CONFLICT = 'Row 12, tree 1 in Block 3 was shaped by Sam on Oct 16.';
 const LINES = [
   'No signal at the back of the field? Keep working. Time Card saves your marks on your phone and syncs when you’re back in range.',
   'If two people mark the same tree, the first one counts, and the other phone says so:',
@@ -65,10 +65,10 @@ test.describe('reduced motion: the composed static chapter', () => {
       await phones.nth(i).scrollIntoViewIfNeeded();
       await expect(phones.nth(i)).toBeVisible();
     }
-    await expect(sec.getByRole('img', { name: /no signal: No Service, rows 11 and 12 in gold, and the line Offline · 2 changes waiting/ })).toBeVisible();
-    await expect(sec.getByRole('img', { name: new RegExp(`back in range: Synced, and the message ${CONFLICT.replace('.', '\\.')}`) })).toBeVisible();
+    await expect(sec.getByRole('img', { name: /no signal: No Service, rows 11 and 12 in gold, and the line Offline · 20 changes waiting/ })).toBeVisible();
+    await expect(sec.getByRole('img', { name: new RegExp(`back in range: Synced, and the message ${CONFLICT.replace(/[.,]/g, (c) => `\\${c}`)}`) })).toBeVisible();
     await expect(sec.getByRole('img', { name: /owner’s phone: the Team tab with this week’s hours, Alex 38:24, Sam 36:50, Rosa 31:15/ })).toBeVisible();
-    await expect(sec.locator('figcaption')).toContainText(CONFLICT);
+    await expect(sec.locator('figcaption')).toContainText('When your phone syncs, it tells you Sam got there first.');
     await expect(sec.locator('figcaption')).toBeVisible();
     // The motion-only extras (second phone, wires) are not there at all.
     await expect(sec.locator('[data-crew-peek]')).toBeHidden();
@@ -238,7 +238,7 @@ test.describe('at 375 with motion', () => {
     ['you tap row 11', A.tap.row11, `${LAYER('trees-1456-offline')} [data-row-label="11"]`],
     ['row 11 turns gold', A.fill11[1], `${LAYER('trees-1456-offline')} [data-map-row="11"]`],
     ['you tap row 12', A.tap.row12, `${LAYER('trees-1456-offline')} [data-row-label="12"]`],
-    ['2 changes waiting', A.count[1], `${LAYER('trees-1456-offline')} [data-sync-line]`],
+    ['20 changes waiting', A.count[1], `${LAYER('trees-1456-offline')} [data-sync-line]`],
     ['the bars come back', A.barsIn[1], `${LAYER('trees-1456-offline')} [data-statusbar]`],
     ['your changes go up', mid(A.packetsUp), '[data-packet="alex-2"]'],
     ['the server takes them', mid(A.pulseSync), '[data-crew-server-in] [data-server-glyph]'],

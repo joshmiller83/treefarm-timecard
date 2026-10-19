@@ -48,8 +48,8 @@ describe('Siri lines match decisions.md character for character', () => {
     expect(SIRI.clockIn.reply).toContain('’');
   });
 
-  it('shows the conflict message verbatim', () => {
-    expect(SIRI.conflict.reply).toBe('Row 12 was shaped by Sam on Oct 16.');
+  it('shows the conflict message verbatim (the server’s per-tree rejection, PushApplier.taken)', () => {
+    expect(SIRI.conflict.reply).toBe('Row 12, tree 1 in Block 3 was shaped by Sam on Oct 16.');
     expect(SIRI.conflict.reply).toBe(CONFLICT_MESSAGE);
   });
 });

@@ -140,7 +140,7 @@ export const SIRI = {
     said: null,
     reply: CONFLICT_MESSAGE,
     verified: true,
-    source: 'FieldEngine first mark wins',
+    source: 'Server PushApplier.taken (per-tree sync rejection)',
   },
   clockOutAsk: {
     key: 'clockOutAsk',

@@ -82,13 +82,16 @@ export interface TreeNote {
   byline: string;
 }
 
-/** An older note that survives the season reset. */
+/**
+ * An older note that survives the season reset. The tree is shaped today, so its flag is
+ * 'Needs attention' (a 'Replant' flag would contradict a tree Alex shaped this shift).
+ */
 export const OLD_NOTE: TreeNote = {
   block: 2,
   row: 31,
   tree: 4,
-  flag: 'Replant',
-  text: 'Lost its top in the wind.',
+  flag: 'Needs attention',
+  text: 'Bagworms on the lower branches.',
   by: 'Sam',
   byline: 'Sam · Oct 9',
 };
@@ -192,7 +195,12 @@ export const CREW_MARKS: readonly Mark[] = [
 ];
 
 export const OFFLINE = { lost: t(14, 48), back: t(15, 0) } as const;
-export const CONFLICT_MESSAGE = 'Row 12 was shaped by Sam on Oct 16.';
+/**
+ * What Alex's phone says when the sync turns down row 12: the server's per-tree rejection
+ * (Server/Sources/App/Sync/PushApplier.swift, taken()): "Row 12, tree 1 in Block 3 was
+ * shaped by Sam on Oct 16." for the row's first tree.
+ */
+export const CONFLICT_MESSAGE = 'Row 12, tree 1 in Block 3 was shaped by Sam on Oct 16.';
 
 /** Named moments in the story, in minutes. Scenes tween the DayClock between these. */
 export const MOMENTS = {
