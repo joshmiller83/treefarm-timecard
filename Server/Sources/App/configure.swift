@@ -46,4 +46,5 @@ func routes(_ app: Application) throws {
     try app.register(collection: HealthController())
     try app.register(collection: AuthController())
     try app.register(collection: MeController())
+    try app.register(collection: AdminController())
 }
