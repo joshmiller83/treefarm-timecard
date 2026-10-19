@@ -11,13 +11,17 @@
 		017D2D4BC39CB0DA6FCCE053 /* ReportContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6870008F611EA82A10DC4A06 /* ReportContent.swift */; };
 		03BFDC8A888EC537C0AB5C8E /* LogScenario.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98FCA95A3EB0589F02E5A545 /* LogScenario.swift */; };
 		03D99CEE1599A9EEC7F99772 /* ShiftEditorModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6A8FB32F6AAEA21AA74AEE7 /* ShiftEditorModel.swift */; };
+		057624E6F8BE9868771696E0 /* ShiftDraftTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BDC1C804EA111CDC81D1252 /* ShiftDraftTests.swift */; };
 		0613E18E87E56A28DF207DCC /* ShiftTrees.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE7503202388780B683D972B /* ShiftTrees.swift */; };
+		0A721124F0E36CE63C67453B /* LogReportFixture.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8E1BE571647BE20FD5982C9 /* LogReportFixture.swift */; };
 		0EC762F09BF83156A11A134F /* LiveActivityButtons.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97460A95F1CA9E6D45762BFE /* LiveActivityButtons.swift */; };
 		104D492C8C3A51F286665FD8 /* IntentRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91519E30548CFC57A34F19EE /* IntentRunner.swift */; };
 		11875192E9EAFECC79DABA39 /* Components.swift in Sources */ = {isa = PBXBuildFile; fileRef = 174CC43FB55650E3ADD75F46 /* Components.swift */; };
+		1931035E041FCA14AC70494D /* ShiftEditorModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4623FF7D02E7144959C7D79 /* ShiftEditorModelTests.swift */; };
 		1C89058F02093C6506330C83 /* LiveActivityButtons.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97460A95F1CA9E6D45762BFE /* LiveActivityButtons.swift */; };
 		1E1B26C4A40FF877A255E691 /* AppEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = C130C9D6D6E12A2BCD39E059 /* AppEnvironment.swift */; };
 		210A451BC06E8FF049CC8269 /* TimeCardUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C111B64C0C07020B9DCCDD2 /* TimeCardUITests.swift */; };
+		2E41B0EDB79C1FF6F54E10D3 /* LogBuilderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0EC4977D6D7D7BFFFA305D14 /* LogBuilderTests.swift */; };
 		35A25F41DFB49A532890883B /* LogWording.swift in Sources */ = {isa = PBXBuildFile; fileRef = 377EF56158A674B7498DB738 /* LogWording.swift */; };
 		3B3E0A8E54FB630EFF4F45D1 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF7548AC9CE7DC4BC309E713 /* SettingsView.swift */; };
 		3DFDFC60E9F3DEFA8A73D693 /* LiveActivityController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 265B9098E1A69BDACEBA441D /* LiveActivityController.swift */; };
@@ -43,6 +47,7 @@
 		A327B4C2DF3C355FFA9FA1F6 /* TimeCardApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1620ADB0A89E887DA3CBB17E /* TimeCardApp.swift */; };
 		A52443D525B164CED3CE9F97 /* TimeCardActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24D0A0F8E20930ACEF5AD5CB /* TimeCardActivityAttributes.swift */; };
 		A557B44473F43053CBA86614 /* TreesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB142D28E01DD5D7B047B8BA /* TreesView.swift */; };
+		A5F38BD9808273606DAF81D1 /* ReportOutputTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 440EB3A66110368779E66FC5 /* ReportOutputTests.swift */; };
 		A657019F230B5308E216014F /* ReportExport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 965497BD1502A9792E74BD55 /* ReportExport.swift */; };
 		B0E0EF4804907D35BC00E872 /* PaperTimeCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1ADB7BF3DB4B1819A0EBCD1 /* PaperTimeCard.swift */; };
 		B36F932D59108B2F4C40620E /* Appearance.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5935F4ACB9CB99F78AD24707 /* Appearance.swift */; };
@@ -104,6 +109,8 @@
 /* Begin PBXFileReference section */
 		0661937D9296096B85070F81 /* ClockView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClockView.swift; sourceTree = "<group>"; };
 		06B3F6EFCDE7A63AED61406A /* ReportPDF.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportPDF.swift; sourceTree = "<group>"; };
+		0BDC1C804EA111CDC81D1252 /* ShiftDraftTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShiftDraftTests.swift; sourceTree = "<group>"; };
+		0EC4977D6D7D7BFFFA305D14 /* LogBuilderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogBuilderTests.swift; sourceTree = "<group>"; };
 		1620ADB0A89E887DA3CBB17E /* TimeCardApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimeCardApp.swift; sourceTree = "<group>"; };
 		165D9CB59A2B73311DD924DB /* ReportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportView.swift; sourceTree = "<group>"; };
 		174CC43FB55650E3ADD75F46 /* Components.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Components.swift; sourceTree = "<group>"; };
@@ -117,6 +124,7 @@
 		3759E7FDBE2DBB6FD394D128 /* ShiftEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShiftEditorView.swift; sourceTree = "<group>"; };
 		377EF56158A674B7498DB738 /* LogWording.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogWording.swift; sourceTree = "<group>"; };
 		430050FEBA83C41B0D8C1F39 /* Typography.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Typography.swift; sourceTree = "<group>"; };
+		440EB3A66110368779E66FC5 /* ReportOutputTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportOutputTests.swift; sourceTree = "<group>"; };
 		4533B607361861A2BBFEC580 /* Fonts */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Fonts; path = App/Resources/Fonts; sourceTree = SOURCE_ROOT; };
 		4E751EFB1A84C048A71D83B9 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
 		576C231644ECC8C6932C2E33 /* TimeCardWidgetsBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimeCardWidgetsBundle.swift; sourceTree = "<group>"; };
@@ -143,6 +151,8 @@
 		A7D1AE21BCC9D9FB5D329866 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		B1528797F8AD8C65C37F90E4 /* AppModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModelTests.swift; sourceTree = "<group>"; };
 		B1ADB7BF3DB4B1819A0EBCD1 /* PaperTimeCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaperTimeCard.swift; sourceTree = "<group>"; };
+		B4623FF7D02E7144959C7D79 /* ShiftEditorModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShiftEditorModelTests.swift; sourceTree = "<group>"; };
+		B8E1BE571647BE20FD5982C9 /* LogReportFixture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogReportFixture.swift; sourceTree = "<group>"; };
 		B9BFB687B47602C4EA8F2002 /* LogComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogComponents.swift; sourceTree = "<group>"; };
 		BB37F784FF57349039E30269 /* SignInView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignInView.swift; sourceTree = "<group>"; };
 		BCE003B9CB6B5840F1EDBDA4 /* TimeCardCore */ = {isa = PBXFileReference; lastKnownFileType = folder; name = TimeCardCore; path = TimeCardCore; sourceTree = SOURCE_ROOT; };
@@ -314,6 +324,7 @@
 				B1528797F8AD8C65C37F90E4 /* AppModelTests.swift */,
 				DC14C784BB8F321617C3E862 /* DesignTests.swift */,
 				6A441859AAEFA8511A46EA2F /* PlatformTests.swift */,
+				AD5FE03FD431C2056F07513D /* LogReport */,
 			);
 			path = Tests;
 			sourceTree = "<group>";
@@ -358,6 +369,18 @@
 				BB37F784FF57349039E30269 /* SignInView.swift */,
 			);
 			path = SignIn;
+			sourceTree = "<group>";
+		};
+		AD5FE03FD431C2056F07513D /* LogReport */ = {
+			isa = PBXGroup;
+			children = (
+				0EC4977D6D7D7BFFFA305D14 /* LogBuilderTests.swift */,
+				B8E1BE571647BE20FD5982C9 /* LogReportFixture.swift */,
+				440EB3A66110368779E66FC5 /* ReportOutputTests.swift */,
+				0BDC1C804EA111CDC81D1252 /* ShiftDraftTests.swift */,
+				B4623FF7D02E7144959C7D79 /* ShiftEditorModelTests.swift */,
+			);
+			path = LogReport;
 			sourceTree = "<group>";
 		};
 		AD92A9BB98F18AE091154218 /* Design */ = {
@@ -579,7 +602,12 @@
 			files = (
 				A11346CECD3BFC51BA365381 /* AppModelTests.swift in Sources */,
 				6E021FFA63E1736E7099AF2B /* DesignTests.swift in Sources */,
+				2E41B0EDB79C1FF6F54E10D3 /* LogBuilderTests.swift in Sources */,
+				0A721124F0E36CE63C67453B /* LogReportFixture.swift in Sources */,
 				5840091B8188A4BF57AD73A8 /* PlatformTests.swift in Sources */,
+				A5F38BD9808273606DAF81D1 /* ReportOutputTests.swift in Sources */,
+				057624E6F8BE9868771696E0 /* ShiftDraftTests.swift in Sources */,
+				1931035E041FCA14AC70494D /* ShiftEditorModelTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
