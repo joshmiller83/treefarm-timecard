@@ -4,20 +4,26 @@
  * Windows live in src/sections/clock-out/model.ts (DESK, MOB), unit-tested against the brief.
  *
  * Desktop (the stage phone):
- *   lapse     day 3:40 → 4:31: the timer spins, the trees roll 260 → 290, the strip advances
+ *   lapse     day 3:40 → 4:31: the timer spins, the trees roll 260 → 290, the strip advances;
+ *             then the question layer (its timer fixed at 8:30:00) takes over
  *   ask       karaoke on “Clock out with Time Card.”, Siri's glow, the question types in
  *   yes       tap Yes; “Yes.” appears
  *   answer    the answer types in; a gold rule sweeps under the stopped timer
  *   dismiss   the Live Activity leaves like iOS; the ribbon completes
+ *   quiet     Siri's card goes and the date, clock and padlock come back (the answer layer
+ *             stays up, so no text-bearing layer swaps and the card never re-wraps)
  *   lights    a light layer fades over the stage; at .4 the section turns light
  *   copyIn    the report copy takes over columns 1–5 (held in the sticky frame)
  *   unlock    to the Report tab; tap This week
- *   lift      the paper lifts out of the preview (a FLIP) while the phone steps right
+ *   lift      the paper lifts out of the preview while the phone steps right (a live FLIP:
+ *             both rects are read on the same frame, so it starts on the preview however the
+ *             visitor got here)
  *   print     rows print top to bottom, Friday last with a gold flash; the totals rule draws
  *   annotate  “No pay on the report. Ever.”; tap Export PDF, then CSV; the chips pop
  *   rest      the phone settles back to rest
- * Mobile: the same exchange on the section's sticky phone; the light part (copy, the Report
- * tab, the paper) is in flow after the track and rises in one piece, one day block at a time.
+ * Mobile: the same exchange on the section's sticky phone, timed against the cards that pass
+ * over it (model.ts MOB); the light part (copy, the Report tab, the paper) is in flow after
+ * the track and rises in one piece, one day block at a time.
  *
  * Only transform, opacity and clip-path animate (plus the theme flip, whose 0.4 s color
  * transition lives in CSS). The phone is at rest at 0 and 1.
@@ -29,8 +35,6 @@ import { registerScene } from '../scene.ts';
 import { odometerHTML } from '../odometer.ts';
 import { AT, DESK, FROM, MOB, lapse, lapseAt } from '../../sections/clock-out/model.ts';
 
-/** The stage phone's frame is 420 u wide; the screen is set in 13.5 u on every side. */
-const INSET = 13.5 / 420;
 /** The page card's layout width (the Report tab preview is drawn at its proportions). */
 const CARD_W = 720;
 
@@ -53,10 +57,22 @@ registerScene(
     const one = <T extends Element = HTMLElement>(root: El, sel: string) => (root?.querySelector<T>(sel) ?? null) as T | null;
     const all = <T extends Element = HTMLElement>(root: El, sel: string) => (root ? Array.from(root.querySelectorAll<T>(sel)) : []);
     const layer = (id: string) => one(screens, `:scope > [data-screen="${id}"]`);
+
+    // Desktop borrows the Report tab from the after part's phone (that part is for screen
+    // readers only while the paper is staged), so the page carries one Report tab, not two.
+    // It goes under the lock layers, where the unlock reveals it.
+    if (isDesk && screens && !layer('report-week')) {
+      const borrowed = section.querySelector<HTMLElement>('[data-co-report] [data-screen="report-week"]');
+      const home = borrowed?.parentNode;
+      if (borrowed && home) {
+        const next = borrowed.nextSibling;
+        screens.insertBefore(borrowed, screens.firstChild);
+        undo.push(() => home.insertBefore(borrowed, next && next.parentNode === home ? next : null));
+      }
+    }
     const act = layer('lock-1631-activity');
     const ask = layer('lock-1631-ask');
     const ans = layer('lock-1631-answer');
-    const quiet = layer('lock-1631-quiet');
     const report = layer('report-week');
     const span = (w: readonly [number, number]) => w[1] - w[0];
 
@@ -125,8 +141,10 @@ registerScene(
     // ---- Ask: karaoke on the user line, Siri's glow, the question types in ----
     lightWords(section.querySelector('[data-co-said]'), B.karaoke[0], span(B.karaoke), 0.25);
 
-    set(act, B.glow[0], { opacity: 0 });
-    set(ask, B.glow[0], { opacity: 1 });
+    // When the lapse lands on 4:31 the question layer takes over: the same card, but its timer
+    // is fixed at 8:30:00, so the idle tick can't run it on past the ledger while Siri talks.
+    set(act, B.lapse[1], { opacity: 0 });
+    set(ask, B.lapse[1], { opacity: 1 });
     const glow = one(ask, '[data-glow]');
     const ring = one(ask, '[data-glow-ring]');
     if (glow) tl.fromTo(glow, { opacity: 0 }, { opacity: 1, duration: span(B.glow), ease: 'power1.out' }, B.glow[0]);
@@ -176,7 +194,7 @@ registerScene(
         rule.remove();
         stopped.style.position = pos;
       });
-      tl.fromTo(rule, { scaleX: 0 }, { scaleX: 1, duration: ansSpan * 0.4, ease: 'power2.inOut' }, B.answer[1] - ansSpan * 0.45);
+      tl.fromTo(rule, { scaleX: 0 }, { scaleX: 1, duration: span(B.underline), ease: 'power2.inOut' }, B.underline[0]);
     }
 
     // ---- Dismiss: the buttons fade in turn, then the card drops away like iOS ----
@@ -185,8 +203,18 @@ registerScene(
     const disSpan = span(B.dismiss);
     if (btns.length) tl.to(btns, { opacity: 0, duration: disSpan * 0.25, stagger: disSpan * 0.08, ease: 'power1.in' }, B.dismiss[0]);
     if (card) tl.to(card, { scale: 0.98, y: 16, opacity: 0, duration: disSpan * 0.45, ease: 'power2.in' }, B.dismiss[0] + disSpan * 0.45);
-    set(ans, B.dismiss[1], { opacity: 0 });
-    set(quiet, B.dismiss[1], { opacity: 1 });
+
+    // ---- Quiet: Siri's card goes, the date, clock and padlock come back ----
+    // All in the answer layer (the quiet layer is the static page's final state), so the
+    // answer never swaps to another layer's copy of the same words.
+    const ansCard = one(ans, '[data-snippet]');
+    const ansChrome = all(ans, '[data-lock] > :is([data-date], [data-clock], [data-padlock])');
+    const qSpan = span(B.quiet);
+    // The card lifts away first; the date and clock come up in its place once it has gone.
+    if (ansCard) tl.to(ansCard, { opacity: 0, y: -12, duration: qSpan * 0.45, ease: 'power2.in' }, B.quiet[0]);
+    if (ansChrome.length) {
+      tl.fromTo(ansChrome, { opacity: 0 }, { opacity: 1, duration: qSpan * 0.5, ease: 'power1.out', immediateRender: false }, B.quiet[0] + qSpan * 0.5);
+    }
 
     // ---- Lights up ----
     const light = document.querySelector<HTMLElement>('[data-tint-light]');
@@ -268,7 +296,7 @@ registerScene(
       const uSpan = span(D.unlock);
       set(report, D.unlock[0], { opacity: 1 });
       if (report) tl.fromTo(report, { scale: 0.94 }, { scale: 1, duration: uSpan * 0.5, ease: 'power2.out', immediateRender: false }, D.unlock[0] + uSpan * 0.05);
-      if (quiet) tl.to(quiet, { yPercent: -100, duration: uSpan * 0.45, ease: 'power2.in' }, D.unlock[0]);
+      if (ans) tl.to(ans, { yPercent: -100, duration: uSpan * 0.45, ease: 'power2.in' }, D.unlock[0]);
       util.sheen(tl, D.unlock[0] + uSpan * 0.1);
       util.tap(tl, one(report, '[data-range-chip="this-week"]'), D.unlock[1] - 0.045);
 
@@ -276,49 +304,58 @@ registerScene(
       const liftSpan = span(D.lift);
       if (phone) tl.to(phone, { xPercent: 8, scale: 0.9, duration: liftSpan, ease: 'power2.inOut' }, D.lift[0]);
 
-      // ---- The paper lifts out of the preview (FLIP, measured lazily and scroll-independent) ----
+      // ---- The paper lifts out of the preview: a live FLIP ----
+      // The paper's from-state is never captured when the timeline is built or refreshed (the
+      // frame may not be stuck then, the stage may still hold another chapter, and a refresh
+      // scrolls the page to 0 while it measures). While the lift plays, each frame reads the
+      // preview's rect and the paper slot's rect together and places the paper between them,
+      // so it starts exactly on the preview however the visitor got here (wheel, keys, a
+      // chapter link) and whatever the stage phone is doing. The paper's place is a function
+      // of the timeline's time, and it is set again once every refresh has finished.
       const thumb = one(report, '[data-paper-thumb]');
-      const screenEl = thumb?.closest<HTMLElement>('.screen') ?? null;
-      let frac = { x: 0.04, y: 0.5, w: 0.85 };
-      const measureThumb = () => {
-        if (!thumb || !screenEl) return;
-        const sr = screenEl.getBoundingClientRect();
-        const r = thumb.getBoundingClientRect();
-        // Only trust a measurement taken while the screen is upright and unscaled.
-        if (sr.width > 0 && Math.abs(sr.width - screenEl.offsetWidth) < 0.5) frac = { x: (r.left - sr.left) / sr.width, y: (r.top - sr.top) / sr.width, w: r.width / sr.width };
-      };
-      measureThumb();
-      let from = { x: 0, y: 0, scale: 0.5 };
-      const flip = () => {
-        measureThumb();
-        const stageSlot = ctx.stage?.el.querySelector<HTMLElement>('.stage-slot') ?? null;
-        if (!stageSlot || !fitBox || !frame) return from;
-        // The stage phone at rest: its slot is never transformed.
-        const p = stageSlot.getBoundingClientRect();
-        const k = p.width * INSET;
-        const sw = p.width - 2 * k;
-        const s = Number(fitBox.dataset.scale ?? '1');
-        const fr = frame.getBoundingClientRect();
-        const box = fitBox.getBoundingClientRect();
-        // While the section plays, the frame is sticky at the viewport's top-left.
-        const left = box.left - fr.left;
-        const top = box.top - fr.top;
+      const stageScreen = ctx.stage?.slot ?? null;
+      let from = { x: 0, y: 0, scale: 0.37 };
+      /** The preview's box on screen: the thumb's place in its layer, mapped onto the stage phone's screen. */
+      const measure = () => {
+        if (!thumb || !report || !stageScreen || !fitBox) return;
+        const lr = report.getBoundingClientRect();
+        const sr = stageScreen.getBoundingClientRect();
+        if (lr.width < 1 || sr.width < 1) return;
+        const tr = thumb.getBoundingClientRect();
+        const fb = fitBox.getBoundingClientRect();
+        // The layer fills the screen; any uniform scale on it (the unlock) or on the phone cancels out.
+        const k = sr.width / lr.width;
+        const s = Number(fitBox.dataset.scale ?? '1') || 1;
         from = {
-          x: (p.left + k + frac.x * sw - left) / s,
-          y: (p.top + k + frac.y * sw - top) / s,
-          scale: (frac.w * sw) / (CARD_W * s),
+          x: (sr.left + (tr.left - lr.left) * k - fb.left) / s,
+          y: (sr.top + (tr.top - lr.top) * k - fb.top) / s,
+          scale: (tr.width * k) / (CARD_W * s),
         };
-        return from;
       };
       if (paper) {
         const shadow = one(paper, '[data-paper-shadow]');
-        tl.fromTo(
-          paper,
-          { x: () => flip().x, y: () => from.y, scale: () => from.scale, rotation: -3 },
-          { x: 0, y: 0, scale: 1, rotation: -1, duration: liftSpan, ease: 'power3.inOut' },
-          D.lift[0],
-        );
+        // One setter for the whole transform ('css' takes an object, shorthands included).
+        const setCSS = gsap.quickSetter(paper, 'css') as (v: GSAPTweenVars) => void;
+        const move = gsap.parseEase('power3.inOut');
+        const tilt = gsap.parseEase('power2.inOut');
+        const lift = { t: 0 };
+        const refreshing = () => !!(ScrollTrigger as unknown as { isRefreshing?: boolean }).isRefreshing;
+        // Flat on the preview, tipped to -3° as it comes up, settled at -1° in its slot.
+        const rotAt = (t: number) => (t < 0.3 ? -3 * tilt(t / 0.3) : -3 + 2 * tilt((t - 0.3) / 0.7));
+        const place = () => {
+          const t = Math.min(1, Math.max(0, (tl.time() - D.lift[0]) / liftSpan));
+          if (t < 1 && !refreshing()) measure();
+          const e = move(t);
+          setCSS({ x: from.x * (1 - e), y: from.y * (1 - e), scale: from.scale + (1 - from.scale) * e, rotation: rotAt(t) });
+        };
+        ScrollTrigger.addEventListener('refresh', place);
+        undo.push(() => {
+          ScrollTrigger.removeEventListener('refresh', place);
+          gsap.set(paper, { clearProps: 'transform' });
+        });
+        // Hidden until the lift: nothing of the paper shows before it leaves the preview.
         tl.fromTo(paper, { opacity: 0 }, { opacity: 1, duration: liftSpan * 0.12, ease: 'none' }, D.lift[0]);
+        tl.fromTo(lift, { t: 0 }, { t: 1, duration: liftSpan, ease: 'none', immediateRender: false, onUpdate: place }, D.lift[0]);
         // The preview dims as its sheet lifts off, and comes back once the sheet is clear.
         if (thumb) {
           tl.to(thumb, { opacity: 0.3, duration: liftSpan * 0.15, ease: 'power1.out' }, D.lift[0]);
@@ -358,6 +395,8 @@ registerScene(
       const pop = (chip: El, at: number) => {
         if (chip) tl.fromTo(chip, { opacity: 0, scale: 0.9 }, { opacity: 1, scale: 1, duration: eSpan * 0.3, ease: 'back.out(1.6)' }, at);
       };
+      const formats = section.querySelector('.co-exports-lead');
+      if (formats) tl.fromTo(formats, { opacity: 0 }, { opacity: 1, duration: eSpan * 0.25, ease: 'power1.out' }, D.exports[0]);
       util.tap(tl, one(report, '[data-export="pdf"]'), D.exports[0]);
       pop(section.querySelector('[data-co-chip="pdf"]'), D.exports[0] + eSpan * 0.22);
       util.tap(tl, one(report, '[data-export="csv"]'), D.exports[0] + eSpan * 0.5);

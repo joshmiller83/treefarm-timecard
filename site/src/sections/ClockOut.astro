@@ -11,15 +11,18 @@
  * tokens, so they never depend on the section's data-theme, which only tells the header.
  *
  * With motion the server markup is the final state and the scene adds the from-states:
- *   desktop  the stage phone plays lock → ask → answer → quiet → Report tab; the scene moves
- *            the report copy into the beats and the paper block into the sticky frame, where
+ *   desktop  the stage phone plays lock → ask → answer (which goes quiet) → Report tab; the
+ *            Report tab layer is borrowed from the after part's phone (one copy in the page);
+ *            the scene moves the report copy and the paper block into the sticky frame, where
  *            the paper lifts out of the preview and prints.
  *   mobile   the section's sticky phone plays the exchange under cards; the light part
  *            (copy, a smaller Report tab phone, the paper) follows in flow.
+ * The quiet layer is the static final state (and its capture slot); with motion the answer
+ * layer plays the quiet lock screen itself, so Siri's words never swap layers and re-wrap.
  *
  * Hooks (scene): [data-co-said] [data-co-reply="ask"|"answer"] [data-co-yes] [data-co-copy]
  * [data-co-paperblock] [data-co-slot] [data-co-fit] [data-co-note] [data-co-note-line]
- * [data-co-note-label] [data-co-chip="pdf"|"csv"] [data-co-report].
+ * [data-co-note-label] .co-exports-lead [data-co-chip="pdf"|"csv"] [data-co-report].
  */
 import SectionShell from '../components/SectionShell.astro';
 import Phone from '../components/phone/Phone.astro';
@@ -141,9 +144,6 @@ const alt = {
   <figure class="shot co-shot" data-stage-shot slot="figure">
     <Phone label={LABELS.lock}>
       <div class="screens" data-screens>
-        <Screen stateId="report-week" alt={LABELS.report} tone="light">
-          <ReportTab time={time} />
-        </Screen>
         <Screen stateId="lock-1631-activity" alt={alt.activity} tone="dark">
           <LockScreen time={time} wallpaper="dusk-rows">
             <LiveActivity at={AT} />
@@ -152,7 +152,7 @@ const alt = {
         <Screen stateId="lock-1631-ask" alt={alt.ask} tone="dark">
           <LockScreen time={time} wallpaper="dusk-rows">
             <SiriSnippet slot="top" text={SIRI.clockOutAsk.reply} choices={SIRI.clockOutAsk.choices} />
-            <LiveActivity at={AT} />
+            <LiveActivity at={AT} fixed />
           </LockScreen>
           <SiriGlow />
         </Screen>
@@ -227,24 +227,13 @@ const alt = {
           <PaperTimeCard />
         </div>
       </div>
-      <ul class="co-exports" aria-label={LABELS.exports}>
-        <li class="co-chip" data-co-chip="pdf">
-          <svg viewBox="0 0 24 24" aria-hidden="true"
-            ><path d="M12 3.5v11M8 7.3l4-3.8 4 3.8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-            ></path><path d="M8.5 10.5H7a2.5 2.5 0 0 0-2.5 2.5v5A2.5 2.5 0 0 0 7 20.5h10a2.5 2.5 0 0 0 2.5-2.5v-5a2.5 2.5 0 0 0-2.5-2.5h-1.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-            ></path></svg
-          >{COPY.exports[0]}
-        </li>
-        <li class="co-chip" data-co-chip="csv">
-          <svg viewBox="0 0 24 24" aria-hidden="true"
-            ><rect x="3.4" y="4.2" width="17.2" height="15.6" rx="2.8" fill="none" stroke="currentColor" stroke-width="2"></rect><path
-              d="M3.4 9.4h17.2M3.4 14.6h17.2M9.4 9.4v10.4"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"></path></svg
-          >{COPY.exports[1]}
-        </li>
-      </ul>
+      <div class="co-exports">
+        <span class="co-exports-lead" id="co-exports-lead">{COPY.exportsLead}</span>
+        <ul class="co-chips" aria-labelledby="co-exports-lead">
+          <li class="co-chip" data-co-chip="pdf">{COPY.exports[0]}</li>
+          <li class="co-chip" data-co-chip="csv">{COPY.exports[1]}</li>
+        </ul>
+      </div>
     </div>
   </div>
 </SectionShell>
@@ -253,6 +242,9 @@ const alt = {
   Static page (no motion): the section is light after its dusk band, so it tells the header
   (header.ts follows the section's data-theme) which part is under it. With motion the scene
   owns the theme: dark at dusk, light from the lights-up.
+  On desktop the static header keeps its dark bar whatever the theme (Header.astro's
+  html:not(.motion) .site-header rule), so a 'light' there would turn its text ink on that dark
+  bar. There the section stays 'dark' and the header stays light-on-dark, readable.
 -->
 <script is:inline>
   (function () {
@@ -260,13 +252,14 @@ const alt = {
     var t = s && s.querySelector('.track');
     var r = document.documentElement;
     if (!t || !('IntersectionObserver' in window)) return;
+    var narrow = matchMedia('(max-width: 899.98px)');
     var io;
     var watch = function () {
       if (io) io.disconnect();
       io = new IntersectionObserver(
         function (e) {
           if (r.classList.contains('motion')) return;
-          s.dataset.theme = e[e.length - 1].isIntersecting ? 'dark' : 'light';
+          s.dataset.theme = e[e.length - 1].isIntersecting || !narrow.matches ? 'dark' : 'light';
         },
         { rootMargin: '-56px 0px ' + (64 - innerHeight) + 'px 0px' },
       );
@@ -498,31 +491,43 @@ const alt = {
     display: none;
   }
 
+  /* The formats the report exports to: labels with a lead-in, not buttons (nothing to click). */
   .co-exports {
     display: flex;
     flex-wrap: wrap;
-    gap: 10px;
+    align-items: center;
+    gap: 10px 12px;
     margin: 4px 0 0;
+  }
+  .co-exports-lead {
+    font-family: var(--font-mono);
+    font-weight: 500;
+    font-size: 0.75rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--co-muted);
+  }
+  .co-chips {
+    display: flex;
+    gap: 8px;
+    margin: 0;
     padding: 0;
     list-style: none;
   }
   .co-chip {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
-    height: 40px;
-    padding: 0 18px 0 14px;
-    border-radius: 999px;
-    border: 1.5px solid var(--fir);
-    color: var(--fir);
-    background: var(--surface);
+    height: 30px;
+    padding: 0 10px;
+    border-radius: 7px;
+    /* Fir on the light part; the section's accent wherever the part still sits on dusk. */
+    border: 1px solid var(--co-accent);
+    color: var(--co-accent);
+    font-family: var(--font-mono);
     font-weight: 600;
-    font-size: 0.9375rem;
-    letter-spacing: 0.01em;
-  }
-  .co-chip svg {
-    width: 18px;
-    height: 18px;
+    font-size: 0.8125rem;
+    letter-spacing: 0.08em;
+    cursor: default;
   }
 
   /* The desktop stage for the paper (motion only; the scene moves the paper block in). */
@@ -786,6 +791,33 @@ const alt = {
     }
     :global(html.motion .sec-clock-out.co-staged .co-stage-copy .co-copy) {
       gap: 16px;
+    }
+  }
+
+  /* Short desktop windows (a 1280 × 720 laptop leaves about 600 px): the beats' spacing scales
+     with the viewport's height but their type does not, so the dusk beats get tighter type and
+     gaps there and never touch. */
+  @media (min-width: 900px) and (max-height: 700px) {
+    :global(html.motion) .co-ex {
+      gap: 16px;
+    }
+    :global(html.motion) .co-line {
+      gap: 6px;
+    }
+    :global(html.motion) .co-said .spoken {
+      font-size: min(var(--text-m), 5.4svh);
+    }
+    :global(html.motion) .co-reply {
+      font-size: min(var(--text-siri), 3.3svh);
+    }
+    :global(html.motion) .co-forgot-list {
+      gap: 12px;
+      padding-top: 0;
+      border-top: 0;
+    }
+    :global(html.motion) .co-forgot-list p {
+      font-size: 1rem;
+      line-height: 1.4;
     }
   }
 

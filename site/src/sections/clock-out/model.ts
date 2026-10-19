@@ -97,7 +97,12 @@ export const lapseAt = (w: Window, t: number): number => w[0] + (w[1] - w[0]) * 
 // ---------------------------------------------------------------------------
 // Scene timing, in scroll progress (0–1) of the section's track
 
-/** Desktop (the stage phone): the brief's windows. */
+/**
+ * Desktop (the stage phone): the brief's windows for the exchange. The report copy then holds
+ * for about 0.12 of progress (≈ 280 px at 900 px tall) while the phone unlocks to the Report
+ * tab, so the words that explain the paper are read before it lifts; the lift, the print and
+ * the exports run in the brief's order after it (.58 → .9 instead of .52 → .9).
+ */
 export const DESK = {
   /** Day 3:40 → 4:31: the timer spins, the trees roll, the strip advances. */
   lapse: [0, 0.08],
@@ -109,47 +114,56 @@ export const DESK = {
   ask: [0.12, 0.2],
   /** Tap Yes; the page's “Yes.” appears. */
   yes: [0.2, 0.24],
-  /** The answer replaces the question and types in; a gold rule sweeps under the timer. */
+  /** The answer replaces the question and types in. */
   answer: [0.24, 0.3],
+  /** A gold rule sweeps under the stopped timer (inside the answer window). */
+  underline: [0.273, 0.297],
   /** The Live Activity dismisses; the ribbon completes. */
   dismiss: [0.3, 0.36],
+  /** Siri's card leaves and the date, clock and padlock come back: a quiet lock screen. */
+  quiet: [0.36, 0.39],
   /** The light layer fades over the stage; the rim light goes out. */
   lights: [0.36, 0.44],
   /** The section turns light (data-theme, with 0.4 s color transitions). */
   theme: 0.4,
   /** The report copy takes over columns 1–5 (it holds in the sticky frame). */
-  copyIn: [0.42, 0.47],
+  copyIn: [0.42, 0.46],
   /** Unlock to the Report tab and tap This week. */
   unlock: [0.44, 0.52],
-  /** The dusk copy makes way for the paper. */
-  copyOut: [0.51, 0.555],
+  /** The report copy makes way for the paper. */
+  copyOut: [0.58, 0.62],
   /** The paper lifts out of the preview; the phone steps right. */
-  lift: [0.52, 0.6],
+  lift: [0.58, 0.66],
   /** Rows print top to bottom; Friday last, with a gold flash. */
-  print: [0.6, 0.72],
+  print: [0.66, 0.76],
   /** The totals rule draws and the totals fade in. */
-  totals: [0.72, 0.76],
+  totals: [0.76, 0.79],
   /** “No pay on the report. Ever.”: the leader line draws, the label fades. */
-  annotate: [0.76, 0.82],
+  annotate: [0.79, 0.84],
   /** Tap Export PDF, then CSV; the page chips pop. */
-  exports: [0.82, 0.9],
+  exports: [0.84, 0.9],
   /** The phone settles back to rest for the next chapter. */
   rest: [0.92, 1],
 } as const;
 
 /**
  * Mobile (the section's own sticky phone; the paper is in flow after the track, so the
- * exchange gets the whole track). The cards pass over the lower phone, so the Live Activity
- * beats sit between them.
+ * exchange gets the whole track). The cards scroll up over the phone, so every beat is timed
+ * against them (at 375 × 812): the snippet beats (the question, Yes, the answer) play while
+ * the cards are still below the snippet, and the Live Activity beats (the gold rule under the
+ * timer, the dismiss) wait until the “Yes.” card has passed above the timer and before the
+ * safety-net card reaches it.
  */
 export const MOB = {
   lapse: [0, 0.1],
-  karaoke: [0.13, 0.2],
-  glow: [0.13, 0.16],
-  ask: [0.16, 0.27],
-  yes: [0.3, 0.34],
-  answer: [0.34, 0.43],
-  dismiss: [0.44, 0.5],
+  karaoke: [0.11, 0.17],
+  glow: [0.11, 0.14],
+  ask: [0.14, 0.24],
+  yes: [0.26, 0.3],
+  answer: [0.3, 0.39],
+  underline: [0.59, 0.62],
+  dismiss: [0.62, 0.68],
+  quiet: [0.68, 0.71],
   lights: [0.72, 0.84],
   theme: 0.78,
 } as const;
@@ -157,14 +171,14 @@ export const MOB = {
 /**
  * Where each copy beat sits in the track (SectionShell's --at): centered in the viewport when
  * the scroll progress equals it. Desktop beats follow the exchange (the report copy then holds
- * in the sticky frame); mobile cards pass over the lower part of the sticky phone between the
- * Live Activity beats.
+ * in the sticky frame); mobile cards rise from the bottom (centered at 82svh at --at-m), so
+ * each card's words light only once its top has passed about 85% of the viewport.
  */
 export const BEAT_AT = {
   head: { desk: -0.08, mob: 0 },
-  askEx: { desk: 0.085, mob: 0.22 },
-  yesEx: { desk: 0.215, mob: 0.46 },
-  forgot: { desk: 0.32, mob: 0.7 },
+  askEx: { desk: 0.085, mob: 0.18 },
+  yesEx: { desk: 0.215, mob: 0.335 },
+  forgot: { desk: 0.33, mob: 0.65 },
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -188,6 +202,8 @@ export const COPY = {
     'Share it as a PDF, or export a CSV for your spreadsheet.',
   ],
   annotation: 'No pay on the report. Ever.',
+  /** The lead-in that makes the format chips read as labels, not buttons. */
+  exportsLead: 'Exports as',
   exports: ['PDF', 'CSV'],
   lockCaption: `At ${fmtTime(AT)} Siri confirms, the Live Activity ends and the lock screen goes quiet.`,
   reportCaption: 'The Report tab: pick a range, then share it as a PDF or a CSV.',
@@ -198,5 +214,4 @@ export const LABELS = {
   lock: `iPhone lock screen at ${fmtTime(AT)}, just after clocking out by voice. The Live Activity is gone, and Siri’s card says: “${SIRI.clockOut.reply}”`,
   /** The Report tab beside the paper. */
   report: `Time Card’s Report tab with This week selected: ${WEEK_PERIOD.label}, ${TOTALS.hours} hours and ${TOTALS.trees} trees over ${TOTALS.days} days, a preview of the paper time card, and buttons to export a PDF or a CSV.`,
-  exports: 'Export formats',
 } as const;

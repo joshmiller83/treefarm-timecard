@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { MOMENTS, WEEK, fmtCount, fmtHM, fmtHMS, treesAt, workedAt } from '../../data/ledger.ts';
 import { SIRI } from '../../data/siri.ts';
 import { paperTotals } from '../../components/report/report.ts';
-import { COPY, DESK, LABELS, MOB, TOTALS, TRANSCRIPT, lapse, lapseAt, type Window } from './model.ts';
+import { BEAT_AT, COPY, DESK, LABELS, MOB, TOTALS, TRANSCRIPT, lapse, lapseAt, type Window } from './model.ts';
 
 const windows = (beats: Record<string, Window | number>) =>
   Object.entries(beats).filter((e): e is [string, Window] => Array.isArray(e[1]));
@@ -67,7 +67,7 @@ describe('the 3:40 → 4:31 time-lapse', () => {
 });
 
 describe('scene timing', () => {
-  it('desktop matches the brief’s progress windows', () => {
+  it('desktop keeps the brief’s windows for the exchange and the lights-up', () => {
     expect(DESK.lapse).toEqual([0, 0.08]);
     expect(DESK.karaoke[0]).toBe(0.08);
     expect(DESK.ask[1]).toBeLessThanOrEqual(0.2);
@@ -77,11 +77,23 @@ describe('scene timing', () => {
     expect(DESK.lights).toEqual([0.36, 0.44]);
     expect(DESK.theme).toBe(0.4);
     expect(DESK.unlock).toEqual([0.44, 0.52]);
-    expect(DESK.lift[0]).toBe(0.52);
-    expect(DESK.totals[1]).toBeLessThanOrEqual(0.76);
-    expect(DESK.annotate[0]).toBeGreaterThanOrEqual(0.76);
     expect(DESK.exports[1]).toBeLessThanOrEqual(0.9);
     expect(DESK.rest[0]).toBeGreaterThanOrEqual(0.9);
+  });
+
+  it('desktop holds the report copy for at least 0.12 of progress before the paper takes its place', () => {
+    expect(DESK.copyIn[0]).toBeGreaterThanOrEqual(DESK.theme);
+    expect(DESK.copyOut[0] - DESK.copyIn[1]).toBeGreaterThanOrEqual(0.12 - 1e-9);
+    // The copy is still up while the phone unlocks and taps This week.
+    expect(DESK.copyOut[0]).toBeGreaterThanOrEqual(DESK.unlock[1]);
+    expect(DESK.lift[0]).toBeGreaterThanOrEqual(DESK.copyOut[0]);
+  });
+
+  it('desktop: the paper lifts, prints, totals, is annotated and exports, in that order', () => {
+    const order = ['lift', 'print', 'totals', 'annotate', 'exports', 'rest'] as const;
+    for (let i = 1; i < order.length; i += 1) {
+      expect(DESK[order[i]!][0]).toBeGreaterThanOrEqual(DESK[order[i - 1]!][1] - 1e-9);
+    }
   });
 
   for (const [name, beats] of [
@@ -97,14 +109,80 @@ describe('scene timing', () => {
     });
 
     it(`${name}: the story plays in order`, () => {
-      const order = ['lapse', 'ask', 'yes', 'answer', 'dismiss', 'lights'] as const;
+      const order = ['lapse', 'ask', 'yes', 'answer', 'dismiss', 'quiet'] as const;
       for (let i = 1; i < order.length; i += 1) {
         expect(beats[order[i]!][0]).toBeGreaterThanOrEqual(beats[order[i - 1]!][1] - 1e-9);
       }
       expect(beats.theme).toBeGreaterThan(beats.lights[0]);
       expect(beats.theme).toBeLessThan(beats.lights[1]);
+      expect(beats.lights[0]).toBeGreaterThanOrEqual(beats.dismiss[1]);
+    });
+
+    it(`${name}: the gold rule sweeps under the stopped timer after the answer begins, before the dismiss`, () => {
+      expect(beats.underline[0]).toBeGreaterThanOrEqual(beats.answer[0]);
+      expect(beats.underline[1]).toBeLessThanOrEqual(beats.dismiss[0] + 1e-9);
+    });
+
+    it(`${name}: the Live Activity hands over to the question layer when the lapse ends, before Siri`, () => {
+      expect(beats.glow[0]).toBeGreaterThanOrEqual(beats.lapse[1]);
     });
   }
+
+  it('desktop: the quiet lock screen shows before the unlock', () => {
+    expect(DESK.quiet[1]).toBeLessThanOrEqual(DESK.unlock[0]);
+  });
+});
+
+/**
+ * The mobile cards against the sticky phone, measured at 375 × 812 (Pixel 7 emulation): the
+ * track scrolls 1462 px over progress 0–1; a card is centered at 82svh (666 px) when the
+ * progress equals its --at-m; the phone's snippet spans y 142–217 and its Live Activity
+ * 400–476 (the timer 416–437). The Playwright spec checks the same thing on the real page.
+ */
+describe('mobile cards and the sticky phone (375 × 812)', () => {
+  const SCROLL = 1462;
+  const ANCHOR = 666;
+  const VIEW = 812;
+  const SNIPPET: Window = [142, 217];
+  const ACTIVITY: Window = [400, 476];
+  const cards = [
+    { at: BEAT_AT.askEx.mob, h: 191 },
+    { at: BEAT_AT.yesEx.mob, h: 191 },
+    { at: BEAT_AT.forgot.mob, h: 213 },
+  ];
+  const rect = (c: (typeof cards)[number], p: number): Window => {
+    const mid = ANCHOR - (p - c.at) * SCROLL;
+    return [mid - c.h / 2, mid + c.h / 2];
+  };
+  const overlaps = (a: Window, b: Window) => a[0] < b[1] && a[1] > b[0];
+  const across = (w: Window, n = 24) => Array.from({ length: n + 1 }, (_, i) => w[0] + ((w[1] - w[0]) * i) / n);
+
+  it('the cards never overlap each other', () => {
+    for (let i = 1; i < cards.length; i += 1) {
+      const gap = (cards[i]!.at - cards[i - 1]!.at) * SCROLL - (cards[i]!.h + cards[i - 1]!.h) / 2;
+      expect(gap).toBeGreaterThanOrEqual(24);
+    }
+  });
+
+  it('no card covers the Live Activity while the gold rule sweeps or the card dismisses', () => {
+    for (const p of [...across(MOB.underline), ...across(MOB.dismiss)]) {
+      for (const c of cards) expect(overlaps(rect(c, p), ACTIVITY), `card at ${c.at}, p ${p.toFixed(3)}`).toBe(false);
+    }
+  });
+
+  it('no card covers the snippet while the question, the Yes tap and the answer play', () => {
+    for (const p of [...across(MOB.ask), ...across(MOB.yes), ...across(MOB.answer)]) {
+      for (const c of cards) expect(overlaps(rect(c, p), SNIPPET), `card at ${c.at}, p ${p.toFixed(3)}`).toBe(false);
+    }
+  });
+
+  it('each card’s words light only once its top is above 85% of the viewport', () => {
+    const top = (c: (typeof cards)[number], p: number) => rect(c, p)[0];
+    expect(top(cards[0]!, MOB.karaoke[0])).toBeLessThanOrEqual(VIEW * 0.85);
+    expect(top(cards[1]!, MOB.yes[0])).toBeLessThanOrEqual(VIEW * 0.85);
+    // The answer's words light (from 20% into its window, as the phone types) with the whole card in view.
+    expect(rect(cards[1]!, lapseAt(MOB.answer, 0.2))[1]).toBeLessThanOrEqual(VIEW);
+  });
 });
 
 describe('the paper time card', () => {
