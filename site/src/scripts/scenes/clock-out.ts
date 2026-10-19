@@ -81,7 +81,7 @@ registerScene(
     // The page's lines are pre-split into word spans (.co-w) on the server.
     const lightWords = (el: El, at: number, dur: number, from: number) => reveal(all(el, '.co-w'), { opacity: from }, { opacity: 1 }, at, dur);
 
-    // ---- The section starts at dusk; the server markup is its light final state ----
+    // ---- The section starts at dusk and turns light at the lights-up ----
     const theme = section.dataset.theme;
     section.dataset.theme = 'dark';
     undo.push(() => {
@@ -194,6 +194,11 @@ registerScene(
     if (light) tl.fromTo(light, { opacity: 0 }, { opacity: 1, duration: lightSpan, ease: 'power1.inOut', immediateRender: false }, B.lights[0]);
     if (rim) tl.to(rim, { opacity: 0, duration: lightSpan * 0.75 }, B.lights[0] + lightSpan * 0.1);
     tl.set(section, { attr: { 'data-theme': 'light' } }, B.theme);
+    // Once the light layer is up, the section paints the same light itself (so the page reads
+    // as light to anything that looks at the section, like a contrast checker).
+    section.dataset.coLit = 'no';
+    undo.push(() => delete section.dataset.coLit);
+    tl.set(section, { attr: { 'data-co-lit': 'yes' } }, B.lights[1]);
 
     if (isDesk) desk();
     else mobile();

@@ -7,7 +7,8 @@
  *
  * Static first (no motion, reduced motion, no JS): a dusk band holds the exchange and the
  * quiet lock screen, then the section is light: the report copy, the Report tab phone and the
- * fully printed paper with the annotation and the export chips.
+ * fully printed paper with the annotation and the export chips. Both parts pin their own color
+ * tokens, so they never depend on the section's data-theme, which only tells the header.
  *
  * With motion the server markup is the final state and the scene adds the from-states:
  *   desktop  the stage phone plays lock → ask → answer → quiet → Report tab; the scene moves
@@ -47,7 +48,7 @@ const alt = {
 };
 ---
 
-<SectionShell id="clock-out" headAt={BEAT_AT.head.desk} theme="light" track={{ desk: '360vh', mob: '360vh' }}>
+<SectionShell id="clock-out" headAt={BEAT_AT.head.desk} track={{ desk: '360vh', mob: '280vh' }}>
   <Fragment slot="intro">
     <p class="co-intro">{COPY.intro}</p>
   </Fragment>
@@ -249,8 +250,9 @@ const alt = {
 </SectionShell>
 
 <!--
-  Static page (no motion): the section is light, but the header stays dark while the dusk band
-  is under it (header.ts follows the section's data-theme). With motion the scene owns the theme.
+  Static page (no motion): the section is light after its dusk band, so it tells the header
+  (header.ts follows the section's data-theme) which part is under it. With motion the scene
+  owns the theme: dark at dusk, light from the lights-up.
 -->
 <script is:inline>
   (function () {
@@ -305,6 +307,9 @@ const alt = {
   /* With motion the fixed light layer brings the light up; the section never paints its own. */
   :global(html.motion .sec-clock-out) {
     background: transparent;
+  }
+  :global(html.motion .sec-clock-out[data-co-lit='yes']) {
+    background: var(--bg);
   }
 
   /* ---------- The exchange: transcript lines, styled like the voice section ---------- */
@@ -586,7 +591,7 @@ const alt = {
       padding: 0 0 46px;
       min-height: 0;
       background: none;
-      color: var(--fir);
+      color: var(--co-accent);
       font-family: var(--font-mono);
       font-weight: 500;
       font-size: 0.875rem;
@@ -605,7 +610,7 @@ const alt = {
     .co-note-lead i {
       display: block;
       height: 100%;
-      background: var(--fir);
+      background: currentColor;
       transform-origin: 50% 0;
     }
   }
@@ -679,6 +684,20 @@ const alt = {
     /* Mobile cards sit at their own progress (the copy after the exchange is in flow). */
     :global(html.motion .sec-clock-out .co-beat) {
       --at: var(--at-m) !important;
+      /* Centered lower than the shell's cards, so the Live Activity shows between them. */
+      --anchor-mob: 82svh;
+      /* The cards stay dark material when the lights come up behind them. */
+      --co-text: var(--on-stage);
+      --co-muted: var(--on-stage-muted);
+      --co-accent: var(--gold-lit);
+      --co-rule: var(--gold-lit);
+      --co-tile: rgba(226, 166, 68, 0.12);
+      --co-tile-ink: var(--gold-lit);
+      --co-hair: var(--stage-line);
+      --co-glyph-hole: #10221a;
+      --co-quote: var(--gold-lit);
+      --focus: var(--gold-lit);
+      color: var(--on-stage);
     }
     :global(html.motion .sec-clock-out .co-forgot) {
       padding-block: 18px;
