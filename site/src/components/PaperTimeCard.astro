@@ -265,7 +265,7 @@ const ghost = [0.82, 0.7, 0.9, 0.76, 0.86];
     --hair: 1px;
     --line: max(calc(1 * var(--u)), var(--hair));
     --line-extra: calc(var(--line) - 1 * var(--u));
-    /* A 1px ink rule is 2–6 times too heavy at this scale on a 1x screen: soften it. */
+    /* One device pixel of ink is heavier than 1u at this scale below 3x: soften it to match. */
     --mini-ink: rgba(27, 31, 28, 0.62);
     width: calc(720 * var(--u));
     max-width: none;
@@ -275,12 +275,12 @@ const ghost = [0.82, 0.7, 0.9, 0.76, 0.86];
   @media (min-resolution: 2dppx) {
     .tc--mini {
       --hair: 0.5px;
-      --mini-ink: var(--tc-ink);
     }
   }
   @media (min-resolution: 3dppx) {
     .tc--mini {
       --hair: 0.334px;
+      --mini-ink: var(--tc-ink);
     }
   }
 
@@ -549,9 +549,13 @@ const ghost = [0.82, 0.7, 0.9, 0.76, 0.86];
   .tc--mini .tc-body > .tc-row:last-child > .tc-td {
     border-bottom-color: var(--mini-ink);
   }
-  /* Two lines with at least one device pixel of paper between them, at every size. */
+  /*
+   * Two lines with at least one device pixel of paper between them, at every size, even where a
+   * browser rounds thin borders up to a whole CSS pixel (emulated high-DPI screens do). The
+   * negative margin gives any extra height back, so the proportions never change.
+   */
   .tc--mini .tc-rule {
-    --rule-h: max(calc(4 * var(--u)), calc(2 * var(--line) + var(--hair)));
+    --rule-h: max(calc(4 * var(--u)), calc(2 * max(var(--line), 1px) + var(--hair)));
     height: var(--rule-h);
     margin-bottom: calc(4 * var(--u) - var(--rule-h));
     border-top: var(--line) solid var(--mini-ink);

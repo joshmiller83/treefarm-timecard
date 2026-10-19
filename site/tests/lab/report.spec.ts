@@ -220,12 +220,9 @@ test('the preview is the paper in miniature (same proportions, for the Flip)', a
   }
 });
 
-test('the miniature’s double rule stays double at every phone size', async ({ page, browserName }) => {
-  // Real browsers draw a thin border as one device pixel (Chrome at 2x reports 0.5px). Emulated
-  // Chromium and Firefox at a higher deviceScaleFactor round borders to whole CSS pixels instead,
-  // so they only model a real screen at 1x; WebKit models every scale.
-  const dpr = await page.evaluate(() => devicePixelRatio);
-  test.skip(browserName !== 'webkit' && dpr > 1, 'emulated border snapping differs from real screens above 1x');
+test('the miniature’s double rule stays double at every phone size', async ({ page }) => {
+  // Real browsers draw a thin border as one device pixel (Chrome at 2x reports 0.5px); emulated
+  // Chromium and Firefox round it up to a whole CSS pixel. The gap must survive both.
   await open(page);
   const gaps = await page.locator('[data-paper-mini] .tc-rule').evaluateAll((els) =>
     els.map((e) => {
