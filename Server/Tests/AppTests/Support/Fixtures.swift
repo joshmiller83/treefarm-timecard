@@ -99,3 +99,24 @@ extension FarmFixture {
         }
     }
 }
+
+extension FarmFixture {
+    /// Stores a block straight into the farm's first field.
+    func seedBlock(name: String = "1", rows: Int = 61, trees: Int = 10, column: Int = 0) async throws -> Block {
+        let block = Block(fieldId: fieldId, name: name, gridRow: 0, gridColumn: column, rowCount: rows, treesPerRow: trees, updatedAt: app.now)
+        try await RecordStore(db: app.db).save(.block(block), farm: farmId)
+        return block
+    }
+
+    /// Clocks `person` in an hour ago and returns the open shift.
+    func clockIn(_ person: Person, hoursAgo: Double = 1) async throws -> Shift {
+        let shift = shift(for: person, start: app.now.addingTimeInterval(-hoursAgo * 3600))
+        let result = try await push(.shift(shift), as: person)
+        #expect(result.isApplied, "clock in: \(result.message ?? "")")
+        return shift
+    }
+
+    func mark(_ block: Block, row: Int, tree: Int, on shift: Shift, season: UUID? = nil) -> TreeMark {
+        TreeMark(seasonId: season ?? seasonId, tree: TreeRef(blockId: block.id, row: row, position: tree), shiftId: shift.id, userId: shift.userId, markedAt: app.now)
+    }
+}
