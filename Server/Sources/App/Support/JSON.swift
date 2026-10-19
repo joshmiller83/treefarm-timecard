@@ -79,3 +79,12 @@ extension Response {
         return Response(status: status, headers: headers, body: .init(data: try ServerJSON.encoder().encode(value)))
     }
 }
+
+extension Request {
+    /// A whole-number query value; 400 when it's there but isn't a number.
+    func queryInt64(_ name: String) throws -> Int64? {
+        guard let raw = query[String.self, at: name], !raw.isEmpty else { return nil }
+        guard let value = Int64(raw) else { throw Abort(.badRequest, reason: "\(name) has to be a whole number.") }
+        return value
+    }
+}

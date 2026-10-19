@@ -8,6 +8,34 @@ struct SyncController: RouteCollection {
     func boot(routes: any RoutesBuilder) throws {
         let farm = routes.farmRoutes()
         farm.post("sync", "push", use: push)
+        farm.get("sync", "pull", use: pull)
+    }
+
+    static let defaultPullLimit = 500
+    static let maxPullLimit = 1000
+
+    /// Changes after `since` the caller may see, oldest first. `cursor` is the last
+    /// seq returned (or `since` when nothing is), to pass back as the next `since`.
+    func pull(req: Request) async throws -> Response {
+        let ctx = try req.requireFarm()
+        let since = try req.queryInt64("since") ?? 0
+        guard since >= 0 else { throw Abort(.badRequest, reason: "since can’t be negative.") }
+        let limit = min(max(Int(try req.queryInt64("limit") ?? Int64(Self.defaultPullLimit)), 1), Self.maxPullLimit)
+
+        let query = RecordModel.query(on: req.db)
+            .filter(\.$farmId == ctx.farmId)
+            .filter(\.$seq > since)
+        if !ctx.isAdmin {
+            let me = ctx.member.userId
+            query.group(.or) { or in
+                or.filter(\.$kind != RecordKind.shift.rawValue)
+                or.filter(\.$ownerUserId == me)
+            }
+        }
+        let rows = try await query.sort(\.$seq).limit(limit + 1).all()
+        let page = rows.prefix(limit)
+        let changes = try page.map { Change(seq: $0.seq, record: Visibility.redact(try $0.decoded(), for: ctx.member)) }
+        return try .json(PullResponse(changes: changes, cursor: changes.last?.seq ?? since, hasMore: rows.count > limit))
     }
 
     /// One result per mutation, in order. Each mutation runs in its own transaction

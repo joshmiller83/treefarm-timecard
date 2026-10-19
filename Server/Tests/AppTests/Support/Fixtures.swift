@@ -77,3 +77,25 @@ extension FarmFixture {
 extension MutationResult {
     var isApplied: Bool { status == .applied }
 }
+
+extension FarmFixture {
+    func pull(as person: Person, since: Int64 = 0, limit: Int? = nil) async throws -> PullResponse {
+        var path = APIPath.pull(farm: farmId) + "?since=\(since)"
+        if let limit { path += "&limit=\(limit)" }
+        let res = try await client.send(.GET, path, token: person.token)
+        #expect(res.status == .ok, "pull: \(res.text)")
+        return try res.decode(PullResponse.self)
+    }
+
+    /// Pulls until `hasMore` is false.
+    func pullAll(as person: Person, since: Int64 = 0) async throws -> [Change] {
+        var changes: [Change] = []
+        var cursor = since
+        while true {
+            let page = try await pull(as: person, since: cursor)
+            changes += page.changes
+            cursor = page.cursor
+            if !page.hasMore { return changes }
+        }
+    }
+}
