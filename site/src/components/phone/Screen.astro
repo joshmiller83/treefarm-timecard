@@ -5,11 +5,14 @@
  * Renders <div class="layer" data-state data-screen data-final?>. Without motion only the
  * [data-final] layer shows; with motion every layer stacks and scenes set opacity (shell.css).
  *
- * Real captures: when public/screens/<stateId>.{avif,webp,png} exists (1179 × 2556), the
- * layer renders that image instead of the HTML recreation in the slot, with the same alt.
- * Hooks a scene needs on top of a capture (glows, overlays) belong outside the Screen.
+ * Real captures: when public/screens/<stateId>.{avif,webp} exists (1179 × 2556, ≤ 200 KB;
+ * capture.test.ts enforces both), the layer renders that image instead of the HTML
+ * recreation in the slot, with the same alt. The folder comes from Astro's publicDir, so a
+ * build run from any directory finds it. Hooks a scene needs on top of a capture (glows,
+ * overlays) belong outside the Screen.
  */
-import { CAPTURE_SIZE, findCapture } from './capture.ts';
+import { publicDir } from 'astro:config/server';
+import { CAPTURE_SIZE, captureDir, findCapture } from './capture.ts';
 
 export interface Props {
   /** Stable id for this state; also the real-capture filename (see CONTRACT.md's registry). */
@@ -24,7 +27,7 @@ export interface Props {
 }
 
 const { stateId, alt, final = false, tone = 'dark', class: cls } = Astro.props;
-const capture = findCapture(stateId);
+const capture = findCapture(stateId, captureDir(publicDir));
 ---
 
 <div
