@@ -90,7 +90,7 @@ struct LocalStoreTests {
 
     @Test func theSnapshotHoldsOnlyTheActiveFarm() throws {
         let store = try makeStore()
-        let other = Farm(name: "Elsewhere", timeZoneId: "UTC")
+        let other = Farm(name: "Elsewhere", timeZoneId: "UTC", updatedAt: Fixtures.t0)
         try store.applyRemote([Change(seq: 1, record: .farm(other))], farmId: other.id, cursor: 1)
         #expect(store.snapshot.farm == nil)
         try store.activate(farmId: other.id)
