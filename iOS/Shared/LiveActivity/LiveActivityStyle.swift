@@ -78,15 +78,6 @@ struct LiveColors: Equatable {
             undoFill: Color(liveHex: 0x24382C),
             check: Color(liveHex: 0x88CFA4))
     }
-
-    /// Follows the lock screen's light or dark look, for `activityBackgroundTint`.
-    static let dynamicBackground = Color(UIColor { traits in
-        traits.userInterfaceStyle == .dark ? UIColor(liveRGB: 0x111D16) : UIColor(liveRGB: 0xF4F7F1)
-    })
-
-    static let dynamicInk = Color(UIColor { traits in
-        traits.userInterfaceStyle == .dark ? UIColor(liveRGB: 0xE3ECE4) : UIColor(liveRGB: 0x14221A)
-    })
 }
 
 /// IBM Plex Mono for numbers, as in the app. The app registers it through `UIAppFonts`; the
@@ -103,11 +94,5 @@ enum LiveFonts {
 extension Color {
     init(liveHex hex: UInt32) {
         self.init(.sRGB, red: Double((hex >> 16) & 0xFF) / 255, green: Double((hex >> 8) & 0xFF) / 255, blue: Double(hex & 0xFF) / 255)
-    }
-}
-
-extension UIColor {
-    convenience init(liveRGB rgb: UInt32) {
-        self.init(red: CGFloat((rgb >> 16) & 0xFF) / 255, green: CGFloat((rgb >> 8) & 0xFF) / 255, blue: CGFloat(rgb & 0xFF) / 255, alpha: 1)
     }
 }

@@ -8,9 +8,7 @@ import WidgetKit
 struct TimeCardLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: TimeCardActivityAttributes.self) { context in
-            LiveLockScreenView(display: LiveActivityDisplay(context.state), isStale: context.isStale)
-                .activityBackgroundTint(LiveColors.dynamicBackground)
-                .activitySystemActionForegroundColor(LiveColors.dynamicInk)
+            LockScreenCard(display: LiveActivityDisplay(context.state), isStale: context.isStale)
         } dynamicIsland: { context in
             let display = LiveActivityDisplay(context.state)
             return DynamicIsland {
@@ -32,5 +30,22 @@ struct TimeCardLiveActivity: Widget {
             }
             .keylineTint(LiveColors.island(onBreak: display.isOnBreak).timer)
         }
+    }
+}
+
+/// The lock-screen card with its background in the same light or dark look as its words. The
+/// lock screen can hand the card's content one look while a dynamic color for the background
+/// resolves to the other (a pale card with pale words on a light phone's first draw), so both
+/// come from the content's own `colorScheme`.
+private struct LockScreenCard: View {
+    var display: LiveActivityDisplay
+    var isStale: Bool
+    @Environment(\.colorScheme) private var scheme
+
+    var body: some View {
+        let colors = LiveColors.lockScreen(scheme, onBreak: display.isOnBreak)
+        LiveLockScreenView(display: display, isStale: isStale)
+            .activityBackgroundTint(colors.background)
+            .activitySystemActionForegroundColor(colors.ink)
     }
 }
