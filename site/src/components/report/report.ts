@@ -183,3 +183,11 @@ export function paperTotals(days: readonly Day[]): PaperTotals {
 export function preparedLine(date: string = DAY.short, min: Minute = SHIFT.out): string {
   return `Prepared ${date} at ${fmtTime(min)}`;
 }
+
+/**
+ * The prepared moment in parts, for `Prepared <time datetime="2026-10-16T16:31">Fri, Oct 16 at 4:31 PM</time>`:
+ * { date: 'Fri, Oct 16', time: '4:31 PM', iso: '2026-10-16T16:31' }.
+ */
+export function preparedAt(min: Minute = SHIFT.out): { date: string; time: string; iso: string } {
+  return { date: fmtDate(STORY_DATE), time: fmtTime(min), iso: isoAt(STORY_DATE, min) };
+}

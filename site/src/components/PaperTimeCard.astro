@@ -7,20 +7,24 @@
  *     [data-paper-band]     the fir header band: TIME CARD · job · worker · range
  *     <table>               caption, Date | In | Out | Trees | Hours | Breaks | Notes
  *       tr[data-day="mon"…"fri"]               one row per day (print them by clip-path)
- *       [data-cell="fri-trees"|"fri-hours"]…   with a [data-flash] gold layer inside (opacity)
+ *       [data-cell="mon-trees"…"fri-hours"]    each holds a [data-flash] gold layer (animate opacity;
+ *                                              it rests at 0, hugs the number and paints behind all text)
  *       tfoot: [data-totals] '39:55 hours · 1,347 trees' over a double rule [data-totals-rule] (scaleX)
- *     footnote 'Breaks are listed, not counted.' and the 'Prepared …' line
+ *     footnote 'Breaks are listed, not counted.' and 'Prepared <time>Fri, Oct 16 at 4:31 PM</time>'
  *
  * Under 600px of its own width (a container query, not the viewport) the rows become stacked
- * day blocks with no horizontal scroll. Explicit table roles keep the semantics when the CSS
- * display changes. Pay is never printed: there is no pay column, ever.
+ * day blocks with no horizontal scroll; scenes can tell by `tr[data-day]` computing to
+ * display: flex (a Flip from the ReportTab preview only matches the card from 680px wide).
+ * Explicit table roles keep the semantics when the CSS display changes: empty cells are
+ * visually hidden, never removed, and the generated separators and labels have empty alt text.
+ * Pay is never printed: there is no pay column, ever.
  *
  * `mini` renders the same card as a presentational miniature for the ReportTab preview
  * (divs, no hooks), drawn in the phone's pt space at --tc-mini-w pt wide (default 361), so the
  * preview is the paper at exactly the same proportions as the page card at 720px.
  */
-import { DAY, WEEK, WEEK_RANGE, type Day } from '../data/ledger';
-import { paperRows, paperTotals, preparedLine } from './report/report';
+import { WEEK, WEEK_RANGE, type Day } from '../data/ledger';
+import { paperRows, paperTotals, preparedAt } from './report/report';
 
 export interface Props {
   /** Default ledger WEEK. */
@@ -31,8 +35,8 @@ export interface Props {
   range?: string;
   /** The job in the band. Default 'Tree trimming'. */
   job?: string;
-  /** The 'Prepared …' line; null hides it. Default 'Prepared Fri, Oct 16 at 4:31 PM'. */
-  prepared?: string | null;
+  /** Show the 'Prepared Fri, Oct 16 at 4:31 PM' line (the moment of clock-out). Default true. */
+  prepared?: boolean;
   /** Presentational miniature for the in-phone preview (divs, no hooks, pt units). */
   mini?: boolean;
   /** Mini only: the preview is still drawing (no example data for this range). */
@@ -45,7 +49,7 @@ const {
   worker = 'Alex',
   range = WEEK_RANGE,
   job = 'Tree trimming',
-  prepared = preparedLine(DAY.short),
+  prepared = true,
   mini = false,
   pending = false,
   class: cls,
@@ -64,6 +68,7 @@ const Tr = page ? 'tr' : 'div';
 const Th = page ? 'th' : 'div';
 const Td = page ? 'td' : 'div';
 const P = page ? 'p' : 'div';
+const Time = page ? 'time' : 'span';
 
 const COLS = [
   { key: 'date', label: 'Date' },
@@ -75,9 +80,7 @@ const COLS = [
   { key: 'notes', label: 'Notes' },
 ] as const;
 
-/** Splits a line so clock times sit in Plex Mono: 'Prepared Fri, Oct 16 at 4:31 PM'. */
-const TIME = /(\d{1,2}:\d{2}(?:\s?[AP]M)?)/;
-const preparedParts = prepared ? prepared.split(TIME).filter(Boolean) : [];
+const at = preparedAt();
 /** '7:05 AM' → ['7:05', ' AM']: the meridiem is set a size smaller. */
 const clock = (text: string) => {
   const m = /^(.*?)(\s[AP]M)$/.exec(text);
@@ -141,14 +144,10 @@ const ghost = [0.82, 0.7, 0.9, 0.76, 0.86];
                       <time datetime={r.out.iso}>{clock(r.out.text)[0]}<span class="tc-ampm">{clock(r.out.text)[1]}</span></time>
                     </Td>
                     <Td class="tc-td c-trees" role={on('cell')} data-cell={on(`${r.key}-trees`)}>
-                      <span class="tc-flash" data-flash={on('')} aria-hidden="true" />
-                      <span class="tc-v">{r.trees.text}</span>
+                      <span class="tc-v">{page && <span class="tc-flash" data-flash aria-hidden="true" />}{r.trees.text}</span>
                     </Td>
                     <Td class="tc-td c-hours" role={on('cell')} data-cell={on(`${r.key}-hours`)}>
-                      <span class="tc-flash" data-flash={on('')} aria-hidden="true" />
-                      <time class="tc-v" datetime={r.hours.iso}>
-                        {r.hours.text}
-                      </time>
+                      <Time class="tc-v" datetime={on(r.hours.iso)}>{page && <span class="tc-flash" data-flash aria-hidden="true" />}{r.hours.text}</Time>
                     </Td>
                     <Td class:list={['tc-td c-breaks', r.breaks.length === 0 && 'tc-empty']} role={on('cell')} data-label="Breaks">
                       {r.breaks.length === 0 ? (
@@ -226,7 +225,7 @@ const ghost = [0.82, 0.7, 0.9, 0.76, 0.86];
       {
         prepared && (
           <P class="tc-prepared">
-            {preparedParts.map((part) => (TIME.test(part) ? <time>{part}</time> : part))}
+            Prepared <Time datetime={on(at.iso)}>{at.date} at <span class="tc-mono">{at.time}</span></Time>
           </P>
         )
       }
@@ -257,10 +256,32 @@ const ghost = [0.82, 0.7, 0.9, 0.76, 0.86];
   }
   .tc--mini {
     --u: calc(var(--tc-mini-w, 361) * var(--pt) / 720);
+    /*
+     * Rules: browsers draw a border thinner than one device pixel as one device pixel, which
+     * would make the miniature taller than the card it previews (it is 0.16–0.46px per u). Every
+     * rule in the miniature is drawn at --line (1u, or one device pixel when that is thicker)
+     * and the cell's padding gives the difference back, so its proportions stay the card's.
+     */
+    --hair: 1px;
+    --line: max(calc(1 * var(--u)), var(--hair));
+    --line-extra: calc(var(--line) - 1 * var(--u));
+    /* A 1px ink rule is 2–6 times too heavy at this scale on a 1x screen: soften it. */
+    --mini-ink: rgba(27, 31, 28, 0.62);
     width: calc(720 * var(--u));
     max-width: none;
     /* The miniature never stacks: it is the full card, scaled. */
     container-type: normal;
+  }
+  @media (min-resolution: 2dppx) {
+    .tc--mini {
+      --hair: 0.5px;
+      --mini-ink: var(--tc-ink);
+    }
+  }
+  @media (min-resolution: 3dppx) {
+    .tc--mini {
+      --hair: 0.334px;
+    }
   }
 
   .tc-shadow {
@@ -407,25 +428,29 @@ const ghost = [0.82, 0.7, 0.9, 0.76, 0.86];
     letter-spacing: 0.02em;
     color: var(--tc-muted);
   }
+  /*
+   * Gold flash behind a freshly printed number: scenes fade its opacity, it rests at 0.
+   * It hugs the value (.tc-v) at every width, and the cell is its own stacking context, so
+   * the flash paints behind all of the cell's text, generated separators and suffixes included.
+   */
   .c-trees,
   .c-hours {
     position: relative;
+    isolation: isolate;
   }
   .tc-v {
     position: relative;
+    display: inline-block;
   }
-  /* Gold flash behind a freshly printed number: scenes fade its opacity, it rests at 0. */
   .tc-flash {
     position: absolute;
-    inset: calc(6 * var(--u)) calc(2 * var(--u)) calc(6 * var(--u)) calc(-4 * var(--u));
+    z-index: -1;
+    inset: calc(-5 * var(--u)) calc(-6 * var(--u));
     border-radius: calc(4 * var(--u));
     background: var(--sap-soft);
     box-shadow: inset 0 0 0 calc(1 * var(--u)) rgba(181, 122, 18, 0.35);
     opacity: 0;
     pointer-events: none;
-  }
-  .tc-tr > .c-hours .tc-flash {
-    right: calc(-4 * var(--u));
   }
 
   .tc-td.c-breaks {
@@ -440,6 +465,7 @@ const ghost = [0.82, 0.7, 0.9, 0.76, 0.86];
   .tc-sep + .tc-brk {
     margin-top: calc(2 * var(--u));
   }
+  /* '12:01–12:31' never splits at its dash. */
   .tc-span,
   .tc-span time {
     font-family: var(--font-mono);
@@ -448,6 +474,7 @@ const ghost = [0.82, 0.7, 0.9, 0.76, 0.86];
     letter-spacing: -0.01em;
     font-variant-numeric: tabular-nums;
     color: var(--tc-muted);
+    white-space: nowrap;
   }
   /* Separators exist for screen readers and the stacked layout; the table lists one per line. */
   .tc-sep {
@@ -510,11 +537,25 @@ const ghost = [0.82, 0.7, 0.9, 0.76, 0.86];
     border-bottom: calc(1 * var(--u)) solid var(--tc-ink);
     transform-origin: 0 50%;
   }
-  /* In the miniature, keep the two lines of the double rule apart at small sizes. */
+  /* The miniature's rules: see --line on .tc--mini. */
+  .tc--mini .tc-th {
+    border-bottom: var(--line) solid var(--mini-ink);
+    padding-bottom: calc(8 * var(--u) - var(--line-extra));
+  }
+  .tc--mini .tc-row > .tc-td {
+    border-bottom-width: var(--line);
+    padding-bottom: calc(11 * var(--u) - var(--line-extra));
+  }
+  .tc--mini .tc-body > .tc-row:last-child > .tc-td {
+    border-bottom-color: var(--mini-ink);
+  }
+  /* Two lines with at least one device pixel of paper between them, at every size. */
   .tc--mini .tc-rule {
-    height: calc(5.5 * var(--u));
-    border-top-width: max(calc(1 * var(--u)), 0.5px);
-    border-bottom-width: max(calc(1 * var(--u)), 0.5px);
+    --rule-h: max(calc(4 * var(--u)), calc(2 * var(--line) + var(--hair)));
+    height: var(--rule-h);
+    margin-bottom: calc(4 * var(--u) - var(--rule-h));
+    border-top: var(--line) solid var(--mini-ink);
+    border-bottom: var(--line) solid var(--mini-ink);
   }
 
   /* ---------- Footer ---------- */
@@ -529,7 +570,13 @@ const ghost = [0.82, 0.7, 0.9, 0.76, 0.86];
     line-height: 1.4;
     color: var(--tc-muted);
   }
+  /* The date reads as prose; only the clock time is set in Plex Mono (global.css sets every <time> in mono). */
   .tc-prepared time {
+    font-family: inherit;
+    font-weight: inherit;
+    font-variant-numeric: inherit;
+  }
+  .tc-prepared .tc-mono {
     font-family: var(--font-mono);
     font-weight: 500;
     font-size: calc(12 * var(--u));
@@ -573,8 +620,15 @@ const ghost = [0.82, 0.7, 0.9, 0.76, 0.86];
     .tc-td {
       padding-inline: calc(6 * var(--u));
     }
+    /* Room for 'Lunch 12:01–12:31' on one line in every engine (WebKit favors the long notes). */
+    .tc-th.c-breaks {
+      width: calc(150 * var(--u));
+    }
+    /* A wrapped entry hangs under its reason, so its time never reads as another break. */
     .tc-brk {
       white-space: normal;
+      padding-left: 0.9em;
+      text-indent: -0.9em;
     }
   }
 
@@ -617,6 +671,7 @@ const ghost = [0.82, 0.7, 0.9, 0.76, 0.86];
       align-items: baseline;
     }
     .tc-row {
+      position: relative;
       padding: calc(14 * var(--u)) 0;
       border-bottom: calc(1 * var(--u)) solid var(--tc-rule);
     }
@@ -645,20 +700,25 @@ const ghost = [0.82, 0.7, 0.9, 0.76, 0.86];
     .tc-row > .c-trees {
       order: 4;
     }
+    /* Generated text is for the eye: empty alt text keeps it out of the cells' names. */
     .tc-row > .c-out::before {
       content: '\00a0–\00a0';
+      content: '\00a0–\00a0' / '';
     }
     .tc-row > .c-hours::before,
     .tc-row > .c-trees::before {
       content: '\00a0·\00a0';
+      content: '\00a0·\00a0' / '';
       color: var(--tc-muted);
     }
     .tc-row > .c-hours::after {
       content: '\00a0h';
+      content: '\00a0h' / '';
       font-size: calc(13.5 * var(--u));
     }
     .tc-row > .c-trees::after {
       content: '\00a0trees';
+      content: '\00a0trees' / '';
       font-size: calc(13.5 * var(--u));
     }
     .tc-row > .c-trees,
@@ -670,7 +730,7 @@ const ghost = [0.82, 0.7, 0.9, 0.76, 0.86];
       font-size: calc(13.5 * var(--u));
     }
     .tc-flash {
-      inset: calc(-2 * var(--u)) calc(-4 * var(--u));
+      inset: calc(-2 * var(--u));
     }
     /* 'Breaks: …' and 'Note: …' */
     .tc-row > .c-breaks,
@@ -686,18 +746,33 @@ const ghost = [0.82, 0.7, 0.9, 0.76, 0.86];
       order: 6;
       margin-top: calc(3 * var(--u));
     }
+    .tc-row > .c-breaks.tc-empty + .c-notes {
+      margin-top: calc(6 * var(--u));
+    }
+    /* 'Breaks:' repeats the column header, which screen readers already announce. */
     .tc-row > .c-breaks::before,
     .tc-row > .c-notes::before {
       content: attr(data-label) ':\00a0';
+      content: attr(data-label) ':\00a0' / '';
       font-weight: 600;
       color: var(--tc-ink);
     }
+    /* Empty cells leave the eye but stay in the table, so every row keeps all seven cells. */
     .tc-row > .tc-empty {
-      display: none;
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+      margin: 0;
     }
+    /* Each entry stays whole; lines break only at the '; ' between entries. */
     .tc-brk {
       display: inline;
-      white-space: normal;
+      padding-left: 0;
+      text-indent: 0;
+      white-space: nowrap;
     }
     .tc-sep {
       position: static;
@@ -705,14 +780,11 @@ const ghost = [0.82, 0.7, 0.9, 0.76, 0.86];
       height: auto;
       overflow: visible;
       clip-path: none;
+      white-space: normal;
     }
     .tc-brk + .tc-brk,
     .tc-sep + .tc-brk {
       margin-top: 0;
-    }
-    .tc-span,
-    .tc-span time {
-      white-space: nowrap;
     }
     .tc-total {
       justify-content: space-between;

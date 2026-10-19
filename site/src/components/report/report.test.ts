@@ -9,6 +9,7 @@ import {
   paperRows,
   paperTotals,
   periodFor,
+  preparedAt,
   preparedLine,
   rangeSlug,
 } from './report.ts';
@@ -143,6 +144,14 @@ describe('the totals', () => {
 describe('the prepared line', () => {
   it('says when the card was made: right after clock-out', () => {
     expect(preparedLine()).toBe('Prepared Fri, Oct 16 at 4:31 PM');
+  });
+
+  it('has a valid machine-readable date and time for <time datetime>', () => {
+    const at = preparedAt();
+    expect(at).toEqual({ date: 'Fri, Oct 16', time: '4:31 PM', iso: '2026-10-16T16:31' });
+    expect(`Prepared ${at.date} at ${at.time}`).toBe(preparedLine());
+    // A valid local date and time string (HTML): YYYY-MM-DDTHH:MM.
+    expect(at.iso).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/);
   });
 });
 
