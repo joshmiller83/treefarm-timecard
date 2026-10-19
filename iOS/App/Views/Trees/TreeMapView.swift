@@ -131,6 +131,7 @@ final class TreeMapScrollView: UIScrollView, UIScrollViewDelegate {
     private var revision = -1
     private var look: MapLook?
     private var lastScroll: MapScrollRequest?
+    private var pendingScroll: MapScrollRequest?
     private let tapGate = TapGate()
     /// When the map last moved on its own after a flick.
     private var lastGlide: CFTimeInterval = 0
@@ -201,7 +202,8 @@ final class TreeMapScrollView: UIScrollView, UIScrollViewDelegate {
 
         if let request, request != lastScroll {
             lastScroll = request
-            scroll(toBlock: request.blockId)
+            // Before the first layout there's no size to place the row in; wait for it.
+            if bounds.isEmpty { pendingScroll = request } else { scroll(to: request) }
         }
     }
 
@@ -245,6 +247,10 @@ final class TreeMapScrollView: UIScrollView, UIScrollViewDelegate {
 
     override func layoutSubviews() {
         super.layoutSubviews()
+        if let pending = pendingScroll, !bounds.isEmpty {
+            pendingScroll = nil
+            scroll(to: pending)
+        }
         updateTiles()
     }
 
@@ -355,9 +361,18 @@ final class TreeMapScrollView: UIScrollView, UIScrollViewDelegate {
         return dx * dx + dy * dy
     }
 
-    private func scroll(toBlock id: UUID) {
-        guard let f = painter.scene.layout.frame(of: id) else { return }
-        setContentOffset(clampedOffset(CGPoint(x: f.frame.minX - 4, y: f.frame.minY - 4)), animated: false)
+    /// The block's top-left corner, or, when a row is named that wouldn't be in view from there,
+    /// that row a third of the way down (clear of the zoom bar at the bottom).
+    private func scroll(to request: MapScrollRequest) {
+        let layout = painter.scene.layout
+        guard let f = layout.frame(of: request.blockId) else { return }
+        var target = CGPoint(x: f.frame.minX - 4, y: f.frame.minY - 4)
+        if let row = request.row, let rect = layout.rowHeaderRect(RowRef(blockId: request.blockId, row: row)) {
+            let clear: CGFloat = 96
+            if rect.maxY > target.y + bounds.height - clear { target.y = rect.midY - bounds.height / 3 }
+            if rect.maxX > target.x + bounds.width - 16 { target.x = rect.midX - bounds.width / 2 }
+        }
+        setContentOffset(clampedOffset(target), animated: false)
     }
 
     private func clampedOffset(_ p: CGPoint) -> CGPoint {

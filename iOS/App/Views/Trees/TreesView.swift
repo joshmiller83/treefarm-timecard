@@ -55,10 +55,9 @@ struct TreesView: View {
             ShiftEditorView(shiftId: shift.id)
         }
         .task {
-            // Siri and the lock screen remember where you're working; open there until a field is picked.
-            let position = AppModel.shared.actions.state()?.position
-            model.workingFieldId = position?.fieldId
-            model.workingBlockId = position?.next?.blockId
+            // Siri, the lock screen and the Clock tab remember where you're working: open there
+            // until a field is picked, and show that row each time it has moved.
+            model.showWorkingPlace(AppModel.shared.actions.state()?.position)
             await TreesDemoSeed.runIfRequested(model: AppModel.shared)
         }
     }

@@ -23,6 +23,8 @@ struct ReportView: View {
             }
             .screenBackground()
             .navigationTitle("Report")
+            // The title in the top bar, level with the Clock and Trees tabs' headings.
+            .toolbarTitleDisplayMode(.inlineLarge)
         }
         .sheet(isPresented: $pickingDates) {
             if let farm = session.farm {

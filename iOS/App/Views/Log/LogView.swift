@@ -21,6 +21,8 @@ struct LogView: View {
             }
             .screenBackground()
             .navigationTitle("Log")
+            // The title in the top bar, level with the Clock and Trees tabs' headings.
+            .toolbarTitleDisplayMode(.inlineLarge)
         }
         .toast($toast)
         .sheet(item: $editing) { target in

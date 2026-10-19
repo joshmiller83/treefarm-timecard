@@ -423,6 +423,38 @@ struct TreeMapModelTests {
         #expect(f.saved.isEmpty)
     }
 
+    /// Opened from the Clock tab's Mark trees (or after rows marked by Siri or the lock screen),
+    /// the map shows where you're working; visiting the tab again leaves it where you left it.
+    @Test func theMapShowsWhereYouAreWorkingWhenThatMoves() {
+        let f = TreeMapFixture()
+        let row10 = RowRef(blockId: f.block2.id, row: 9)
+        f.model.showWorkingPlace(WorkPosition(fieldId: f.north.id, next: row10))
+        #expect(f.model.workingFieldId == f.north.id)
+        #expect(f.model.workingBlockId == f.block2.id)
+        let first = f.model.scrollRequest
+        #expect(first?.blockId == f.block2.id)
+        #expect(first?.row == 9)
+        // The same place again (the tab shown again): the map stays put.
+        f.model.showWorkingPlace(WorkPosition(fieldId: f.north.id, next: row10))
+        #expect(f.model.scrollRequest == first)
+        // Rows marked elsewhere moved you on: show the new place.
+        f.model.showWorkingPlace(WorkPosition(fieldId: f.north.id, next: RowRef(blockId: f.block2.id, row: 10)))
+        #expect(f.model.scrollRequest?.row == 10)
+        #expect(f.model.scrollRequest != first)
+    }
+
+    @Test func theWholeFieldViewAndOtherFieldsDontJump() {
+        let f = TreeMapFixture()
+        f.model.setZoom(.all)
+        f.model.showWorkingPlace(WorkPosition(fieldId: f.north.id, next: RowRef(blockId: f.block2.id, row: 3)))
+        #expect(f.model.scrollRequest == nil)
+        #expect(f.model.workingBlockId == f.block2.id, "typed numbers still go there")
+        f.model.setZoom(.m)
+        f.model.chosenFieldId = f.creek.id
+        f.model.showWorkingPlace(WorkPosition(fieldId: f.north.id, next: RowRef(blockId: f.block2.id, row: 4)))
+        #expect(f.model.scrollRequest == nil, "a block in another field isn't on this map")
+    }
+
     @Test func pinchingSnapsToTheNearestSize() {
         #expect(MapZoom.nearest(cellWidth: 27, overviewWidth: 4) == .m)
         #expect(MapZoom.nearest(cellWidth: 60, overviewWidth: 4) == .l)

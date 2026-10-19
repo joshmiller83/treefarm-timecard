@@ -41,6 +41,8 @@ struct TeamView: View {
             .scrollDismissesKeyboard(.interactively)
             .screenBackground()
             .navigationTitle("Team")
+            // The title in the top bar, level with the Clock and Trees tabs' headings.
+            .toolbarTitleDisplayMode(.inlineLarge)
             // Coming back to the tab, or back from someone's page, picks up invites used meanwhile.
             .onAppear { refreshInvites() }
             .navigationDestination(for: Route.self) { route in

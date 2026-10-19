@@ -35,10 +35,13 @@ struct MapMessage: Equatable, Sendable {
     }
 }
 
-/// Move the map so a block is in view (after a tap on the overview).
+/// Move the map so a block is in view (after a tap on the overview), and a row in it when
+/// one is named (where you're working).
 struct MapScrollRequest: Equatable, Sendable {
     var blockId: UUID
     var token: Int
+    /// 0-based; nil shows the block's top.
+    var row: Int? = nil
 }
 
 /// The tree whose card is open.
@@ -124,6 +127,8 @@ final class TreeMapModel {
     @ObservationIgnored private var pendingDirty: Set<RowRef>? = []
     @ObservationIgnored private var cachedLayout: (key: LayoutKey, layout: FieldLayout)?
     @ObservationIgnored private var scrollToken = 0
+    /// The working row the map last showed (`showWorkingPlace`).
+    @ObservationIgnored private var shownWorkingRow: RowRef?
     /// My shifts when "Add a shift" opened, to find the one it added.
     @ObservationIgnored private var shiftsBeforeAdding: Set<UUID>?
 
@@ -370,6 +375,19 @@ final class TreeMapModel {
     func longPress(at point: CGPoint) {
         guard case .tree(let tree)? = layout.hitTest(point) else { return }
         openTree = OpenTree(tree: tree)
+    }
+
+    /// Where Siri, the lock screen and the Clock tab say you're working. The map opens on that
+    /// field, and shows that row whenever it moves (the first time the tab opens, after rows
+    /// marked elsewhere), not on every visit, so the map stays where you left it otherwise.
+    func showWorkingPlace(_ position: WorkPosition?) {
+        workingFieldId = position?.fieldId
+        workingBlockId = position?.next?.blockId
+        guard let next = position?.next, next != shownWorkingRow else { return }
+        guard zoom != .all, blocks.contains(where: { $0.id == next.blockId }) else { return }
+        shownWorkingRow = next
+        scrollToken += 1
+        scrollRequest = MapScrollRequest(blockId: next.blockId, token: scrollToken, row: next.row)
     }
 
     func zoomInto(_ blockId: UUID) {
