@@ -1,45 +1,276 @@
 ---
-/** Lab: map (owner). */
+/**
+ * Lab: map (owner). Every Trees tab state at real device size (a 393 pt screen is 393 CSS px),
+ * and the field map's static states, choreography frames and a scrubber for the field scene.
+ */
 import Lab from '../../layouts/Lab.astro';
 import Phone from '../../components/phone/Phone.astro';
 import Screen from '../../components/phone/Screen.astro';
 import TreesTab from '../../components/app/TreesTab.astro';
 import FieldMap from '../../components/FieldMap.astro';
-import { CONFLICT_MESSAGE, MOMENTS, OLD_NOTE, TREE_NOTE } from '../../data/ledger';
+import { CONFLICT_MESSAGE, MOMENTS, OLD_NOTE, TREE_NOTE, fmtTime } from '../../data/ledger';
+import { BEATS } from '../../scripts/fieldstate';
+
+/** The phone's screen is 393 CSS px wide (real size) when the viewport allows. */
+const REAL = 'min(910px, calc((100vw - 32px) * 852 / 393))';
+
+type Tab = Parameters<typeof TreesTab>[0];
+const states: Array<{ id: string; caption: string; label: string; props: Tab }> = [
+  {
+    id: 'trees-1415-block2',
+    caption: `field · ${fmtTime(MOMENTS.field)} · block 2 rows 28–40 · L`,
+    label: 'Trees tab, block 2 at 2:15 PM: rows 28 to 36 gold, row 37 next, a note flag on row 31.',
+    props: { block: 2, rows: [28, 40] },
+  },
+  {
+    id: 'trees-1433-note',
+    caption: `notes · ${fmtTime(MOMENTS.treeNote)} · rows 30–40 · sheet open`,
+    label: 'Trees tab with the tree note sheet open on block 2, row 36, tree 7.',
+    props: { at: MOMENTS.treeNote, block: 2, rows: [30, 40], notes: [TREE_NOTE, OLD_NOTE], sheet: TREE_NOTE },
+  },
+  {
+    id: 'trees-1433-markers',
+    caption: `notes · ${fmtTime(MOMENTS.treeNote)} · both markers, no sheet`,
+    label: 'Trees tab with flags on row 31 tree 4 and row 36 tree 7.',
+    props: { at: MOMENTS.treeNote, block: 2, rows: [30, 40], notes: [TREE_NOTE, OLD_NOTE] },
+  },
+  {
+    id: 'trees-1447-block3',
+    caption: `crew · ${fmtTime(MOMENTS.crew)} · block 3 rows 6–16 · online (sync slot kept)`,
+    label: 'Trees tab on block 3: rows 1 to 10 green.',
+    props: { at: MOMENTS.crew, block: 3, rows: [6, 16], syncSlot: true },
+  },
+  {
+    id: 'trees-1456-offline',
+    caption: `crew · ${fmtTime(MOMENTS.alexRow12)} · No Service · 2 waiting`,
+    label: 'Trees tab offline: rows 11 and 12 gold, two changes waiting.',
+    props: { at: MOMENTS.alexRow12, block: 3, rows: [6, 16], syncLine: 'Offline · 2 changes waiting', noService: true },
+  },
+  {
+    id: 'trees-1500-synced',
+    caption: `crew · ${fmtTime(MOMENTS.synced)} · synced · first mark wins`,
+    label: `Trees tab after sync: row 11 gold, row 12 green, and the banner ${CONFLICT_MESSAGE}`,
+    props: { at: MOMENTS.synced, block: 3, rows: [6, 16], syncLine: 'Synced', banner: CONFLICT_MESSAGE },
+  },
+  {
+    id: 'sam-1449-trees',
+    caption: `crew · Sam’s phone · ${fmtTime(MOMENTS.samMarks)} · his row 12 gold`,
+    label: 'Sam’s Trees tab on block 3 with his row 12 gold.',
+    props: { at: MOMENTS.samMarks, who: 'Sam', block: 3, rows: [6, 16] },
+  },
+];
+
+const zooms: Array<{ zoom: Tab['zoom']; rows: [number, number] }> = [
+  { zoom: 'All', rows: [1, 61] },
+  { zoom: 'XS', rows: [8, 61] },
+  { zoom: 'S', rows: [14, 61] },
+  { zoom: 'M', rows: [22, 61] },
+];
+const modes: Array<Tab['mode']> = ['fill', 'erase'];
+
+const frames = [
+  { p: 0.2, what: 'overview · rows 14–36 still rings' },
+  { p: 0.41, what: 'rows flipping to gold, one a beat' },
+  { p: 0.55, what: 'zooming in, the field turning upright' },
+  { p: 0.6, what: 'close-up · row 37 touched' },
+  { p: 0.65, what: 'row 37 filled (then undone)' },
+  { p: 0.8, what: 'next season: rings, the note stays' },
+  { p: 0.905, what: 'fills coming back as the camera pulls out' },
+  { p: 0.94, what: 'zooming out, turning back' },
+];
 ---
 
 <Lab title="map" owner="map">
-  <section>
-    <h2>TreesTab</h2>
+  <section aria-labelledby="h-trees">
+    <h2 id="h-trees">Trees tab, every state</h2>
+    <p class="lab-note">Real size: each screen is 393 × 852 CSS px, one CSS px per point (scaled down on narrow windows).</p>
     <div class="lab-row">
-      <div class="lab-cell">
-        <Phone label="Trees tab, block 2" height="760px">
-          <div class="screens" data-screens><Screen stateId="lab-trees-1" alt="" tone="light" final><TreesTab block={2} rows={[28, 40]} notes={[OLD_NOTE, TREE_NOTE]} /></Screen></div>
-        </Phone>
-        <p>block 2 rows 28–40, 2:15 PM</p>
-      </div>
-      <div class="lab-cell">
-        <Phone label="Trees tab offline" height="760px">
-          <div class="screens" data-screens>
-            <Screen stateId="lab-trees-2" alt="" tone="light" final>
-              <TreesTab at={MOMENTS.alexRow12} block={3} rows={[6, 16]} pending={[{ block: 3, row: 11 }, { block: 3, row: 12 }]} syncLine="Offline · 2 changes waiting" noService />
-            </Screen>
+      {
+        states.map((s) => (
+          <div class="lab-cell" data-lab-state={s.id}>
+            <Phone label={s.label} height={REAL}>
+              <div class="screens" data-screens>
+                <Screen stateId={s.id} alt={s.label} tone="light" final>
+                  <TreesTab {...s.props} />
+                </Screen>
+              </div>
+            </Phone>
+            <p>{s.caption}</p>
           </div>
-        </Phone>
-        <p>offline</p>
-      </div>
-      <div class="lab-cell">
-        <Phone label="Trees tab synced" height="760px">
-          <div class="screens" data-screens>
-            <Screen stateId="lab-trees-3" alt="" tone="light" final><TreesTab at={MOMENTS.synced} block={3} rows={[6, 16]} syncLine="Synced" banner={CONFLICT_MESSAGE} /></Screen>
-          </div>
-        </Phone>
-        <p>synced + banner</p>
-      </div>
+        ))
+      }
     </div>
   </section>
-  <section>
-    <h2>FieldMap</h2>
-    <FieldMap />
+
+  <section aria-labelledby="h-zoom">
+    <h2 id="h-zoom">Zoom levels and modes</h2>
+    <div class="lab-row">
+      {
+        zooms.map((z) => (
+          <div class="lab-cell" data-lab-zoom={z.zoom}>
+            <Phone label={`Trees tab at zoom ${z.zoom}`} height={REAL}>
+              <div class="screens" data-screens>
+                <Screen stateId={`lab-zoom-${z.zoom}`} alt="" tone="light" final>
+                  <TreesTab block={2} rows={z.rows} zoom={z.zoom} />
+                </Screen>
+              </div>
+            </Phone>
+            <p>zoom {z.zoom} · block 2 · 2:15 PM</p>
+          </div>
+        ))
+      }
+      {
+        modes.map((m) => (
+          <div class="lab-cell" data-lab-mode={m}>
+            <Phone label={`Trees tab in ${m} mode`} height={REAL}>
+              <div class="screens" data-screens>
+                <Screen stateId={`lab-mode-${m}`} alt="" tone="light" final>
+                  <TreesTab block={2} rows={[28, 40]} mode={m} />
+                </Screen>
+              </div>
+            </Phone>
+            <p>mode {m}</p>
+          </div>
+        ))
+      }
+    </div>
+  </section>
+
+  <section aria-labelledby="h-field" class="field-lab">
+    <h2 id="h-field">Field map</h2>
+    <div class="lab-stage">
+      <p class="cap">Overview at 2:15 PM (the static final state)</p>
+      <FieldMap class="lab-map" />
+    </div>
+    <div class="lab-row">
+      <div class="lab-stage narrow">
+        <p class="cap">Portrait (the mobile layout)</p>
+        <FieldMap orientation="portrait" />
+      </div>
+      <div class="lab-stage narrow">
+        <p class="cap">Close-up: block 2, rows 28–40</p>
+        <FieldMap view="zoom" />
+      </div>
+    </div>
+
+    <h3>The field scene, frame by frame</h3>
+    <div class="frames">
+      {
+        frames.map((f) => (
+          <figure class="lab-stage lab-frame" data-lab-frame={f.p}>
+            <FieldMap progress={f.p} orientation="landscape" label={`Field map at scene progress ${f.p}: ${f.what}.`} />
+            <figcaption class="cap">
+              p {f.p} · {f.what}
+            </figcaption>
+          </figure>
+        ))
+      }
+    </div>
+
+    <h3>Scrub the scene</h3>
+    <div class="lab-stage">
+      <label class="scrub">
+        <span>Progress <output id="scrub-out">0.30</output></span>
+        <input id="scrub" type="range" min="0" max="1" step="0.001" value="0.3" />
+      </label>
+      <FieldMap class="scrub-map" progress={0.3} label="Field map driven by the progress slider." />
+      <pre class="lab-beats" id="scrub-state" aria-live="off"></pre>
+      <p class="cap">
+        Beats: {
+          Object.entries(BEATS)
+            .map(([k, [a, b]]) => `${k} ${a}–${b}`)
+            .join(' · ')
+        }
+      </p>
+    </div>
   </section>
 </Lab>
+
+<script>
+  import { ensureFieldMap } from '../../scripts/fieldmap.ts';
+
+  const input = document.querySelector<HTMLInputElement>('#scrub');
+  const out = document.querySelector<HTMLOutputElement>('#scrub-out');
+  const pre = document.querySelector<HTMLPreElement>('#scrub-state');
+  const canvas = document.querySelector<HTMLCanvasElement>('.scrub-map canvas[data-fieldmap]');
+  if (input && canvas) {
+    const map = ensureFieldMap(canvas);
+    const update = () => {
+      const p = Number(input.value);
+      map.setProgress(p);
+      if (out) out.value = p.toFixed(2);
+      if (pre)
+        pre.textContent = Object.entries(map.state)
+          .map(([k, v]) => `${k}: ${typeof v === 'number' ? Math.round(v * 1000) / 1000 : v}`)
+          .join('  ');
+    };
+    input.addEventListener('input', update);
+    update();
+  }
+</script>
+
+<style>
+  /* Lab sections are grid items: let them shrink below their content's min width at 375. */
+  section {
+    min-width: 0;
+  }
+  .lab-note {
+    color: var(--on-stage-muted);
+    font-size: 0.875rem;
+    margin: -8px 0 20px;
+  }
+  .field-lab h3 {
+    font-family: var(--font-display);
+    font-size: 1.2rem;
+    margin: 40px 0 16px;
+  }
+  .lab-stage {
+    padding: 20px;
+    border-radius: 20px;
+    background: linear-gradient(180deg, #07120c, #0c1d14);
+    border: 1px solid var(--stage-line);
+    max-width: 1180px;
+  }
+  .narrow {
+    width: min(100%, 380px);
+  }
+  .cap {
+    margin-bottom: 12px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--on-stage-muted);
+  }
+  .frames {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 560px), 1fr));
+    max-width: 1180px;
+    gap: 16px;
+  }
+  .lab-frame {
+    margin: 0;
+    padding: 12px;
+  }
+  .lab-frame .cap {
+    margin: 10px 0 0;
+  }
+  .scrub {
+    display: grid;
+    gap: 8px;
+    margin-bottom: 16px;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--on-stage);
+  }
+  .scrub input {
+    width: 100%;
+    min-height: 44px;
+    accent-color: var(--gold-lit);
+  }
+  .lab-beats {
+    margin-top: 12px;
+    white-space: pre-wrap;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--on-stage-muted);
+  }
+</style>
