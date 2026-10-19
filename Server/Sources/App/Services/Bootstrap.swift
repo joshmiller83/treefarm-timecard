@@ -24,7 +24,7 @@ enum Bootstrap {
         var description: String {
             switch self {
             case .emailExists(let e): "An account for \(e) already exists."
-            case .badTimeZone(let tz): "\(tz) isn't a time zone. Use an IANA name like America/Indiana/Indianapolis."
+            case .badTimeZone(let tz): "\(tz) isn’t a time zone. Use an IANA name like America/Indiana/Indianapolis."
             case .badInput(let s): s
             }
         }

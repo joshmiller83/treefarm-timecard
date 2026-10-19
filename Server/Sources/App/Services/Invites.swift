@@ -22,7 +22,7 @@ enum Invites {
     /// The invite a code names, if it can still be used; otherwise a 400 saying why.
     static func usable(_ code: String, on db: any Database, now: Date) async throws -> InviteModel {
         guard let invite = try await InviteModel.query(on: db).filter(\.$codeHash == Codes.codeHash(code)).first() else {
-            throw Abort(.badRequest, reason: "That invite code isn't valid. Ask your admin for a new one.")
+            throw Abort(.badRequest, reason: "That invite code isn’t valid. Ask your admin for a new one.")
         }
         if invite.usedAt != nil {
             throw Abort(.badRequest, reason: "That invite code was already used. Ask your admin for a new one.")

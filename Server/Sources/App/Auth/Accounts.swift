@@ -17,7 +17,7 @@ enum Accounts {
         let parts = email.split(separator: "@", omittingEmptySubsequences: false)
         guard email.count <= 254, parts.count == 2, !parts[0].isEmpty, parts[1].contains("."),
               !parts[1].hasPrefix("."), !parts[1].hasSuffix("."), !email.contains(where: \.isWhitespace)
-        else { throw Abort(.badRequest, reason: "That doesn't look like an email address.") }
+        else { throw Abort(.badRequest, reason: "That doesn’t look like an email address.") }
         return email
     }
 

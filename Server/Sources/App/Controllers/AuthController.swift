@@ -20,14 +20,14 @@ struct AuthController: RouteCollection {
 
         guard let user = try await UserModel.query(on: req.db).filter(\.$email == email).first() else {
             await req.hasher.verifyNothing(body.password)
-            throw Abort(.unauthorized, reason: "That email and password don't match.")
+            throw Abort(.unauthorized, reason: "That email and password don’t match.")
         }
         guard try await req.hasher.verify(body.password, hash: user.passwordHash) else {
-            throw Abort(.unauthorized, reason: "That email and password don't match.")
+            throw Abort(.unauthorized, reason: "That email and password don’t match.")
         }
         let memberships = try await RecordStore(db: req.db).activeMemberships(of: user.id!)
         guard !memberships.isEmpty else {
-            throw Abort(.forbidden, reason: "You're no longer on any farm. Ask an admin for a new invite.")
+            throw Abort(.forbidden, reason: "You’re no longer on any farm. Ask an admin for a new invite.")
         }
         let token = try await Accounts.startSession(userId: user.id!, deviceName: body.deviceName, on: req.db, now: now)
         return try .json(try await Accounts.authResponse(user, token: token, on: req.db))
@@ -46,7 +46,7 @@ struct AuthController: RouteCollection {
         let newHash: String?
         if let existing {
             guard try await req.hasher.verify(password, hash: existing.passwordHash) else {
-                throw Abort(.conflict, reason: "There's already an account for that email. Use its password to join, or sign in.")
+                throw Abort(.conflict, reason: "There’s already an account for that email. Use its password to join, or sign in.")
             }
             newHash = nil
         } else {
@@ -67,7 +67,7 @@ struct AuthController: RouteCollection {
             let role = Role(rawValue: invite.role) ?? .worker
             if var member = try await store.member(user.id!, farm: invite.farmId) {
                 guard member.removedAt != nil else {
-                    throw Abort(.conflict, reason: "You're already on this farm. Sign in instead.")
+                    throw Abort(.conflict, reason: "You’re already on this farm. Sign in instead.")
                 }
                 member.removedAt = nil
                 member.role = role
@@ -92,7 +92,7 @@ struct AuthController: RouteCollection {
         let body = try req.decodeJSON(ResetPasswordRequest.self)
         let email = Accounts.normalizeEmail(body.email)
         let now = req.now
-        let badCode = Abort(.badRequest, reason: "That reset code isn't right or has expired. Ask your admin for a new one.")
+        let badCode = Abort(.badRequest, reason: "That reset code isn’t right or has expired. Ask your admin for a new one.")
 
         guard let user = try await UserModel.query(on: req.db).filter(\.$email == email).first(),
               try await ResetCodes.usable(body.resetCode, for: user.id!, on: req.db, now: now) != nil

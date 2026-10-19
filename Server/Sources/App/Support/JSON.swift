@@ -46,7 +46,7 @@ extension Request {
         do {
             return try ServerJSON.decoder().decode(T.self, from: Data(buffer: buffer))
         } catch let error as DecodingError {
-            throw Abort(.badRequest, reason: "The request body wasn't understood (\(error.shortDescription)).")
+            throw Abort(.badRequest, reason: "The request body wasn’t understood (\(error.shortDescription)).")
         }
     }
 }
