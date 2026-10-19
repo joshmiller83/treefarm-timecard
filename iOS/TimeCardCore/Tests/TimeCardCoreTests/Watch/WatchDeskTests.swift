@@ -477,6 +477,86 @@ struct WatchDeskTests {
         #expect(first.supersedes(old))
     }
 
+    /// Reads go through, writes fail: a suspended database (WAL reads still work) or a full disk.
+    final class RefusingWrites: KeyValueStore, @unchecked Sendable {
+        struct Refused: Error {}
+        let base: any KeyValueStore
+        private let lock = NSLock()
+        private var _refusing = true
+        var refusing: Bool {
+            get { lock.withLock { _refusing } }
+            set { lock.withLock { _refusing = newValue } }
+        }
+
+        init(_ base: any KeyValueStore) { self.base = base }
+
+        func value(forKey key: String) throws -> Data? { try base.value(forKey: key) }
+
+        func setValue(_ value: Data?, forKey key: String) throws {
+            if refusing { throw Refused() }
+            try base.setValue(value, forKey: key)
+        }
+    }
+
+    func makeDesk(_ session: TimeCardSession, store: any KeyValueStore) -> WatchDesk {
+        WatchDesk(actions: FieldActions(session: session, now: clock.read), store: store, settings: { WatchSettings() }, now: clock.read)
+    }
+
+    @Test func aCounterThatCantBeSavedNeverRepeatsARevision() async throws {
+        let session = try await makeSession()
+        let (_, desk) = makeDesk(session)
+        let saved = desk.makeState()
+        let refusing = RefusingWrites(store)
+        let stuck = makeDesk(session, store: refusing)
+        let r = try reply(stuck.handle(try envelope(request(.clockIn(fieldId: nil), shiftId: UUID())), receivedAt: clock.now))
+        let replied = try #require(r.state)
+        let next = stuck.makeState()
+        let after = stuck.makeState()
+        // Two states that tie would leave the watch on the older one.
+        #expect(replied.revision > saved.revision)
+        #expect(next.revision > replied.revision)
+        #expect(after.revision > next.revision)
+        #expect(Set([saved.epoch, replied.epoch, next.epoch, after.epoch]).count == 1)
+    }
+
+    @Test func anEmptyStoreThatCantBeWrittenKeepsOneEpoch() async throws {
+        let session = try await makeSession()
+        let refusing = RefusingWrites(try LocalStore.inMemory())
+        let desk = makeDesk(session, store: refusing)
+        let states = (0..<3).map { _ in desk.makeState() }
+        // A new epoch per state would make the watch take every one, in any order.
+        #expect(Set(states.map(\.epoch)).count == 1)
+        #expect(states.map(\.revision) == [1, 2, 3])
+    }
+
+    @Test func theCounterCarriesOnOnceItCanBeSavedAgain() async throws {
+        let session = try await makeSession()
+        let refusing = RefusingWrites(try LocalStore.inMemory())
+        let desk = makeDesk(session, store: refusing)
+        let early = desk.makeState()
+        _ = desk.makeState()
+        refusing.refusing = false
+        let saved = desk.makeState()
+        #expect(saved.revision == 3)
+        #expect(saved.epoch == early.epoch)
+        // The next launch follows on from what was handed out, in the same epoch.
+        let relaunched = makeDesk(session, store: refusing).makeState()
+        #expect(relaunched.epoch == early.epoch)
+        #expect(relaunched.revision == 4)
+    }
+
+    @Test func twoDesksOnOneStoreShareTheCounter() async throws {
+        let session = try await makeSession()
+        let (_, first) = makeDesk(session)
+        let (_, second) = makeDesk(session)
+        let a = first.makeState()
+        let b = second.makeState()
+        let c = first.makeState()
+        #expect(b.revision > a.revision)
+        #expect(c.revision > b.revision)
+        #expect(Set([a.epoch, b.epoch, c.epoch]).count == 1)
+    }
+
     @Test func aSettingsChangeShowsInTheNextState() async throws {
         let session = try await makeSession()
         let (_, desk) = makeDesk(session)

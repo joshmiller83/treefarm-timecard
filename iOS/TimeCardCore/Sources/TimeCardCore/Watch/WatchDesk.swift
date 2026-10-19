@@ -39,6 +39,10 @@ public final class WatchDesk {
     private var inbox: WatchInbox
     /// Shifts opened by a watch clock-in this launch, newest last.
     private var watchOpened: [UUID] = []
+    /// The counter's epoch, once this desk has made a state.
+    private var epoch: UUID?
+    /// The last revision this desk handed out, in `epoch`.
+    private var issued = 0
 
     /// The phase of the last state this desk (or an earlier one on the same store) made. Every
     /// state made is sent, so this is what the watch last heard about.
@@ -208,17 +212,29 @@ public final class WatchDesk {
 
     /// The epoch is made with the counter, so a lost store (or a new phone) starts a new one,
     /// and the watch accepts its states even though their revisions start again.
+    ///
+    /// The epoch and the last revision handed out are kept here too, because a write can fail
+    /// (a database suspended in the background, a full disk) and the watch has already seen
+    /// what was handed out: the next state is always past both the store and this desk, so two
+    /// states never tie, and a failed write never starts a new epoch per state.
     private func nextRevision() -> (UUID, Int) {
-        var epoch = Self.load(UUID.self, Self.epochKey, from: store)
-        var revision = Self.load(Int.self, Self.revisionKey, from: store)
-        if epoch == nil || revision == nil {
-            epoch = UUID()
-            revision = 0
-            Self.save(epoch, Self.epochKey, to: store)
+        let storedEpoch = Self.load(UUID.self, Self.epochKey, from: store)
+        let storedRevision = Self.load(Int.self, Self.revisionKey, from: store)
+        if let storedEpoch, let storedRevision, storedEpoch != epoch {
+            // The first state this launch, or another desk's counter on the same store.
+            epoch = storedEpoch
+            issued = storedRevision
         }
-        let next = (revision ?? 0) + 1
+        let current = epoch ?? UUID()
+        if epoch == nil {
+            epoch = current
+            issued = 0
+        }
+        if storedEpoch != current { Self.save(current, Self.epochKey, to: store) }
+        let next = max(storedEpoch == current ? storedRevision ?? 0 : 0, issued) + 1
+        issued = next
         Self.save(next, Self.revisionKey, to: store)
-        return (epoch!, next)
+        return (current, next)
     }
 
     private func remember(_ phase: WatchPhase) {
