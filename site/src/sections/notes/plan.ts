@@ -23,7 +23,7 @@ export type BeatKey = 'break' | 'tree' | 'crew' | 'shift' | 'back';
 export const BEAT_KEYS: readonly BeatKey[] = ['break', 'tree', 'crew', 'shift', 'back'];
 
 /** Track heights under motion (SectionShell's `track` prop). */
-export const TRACK = { desk: '420vh', mob: '640vh' } as const;
+export const TRACK = { desk: '460vh', mob: '640vh' } as const;
 
 /** Where each copy beat sits (progress 0–1): its --at. */
 export const AT: Record<Mode, Record<BeatKey, number>> = {

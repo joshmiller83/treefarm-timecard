@@ -170,14 +170,16 @@ registerScene(
       shift: page('[data-nb="shift"]'),
       back: page('[data-nb="back"]'),
     };
+    // Opacity only: the shell centres each beat with the CSS `translate` property, and a GSAP
+    // transform on the same element would take that over (and freeze it in px).
     for (const [key, el] of Object.entries(beats) as Array<['head' | BeatKey, El | null]>) {
       if (!el) continue;
       const f = P.copy[key];
       if (f.in) {
-        set(el, { opacity: 0, y: 28 });
-        to(el, { opacity: 1, y: 0, duration: dur(f.in), ease: 'power2.out' }, f.in[0]);
+        set(el, { opacity: 0 });
+        to(el, { opacity: 1, duration: dur(f.in), ease: 'power1.out' }, f.in[0]);
       }
-      if (f.out) to(el, { opacity: 0, y: -20, duration: dur(f.out), ease: 'power1.in' }, f.out[0]);
+      if (f.out) to(el, { opacity: 0, duration: dur(f.out), ease: 'power1.in' }, f.out[0]);
     }
 
     // The headline: lines rise out of a mask once, not scrubbed.

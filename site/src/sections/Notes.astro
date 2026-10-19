@@ -557,6 +557,28 @@ const split = (s: string) => {
     display: contents;
   }
 
+  /* ---------- Short desktop viewports: tighter beats, so neighbours never touch ---------- */
+  @media (min-width: 900px) and (max-height: 820px) {
+    :global(html.motion) .nb {
+      gap: 10px;
+    }
+    :global(html.motion) .nb .spoken {
+      font-size: clamp(1.6rem, 0.9rem + 1.6vw, 2.25rem);
+    }
+    :global(html.motion) .nb-bubble {
+      padding: 9px 14px 11px;
+    }
+    :global(html.motion) .nb-bubble--you {
+      font-size: 1.125rem;
+    }
+    :global(html.motion) .nb-flagrow {
+      padding: 9px 12px;
+    }
+    :global(html.motion) .nb-big {
+      font-size: 1.25rem;
+    }
+  }
+
   /* ---------- Static page (reduced motion, no JS): a readable transcript ---------- */
   :global(html:not(.motion)) .nb {
     padding-top: 32px;
