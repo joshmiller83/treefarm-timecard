@@ -21,7 +21,9 @@ struct VoiceCatalogTests {
         _ = await Demo.voice(model).moveTo(block: try Demo.block(model, "1").id, row: 15)
         let rows = VoiceCatalog.suggestedRows(try Demo.state(model))
         #expect(rows.map(\.title) == ["Row 15", "Row 16", "Row 17", "Row 18", "Row 19", "Row 20",
-                                      "Row 1 in block 2", "Row 2 in block 2", "Row 3 in block 2", "Row 4 in block 2"])
+                                      "Row 1 in block 2", "Row 2 in block 2", "Row 3 in block 2", "Row 4 in block 2",
+                                      // Rows skipped behind you, to come back to.
+                                      "Row 12", "Row 13", "Row 14"])
     }
 
     @Test func aSpokenRowIsInTheCurrentBlockUnlessOneIsNamed() async throws {

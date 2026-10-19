@@ -17,8 +17,21 @@ enum VoiceCatalog {
 
     /// The next open rows from where you are: what you're most likely to say next.
     static func suggestedRows(_ state: FieldState, count: Int = suggestedRowCount) -> [RowEntity] {
-        let here = state.nextRows(1).first?.blockId
-        return state.nextRows(count).compactMap { row(for: $0, state: state, here: here) }
+        let ahead = state.nextRows(count)
+        let here = ahead.first?.blockId
+        return (ahead + openRowsBehind(state, ahead: ahead)).compactMap { row(for: $0, state: state, here: here) }
+    }
+
+    /// Up to `limit` open rows just behind where you are, in your block (one skipped to come
+    /// back to later), so "Mark row 12" works for those too.
+    static func openRowsBehind(_ state: FieldState, ahead: [RowRef], limit: Int = 3) -> [RowRef] {
+        guard let first = ahead.first, let block = state.block(first.blockId) else { return [] }
+        let index = state.index
+        let behind = stride(from: first.row - 1, through: 0, by: -1).lazy
+            .map { RowRef(blockId: block.id, row: $0) }
+            .filter { !ahead.contains($0) && !index.freePositions(in: $0, block: block).isEmpty }
+            .prefix(limit)
+        return Array(behind).reversed()
     }
 
     /// One row as Siri names it. Rows in the block you're in are "Row 14"; others say their

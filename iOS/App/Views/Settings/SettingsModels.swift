@@ -170,7 +170,8 @@ enum SiriPhrases {
     static let examples: [Example] = [
         Example(phrase: "Clock in with Time Card", does: "Starts your shift and the lock-screen timer"),
         Example(phrase: "Next row in Time Card", does: "Marks your next row shaped"),
-        Example(phrase: "Mark row 14 in Time Card", does: "Marks that row in the block you’re in"),
+        Example(phrase: "Mark a row in Time Card", does: "Asks which row, then marks it"),
+        Example(phrase: "Mark row 14 in Time Card", does: "In one go, for one of your next ten rows"),
         Example(phrase: "Take lunch with Time Card", does: "Starts lunch; say “Take a break” for other breaks"),
         Example(phrase: "Back to work with Time Card", does: "Ends the break"),
         Example(phrase: "Undo in Time Card", does: "Takes back the last row, break or move"),
