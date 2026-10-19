@@ -18,6 +18,8 @@ final class FakeActivityHost: LiveActivityHosting {
     var calls: [Call] = []
     var states: [String: LiveSnapshot] = [:]
     var failStarts = false
+    /// Everything in order, with the background-task hold: "hold", "start A1", "release".
+    var timeline: [String] = []
     private var nextId = 1
 
     func activities() -> [LiveActivityRecord] { records }
@@ -26,25 +28,39 @@ final class FakeActivityHost: LiveActivityHosting {
         if failStarts { throw CocoaError(.featureUnsupported) }
         let id = "A\(nextId)"
         nextId += 1
-        records.append(LiveActivityRecord(id: id, attributes: attributes, isLive: true))
+        records.append(LiveActivityRecord(id: id, attributes: attributes, state: .active))
         states[id] = state
         calls.append(.start(id, staleDate: staleDate))
+        timeline.append("start \(id)")
         return id
     }
 
     func update(id: String, _ state: LiveSnapshot, staleDate: Date?) async {
+        await Task.yield() // ActivityKit takes a moment
         states[id] = state
         calls.append(.update(id, staleDate: staleDate))
+        timeline.append("update \(id)")
     }
 
     func end(id: String, _ state: LiveSnapshot?) async {
         records.removeAll { $0.id == id }
         calls.append(.end(id))
+        timeline.append("end \(id)")
     }
 
-    /// The person swipes the activity away, or iOS ends it after eight hours.
+    func holdAwake() -> @MainActor () -> Void {
+        timeline.append("hold")
+        return { [weak self] in self?.timeline.append("release") }
+    }
+
+    /// The person swipes the activity away: it's gone.
     func dismissAll() {
-        records = records.map { LiveActivityRecord(id: $0.id, attributes: $0.attributes, isLive: false) }
+        records = records.map { LiveActivityRecord(id: $0.id, attributes: $0.attributes, state: .dismissed) }
+    }
+
+    /// iOS ends it after eight hours: it stays on the lock screen, frozen, until taken down.
+    func endAll() {
+        records = records.map { LiveActivityRecord(id: $0.id, attributes: $0.attributes, state: .ended) }
     }
 }
 
@@ -80,9 +96,9 @@ struct LiveActivityControllerTests {
     let ledger = MemoryLedger()
     let clock = TestClock(F.now)
 
-    func controller() -> LiveActivityController {
+    func controller(waitsForSession: Bool = false) -> LiveActivityController {
         let clock = self.clock
-        return LiveActivityController(host: host, reminders: reminders, ledger: ledger, now: { clock.now })
+        return LiveActivityController(host: host, reminders: reminders, ledger: ledger, now: { clock.now }, waitsForSession: waitsForSession)
     }
 
     func send(_ c: LiveActivityController, _ snapshot: LiveSnapshot?, attributes: TimeCardActivityAttributes? = F.attributes) async {
@@ -148,6 +164,40 @@ struct LiveActivityControllerTests {
         #expect(host.calls.last == .start("A2", staleDate: newExpiry))
         #expect(reminders.calls.last == .schedule(newExpiry, askPermission: false), "no permission prompt from the background")
         #expect(ledger.starts["A1"] == nil, "forgotten once it's gone")
+        #expect(!host.calls.contains(.end("A1")), "a swiped-away card is already gone")
+    }
+
+    @Test func aCardIOSEndedAtEightHoursIsTakenDownBeforeTheNewOne() async {
+        // iOS leaves an ended activity on the lock screen, frozen, for hours: without this
+        // there'd be two Time Card cards, one with old rows and buttons.
+        let c = controller()
+        await send(c, F.working())
+        clock.advance(8 * 3600 + 5 * 60)
+        host.endAll()
+        await send(c, F.working(lastAction: "Row 20 marked", canUndo: true))
+        let newExpiry = clock.now.addingTimeInterval(7 * 3600 + 50 * 60)
+        #expect(Array(host.calls.suffix(2)) == [.end("A1"), .start("A2", staleDate: newExpiry)])
+        #expect(reminders.calls.last == .schedule(newExpiry, askPermission: true))
+        #expect(host.records.map(\.id) == ["A2"])
+    }
+
+    @Test func theEightHourPlanIsEndThenStartThenRemind() {
+        let ended = LiveActivityRecord(id: "old", attributes: F.attributes, state: .ended)
+        let steps = LiveActivityPlan.steps(clockedIn: true, attributes: F.attributes, enabled: true, running: [ended],
+                                           startedAt: ["old": F.now.addingTimeInterval(-8 * 3600)], appIsActive: true, now: F.now)
+        #expect(steps == [.end(id: "old"), .start(staleDate: expires), .scheduleReminder(at: expires)])
+        // From the lock screen too: the frozen card can't be updated, only taken down.
+        let background = LiveActivityPlan.steps(clockedIn: true, attributes: F.attributes, enabled: true, running: [ended],
+                                                startedAt: [:], appIsActive: false, now: F.now)
+        #expect(background == [.end(id: "old"), .start(staleDate: expires), .scheduleReminder(at: expires)])
+    }
+
+    @Test func offTheClockAnEndedCardComesDownToo() async {
+        host.records = [LiveActivityRecord(id: "old", attributes: F.attributes, state: .ended),
+                        LiveActivityRecord(id: "gone", attributes: F.attributes, state: .dismissed)]
+        await send(controller(), nil)
+        #expect(host.calls == [.end("old")])
+        #expect(reminders.calls == [.cancel])
     }
 
     @Test func anOldActivityIsRestartedWhenTheAppComesForward() async {
@@ -165,7 +215,7 @@ struct LiveActivityControllerTests {
         let c = controller()
         await send(c, F.working())
         clock.advance(3 * 3600 + 59 * 60)
-        await send(c, F.working())
+        await send(c, F.working(lastAction: "Row 14 marked", canUndo: true))
         #expect(host.calls.last == .update("A1", staleDate: expires))
         clock.advance(60)
         await send(c, F.working())
@@ -192,14 +242,14 @@ struct LiveActivityControllerTests {
     }
 
     @Test func anActivityOfUnknownAgeIsRestartedInTheForeground() async {
-        host.records = [LiveActivityRecord(id: "old", attributes: F.attributes, isLive: true)]
+        host.records = [LiveActivityRecord(id: "old", attributes: F.attributes, state: .active)]
         let c = controller()
         await send(c, F.working())
         #expect(Array(host.calls.prefix(2)) == [.end("old"), .start("A1", staleDate: expires)])
     }
 
     @Test func anActivityOfUnknownAgeIsUpdatedInTheBackground() async {
-        host.records = [LiveActivityRecord(id: "old", attributes: F.attributes, isLive: true)]
+        host.records = [LiveActivityRecord(id: "old", attributes: F.attributes, state: .active)]
         host.isAppActive = false
         let c = controller()
         await send(c, F.working())
@@ -217,8 +267,8 @@ struct LiveActivityControllerTests {
 
     @Test func extraCopiesAreEnded() async {
         ledger.starts = ["one": F.now.addingTimeInterval(-600), "two": F.now.addingTimeInterval(-60)]
-        host.records = [LiveActivityRecord(id: "one", attributes: F.attributes, isLive: true),
-                        LiveActivityRecord(id: "two", attributes: F.attributes, isLive: true)]
+        host.records = [LiveActivityRecord(id: "one", attributes: F.attributes, state: .active),
+                        LiveActivityRecord(id: "two", attributes: F.attributes, state: .stale)]
         let c = controller()
         await send(c, F.working())
         #expect(host.calls.contains(.end("one")))
@@ -245,6 +295,85 @@ struct LiveActivityControllerTests {
         await c.waitUntilIdle()
         #expect(host.records.count == 1)
         #expect(host.states[host.records[0].id] == F.onBreak(.lunch))
+    }
+
+    // MARK: A cold launch
+
+    @Test func whileTheSessionOpensANilSnapshotEndsNothing() async {
+        // The app comes forward while it's still opening its store: FieldActions has no farm
+        // yet, so the snapshot is nil. That's "not known yet", not "clocked out".
+        host.records = [LiveActivityRecord(id: "A0", attributes: F.attributes, state: .active)]
+        ledger.starts = ["A0": F.now.addingTimeInterval(-3600)]
+        let c = controller(waitsForSession: true)
+        c.update(nil, attributes: nil)
+        await c.waitUntilIdle()
+        #expect(host.calls.isEmpty)
+        #expect(reminders.calls.isEmpty)
+        #expect(!c.isSessionLoaded)
+
+        // The session opens, still clocked in: exactly one update, to the same card.
+        c.update(F.working(), attributes: F.attributes, sessionLoaded: true)
+        await c.waitUntilIdle()
+        #expect(host.calls == [.update("A0", staleDate: F.now.addingTimeInterval(-3600 + 7 * 3600 + 50 * 60))])
+        #expect(c.isSessionLoaded)
+    }
+
+    @Test func aSnapshotShowsTheSessionHasOpened() async {
+        // A field action before the feed has caught up (Siri woke the app) goes straight through.
+        let c = controller(waitsForSession: true)
+        await send(c, F.working())
+        #expect(host.calls == [.start("A1", staleDate: expires)])
+    }
+
+    @Test func onceTheSessionHasOpenedNilMeansOffTheClock() async {
+        host.records = [LiveActivityRecord(id: "A0", attributes: F.attributes, state: .active)]
+        let c = controller(waitsForSession: true)
+        c.update(nil, attributes: nil, sessionLoaded: true)
+        await c.waitUntilIdle()
+        #expect(host.calls == [.end("A0")])
+        #expect(reminders.calls == [.cancel])
+    }
+
+    @Test func aHeldRequestGivesWayToTheNextOne() async {
+        let c = controller(waitsForSession: true)
+        c.update(nil, attributes: nil)
+        c.update(F.working(lastAction: "Row 14 marked", canUndo: true), attributes: F.attributes)
+        await c.waitUntilIdle()
+        #expect(host.calls == [.start("A1", staleDate: expires)])
+        #expect(host.states["A1"]?.lastAction == "Row 14 marked")
+    }
+
+    // MARK: Staying awake
+
+    @Test func theAppStaysAwakeUntilTheUpdateHasLanded() async {
+        // A lock-screen tap's intent may be suspended as soon as it returns.
+        let c = controller()
+        await send(c, F.working())
+        await send(c, F.working(lastAction: "Row 14 marked", canUndo: true))
+        #expect(host.timeline == ["hold", "start A1", "release", "hold", "update A1", "release"])
+    }
+
+    @Test func waitingUntilIdleWaitsForTheUpdate() async {
+        let c = controller()
+        await send(c, F.working())
+        c.update(F.working(lastAction: "Row 14 marked", canUndo: true), attributes: F.attributes)
+        #expect(host.states["A1"]?.lastAction == nil, "not there yet")
+        await c.waitUntilIdle()
+        #expect(host.states["A1"]?.lastAction == "Row 14 marked")
+    }
+
+    @Test func aCardThatWouldLookTheSameIsNotSentAgain() async {
+        // The feed reads again after every sync; most of those change nothing on screen.
+        let c = controller()
+        await send(c, F.working())
+        clock.advance(60)
+        await send(c, F.working(now: F.now.addingTimeInterval(0.4)))
+        await send(c, F.working())
+        #expect(host.calls == [.start("A1", staleDate: expires)])
+        await send(c, F.working(trees: 213))
+        #expect(host.calls.last == .update("A1", staleDate: expires))
+        await send(c, F.working(trees: 213))
+        #expect(host.calls.count == 2)
     }
 
     @Test func offTheClockWithNothingRunningIsQuiet() async {

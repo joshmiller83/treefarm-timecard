@@ -101,7 +101,14 @@ struct LiveActivityDisplayTests {
 
     @Test func anUndoIsConfirmedWithoutAnotherUndoButton() {
         let d = LiveActivityDisplay(F.working(lastAction: "Undid row 14", canUndo: true))
-        #expect(d.lastAction == .init(text: "Undid row 14", canUndo: false))
+        #expect(d.lastAction == .init(text: "Undid row 14", kind: .undone, canUndo: false))
+    }
+
+    @Test func aRefusedTapSaysWhyWithoutACheckOrUndo() {
+        // The row was shaped by someone else between the screen drawing and the tap.
+        let d = LiveActivityDisplay(F.working(lastAction: "Row 14 was shaped by Sam on Oct 16.", canUndo: true))
+        #expect(d.lastAction == .init(text: "Row 14 was shaped by Sam on Oct 16.", kind: .notice, canUndo: false))
+        #expect(LiveActivityDisplay(F.working(lastAction: "That block isn’t on the map anymore.")).lastAction?.kind == .notice)
     }
 
     @Test func nothingToUndoShowsNoButton() {
@@ -112,12 +119,16 @@ struct LiveActivityDisplayTests {
     }
 
     @Test func timersReserveRoomForTheDigitsTheyWillReach() {
-        // A running timer can't be measured, so it gets the width of "6:42:10", or of
-        // "10:00:00" once a long day is within an hour of it.
+        // A running timer can't be measured, so it gets the width of the most it can show
+        // before the next update. That may not come until iOS ends the activity, 8 h on.
         #expect(LiveActivityDisplay(F.working(worked: 5 * 60)).timerCharacters == 7)
-        #expect(LiveActivityDisplay(F.working(worked: 8.9 * 3600)).timerCharacters == 7)
-        #expect(LiveActivityDisplay(F.working(worked: 9 * 3600)).timerCharacters == 8)
+        #expect(LiveActivityDisplay(F.working(worked: 1.9 * 3600)).timerCharacters == 7)
+        #expect(LiveActivityDisplay(F.working(worked: 2.5 * 3600)).timerCharacters == 8, "10:30:00 by the time the card ends")
+        #expect(LiveActivityDisplay(F.working(worked: 91 * 3600)).timerCharacters == 8)
+        #expect(LiveActivityDisplay(F.working(worked: 99 * 3600)).timerCharacters == 9, "a clock-in left open for days")
+        // On a break the timer counts the break.
         #expect(LiveActivityDisplay(F.onBreak(.lunch)).timerCharacters == 7)
+        #expect(LiveActivityDisplay(F.onBreak(.onBreak, minutes: 3 * 60)).timerCharacters == 8)
     }
 
     @Test func aBreakTimerNeedsNoCaptionBesideThePill() {

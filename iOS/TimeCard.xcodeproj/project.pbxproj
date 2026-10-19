@@ -56,6 +56,8 @@
 		CF5BB610A45AA574D9D20AFF /* TeamView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27EE1EAFDEEE2B00BC480F2B /* TeamView.swift */; };
 		D13E042FE534FB7568A52475 /* ResetPasswordView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DF2BA924D3E91EFC54A8D18 /* ResetPasswordView.swift */; };
 		D37A27B39B55A8CA3FB8CE65 /* TimeCardWidgetsBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 576C231644ECC8C6932C2E33 /* TimeCardWidgetsBundle.swift */; };
+		D4DB502FABD8A2FD40A64E5A /* LiveActivityFeed.swift in Sources */ = {isa = PBXBuildFile; fileRef = B37068BA8E7982A530403BE9 /* LiveActivityFeed.swift */; };
+		DA5F8B179693CCB76E351EA8 /* LiveActivityFeedTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E3D3F98F10B8C5F98580EEF /* LiveActivityFeedTests.swift */; };
 		E0B03D5A5C903A53DE4C5503 /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87281864A7B6C79D025F7336 /* MainTabView.swift */; };
 		E7B1BDB75CDE2C1F66B0B60D /* TimeCardLiveActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BB263D26A2AD84BDE25A0AF /* TimeCardLiveActivity.swift */; };
 		E9F3A70825BDE99356AD28AD /* Typography.swift in Sources */ = {isa = PBXBuildFile; fileRef = 430050FEBA83C41B0D8C1F39 /* Typography.swift */; };
@@ -104,6 +106,7 @@
 
 /* Begin PBXFileReference section */
 		0661937D9296096B85070F81 /* ClockView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClockView.swift; sourceTree = "<group>"; };
+		0E3D3F98F10B8C5F98580EEF /* LiveActivityFeedTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityFeedTests.swift; sourceTree = "<group>"; };
 		1620ADB0A89E887DA3CBB17E /* TimeCardApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimeCardApp.swift; sourceTree = "<group>"; };
 		165D9CB59A2B73311DD924DB /* ReportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportView.swift; sourceTree = "<group>"; };
 		174CC43FB55650E3ADD75F46 /* Components.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Components.swift; sourceTree = "<group>"; };
@@ -143,6 +146,7 @@
 		9FB3543BFD49BF47889FBEFD /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		A7D1AE21BCC9D9FB5D329866 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		B1528797F8AD8C65C37F90E4 /* AppModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModelTests.swift; sourceTree = "<group>"; };
+		B37068BA8E7982A530403BE9 /* LiveActivityFeed.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityFeed.swift; sourceTree = "<group>"; };
 		B5F3CB7223DCD5F08AB88368 /* LiveActivityDisplayTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityDisplayTests.swift; sourceTree = "<group>"; };
 		B8192A0C6A92B08C41F565C7 /* LiveActivityStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityStyle.swift; sourceTree = "<group>"; };
 		BB37F784FF57349039E30269 /* SignInView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignInView.swift; sourceTree = "<group>"; };
@@ -265,6 +269,7 @@
 			children = (
 				195C67A6DC73F508C8ADA207 /* LiveActivityControllerTests.swift */,
 				B5F3CB7223DCD5F08AB88368 /* LiveActivityDisplayTests.swift */,
+				0E3D3F98F10B8C5F98580EEF /* LiveActivityFeedTests.swift */,
 				3AFAABF051810F9845A8AC16 /* LiveActivityFixtures.swift */,
 				D6A433BD24CA736A54B79B76 /* LiveActivityRenderTests.swift */,
 			);
@@ -426,6 +431,7 @@
 			isa = PBXGroup;
 			children = (
 				265B9098E1A69BDACEBA441D /* LiveActivityController.swift */,
+				B37068BA8E7982A530403BE9 /* LiveActivityFeed.swift */,
 				2877EF49D9830B22D5631380 /* LiveActivityHosting.swift */,
 				9AF9D326FBA4F613D02D428D /* LiveActivityLaunchScript.swift */,
 			);
@@ -602,6 +608,7 @@
 				6E021FFA63E1736E7099AF2B /* DesignTests.swift in Sources */,
 				3CBAB76BCE912BB382A12905 /* LiveActivityControllerTests.swift in Sources */,
 				451757F1EC0F49FD921DAED6 /* LiveActivityDisplayTests.swift in Sources */,
+				DA5F8B179693CCB76E351EA8 /* LiveActivityFeedTests.swift in Sources */,
 				4E86314FA253E2EE7E5DECAA /* LiveActivityFixtures.swift in Sources */,
 				5C87C190B86463CA43008143 /* LiveActivityRenderTests.swift in Sources */,
 				5840091B8188A4BF57AD73A8 /* PlatformTests.swift in Sources */,
@@ -631,6 +638,7 @@
 				0EC762F09BF83156A11A134F /* LiveActivityButtons.swift in Sources */,
 				3DFDFC60E9F3DEFA8A73D693 /* LiveActivityController.swift in Sources */,
 				C12F03D37DC0A84186B91C43 /* LiveActivityDisplay.swift in Sources */,
+				D4DB502FABD8A2FD40A64E5A /* LiveActivityFeed.swift in Sources */,
 				8EB4B8C0543506D785998774 /* LiveActivityHosting.swift in Sources */,
 				403BF0EA3BF618147C7DB9C0 /* LiveActivityLaunchScript.swift in Sources */,
 				002CA683E0D2BE2D1429B8B4 /* LiveActivityStyle.swift in Sources */,

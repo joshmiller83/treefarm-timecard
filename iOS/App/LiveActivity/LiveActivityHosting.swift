@@ -18,6 +18,9 @@ protocol LiveActivityHosting: AnyObject {
     func update(id: String, _ state: LiveSnapshot, staleDate: Date?) async
     /// Ends the activity and takes it off the lock screen right away.
     func end(id: String, _ state: LiveSnapshot?) async
+    /// Keeps the app running (a background task) until the returned function is called, so
+    /// iOS doesn't suspend it between a lock-screen tap's intent returning and the update.
+    func holdAwake() -> @MainActor () -> Void
 }
 
 /// The "your lock-screen timer is about to end" notification.
@@ -49,12 +52,21 @@ final class ActivityKitHost: LiveActivityHosting {
 
     func activities() -> [LiveActivityRecord] {
         Activity<TimeCardActivityAttributes>.activities.map { activity in
-            let live = switch activity.activityState {
-            case .active, .stale: true
-            default: false
+            let state: LiveActivityRecord.State = switch activity.activityState {
+            case .active: .active
+            case .stale: .stale
+            case .ended: .ended
+            case .dismissed: .dismissed
+            @unknown default: .dismissed
             }
-            return LiveActivityRecord(id: activity.id, attributes: activity.attributes, isLive: live)
+            return LiveActivityRecord(id: activity.id, attributes: activity.attributes, state: state)
         }
+    }
+
+    func holdAwake() -> @MainActor () -> Void {
+        let task = BackgroundTask()
+        task.begin()
+        return { task.end() }
     }
 
     func start(_ attributes: TimeCardActivityAttributes, _ state: LiveSnapshot, staleDate: Date?) throws -> String {
@@ -81,6 +93,24 @@ final class ActivityKitHost: LiveActivityHosting {
     private nonisolated static func end(id: String, _ content: ActivityContent<LiveSnapshot>?) async {
         guard let activity = Activity<TimeCardActivityAttributes>.activities.first(where: { $0.id == id }) else { return }
         await activity.end(content, dismissalPolicy: .immediate)
+    }
+}
+
+/// One `beginBackgroundTask`, ended once, by the caller or when iOS runs out of patience.
+@MainActor
+private final class BackgroundTask {
+    private var id = UIBackgroundTaskIdentifier.invalid
+
+    func begin() {
+        id = UIApplication.shared.beginBackgroundTask(withName: "Live Activity update") { [weak self] in
+            MainActor.assumeIsolated { self?.end() }
+        }
+    }
+
+    func end() {
+        guard id != .invalid else { return }
+        UIApplication.shared.endBackgroundTask(id)
+        id = .invalid
     }
 }
 
