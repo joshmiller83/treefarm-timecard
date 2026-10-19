@@ -37,6 +37,8 @@ import {
   PHONE_LABEL,
   SHIFT_NOTE_TEXT,
   STAMPS,
+  STAMP_ISO,
+  TREE_TRANSCRIPT,
   WORKED_ON_BREAK,
   answerChips,
 } from './notes/copy';
@@ -58,14 +60,18 @@ const split = (s: string) => {
     <p>{BODY}</p>
   </Fragment>
 
-  <!-- 1 · 2:30 PM: the break, by voice -->
+  <!-- 1 · 2:30 PM: the break, by voice. Each beat's .nb-body fades out by position on
+       desktop (the beat itself fades in by progress); speaker labels are in the text. -->
   <div class="beat nb nb-break" data-beat="1" data-nb="break" style={at('break')}>
-    <p class="nb-stamp"><time>{split(STAMPS.break).time}</time><span>{split(STAMPS.break).label}</span></p>
-    <p class="spoken"><q data-nb-said="break">{brk.said}</q></p>
-    <p class="siri-reply nb-line" data-nb-reply="ask">{brk.ask}</p>
-    <p class="nb-you"><q data-nb-answer="break">{brk.answer}</q></p>
-    <p class="siri-reply nb-line" data-nb-reply="break">{brk.reply}</p>
-    <p class="nb-fine">Siri asks for a reason only when “Ask for a break reason” is on in Settings.</p>
+    <div class="nb-body">
+      <p class="nb-stamp"><time datetime={STAMP_ISO.break}>{split(STAMPS.break).time}</time><span>{split(STAMPS.break).label}</span></p>
+      <p class="nb-lead">Or say it, and give a reason:</p>
+      <p class="spoken"><span class="sr-only">You: </span><q data-nb-said="break">{brk.said}</q></p>
+      <p class="siri-reply nb-line" data-nb-line="ask"><span class="sr-only">Siri: </span><span data-nb-reply="ask">{brk.ask}</span></p>
+      <p class="nb-you"><span class="sr-only">You: </span><q data-nb-answer="break">{brk.answer}</q></p>
+      <p class="siri-reply nb-line" data-nb-line="break"><span class="sr-only">Siri: </span><span data-nb-reply="break">{brk.reply}</span></p>
+      <p class="nb-fine">Siri asks for a reason only when “Ask for a break reason” is on in Settings.</p>
+    </div>
   </div>
 
   <!-- Static page only: figure 1, the Live Activity on the break (outside the beat: its
@@ -79,83 +85,91 @@ const split = (s: string) => {
 
   <!-- 2 · 2:33 PM: a tree note -->
   <div class="beat nb nb-tree" data-beat="2" data-nb="tree" style={at('tree')}>
-    <p class="nb-stamp"><time>{split(STAMPS.tree).time}</time><span>{split(STAMPS.tree).label}</span></p>
-    <p class="nb-lead">Found a tree that needs help? Say</p>
-    <p class="spoken"><q data-nb-said="tree">{SIRI.treeNote.said}</q></p>
-    <p>Give the row and the tree, say what’s wrong, and add a flag: {FLAG_LIST}.</p>
-    <ul class="nb-chips" aria-label="Your answers">
-      {
-        chips.map((c, i) => (
-          <li class:list={['nb-chip', `nb-chip--${c.kind}`]} data-nb-chip={i}>
-            {c.kind === 'flag' && <Icon name="flag.fill" size="14px" />}
-            {c.kind === 'quote' ? <q>{c.text}</q> : c.text}
-          </li>
-        ))
-      }
-    </ul>
-    <p class="siri-reply nb-line" data-nb-reply="tree">{SIRI.treeNote.reply}</p>
+    <div class="nb-body">
+      <p class="nb-stamp"><time datetime={STAMP_ISO.tree}>{split(STAMPS.tree).time}</time><span>{split(STAMPS.tree).label}</span></p>
+      <p class="nb-lead">Found a tree that needs help? Say</p>
+      <p class="spoken"><span class="sr-only">You: </span><q data-nb-said="tree">{SIRI.treeNote.said}</q></p>
+      <p>Give the row and the tree, say what’s wrong, and add a flag: {FLAG_LIST}.</p>
+      <ul class="nb-chips" aria-label="Your answers">
+        {
+          chips.map((c, i) => (
+            <li class:list={['nb-chip', `nb-chip--${c.kind}`]} data-nb-chip={i}>
+              {c.kind === 'flag' && <Icon name="flag.fill" size="14px" />}
+              {c.kind === 'quote' ? <q>{c.text}</q> : c.text}
+            </li>
+          ))
+        }
+      </ul>
+      <p class="siri-reply nb-line" data-nb-line="tree"><span class="sr-only">Siri: </span><span data-nb-reply="tree">{SIRI.treeNote.reply}</span></p>
+    </div>
   </div>
 
   <!-- 3 · 2:33 PM: the crew sees it on the map -->
   <div class="beat nb nb-crew" data-beat="3" data-nb="crew" style={at('crew')}>
-    <p class="nb-stamp"><time>{split(STAMPS.crew).time}</time><span>{split(STAMPS.crew).label}</span></p>
-    <p class="nb-big">
-      <strong>The whole crew sees tree notes,</strong> and the tree gets a marker on the map.
-    </p>
-    <ul class="nb-flags" aria-label={`Tree notes on block ${TREE_NOTE.block}`}>
-      {
-        notes.map((n, i) => (
-          <li class="nb-flagrow" data-nb-flag={i}>
-            <span class="nb-badge" aria-hidden="true">
-              <Icon name="flag.fill" size="12px" />
-            </span>
-            <span class="nb-flagbody">
-              <span class="nb-flagname">
-                {n.flag}
-                <span class="nb-flagwhere">
-                  Row {n.row} · Tree {n.tree}
+    <div class="nb-body">
+      <p class="nb-stamp"><time datetime={STAMP_ISO.crew}>{split(STAMPS.crew).time}</time><span>{split(STAMPS.crew).label}</span></p>
+      <p class="nb-big">
+        <strong>The whole crew sees tree notes,</strong> and the tree gets a marker on the map.
+      </p>
+      <ul class="nb-flags" aria-label={`Tree notes on block ${TREE_NOTE.block}`}>
+        {
+          notes.map((n, i) => (
+            <li class="nb-flagrow" data-nb-flag={i}>
+              <span class="nb-badge" aria-hidden="true">
+                <Icon name="flag.fill" size="12px" />
+              </span>
+              <span class="nb-flagbody">
+                <span class="nb-flagname">
+                  {n.flag}
+                  <span class="nb-flagwhere">
+                    Row {n.row} · Tree {n.tree}
+                  </span>
+                </span>
+                <span class="nb-flagnote">
+                  <q>{n.text}</q> <span class="nb-flagby">{n.byline}</span>
                 </span>
               </span>
-              <span class="nb-flagnote">
-                <q>{n.text}</q> <span class="nb-flagby">{n.byline}</span>
-              </span>
-            </span>
-          </li>
-        ))
-      }
-    </ul>
-    <p>Next season the marks reset. The notes stay with the tree.</p>
+            </li>
+          ))
+        }
+      </ul>
+      <p>Next season the marks reset. The notes stay with the tree.</p>
+    </div>
   </div>
 
   <!-- 4 · 2:36 PM: a shift note, dictated -->
   <div class="beat nb nb-shift" data-beat="4" data-nb="shift" style={at('shift')}>
-    <p class="nb-stamp"><time>{split(STAMPS.shift).time}</time><span>{split(STAMPS.shift).label}</span></p>
-    <p class="nb-lead">Got something to say about the day?</p>
-    <p class="spoken"><q data-nb-said="shift">{SIRI.shiftNote.said}</q></p>
-    <div class="nb-chat">
-      <p class="nb-bubble nb-bubble--you" data-nb-bubble="you">
-        <span class="nb-who">You</span>
-        <q data-nb-type="shift">{SIRI.shiftNote.answer}</q>
-      </p>
-      <p class="nb-bubble nb-bubble--siri" data-nb-bubble="siri">
-        <span class="nb-who">Siri</span>
-        <span data-nb-reply="shift">{SIRI.shiftNote.reply}</span>
-      </p>
-    </div>
-    <p>It goes on today’s shift and shows up on your time card.</p>
-    <div class="nb-paper" data-nb-strip>
-      <p class="nb-paper-band"><span class="nb-paper-title">Time card</span><span class="nb-paper-day">{CARD_DAY}</span></p>
-      <p class="nb-paper-row"><span class="nb-paper-k">Notes</span><span class="nb-paper-v">{SHIFT_NOTE_TEXT}</span></p>
+    <div class="nb-body">
+      <p class="nb-stamp"><time datetime={STAMP_ISO.shift}>{split(STAMPS.shift).time}</time><span>{split(STAMPS.shift).label}</span></p>
+      <p class="nb-lead">Got something to say about the day?</p>
+      <p class="spoken"><span class="sr-only">You: </span><q data-nb-said="shift">{SIRI.shiftNote.said}</q></p>
+      <div class="nb-chat">
+        <p class="nb-bubble nb-bubble--you" data-nb-bubble="you">
+          <span class="nb-who">You</span>
+          <q data-nb-type="shift">{SIRI.shiftNote.answer}</q>
+        </p>
+        <p class="nb-bubble nb-bubble--siri" data-nb-bubble="siri">
+          <span class="nb-who">Siri</span>
+          <span data-nb-reply="shift">{SIRI.shiftNote.reply}</span>
+        </p>
+      </div>
+      <p class="nb-lead nb-lead--strip">It goes on today’s shift and your time card:</p>
+      <div class="nb-paper" data-nb-strip>
+        <p class="nb-paper-band"><span class="nb-paper-title">Time card</span><span class="nb-paper-day">{CARD_DAY}</span></p>
+        <p class="nb-paper-row"><span class="nb-paper-k">Notes</span><span class="nb-paper-v">{SHIFT_NOTE_TEXT}</span></p>
+      </div>
     </div>
   </div>
 
   <!-- 5 · 2:44 PM: back to work -->
   <div class="beat nb nb-back" data-beat="5" data-nb="back" style={at('back')}>
-    <p class="nb-stamp"><time>{split(STAMPS.back).time}</time><span>{split(STAMPS.back).label}</span></p>
-    <p class="nb-big">
-      <strong>One tap on Back to work</strong> and the clock picks up where it stopped: <span class="mono">{WORKED_ON_BREAK}</span>.
-    </p>
-    <p>Your time card lists the break, <span class="nb-nowrap">{BREAK_ON_CARD}</span>, and doesn’t count it as work.</p>
+    <div class="nb-body">
+      <p class="nb-stamp"><time datetime={STAMP_ISO.back}>{split(STAMPS.back).time}</time><span>{split(STAMPS.back).label}</span></p>
+      <p class="nb-big">
+        <strong>One tap on Back to work</strong> and the clock picks up where it stopped: <span class="mono">{WORKED_ON_BREAK}</span>.
+      </p>
+      <p>Your time card lists the break, <span class="nb-nowrap">{BREAK_ON_CARD}</span>, and doesn’t count it as work.</p>
+    </div>
   </div>
 
   <figure class="shot nb-shot" data-stage-shot slot="figure">
@@ -184,7 +198,7 @@ const split = (s: string) => {
           <LockScreen time={fmtClock(MOMENTS.treeNote)}>
             <LiveActivity at={MOMENTS.treeNote} />
             <Fragment slot="top">
-              <div class="nb-siri" data-nb-card="wave"><DictationWave transcript={TREE_NOTE.text} seed={5} /></div>
+              <div class="nb-siri" data-nb-card="wave"><DictationWave transcript={TREE_TRANSCRIPT} seed={5} /></div>
               <div class="nb-siri" data-nb-card="reply"><SiriSnippet text={SIRI.treeNote.reply} /></div>
             </Fragment>
           </LockScreen>
@@ -217,6 +231,9 @@ const split = (s: string) => {
   /* ---------- Beat positions: desktop and mobile values from notes/plan.ts ---------- */
   .nb {
     --at: var(--at-d);
+    /* Desktop: a beat sits a little below the middle when the phone reaches its moment, so
+       the rest of its exchange plays out before the beat rises to the header and fades. */
+    --anchor: 56svh;
   }
   @media (max-width: 899.98px) {
     .nb {
@@ -224,14 +241,17 @@ const split = (s: string) => {
     }
   }
 
-  /* ---------- Beat type ---------- */
-  .nb {
+  /* ---------- Beat type (the body is what fades out on desktop) ---------- */
+  .nb-body {
     display: grid;
     gap: 14px;
     justify-items: start;
   }
-  .nb > p {
+  .nb-body > p {
     max-width: 36ch;
+  }
+  .nb-body > p:not([class]) {
+    color: var(--on-stage-muted);
   }
   .nb-stamp {
     display: inline-flex;
@@ -263,6 +283,10 @@ const split = (s: string) => {
     color: var(--on-stage-muted);
     margin-bottom: -8px;
   }
+  .nb-lead--strip {
+    margin: 2px 0 -4px;
+    font-size: var(--text-small);
+  }
   .nb .spoken {
     max-width: 15ch;
     text-wrap: balance;
@@ -278,8 +302,13 @@ const split = (s: string) => {
     line-height: 1.15;
     color: var(--on-stage);
   }
-  .nb-you q::before {
-    margin-left: -0.42em;
+  /* Hanging quotes only where there is room for them: never into a card's padding or the
+     page gutter on a phone. */
+  @media (min-width: 600px) {
+    .nb .spoken q::before,
+    .nb-you q::before {
+      margin-left: -0.42em;
+    }
   }
   .nb-fine {
     font-size: var(--text-small);
@@ -570,7 +599,7 @@ const split = (s: string) => {
 
   /* ---------- Short desktop viewports: tighter beats, so neighbours never touch ---------- */
   @media (min-width: 900px) and (max-height: 820px) {
-    :global(html.motion) .nb {
+    :global(html.motion) .nb-body {
       gap: 10px;
     }
     :global(html.motion) .nb .spoken {
@@ -595,10 +624,24 @@ const split = (s: string) => {
     padding-top: 32px;
     border-top: 1px solid var(--stage-line);
   }
+  /* In one column the phone (the tree note sheet) follows the tree and crew beats it shows,
+     not the end of the section. It holds nothing focusable, so the reorder is visual only. */
+  @media (max-width: 899.98px) {
+    :global(html:not(.motion) .sec-notes .beats) {
+      display: contents;
+    }
+    :global(html:not(.motion) .sec-notes .frame) {
+      order: 1;
+    }
+    :global(html:not(.motion)) .nb-shift,
+    :global(html:not(.motion)) .nb-back {
+      order: 2;
+    }
+  }
 
   /* ---------- Mobile cards ---------- */
   @media (max-width: 899.98px) {
-    .nb {
+    .nb-body {
       gap: 12px;
     }
     .nb-chip {

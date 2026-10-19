@@ -44,6 +44,21 @@ export const STAMPS = {
   back: stamp(MOMENTS.backFromBreak, 'Back to work'),
 } as const;
 
+/** A minute after midnight as a valid <time datetime>: 870 → "14:30". */
+export const isoClock = (min: number) => {
+  const m = Math.floor(min + 1e-6);
+  return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+};
+
+/** Each stamp's machine-readable time. */
+export const STAMP_ISO = {
+  break: isoClock(MOMENTS.break),
+  tree: isoClock(MOMENTS.treeNote),
+  crew: isoClock(MOMENTS.treeNote),
+  shift: isoClock(MOMENTS.shiftNote),
+  back: isoClock(MOMENTS.backFromBreak),
+} as const;
+
 export type ChipKind = 'row' | 'tree' | 'quote' | 'flag';
 export interface Chip {
   kind: ChipKind;
@@ -59,6 +74,13 @@ export function answerChips(note: TreeNote = TREE_NOTE): Chip[] {
     { kind: 'flag', text: note.flag },
   ];
 }
+
+/**
+ * What the dictation card types while you answer "Note a tree": the row and the tree as
+ * their chips appear, then what's wrong. TRANSCRIPT_PARTS splits it the same way.
+ */
+export const TRANSCRIPT_PARTS = [`Row ${TREE_NOTE.row},`, `tree ${TREE_NOTE.tree}.`, TREE_NOTE.text] as const;
+export const TREE_TRANSCRIPT = TRANSCRIPT_PARTS.join(' ');
 
 /** Worked time when the break starts, and still when it ends: "6:43:00". */
 export const WORKED_ON_BREAK = fmtHMS(workedAt(MOMENTS.break));

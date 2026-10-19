@@ -9,10 +9,14 @@ import {
   FLAG_LIST,
   PHONE_LABEL,
   STAMPS,
+  STAMP_ISO,
+  TREE_TRANSCRIPT,
+  TRANSCRIPT_PARTS,
   WORKED_ON_BREAK,
   answerChips,
+  isoClock,
 } from './copy.ts';
-import { AT, BEAT_KEYS, plan, type Mode, type Span } from './plan.ts';
+import { AT, BEAT_KEYS, LA_SWITCH, TRACK, plan, type Mode, type Span } from './plan.ts';
 
 describe('notes copy comes from the ledger and siri.ts', () => {
   it('names the flags exactly as the app does', () => {
@@ -70,6 +74,16 @@ describe('notes copy comes from the ledger and siri.ts', () => {
     });
   });
 
+  it('gives each stamp a valid datetime', () => {
+    expect(STAMP_ISO).toEqual({ break: '14:30', tree: '14:33', crew: '14:33', shift: '14:36', back: '14:44' });
+    expect(isoClock(MOMENTS.tapped)).toBe('14:14');
+  });
+
+  it('types the tree note’s answers into the dictation card, in the chips’ order', () => {
+    expect(TREE_TRANSCRIPT).toBe('Row 36, tree 7. Leader’s broken. Needs a stake.');
+    expect(TRANSCRIPT_PARTS).toHaveLength(3);
+  });
+
   it('draws the same dictation wave for the same progress (scrubbing is deterministic)', () => {
     for (const p of [0.12, 0.5, 0.83]) expect(waveHeights(p, 7, 24)).toEqual(waveHeights(p, 7, 24));
   });
@@ -117,10 +131,15 @@ describe.each<Mode>(['desk', 'mob'])('the %s plan', (mode) => {
     const reach = (min: number) => P.day.find((d) => d.min === min)!.end;
     expect(reach(MOMENTS.break)).toBe(P.break.start);
     expect(P.break.start).toBeGreaterThanOrEqual(P.break.reply[0]);
-    expect(P.break.la[0]).toBe(P.break.start);
     expect(reach(MOMENTS.backFromBreak)).toBe(P.back.end);
-    expect(P.back.tap).toBeLessThan(P.back.end);
-    expect(P.back.la[0]).toBe(P.back.end);
+    expect(P.back.tap).toBeLessThan(P.back.la[0]);
+    // The timer and the card's state switch only once the pill (break) or the gold face
+    // (back) has crossed over, never under the other state's face.
+    const at = (s: Span, f: number) => Math.round((s[0] + (s[1] - s[0]) * f) * 10000) / 10000;
+    expect(P.break.start).toBe(at(P.break.la, LA_SWITCH.break));
+    expect(P.back.end).toBe(at(P.back.la, LA_SWITCH.back));
+    expect(P.break.start).toBeGreaterThan(P.break.la[0]);
+    expect(P.back.end).toBeGreaterThan(P.back.la[0]);
     // Just before each boundary the ledger still reads the old state.
     expect(breakAt(MOMENTS.break - 0.5 / 60)).toBeNull();
     expect(breakAt(MOMENTS.backFromBreak - 0.5 / 60)?.reason).toBe('Sharpening shears');
@@ -181,5 +200,51 @@ describe.each<Mode>(['desk', 'mob'])('the %s plan', (mode) => {
 
   it('leaves the phone at rest by the end of the track', () => {
     expect(P.back.la[1]).toBeLessThanOrEqual(0.985);
+  });
+
+  it('keeps the track near the brief’s pacing', () => {
+    expect(parseFloat(TRACK[mode])).toBeLessThanOrEqual(mode === 'desk' ? 360 : 480);
+  });
+});
+
+describe('the mobile plan waits for its cards', () => {
+  const P = plan('mob');
+  const out = (b: 'break' | 'tree' | 'crew' | 'shift') => P.copy[b].out!;
+
+  it('fades each card out over the phone, before the next exchange starts', () => {
+    for (const b of ['break', 'tree', 'crew', 'shift'] as const) {
+      expect(out(b)[0]).toBeGreaterThan(AT.mob[b]);
+      expect(out(b)[1] - out(b)[0]).toBeLessThanOrEqual(0.012);
+    }
+    expect(out('break')[1]).toBeLessThanOrEqual(P.tree.glow[0] + 0.01);
+    expect(out('shift')[1]).toBeLessThan(P.back.tap);
+  });
+
+  it('lands each Siri reply as its card enters (top at about 70%), not while it is below the fold', () => {
+    // A 360–460 px card's top reaches 70% of an 812 px viewport 0.04–0.075 before its `at`.
+    for (const [b, reply] of [
+      ['break', P.break.reply[0]],
+      ['tree', P.tree.reply[0]],
+      ['shift', P.shift.reply[0]],
+    ] as const) {
+      const lead = AT.mob[b] - reply;
+      expect(lead, b).toBeGreaterThanOrEqual(0.035);
+      expect(lead, b).toBeLessThanOrEqual(0.075);
+    }
+    expect(AT.mob.back - P.back.end).toBeGreaterThanOrEqual(0.02);
+    expect(AT.mob.back - P.back.end).toBeLessThanOrEqual(0.05);
+  });
+
+  it('holds “Noted…” on the lock screen while the tree card is read, then unlocks and drops the flag', () => {
+    expect(P.tree.unlock[0]).toBeGreaterThanOrEqual(out('tree')[1]);
+    expect(P.crew.drop[0]).toBeGreaterThanOrEqual(P.tree.unlock[1]);
+    expect(P.crew.drop[0] - P.tree.unlock[1]).toBeLessThanOrEqual(0.006);
+  });
+
+  it('keeps the note sheet up while the crew card is read; the lock screen returns after it fades', () => {
+    expect(P.crew.sheetUp[1]).toBeLessThanOrEqual(AT.mob.crew);
+    expect(P.crew.sheetDown[0]).toBeGreaterThanOrEqual(out('crew')[1]);
+    expect(P.crew.lockIn[0]).toBeGreaterThan(P.crew.sheetDown[1]);
+    expect(P.crew.lockIn[1]).toBeLessThanOrEqual(P.shift.glow[0]);
   });
 });

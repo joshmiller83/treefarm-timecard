@@ -24,6 +24,7 @@ import { MOMENTS, liveActivityAt } from '../../data/ledger.ts';
 import { setWave } from '../wave.ts';
 import { activityView } from '../../components/system/lockscreen/activity.ts';
 import { plan, type BeatKey, type Span } from '../../sections/notes/plan.ts';
+import { TRANSCRIPT_PARTS } from '../../sections/notes/copy.ts';
 
 type El = HTMLElement;
 
@@ -128,8 +129,9 @@ registerScene(
       }
     };
     const cardOut = (el: El | null, s: Span, lay: El | null) => {
-      to(el, { opacity: 0, y: -10, duration: dur(s), ease: 'power1.in' }, s[0]);
-      to(chrome(lay), { opacity: 1, duration: dur(s), ease: 'power1.out' }, s[0] + dur(s) * 0.4);
+      // The card is nearly gone before the clock comes back, so the two never read over each other.
+      to(el, { opacity: 0, y: -10, duration: dur(s) * 0.6, ease: 'power1.in' }, s[0]);
+      to(chrome(lay), { opacity: 1, duration: dur(s) * 0.55, ease: 'power1.out' }, s[0] + dur(s) * 0.45);
     };
     const prepSiri = (lay: El | null) => {
       set(chrome(lay), { opacity: 1 });
@@ -151,18 +153,22 @@ registerScene(
     // Page effects play on desktop, where the copy sits beside the phone. Mobile cards rise
     // over the phone while it plays, so their text simply reads (static, like the markup).
     const fx = isDesk;
-    const reveal = (el: El | null, s: Span) => {
-      if (!el || !fx) return;
-      const words = util.split(el, 'words');
-      set(el, { opacity: 0 });
-      to(el, { opacity: 1, duration: 0.004, ease: 'none' }, s[0]);
+    /** A Siri line on the page: its rule shows, then its words (never the hidden 'Siri:' label). */
+    const reveal = (key: string, s: Span) => {
+      const line = page(`[data-nb-line="${key}"]`);
+      const text = page(`[data-nb-reply="${key}"]`);
+      if (!line || !text || !fx) return;
+      const words = util.split(text, 'words');
+      set(line, { opacity: 0 });
+      to(line, { opacity: 1, duration: 0.004, ease: 'none' }, s[0]);
       tl.fromTo(words, { opacity: 0 }, { opacity: 1, duration: dur(s) / Math.max(words.length, 1), stagger: dur(s) / Math.max(words.length, 1), ease: 'none' }, s[0]);
     };
     const karaoke = (el: El | null, s: Span) => {
       if (el && fx) util.karaoke(tl, el, s[0], dur(s));
     };
 
-    // Copy beats fade in as they rise and out as they leave (desktop), or out over the phone (mobile).
+    // Copy beats fade in as they rise (desktop, by progress) and out as they reach the header
+    // (desktop, by position), or out over the phone (mobile, by progress).
     const beats: Record<'head' | BeatKey, El | null> = {
       head: section.querySelector<El>('.beat-head'),
       break: page('[data-nb="break"]'),
@@ -181,6 +187,20 @@ registerScene(
         to(el, { opacity: 1, duration: dur(f.in), ease: 'power1.out' }, f.in[0]);
       }
       if (f.out) to(el, { opacity: 0, duration: dur(f.out), ease: 'power1.in' }, f.out[0]);
+    }
+    if (isDesk) {
+      // The header and ribbon are see-through, so on desktop every beat is gone by the time its
+      // top reaches them, whatever its height and the viewport's: a position-based fade on its
+      // body (the beat itself carries the progress fade-in), measured again on every refresh.
+      const grid = section.querySelector<El>('.frame-grid');
+      const edge = () => (grid ? parseFloat(getComputedStyle(grid).paddingTop) || 59 : 59) + 8;
+      const reach = () => Math.round(Math.min(96, Math.max(56, innerHeight * 0.1)));
+      for (const [key, el] of Object.entries(beats) as Array<['head' | BeatKey, El | null]>) {
+        const body = key === 'head' ? el : one(el, ':scope > .nb-body');
+        if (!el || !body) continue;
+        const fade = gsap.fromTo(body, { opacity: 1 }, { opacity: 0, ease: 'none', paused: true });
+        ctx.trigger({ trigger: el, start: () => `top ${edge() + reach()}px`, end: () => `top ${edge()}px`, scrub: true, animation: fade });
+      }
     }
 
     // The headline: lines rise out of a mask once, not scrubbed.
@@ -206,14 +226,18 @@ registerScene(
       const reply = card(lay, 'reply');
       cardIn(ask, P.break.ask, lay, true);
       typePhone(ask, P.break.askType);
-      reveal(page('[data-nb-reply="ask"]'), P.break.askLine);
+      reveal('ask', P.break.askLine);
       cardSwap(ask, wv, [P.break.wave[0], P.break.wave[0] + 0.008]);
       wave(wv, P.break.wave);
       typePhone(wv, P.break.answer);
+      // Your answer waits for Siri's question (its space stays reserved: no layout shift).
+      const you = fx ? page('.nb-you') : null;
+      set(you, { opacity: 0 });
+      to(you, { opacity: 1, duration: 0.004, ease: 'none' }, P.break.wave[0]);
       karaoke(page('[data-nb-answer="break"]'), P.break.answer);
       cardSwap(wv, reply, P.break.reply);
       typePhone(reply, P.break.replyType);
-      reveal(page('[data-nb-reply="break"]'), P.break.replyType);
+      reveal('break', P.break.replyType);
       cardOut(reply, P.break.cardOut, lay);
 
       if (la) {
@@ -238,15 +262,22 @@ registerScene(
 
         const s = P.break.la;
         const d = dur(s);
-        tl.set(la, { attr: { 'data-state': 'break' } }, s[0]);
+        // The pill and Undo cross over first; at P.break.start (the day reaches 2:30 there) the
+        // card turns gold and the timer switches to the break's 0:00:00 under the new pill.
+        tl.set(la, { attr: { 'data-state': 'break' } }, P.break.start);
         textAt(face, SHORT_BREAK, BREAK_PILL, s[0]);
         to(one(la, '[data-la-break]'), { opacity: 1, duration: d * 0.5, ease: 'power1.inOut' }, s[0]);
-        to(one(la, '[data-pill-face="clock"]'), { opacity: 0, duration: d * 0.25, ease: 'none' }, s[0]);
-        to(one(la, '[data-pill-face="break"]'), { opacity: 1, duration: d * 0.25, ease: 'none' }, s[0] + d * 0.1);
-        to(one(la, '[data-undo]'), { opacity: 0, duration: d * 0.2, ease: 'none' }, s[0]);
-        to(one(la, '[data-worked-line]'), { opacity: 1, duration: d * 0.3, ease: 'none' }, s[0] + d * 0.2);
-        // Each row button folds into its right edge (the text fades as it narrows, so it never squashes).
-        if (rows.length) tl.to(rows.slice().reverse(), { scaleX: 0, opacity: 0, duration: d * 0.35, stagger: d * 0.08, ease: 'power2.in' }, s[0] + d * 0.05);
+        // One face goes before the other comes (two labels never read over each other).
+        to(one(la, '[data-pill-face="clock"]'), { opacity: 0, duration: d * 0.1, ease: 'none' }, s[0]);
+        to(one(la, '[data-pill-face="break"]'), { opacity: 1, duration: d * 0.1, ease: 'none' }, s[0] + d * 0.09);
+        to(one(la, '[data-undo]'), { opacity: 0, duration: d * 0.15, ease: 'none' }, s[0]);
+        to(one(la, '[data-worked-line]'), { opacity: 1, duration: d * 0.25, ease: 'none' }, P.break.start);
+        // Each row button folds into its right edge; its label fades first, so it never squashes.
+        if (rows.length) {
+          const back = rows.slice().reverse();
+          tl.to(back, { scaleX: 0, duration: d * 0.35, stagger: d * 0.08, ease: 'power2.in' }, s[0] + d * 0.05);
+          tl.to(back, { opacity: 0, duration: d * 0.15, stagger: d * 0.08, ease: 'none' }, s[0] + d * 0.05);
+        }
         to(one(la, '[data-break-btn]'), { opacity: 0, duration: d * 0.2, ease: 'none' }, s[0] + d * 0.1);
         to(one(la, '[data-back-btn]'), { clipPath: 'inset(0% 0% 0% 0%)', duration: d * 0.45, ease: 'power2.inOut' }, s[0] + d * 0.45);
       }
@@ -266,10 +297,30 @@ registerScene(
       const reply = card(lay, 'reply');
       cardIn(wv, [P.tree.wave[0], P.tree.wave[0] + 0.01], lay, true);
       wave(wv, P.tree.wave);
-      typePhone(wv, P.tree.note);
+      // Your answers type into the transcript as their chips appear: the row, the tree, the note.
+      const said = one(wv, '[data-transcript]');
+      if (said) {
+        const chars = util.split(said, 'chars');
+        const spans: Span[] = [
+          [P.tree.chips[0], P.tree.chips[0] + P.tree.chipDur],
+          [P.tree.chips[1], P.tree.chips[1] + P.tree.chipDur],
+          P.tree.note,
+        ];
+        let i = 0;
+        TRANSCRIPT_PARTS.forEach((part, k) => {
+          const n = part.replace(/\s/g, '').length;
+          const these = chars.slice(i, i + n);
+          i += n;
+          const span = spans[k]!;
+          const each = dur(span) / Math.max(these.length, 1);
+          if (these.length) tl.fromTo(these, { opacity: 0 }, { opacity: 1, duration: Math.min(each, 0.002), stagger: each, ease: 'none' }, span[0]);
+        });
+        // Anything past the known parts (a capture's own words) types with the note.
+        if (i < chars.length) tl.fromTo(chars.slice(i), { opacity: 0 }, { opacity: 1, duration: 0.002, stagger: dur(P.tree.note) / (chars.length - i), ease: 'none' }, P.tree.note[0]);
+      }
       cardSwap(wv, reply, P.tree.reply);
       typePhone(reply, P.tree.replyType);
-      reveal(page('[data-nb-reply="tree"]'), P.tree.replyType);
+      reveal('tree', P.tree.replyType);
 
       // The answers, one per step; the flag lands with a little overshoot.
       if (fx) P.tree.chips.forEach((t, i) => {
@@ -287,6 +338,7 @@ registerScene(
         to(app, { scale: 1, duration: dur(P.tree.unlock), ease: 'power3.out' }, P.tree.unlock[0]);
       }
       to(lay, { yPercent: -100, duration: dur(P.tree.unlock), ease: 'power3.inOut' }, P.tree.unlock[0]);
+      util.sheen(tl, P.tree.unlock[0]);
     }
 
     // =======================================================================
@@ -333,6 +385,7 @@ registerScene(
         set(lock, { opacity: 0, yPercent: -100 });
         tl.set(lock, { opacity: 1 }, P.crew.lockIn[0]);
         to(lock, { yPercent: 0, duration: dur(P.crew.lockIn), ease: 'power3.inOut' }, P.crew.lockIn[0]);
+        util.sheen(tl, P.crew.lockIn[0]);
       }
     }
 
@@ -394,20 +447,23 @@ registerScene(
         set(one(la, '[data-worked-line]'), { opacity: 1 });
         set(rows, { scaleX: 0, opacity: 0, transformOrigin: '0% 50%' });
         set(one(la, '[data-break-btn]'), { opacity: 0 });
-        set(back, { clipPath: 'inset(0% 0% 0% 0%)' });
+        set(back, { clipPath: 'inset(0% 0% 0% 0%)', opacity: 1 });
 
         if (back) util.tap(tl, back, P.back.tap);
         const s = P.back.la;
         const d = dur(s);
-        // The card stays in its break state until the gold face has gone, then turns green
-        // (white timer, the field back in the place line) with the short face text behind it.
-        tl.set(la, { attr: { 'data-state': 'working' } }, s[0] + d * 0.28);
+        // The card stays in its break state until the gold face has gone; then, at P.back.end
+        // (the day reaches 2:44 there), it turns green (white timer, the field back in the place
+        // line) and the timer resumes at 6:43:00, with the short face text behind it.
+        tl.set(la, { attr: { 'data-state': 'working' } }, P.back.end);
         to(one(la, '[data-la-break]'), { opacity: 0, duration: d * 0.5, ease: 'power1.inOut' }, s[0]);
-        to(one(la, '[data-pill-face="break"]'), { opacity: 0, duration: d * 0.25, ease: 'none' }, s[0]);
-        to(one(la, '[data-pill-face="clock"]'), { opacity: 1, duration: d * 0.25, ease: 'none' }, s[0] + d * 0.1);
-        textAt(pillBreak, BREAK_PILL, SHORT_BREAK, s[0] + d * 0.26);
+        to(one(la, '[data-pill-face="break"]'), { opacity: 0, duration: d * 0.12, ease: 'none' }, s[0]);
+        to(one(la, '[data-pill-face="clock"]'), { opacity: 1, duration: d * 0.12, ease: 'none' }, s[0] + d * 0.11);
+        textAt(pillBreak, BREAK_PILL, SHORT_BREAK, P.back.end - 0.0005);
         to(one(la, '[data-worked-line]'), { opacity: 0, duration: d * 0.2, ease: 'none' }, s[0]);
+        // Back to work wipes off towards the rows' side and fades as it goes: no blank gold sliver.
         to(back, { clipPath: 'inset(0% 0% 0% 100%)', duration: d * 0.4, ease: 'power2.inOut' }, s[0] + d * 0.05);
+        to(back, { opacity: 0, duration: d * 0.25, ease: 'power1.in' }, s[0] + d * 0.05);
         if (rows.length) {
           tl.to(rows, { scaleX: 1, duration: d * 0.35, stagger: d * 0.08, ease: 'back.out(1.4)' }, s[0] + d * 0.3);
           tl.to(rows, { opacity: 1, duration: d * 0.2, stagger: d * 0.08, ease: 'power1.out' }, s[0] + d * 0.38);

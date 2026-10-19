@@ -1,9 +1,14 @@
 /**
  * Section: notes (2:30 PM, on a break). The static page, the scrubbed scene's key states,
- * accessibility and layout at 375 px.
+ * accessibility (static and under motion), copy clear of the header, and layout at 375 px.
+ *
+ * playwright.config.ts (foundation) runs only tests/e2e for now, so `npx playwright test
+ * tests/sections/…` finds nothing. Until it lists tests/sections, run this spec with a config
+ * that points testDir here:
  *
  *   npm run build && npx astro preview --background --port 4520
- *   PW_PORT=4520 npx playwright test tests/sections/notes.spec.ts --project=desktop --project=mobile
+ *   printf "import c from '%s/playwright.config.ts';\nexport default { ...c, testDir: '%s/tests/sections' };\n" "$PWD" "$PWD" > /tmp/pw-sections.config.ts
+ *   PW_PORT=4520 npx playwright test -c /tmp/pw-sections.config.ts --project=desktop --project=mobile
  *   npx astro preview stop
  */
 import AxeBuilder from '@axe-core/playwright';
@@ -38,6 +43,31 @@ async function openWithMotion(page: Page): Promise<Plan> {
 
 const opacity = (page: Page, sel: string) => page.locator(sel).first().evaluate((el) => Number(getComputedStyle(el).opacity));
 
+/** Serious and critical axe violations inside the section. */
+async function axe(page: Page) {
+  const r = await new AxeBuilder({ page }).include(S).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'best-practice']).analyze();
+  return r.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical').map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(' | ')}`);
+}
+
+/**
+ * Copy beats whose visible pixels sit under the see-through header and ribbon: any beat with
+ * an effective opacity above 0.1 whose top is above the chrome's bottom + 8 px.
+ */
+const underChrome = (page: Page) =>
+  page.evaluate(() => {
+    const grid = document.querySelector('#notes .frame-grid');
+    const edge = (grid ? parseFloat(getComputedStyle(grid).paddingTop) : 59) + 8;
+    const eff = (el: Element) => {
+      let o = 1;
+      for (let e: Element | null = el; e && e !== document.body; e = e.parentElement) o *= Number(getComputedStyle(e).opacity);
+      return o;
+    };
+    return Array.from(document.querySelectorAll<HTMLElement>('#notes .beat'))
+      .map((el) => ({ id: el.dataset.nb ?? 'head', o: eff(el.querySelector(':scope > .nb-body') ?? el), top: el.getBoundingClientRect().top }))
+      .filter((b) => b.o > 0.1 && b.top < edge - 0.5)
+      .map((b) => `${b.id} opacity ${b.o.toFixed(2)} at top ${Math.round(b.top)} (edge ${edge})`);
+  });
+
 test.describe('notes: the static page (reduced motion)', () => {
   test.use({ reducedMotion: 'reduce' });
 
@@ -62,6 +92,16 @@ test.describe('notes: the static page (reduced motion)', () => {
     ]) {
       await expect(page.locator(S).getByText(text, { exact: true }).first()).toBeVisible();
     }
+    // Spoken lines carry their speakers in text (sr-only), and the stamps a real datetime.
+    const brk = ((await page.locator(`${S} [data-nb="break"]`).textContent()) ?? '').replace(/\s+/g, ' ');
+    expect(brk).toContain(`You: ${SIRI.breakReason.said}`);
+    expect(brk).toContain(`Siri: ${SIRI.breakReason.ask}`);
+    expect(brk).toContain(`You: ${SIRI.breakReason.answer}`);
+    expect(brk).toContain(`Siri: ${SIRI.breakReason.reply}`);
+    const tree = ((await page.locator(`${S} [data-nb="tree"]`).textContent()) ?? '').replace(/\s+/g, ' ');
+    expect(tree).toContain(`You: ${SIRI.treeNote.said}`);
+    expect(tree).toContain(`Siri: ${SIRI.treeNote.reply}`);
+    await expect(page.locator(`${S} .nb-stamp time`).first()).toHaveAttribute('datetime', '14:30');
     // Nothing in the copy is faded or offset.
     const faded = await page.locator(`${S} .beat, ${S} .beat *`).evaluateAll((els) =>
       els.filter((e) => Number(getComputedStyle(e).opacity) < 1).map((e) => e.outerHTML.slice(0, 80)),
@@ -110,9 +150,7 @@ test.describe('notes: the static page (reduced motion)', () => {
     await page.goto('/');
     await page.evaluate(() => document.fonts.ready);
     await page.addStyleTag({ content: '.sec { content-visibility: visible !important; }' });
-    const r = await new AxeBuilder({ page }).include(S).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'best-practice']).analyze();
-    const bad = r.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical').map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(' | ')}`);
-    expect(bad).toEqual([]);
+    expect(await axe(page)).toEqual([]);
   });
 });
 
@@ -178,6 +216,13 @@ test.describe('notes: the scrubbed scene', () => {
     expect(await bars()).toEqual(first);
   });
 
+  test('axe under motion, at the tree note: no serious or critical violations', async ({ page }) => {
+    const P = await openWithMotion(page);
+    test.skip(!(await page.evaluate(() => document.documentElement.classList.contains('motion'))), 'motion is off here');
+    await progress(page, P.at.tree, 1800);
+    expect(await axe(page)).toEqual([]);
+  });
+
   test('no horizontal overflow at any step', async ({ page }) => {
     await openWithMotion(page);
     for (const p of [0, 0.2, 0.4, 0.6, 0.8, 1]) {
@@ -197,6 +242,69 @@ test.describe('notes: the scrubbed scene', () => {
   });
 });
 
+test.describe('notes on a phone: the phone waits for its cards', () => {
+  test.skip(({ isMobile }) => !isMobile, 'mobile only');
+
+  test('holds “Noted…” while the tree card reads, and the map while the crew card reads', async ({ page }) => {
+    const { problems } = watch(page);
+    const P = await openWithMotion(page);
+    test.skip(!(await page.evaluate(() => document.documentElement.classList.contains('motion'))), 'motion is off here');
+    expect(P.mode).toBe('mob');
+
+    // The tree card: the lock screen with Siri's answer, never a map without the new flag.
+    await progress(page, P.at.tree, 1800);
+    const tree = layer(page, 'lock-1433-treenote');
+    expect(await opacity(page, '[data-screen="lock-1433-treenote"]')).toBe(1);
+    const lockY = await tree.evaluate((el) => new DOMMatrix(getComputedStyle(el).transform).m42);
+    expect(Math.abs(lockY)).toBeLessThan(1);
+    await expect(tree.locator('[data-nb-card="reply"] [data-snippet-text]')).toHaveText(SIRI.treeNote.reply);
+    expect(await opacity(page, '[data-screen="lock-1433-treenote"] [data-nb-card="reply"] [data-snippet]')).toBeGreaterThan(0.95);
+
+    // The crew card: the map with the flag and the note sheet; the lock screen not back yet.
+    await progress(page, P.at.crew, 1800);
+    expect(await opacity(page, '[data-screen="trees-1433-note"]')).toBe(1);
+    expect(await opacity(page, '[data-screen="lock-1436-dictation"]')).toBe(0);
+    await expect(layer(page, 'trees-1433-note').locator('[data-note-marker="2-36-7"]')).toBeVisible();
+    const sheetY = await layer(page, 'trees-1433-note').locator('[data-sheet]').evaluate((el) => new DOMMatrix(getComputedStyle(el).transform).m42);
+    expect(Math.abs(sheetY)).toBeLessThan(1);
+
+    // Each Siri reply lands as its card's top reaches about 70% of the viewport.
+    for (const [key, at] of [
+      ['break', P.break.reply[0]],
+      ['tree', P.tree.reply[0]],
+      ['shift', P.shift.reply[0]],
+    ] as const) {
+      await progress(page, at, 900);
+      const top = await page.locator(`${S} [data-nb="${key}"]`).evaluate((el) => el.getBoundingClientRect().top / innerHeight);
+      expect(top, key).toBeGreaterThan(0.55);
+      expect(top, key).toBeLessThan(0.85);
+    }
+    expect(problems).toEqual([]);
+  });
+});
+
+test.describe('notes on desktop: copy never sits under the header', () => {
+  test.skip(({ isMobile }) => !!isMobile, 'desktop only');
+
+  for (const viewport of [
+    { width: 1440, height: 900 },
+    { width: 1280, height: 720 },
+  ]) {
+    test(`no beat shows above the chrome at ${viewport.width}×${viewport.height}`, async ({ page }) => {
+      await page.setViewportSize(viewport);
+      await openWithMotion(page);
+      test.skip(!(await page.evaluate(() => document.documentElement.classList.contains('motion'))), 'motion is off here');
+      const bad: string[] = [];
+      for (let i = 0; i <= 50; i += 1) {
+        const p = i / 50;
+        await progress(page, p, 350);
+        for (const b of await underChrome(page)) bad.push(`p ${p.toFixed(2)}: ${b}`);
+      }
+      expect(bad).toEqual([]);
+    });
+  }
+});
+
 test.describe('notes at 375 px, static', () => {
   test.use({ reducedMotion: 'reduce', viewport: { width: 375, height: 812 } });
   test('no horizontal overflow; the Live Activity crop follows the break', async ({ page }) => {
@@ -214,5 +322,11 @@ test.describe('notes at 375 px, static', () => {
     const y = async (sel: string) => (await page.locator(sel).first().boundingBox())!.y;
     expect(await y(`${S} .nb-crop`)).toBeGreaterThan(await y(`${S} [data-nb="break"]`));
     expect(await y(`${S} .nb-crop`)).toBeLessThan(await y(`${S} [data-nb="tree"]`));
+    // The phone (the tree note sheet) follows the tree and crew beats it shows.
+    expect(await y(`${S} .nb-shot`)).toBeGreaterThan(await y(`${S} [data-nb="crew"]`));
+    expect(await y(`${S} .nb-shot`)).toBeLessThan(await y(`${S} [data-nb="shift"]`));
+    // Spoken lines never hang their quotes into the gutter on a phone.
+    const lefts = await page.locator(`${S} .spoken q, ${S} .nb-you q`).evaluateAll((els) => els.map((e) => e.getBoundingClientRect().left));
+    for (const l of lefts) expect(l).toBeGreaterThanOrEqual(15.5);
   });
 });

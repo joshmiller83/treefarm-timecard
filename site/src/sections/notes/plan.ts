@@ -4,10 +4,15 @@
  * phone ('mob'). Notes.astro places the copy beats with AT; scenes/notes.ts places the phone
  * with plan(mode); plan.test.ts checks the order, the day and the one-card-at-a-time rule.
  *
- * Each copy beat sits at progress `at` (centred in the viewport on desktop, at the card
+ * Each copy beat sits at progress `at` (a little below the middle on desktop, at the card
  * anchor on mobile). Its phone sequence is written once, in desktop progress units relative
- * to `at`, then scaled per mode so it takes about the same scroll distance on both tracks,
- * and led a little on mobile so the phone plays while its card is still low in the viewport.
+ * to `at`, then scaled per mode so it takes about the same scroll distance on both tracks.
+ * On mobile it is led so that each Siri reply and Live Activity change lands as its card's
+ * top reaches 70% of the viewport (the brief's 'top 70%'), and the steps between beats wait
+ * for the card that tells them to fade: the phone never moves on while its card is read.
+ *
+ * Desktop copy fades out by position, not progress (scenes/notes.ts): each beat is gone by
+ * the time its top reaches the header, whatever the viewport height.
  *
  *   0         2:16 → 2:30, the lock screen as the lock-screen chapter left it (Row 36 marked)
  *   break     "Take a break" → "What's the break for?" → "Sharpening shears." → 2:30, gold
@@ -23,26 +28,36 @@ export type BeatKey = 'break' | 'tree' | 'crew' | 'shift' | 'back';
 export const BEAT_KEYS: readonly BeatKey[] = ['break', 'tree', 'crew', 'shift', 'back'];
 
 /** Track heights under motion (SectionShell's `track` prop). */
-export const TRACK = { desk: '460vh', mob: '640vh' } as const;
+export const TRACK = { desk: '360vh', mob: '480vh' } as const;
 
 /** Where each copy beat sits (progress 0–1): its --at. */
 export const AT: Record<Mode, Record<BeatKey, number>> = {
   desk: { break: 0.19, tree: 0.39, crew: 0.585, shift: 0.775, back: 0.945 },
-  mob: { break: 0.16, tree: 0.35, crew: 0.54, shift: 0.73, back: 0.91 },
+  mob: { break: 0.17, tree: 0.35, crew: 0.54, shift: 0.725, back: 0.89 },
 };
 
 /**
- * How much the phone leads its copy. On mobile the cards rise over the lower phone, so each
- * phone sequence plays while its card is still entering below it (and the card's text simply
- * reads; it does not animate there).
+ * How much the phone leads its copy. On mobile the cards rise over the lower phone: each
+ * Siri reply lands as its card's top reaches 70% of the viewport (about 0.045–0.07 before
+ * `at` for a 360–460 px card on a 480vh track at 812 px), so the exchange plays above the
+ * card while it enters, and the card's text simply reads (it does not animate there).
+ * The crew sequence instead starts right after the unlock (see the ties in plan()).
  */
 export const LEAD: Record<Mode, Record<BeatKey, number>> = {
   desk: { break: 0, tree: 0, crew: 0, shift: 0, back: 0 },
-  mob: { break: 0.06, tree: 0.06, crew: 0.055, shift: 0.06, back: 0.03 },
+  mob: { break: 0.045, tree: 0.066, crew: 0.0768, shift: 0.0666, back: 0.02 },
 };
 
 /** Phone sequences are authored in desktop units; mobile compresses them (a taller track). */
-export const SCALE: Record<Mode, number> = { desk: 1, mob: 0.45 };
+export const SCALE: Record<Mode, number> = { desk: 1, mob: 0.64 };
+
+/**
+ * Mobile cards fade out over the phone, done when the card's top is about a third of the way
+ * down the phone (before its text covers the lock screen's clock): `end` past `at`.
+ * The break card is shorter, so it gets further before it reaches that line.
+ */
+export const MOB_OUT: Record<Exclude<BeatKey, 'back'>, number> = { break: 0.056, tree: 0.044, crew: 0.044, shift: 0.044 };
+const MOB_FADE = 0.01;
 
 /** A span [start, end] in progress units. */
 export type Span = readonly [number, number];
@@ -123,6 +138,13 @@ export interface Plan {
 /** A minute just before a boundary, so a timer reads the old state until the event. */
 const JUST_BEFORE = 0.5;
 
+/**
+ * Where, through each Live Activity transition, the day crosses its boundary (2:30, 2:44) and
+ * the card's data-state switches: after the pill faces and Undo have crossed (break), after
+ * the gold face has gone (back), so the timer never shows one state under the other's pill.
+ */
+export const LA_SWITCH = { break: 0.2, back: 0.28 } as const;
+
 export function plan(mode: Mode): Plan {
   const at = AT[mode];
   const k = SCALE[mode];
@@ -141,12 +163,14 @@ export function plan(mode: Mode): Plan {
     answer: s('break', -0.03, -0.012),
     reply: s('break', 0.004, 0.012),
     replyType: s('break', 0.008, 0.022),
-    start: p('break', 0.008),
-    la: s('break', 0.008, 0.045),
+    start: 0,
+    la: s('break', 0.004, 0.045),
     glowOff: s('break', 0.03, 0.05),
     cardOut: s('break', 0.072, 0.082),
     swap: p('break', 0.09),
   };
+  // The pill and Undo cross over first; the timer and the gold state switch under them.
+  brk.start = round(brk.la[0] + (brk.la[1] - brk.la[0]) * LA_SWITCH.break);
   const tree = {
     glow: s('tree', -0.1, -0.082),
     said: s('tree', -0.097, -0.068),
@@ -176,16 +200,43 @@ export function plan(mode: Mode): Plan {
     type: s('shift', -0.044, -0.006),
     reply: s('shift', 0.004, 0.012),
     replyType: s('shift', 0.008, 0.022),
-    strip: s('shift', 0.016, 0.04),
+    strip: s('shift', 0.012, 0.03),
     glowOff: s('shift', 0.028, 0.045),
     cardOut: s('shift', 0.062, 0.072),
     swap: p('shift', 0.078),
   };
+  const backLa = s('back', -0.022, 0.022);
   const back = {
     tap: p('back', -0.03),
-    end: p('back', -0.016),
-    la: s('back', -0.016, 0.022),
+    // The gold face has gone before the timer resumes and the card turns green.
+    end: round(backLa[0] + (backLa[1] - backLa[0]) * LA_SWITCH.back),
+    la: backLa,
   };
+
+  // Copy fades. Desktop: in by progress as the beat rises, out by position (the scene's
+  // ScrollTriggers). Mobile: out over the phone; nothing fades in (the cards slide up).
+  const out = (b: Exclude<BeatKey, 'back'>): Span => [round(at[b] + MOB_OUT[b] - MOB_FADE), round(at[b] + MOB_OUT[b])];
+  const fade = (b: BeatKey): { in: Span | null; out: Span | null } =>
+    mode === 'desk' ? { in: [round(at[b] - 0.12), round(at[b] - 0.05)], out: null } : { in: null, out: b === 'back' ? null : out(b) };
+  const copy = {
+    head: { in: null, out: null },
+    break: fade('break'),
+    tree: fade('tree'),
+    crew: fade('crew'),
+    shift: fade('shift'),
+    back: fade('back'),
+  };
+
+  if (mode === 'mob') {
+    // The phone holds "Noted on block 2, row 36, tree 7." while the tree card is read, and
+    // unlocks only as that card fades; the flag drops right after (crew's lead is set so).
+    const t = copy.tree.out![1];
+    tree.unlock = [t, round(t + 0.016)];
+    // The sheet stays up while the crew card is read, then lowers and the lock screen returns.
+    const c = copy.crew.out![1];
+    crew.sheetDown = [c, round(c + 0.008)];
+    crew.lockIn = [round(c + 0.009), round(c + 0.02)];
+  }
 
   const day: DayStep[] = [
     // 2:16 → just before 2:30 while the heading reads, then 2:30 exactly as Siri starts the break.
@@ -200,23 +251,11 @@ export function plan(mode: Mode): Plan {
     { min: MOMENTS.backFromBreak, start: round(back.end - 0.008 * k), end: back.end },
   ];
 
-  const fade = (b: BeatKey): { in: Span | null; out: Span | null } =>
-    mode === 'desk'
-      ? { in: [round(at[b] - 0.12), round(at[b] - 0.05)], out: b === 'back' ? null : [round(at[b] + 0.075), round(at[b] + 0.115)] }
-      : { in: null, out: b === 'back' ? null : [round(at[b] + 0.05), round(at[b] + 0.064)] };
-
   return {
     mode,
     at,
     day,
-    copy: {
-      head: { in: null, out: mode === 'desk' ? [0.07, 0.11] : null },
-      break: fade('break'),
-      tree: fade('tree'),
-      crew: fade('crew'),
-      shift: fade('shift'),
-      back: fade('back'),
-    },
+    copy,
     break: brk,
     tree,
     crew,
