@@ -240,13 +240,17 @@ const preUndo = BEFORE.rows[0];
   }
   .sec-lock-screen .ls-crops {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
     gap: 20px;
   }
+  /* Crops stay phone-sized: never wider than a real phone's top on a phone. */
   .sec-lock-screen .ls-crop-item {
     display: grid;
     gap: 4px;
     justify-items: center;
+    justify-self: center;
+    width: 100%;
+    max-width: 360px;
   }
   .sec-lock-screen .ls-crop-cap {
     font-family: var(--font-mono);
