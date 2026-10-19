@@ -12,7 +12,7 @@ import WidgetKit
 /// `ComplicationReload.needsReload` says something shown changed. Tapping it opens the app,
 /// the glove-friendly way back in.
 struct ShiftComplication: Widget {
-    static let kind = "timecard.watch.shift"
+    static let kind = ComplicationReload.kind
 
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: Self.kind, provider: ShiftComplicationProvider()) { entry in

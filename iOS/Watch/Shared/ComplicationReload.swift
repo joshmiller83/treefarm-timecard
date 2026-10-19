@@ -1,5 +1,6 @@
 import Foundation
 import TreeFarmKit
+import WidgetKit
 
 // The two timing rules behind the watch complications (docs/watch.md 4.3), kept pure so the
 // watch tests pin them: when to redraw them, and when the Smart Stack should raise them.
@@ -14,6 +15,9 @@ import TreeFarmKit
 /// each tap), a clock-out waiting, the last closed shift, the usual start, the farm's time zone,
 /// trees this shift, and the moments the timers count from (a start time changed on the phone).
 enum ComplicationReload {
+    /// The shift complication's widget kind (`ShiftComplication`).
+    static let kind = "timecard.watch.shift"
+
     /// Timers counting from moments closer than this are the same timer: a rebuilt snapshot
     /// can land a fraction of a second away. Start times are edited in whole minutes.
     static let timerTolerance: TimeInterval = 30
@@ -21,6 +25,14 @@ enum ComplicationReload {
     static func needsReload(old: WatchStateFile.Contents?, new: WatchStateFile.Contents) -> Bool {
         guard let old else { return true }
         return Shown(old) != Shown(new)
+    }
+
+    /// Redraws the complications and asks the Smart Stack for their relevance again (a clock-in,
+    /// a clock-out and a new usual start all move it). Call it after `WatchStateFile.write`
+    /// when `needsReload` says so.
+    static func reload() {
+        WidgetCenter.shared.reloadTimelines(ofKind: kind)
+        WidgetCenter.shared.invalidateRelevance(ofKind: kind)
     }
 
     /// Everything a complication draws from the state, at the precision it draws it.

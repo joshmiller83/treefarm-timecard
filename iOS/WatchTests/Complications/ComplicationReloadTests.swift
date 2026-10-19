@@ -18,6 +18,11 @@ struct ComplicationReloadTests {
 
     // MARK: Always
 
+    @Test func theKindIsTheOneTheWidgetExtensionRegisters() {
+        // docs/watch.md 4.3: one StaticConfiguration of this kind, reloaded by the app.
+        #expect(ComplicationReload.kind == "timecard.watch.shift")
+    }
+
     @Test func theFirstWriteReloads() {
         #expect(ComplicationReload.needsReload(old: nil, new: Contents(displayed: F.working())))
         #expect(ComplicationReload.needsReload(old: nil, new: .empty))
