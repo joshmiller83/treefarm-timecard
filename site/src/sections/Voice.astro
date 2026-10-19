@@ -23,6 +23,7 @@ import SiriSnippet from '../components/phone/SiriSnippet.astro';
 import SiriGlow from '../components/phone/SiriGlow.astro';
 import Pocket from './voice/Pocket.astro';
 import Glyph from './voice/Glyph.astro';
+import Squiggle from './voice/Squiggle.astro';
 import { activityLabel, activityView } from '../components/system/lockscreen/activity';
 import { MOMENTS, fmtClock, fmtTime, liveActivityAt } from '../data/ledger';
 import { MORE_TO_SAY, SIRI } from '../data/siri';
@@ -53,7 +54,7 @@ const lunchView = activityView({ at: MOMENTS.lunch, fixed: true });
 const lunchLabel = activityLabel(lunchView);
 
 /** Splits digits out of a word so numbers set in Plex Mono. */
-const pieces = (w: string) => w.split(/(\d[\d,]*)/).filter(Boolean);
+const pieces = (w: string) => w.split(/(\d+(?:,\d{3})*)/).filter(Boolean);
 ---
 
 <SectionShell id="voice" layout="flow">
@@ -96,11 +97,7 @@ const pieces = (w: string) => w.split(/(\d[\d,]*)/).filter(Boolean);
                               {i > 0 && ' '}
                               <span class:list={['w', s.mark && 'x-heard']}>
                                 {s.w}
-                                {s.mark && (
-                                  <svg class="x-squiggle" viewBox="0 0 96 8" preserveAspectRatio="none" aria-hidden="true" data-squiggle>
-                                    <path d="M1 4.5c3-3.2 6-3.2 9 0s6 3.2 9 0 6-3.2 9 0 6 3.2 9 0 6-3.2 9 0 6 3.2 9 0 6-3.2 9 0 6 3.2 9 0 6-3.2 9 0 6 3.2 9 0 6-3.2 9 0" />
-                                  </svg>
-                                )}
+                                {s.mark && <Squiggle />}
                               </span>
                             </>
                           ))}
@@ -117,7 +114,18 @@ const pieces = (w: string) => w.split(/(\d[\d,]*)/).filter(Boolean);
                         {splitWords(t.text).map((s, i) => (
                           <>
                             {i > 0 && ' '}
-                            <span class="w">{pieces(s.w).map((c) => (/^\d/.test(c) ? <span class="num">{c}</span> : c))}</span>
+                            <span class="w">
+                              {pieces(s.w).map((c) =>
+                                /^\d/.test(c) ? (
+                                  <span class:list={['num', c === t.mark && 'x-heard']}>
+                                    {c}
+                                    {c === t.mark && <Squiggle />}
+                                  </span>
+                                ) : (
+                                  c
+                                ),
+                              )}
+                            </span>
                           </>
                         ))}
                       </p>
@@ -256,9 +264,9 @@ const pieces = (w: string) => w.split(/(\d[\d,]*)/).filter(Boolean);
     max-width: 17ch;
     text-wrap: balance;
   }
-  .x-said q {
-    /* Hang the opening quote so the words line up with everything else. */
-    display: inline;
+  /* Hang the opening quote so the words line up with everything else. */
+  .x-said q::before {
+    margin-left: -0.4em;
   }
   .x-you--answer .x-said {
     font-size: calc(var(--text-m) * 0.82);
@@ -300,24 +308,6 @@ const pieces = (w: string) => w.split(/(\d[\d,]*)/).filter(Boolean);
     position: relative;
     display: inline-block;
   }
-  /* Just under the baseline, clear of the next line's capitals. */
-  .x-squiggle {
-    position: absolute;
-    left: -2%;
-    width: 104%;
-    bottom: 0.03em;
-    height: 0.2em;
-    overflow: visible;
-    pointer-events: none;
-  }
-  .x-squiggle path {
-    fill: none;
-    stroke: #d2593a;
-    stroke-width: 2.25px;
-    stroke-linecap: round;
-    vector-effect: non-scaling-stroke;
-  }
-
   /* Between the lunch halves: thirty minutes of lunch. */
   .x-between {
     display: none;

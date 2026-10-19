@@ -43,6 +43,12 @@ describe('the exchanges come from siri.ts and the ledger', () => {
     expect(replies).toContain('212 trees today, 34 an hour. You’re on block 2, row 35.');
   });
 
+  it('flags the misheard word and the row Siri heard instead', () => {
+    const turns = EXCHANGES[0]!.turns;
+    expect(turns[0]).toMatchObject({ key: 'said', mark: 'fourteen' });
+    expect(turns[1]).toMatchObject({ key: 'reply', mark: '40' });
+  });
+
   it('stamps each part with its ledger time', () => {
     const stamps = EXCHANGES.flatMap((x) => x.parts.map((p) => p.stamp));
     expect(stamps).toEqual(['7:18 AM', '7:19 AM', '12:01 PM', '12:31 PM', '2:01 PM']);

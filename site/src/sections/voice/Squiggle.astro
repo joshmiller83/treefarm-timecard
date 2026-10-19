@@ -1,0 +1,28 @@
+---
+/** The rust wavy underline for a misheard word (the voice scene draws it with clip-path). */
+---
+
+<svg class="x-squiggle" viewBox="0 0 96 8" preserveAspectRatio="none" aria-hidden="true" focusable="false" data-squiggle>
+  <path d="M1 4.5c3-3.2 6-3.2 9 0s6 3.2 9 0 6-3.2 9 0 6 3.2 9 0 6-3.2 9 0 6 3.2 9 0 6-3.2 9 0 6 3.2 9 0 6-3.2 9 0 6 3.2 9 0 6-3.2 9 0"
+  ></path>
+</svg>
+
+<style>
+  /* Just under the baseline, clear of the next line's capitals. */
+  .x-squiggle {
+    position: absolute;
+    left: -2%;
+    width: 104%;
+    bottom: 0.03em;
+    height: 0.2em;
+    overflow: visible;
+    pointer-events: none;
+  }
+  .x-squiggle path {
+    fill: none;
+    stroke: #d2593a;
+    stroke-width: 2.25px;
+    stroke-linecap: round;
+    vector-effect: non-scaling-stroke;
+  }
+</style>

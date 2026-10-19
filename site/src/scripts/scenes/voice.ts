@@ -18,7 +18,7 @@
  */
 import { registerScene } from '../scene.ts';
 import { MOMENTS, treesAt } from '../../data/ledger.ts';
-import { place, voiceMinute, type PartId, type Source } from '../../sections/voice/model.ts';
+import { place, voiceMinute, type PartId, type Source } from '../../sections/voice/clock.ts';
 
 type Win = readonly [number, number];
 type Els = Element[];
@@ -210,11 +210,12 @@ registerScene(
       karaoke(t, words(p, '[data-turn="said"] .x-said'), [0.02, 0.26]);
       listen(t, L1, [0, 0.28]);
       think(t, L1, [0.28, 0.36]);
-      // Siri heard 'forty': a rust wave draws under 'fourteen', left to right.
-      const squiggle = one(p, '[data-squiggle]');
-      if (squiggle) {
-        gsap.set(squiggle, { clipPath: 'inset(0% 100% 0% 0%)' });
-        t.ft(squiggle, { clipPath: 'inset(0% 100% 0% 0%)' }, { clipPath: 'inset(0% 0% 0% 0%)' }, [0.42, 0.5]);
+      // Siri heard 'forty': rust waves draw under 'fourteen' and under the 40 it heard.
+      const [heard, as] = all(p, '[data-squiggle]');
+      for (const [sq, w] of [[heard, [0.42, 0.5]], [as, [0.46, 0.54]]] as const) {
+        if (!sq) continue;
+        gsap.set(sq, { clipPath: 'inset(0% 100% 0% 0%)' });
+        t.ft(sq, { clipPath: 'inset(0% 100% 0% 0%)' }, { clipPath: 'inset(0% 0% 0% 0%)' }, w);
       }
       answer(t, L1, [0.36, 0.44], [0.38, 0.5]);
       reveal(t, p, [0.36, 0.54]);

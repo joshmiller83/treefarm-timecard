@@ -1,22 +1,19 @@
 /**
- * VOICE · the section's content and its clock, as pure data (Vitest: model.test.ts).
+ * VOICE · the section's content as pure data (Vitest: model.test.ts); the clock is in clock.ts.
  *
  * Every spoken line comes from siri.ts and every number from the ledger. The page shows four
  * exchanges; the lunch one has two parts (12:01 and 12:31), which are one article on desktop
  * and two cards on mobile. Each part has its own scroll progress on mobile; on desktop the
  * lunch article's single progress is split at LUNCH_SPLIT, as the brief lays it out.
- *
- * voiceMinute() turns the progress of the section and of every exchange into the DayClock
- * minute. It is a pure function of all of them (not a chain of tweens on one object), so
- * jumping anywhere on the page, forwards or backwards, always lands on the right time.
  */
 import { BREAKS, MOMENTS, fmtTime, type Minute } from '../../data/ledger.ts';
 import { SIRI } from '../../data/siri.ts';
+import type { PartId } from './clock.ts';
 
 // ---------------------------------------------------------------------------
 // Copy
 
-export type PartId = 'misheard' | 'next' | 'lunchA' | 'lunchB' | 'status';
+export type { PartId } from './clock.ts';
 export type ExchangeId = 'misheard' | 'next' | 'lunch' | 'status';
 
 export interface Turn {
@@ -66,13 +63,19 @@ const said = (text: string, mark?: string): Turn => ({ who: 'you', key: 'said', 
 const reply = (text: string): Turn => ({ who: 'siri', key: 'reply', text });
 
 export const MISHEARD_WORD = 'fourteen';
+/** What Siri heard instead: the row in its question ('Row 40 in block 2?'). */
+export const HEARD_NUMBER = /Row (\d+)/.exec(SIRI.misheard.reply)![1]!;
 
 export const EXCHANGES: readonly Exchange[] = [
   exchange('misheard', [
     part(
       'misheard',
       SIRI.misheard.at,
-      [said(SIRI.misheard.said, MISHEARD_WORD), reply(SIRI.misheard.reply), { who: 'you', key: 'answer', text: SIRI.misheard.answer }],
+      [
+        said(SIRI.misheard.said, MISHEARD_WORD),
+        { ...reply(SIRI.misheard.reply), mark: HEARD_NUMBER },
+        { who: 'you', key: 'answer', text: SIRI.misheard.answer },
+      ],
       {
         caption: 'Far-off rows get a double check, in case Siri heard forty for fourteen. Nothing changes until you say yes.',
         note: 'Nothing changed.',
@@ -146,67 +149,6 @@ export const LAYERS: readonly Layer[] = [
 ];
 
 // ---------------------------------------------------------------------------
-// The clock
+// The clock lives in ./clock.ts (the scene imports it without the copy).
 
-/**
- * Lunch edges. EDGE (30 microseconds) and NUDGE (12 ms) keep every clock honest at
- * the instant lunch starts and ends: the status bar already reads 12:01 (or 12:31) while the
- * timer still shows the worked time (or the full 0:30:00 of lunch). model.test.ts checks
- * each reading against the DayClock's own formatting.
- */
-const EDGE = 5e-7;
-const NUDGE = 2e-4;
-const lunch = BREAKS.find((b) => b.kind === 'lunch')!;
-export const BEFORE_LUNCH = lunch.start - EDGE;
-export const LUNCH_STARTED = lunch.start + NUDGE;
-export const BEFORE_BACK = lunch.end - EDGE;
-export const BACK = lunch.end + NUDGE;
-
-/** Where each scrubbed timeline gets its progress. */
-export type Source = 'main' | 'misheard' | 'next' | 'lunch' | 'lunchA' | 'lunchB' | 'status';
-
-/** Desktop: the lunch article's progress at which 'Take lunch' ends and the 12:31 half begins. */
-export const LUNCH_SPLIT = 0.45;
-
-/** Where a part's local progress `at` lands: which timeline, at what progress. */
-export function place(p: PartId | 'main', at: number, desk: boolean): { src: Source; p: number } {
-  if (desk && p === 'lunchA') return { src: 'lunch', p: at * LUNCH_SPLIT };
-  if (desk && p === 'lunchB') return { src: 'lunch', p: LUNCH_SPLIT + at * (1 - LUNCH_SPLIT) };
-  return { src: p, p: at };
-}
-
-export interface DayStep {
-  part: PartId | 'main';
-  /** Window in the part's local progress. */
-  at: readonly [number, number];
-  from: Minute;
-  to: Minute;
-}
-
-/**
- * The day through the section. Time passes as each exchange scrolls in, so the clock reads
- * the exchange's time while its line is spoken; lunch starts and ends on the spoken command.
- */
-export const DAY_STEPS: readonly DayStep[] = [
-  { part: 'misheard', at: [0, 0.16], from: MOMENTS.clockIn, to: MOMENTS.misheard },
-  { part: 'next', at: [0.08, 0.16], from: MOMENTS.misheard, to: MOMENTS.firstRow },
-  { part: 'lunchA', at: [0.06, 0.24], from: MOMENTS.firstRow, to: BEFORE_LUNCH },
-  { part: 'lunchA', at: [0.48, 0.5], from: BEFORE_LUNCH, to: LUNCH_STARTED },
-  { part: 'lunchB', at: [0, 0.18], from: LUNCH_STARTED, to: BEFORE_BACK },
-  { part: 'lunchB', at: [0.38, 0.4], from: BEFORE_BACK, to: BACK },
-  { part: 'status', at: [0.06, 0.18], from: BACK, to: MOMENTS.status },
-];
-
-const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
-
-/** The DayClock minute for the given progress of each timeline (missing = 0). */
-export function voiceMinute(progress: Partial<Record<Source, number>>, desk: boolean): Minute {
-  let min = DAY_STEPS[0]!.from;
-  for (const s of DAY_STEPS) {
-    const a = place(s.part, s.at[0], desk);
-    const b = place(s.part, s.at[1], desk);
-    const t = clamp01(((progress[a.src] ?? 0) - a.p) / Math.max(b.p - a.p, 1e-9));
-    if (t > 0) min = s.from + (s.to - s.from) * t;
-  }
-  return min;
-}
+export * from './clock.ts';
