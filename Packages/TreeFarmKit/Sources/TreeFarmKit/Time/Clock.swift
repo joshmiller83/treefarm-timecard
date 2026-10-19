@@ -34,9 +34,11 @@ public enum Clock {
     }
 
     /// A new open shift starting now. Refused when the person already has one open.
-    public static func clockIn(userId: UUID, farmId: UUID, rateCents: Int, at now: Date, shifts: [Shift]) throws(ClockError) -> Shift {
+    /// `id` is the new shift's id: the watch mints one for a clock-in it shows before the phone
+    /// has it, so the phone creates the shift under that id.
+    public static func clockIn(id: UUID = UUID(), userId: UUID, farmId: UUID, rateCents: Int, at now: Date, shifts: [Shift]) throws(ClockError) -> Shift {
         if let open = openShift(in: shifts, userId: userId) { throw .alreadyClockedIn(open) }
-        return Shift(userId: userId, farmId: farmId, start: now, rateCents: rateCents, updatedAt: now)
+        return Shift(id: id, userId: userId, farmId: farmId, start: now, rateCents: rateCents, updatedAt: now)
     }
 
     /// Starts lunch or another break now. The reason is trimmed and clamped to `Limits.reason`.
