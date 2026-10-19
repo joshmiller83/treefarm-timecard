@@ -28,6 +28,7 @@
 		40FF237B0E90959AFDFABD0A /* ReportPDF.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06B3F6EFCDE7A63AED61406A /* ReportPDF.swift */; };
 		4C4F9F482F05AA8C690EADED /* ReportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 165D9CB59A2B73311DD924DB /* ReportView.swift */; };
 		4CE2765501913B4EEF9A13AE /* TimeCardCore in Frameworks */ = {isa = PBXBuildFile; productRef = 1F16EF2DBAA82812E5FCBF05 /* TimeCardCore */; };
+		546524BE757180C96C7AFE87 /* LogReportUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 826D885FD8A7F7F5BAE9AD44 /* LogReportUITests.swift */; };
 		56E3F456E020D3F26D8FCE9D /* TimeCardCore in Frameworks */ = {isa = PBXBuildFile; productRef = 76760F4A041CFB039DF2E1BF /* TimeCardCore */; };
 		5840091B8188A4BF57AD73A8 /* PlatformTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A441859AAEFA8511A46EA2F /* PlatformTests.swift */; };
 		599CF5E9C4D373F558210B4B /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 6BC6220C858784A309DE828F /* Assets.xcassets */; };
@@ -136,6 +137,7 @@
 		76F859F4EF55B8D49AECE08D /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 		7C111B64C0C07020B9DCCDD2 /* TimeCardUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimeCardUITests.swift; sourceTree = "<group>"; };
 		7DF2BA924D3E91EFC54A8D18 /* ResetPasswordView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResetPasswordView.swift; sourceTree = "<group>"; };
+		826D885FD8A7F7F5BAE9AD44 /* LogReportUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogReportUITests.swift; sourceTree = "<group>"; };
 		87281864A7B6C79D025F7336 /* MainTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainTabView.swift; sourceTree = "<group>"; };
 		8C42AEC580754A7C4570AB15 /* TimeCard.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = TimeCard.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		91519E30548CFC57A34F19EE /* IntentRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntentRunner.swift; sourceTree = "<group>"; };
@@ -314,6 +316,7 @@
 			isa = PBXGroup;
 			children = (
 				7C111B64C0C07020B9DCCDD2 /* TimeCardUITests.swift */,
+				C86DB9037F57D480F2260DAB /* LogReport */,
 			);
 			path = UITests;
 			sourceTree = "<group>";
@@ -426,6 +429,14 @@
 				265B9098E1A69BDACEBA441D /* LiveActivityController.swift */,
 			);
 			path = LiveActivity;
+			sourceTree = "<group>";
+		};
+		C86DB9037F57D480F2260DAB /* LogReport */ = {
+			isa = PBXGroup;
+			children = (
+				826D885FD8A7F7F5BAE9AD44 /* LogReportUITests.swift */,
+			);
+			path = LogReport;
 			sourceTree = "<group>";
 		};
 		E6BE4CE63C61BC1F555318DA /* Report */ = {
@@ -615,6 +626,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				546524BE757180C96C7AFE87 /* LogReportUITests.swift in Sources */,
 				210A451BC06E8FF049CC8269 /* TimeCardUITests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

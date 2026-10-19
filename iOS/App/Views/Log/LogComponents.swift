@@ -110,6 +110,8 @@ struct Toast: View {
         .overlay(Capsule().strokeBorder(Palette.line, lineWidth: 1))
         .shadow(color: .black.opacity(0.12), radius: 12, y: 4)
         .padding(.horizontal, 24)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(text)
         .accessibilityIdentifier("log-toast")
     }
 }

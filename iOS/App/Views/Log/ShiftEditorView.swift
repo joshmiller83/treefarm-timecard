@@ -66,23 +66,38 @@ private struct EditorForm: View {
     private var calendar: FarmCalendar { model.calendar }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                whenCard
-                breaksCard
-                notesCard
-                if !model.isNew {
-                    treesCard
-                    deleteSection
+        ScrollViewReader { proxy in
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    whenCard
+                    breaksCard
+                    notesCard
+                    if !model.isNew {
+                        treesCard
+                        deleteSection
+                    }
                 }
+                .padding(16)
+                .padding(.bottom, 12)
+                .frame(maxWidth: 640)
+                .frame(maxWidth: .infinity)
+                .animation(.easeInOut(duration: 0.2), value: open)
+                .animation(.easeInOut(duration: 0.2), value: model.draft.breaks.count)
+                .animation(.easeInOut(duration: 0.2), value: model.stage)
             }
-            .padding(16)
-            .padding(.bottom, 12)
-            .frame(maxWidth: 640)
-            .frame(maxWidth: .infinity)
-            .animation(.easeInOut(duration: 0.2), value: open)
-            .animation(.easeInOut(duration: 0.2), value: model.draft.breaks.count)
-            .animation(.easeInOut(duration: 0.2), value: model.stage)
+            // Whatever just opened scrolls into view, clear of the save bar.
+            .onChange(of: open) { _, field in
+                guard let field else { return }
+                withAnimation(.easeInOut(duration: 0.25)) { proxy.scrollTo(field, anchor: .center) }
+            }
+            .onChange(of: model.draft.breaks.count) { old, new in
+                guard new > old, let added = model.draft.breaks.last else { return }
+                withAnimation(.easeInOut(duration: 0.25)) { proxy.scrollTo(added.id, anchor: .center) }
+            }
+            .onChange(of: model.stage) { _, stage in
+                guard stage == .confirmingDelete else { return }
+                withAnimation(.easeInOut(duration: 0.25)) { proxy.scrollTo("delete-panel", anchor: .bottom) }
+            }
         }
         .scrollDismissesKeyboard(.interactively)
         .environment(\.timeZone, calendar.timeZone)
@@ -115,7 +130,7 @@ private struct EditorForm: View {
         VStack(alignment: .leading, spacing: 4) {
             SectionLabel("When")
                 .padding(.bottom, 6)
-            dateRow
+            dateRow.id(EditorField.date)
             Divider().overlay(Palette.line)
             PickerRow(title: "Clock in", value: Fmt.time(model.draft.startDate(calendar), calendar),
                       isExpanded: open == .clockIn, identifier: "editor-clock-in",
@@ -125,6 +140,7 @@ private struct EditorForm: View {
                     .datePickerStyle(.wheel)
                     .labelsHidden()
             }
+            .id(EditorField.clockIn)
             if model.canStayOpen {
                 Divider().overlay(Palette.line)
                 Toggle("Still on the clock", isOn: Binding(get: { model.draft.end == nil }, set: { model.setStillOnTheClock($0) }))
@@ -142,6 +158,7 @@ private struct EditorForm: View {
                         .datePickerStyle(.wheel)
                         .labelsHidden()
                 }
+                .id(EditorField.clockOut)
             }
             Text(model.totalsLine)
                 .numberStyle(.small)
@@ -268,6 +285,7 @@ private struct EditorForm: View {
                     .datePickerStyle(.wheel)
                     .labelsHidden()
             }
+            .id(EditorField.breakStart(id))
             if model.draft.end == nil && isLast {
                 Toggle("Still on this break", isOn: Binding(
                     get: { binding.wrappedValue.end == nil },
@@ -284,6 +302,7 @@ private struct EditorForm: View {
                         .datePickerStyle(.wheel)
                         .labelsHidden()
                 }
+                .id(EditorField.breakEnd(id))
             } else if model.draft.end != nil || !isLast {
                 // A break left open on a finished shift: ShiftRules asks for an end time.
                 Button {
@@ -306,6 +325,7 @@ private struct EditorForm: View {
         .background(Palette.bg.opacity(0.6), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Palette.line, lineWidth: 1))
         .transition(.opacity)
+        .id(id)
     }
 
     // MARK: Notes
@@ -409,6 +429,7 @@ private struct EditorForm: View {
             .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Palette.rust.opacity(0.45), lineWidth: 1))
             .padding(.top, 8)
             .transition(.opacity.combined(with: .scale(scale: 0.98)))
+            .id("delete-panel")
         }
     }
 
@@ -418,6 +439,9 @@ private struct EditorForm: View {
         VStack(spacing: 10) {
             if let problem = model.visibleProblem {
                 ErrorMessage(text: problem)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(problem)
+                    .accessibilityIdentifier("editor-problem")
                     .transition(.opacity)
             }
             Button { save() } label: {
