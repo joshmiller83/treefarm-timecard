@@ -11,6 +11,36 @@ struct AdminController: RouteCollection {
         admin.post("invites", use: createInvite)
         admin.delete("invites", ":inviteId", use: deleteInvite)
         admin.post("members", ":userId", "reset", use: resetCode)
+        admin.delete("members", ":userId", use: removeMember)
+    }
+
+    /// Sets `removedAt` through the same path a pushed member change takes, so it
+    /// syncs to every device and the last-admin rule applies.
+    func removeMember(req: Request) async throws -> HTTPStatus {
+        let ctx = try req.requireAdmin()
+        let now = req.now
+        guard let userId = req.parameters.get("userId", as: UUID.self) else {
+            throw Abort(.notFound, reason: "That person isn’t on this farm.")
+        }
+        let outcome = try await req.db.transaction { db -> Outcome in
+            let store = RecordStore(db: db)
+            guard let caller = try await store.member(ctx.member.userId, farm: ctx.farmId), caller.removedAt == nil, caller.role == .admin else {
+                return .rejected(.forbidden, "Only an admin can do that.")
+            }
+            guard var member = try await store.member(userId, farm: ctx.farmId) else {
+                return .rejected(.notFound, "That person isn’t on this farm.")
+            }
+            guard member.removedAt == nil else { return .applied(0) }
+            member.removedAt = now
+            member.updatedAt = max(now, member.updatedAt.addingTimeInterval(0.001))
+            return try await PushApplier(db: db, farmId: ctx.farmId, caller: caller, now: now).apply(.member(member))
+        }
+        switch outcome {
+        case .applied: return .noContent
+        case .rejected(.notFound, let message, _): throw Abort(.notFound, reason: message)
+        case .rejected(.forbidden, let message, _): throw Abort(.forbidden, reason: message)
+        case .rejected(_, let message, _): throw Abort(.conflict, reason: message)
+        }
     }
 
     func listInvites(req: Request) async throws -> Response {

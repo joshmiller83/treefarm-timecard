@@ -43,6 +43,7 @@ struct PushApplier {
         case .field(let field): return try await applyField(field)
         case .block(let block): return try await applyBlock(block)
         case .treeNote(let note): return try await applyNote(note)
+        case .member(let member): return try await applyMember(member)
         default: return .rejected(.invalid, "That kind of record can’t be pushed yet.")
         }
     }
@@ -184,6 +185,62 @@ struct PushApplier {
             if case .treeNote(let n) = $0.record { return n }
             return nil
         }
+    }
+
+    // MARK: Members
+
+    static let maxRateCents = 1_000_000
+
+    /// Workers change their own name, job title and rate; admins anyone's role,
+    /// rate and removal. Email is the account's and can't be pushed. A farm always
+    /// keeps at least one current admin.
+    func applyMember(_ incoming: Member) async throws -> Outcome {
+        guard incoming.farmId == farmId else { return .rejected(.forbidden, "That person belongs to another farm.") }
+        let stored = try await store.find(.member, incoming.userId, farm: farmId)
+        guard case .member(let old)? = stored?.record else {
+            return .rejected(.notFound, "That person isn’t on this farm.")
+        }
+        var member = incoming
+        member.email = old.email
+        if !isAdmin {
+            guard member.userId == caller.userId else {
+                return .rejected(.forbidden, "Only an admin can change other people.")
+            }
+            guard member.role == old.role, member.removedAt?.millis == old.removedAt?.millis else {
+                return .rejected(.forbidden, "Only an admin can change roles or remove people.")
+            }
+        }
+        let (name, problem) = checkName(member.displayName, "person")
+        if let problem { return .rejected(.invalid, problem == "Give the person a name." ? "Please enter a name." : problem) }
+        member.displayName = name
+        member.jobTitle = member.jobTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard member.jobTitle.count <= Limits.name else {
+            return .rejected(.invalid, "Job titles can be up to \(Limits.name) characters.")
+        }
+        guard (0...Self.maxRateCents).contains(member.rateCents) else {
+            return .rejected(.invalid, "The pay rate has to be between $0 and $10,000 an hour.")
+        }
+        if old.removedAt != nil, member.removedAt == nil, try await UserModel.find(member.userId, on: db) == nil {
+            return .rejected(.invalid, "That person deleted their account. Send them a new invite.")
+        }
+        if let settled = try settle(.member(member), against: stored, noun: "person") { return settled }
+
+        let wasAdmin = old.role == .admin && old.removedAt == nil
+        let staysAdmin = member.role == .admin && member.removedAt == nil
+        if wasAdmin && !staysAdmin {
+            let others = try await store.members(farm: farmId).filter { $0.userId != member.userId && $0.role == .admin && $0.removedAt == nil }
+            if others.isEmpty {
+                return .rejected(.invalid, "A farm needs at least one admin. Make someone else an admin first.")
+            }
+        }
+
+        let outcome = try await save(.member(member))
+        if old.removedAt == nil, member.removedAt != nil,
+           try await store.activeMemberships(of: member.userId).isEmpty {
+            // Removed from their last farm: sign them out everywhere.
+            try await Accounts.revokeSessions(of: member.userId, on: db, now: now)
+        }
+        return outcome
     }
 
     // MARK: Tree notes
