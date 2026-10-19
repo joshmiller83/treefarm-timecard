@@ -161,6 +161,15 @@ public actor AuthService {
         forget()
     }
 
+    /// Takes back a sign-in that can't be used (someone else signing in over unsynced work):
+    /// signs that token out on the server and goes back to `me`'s ended sign-in.
+    public func restoreExpired(_ me: MeResponse) async {
+        try? await api.logout()
+        try? tokens.clear()
+        if let data = try? JSONCoding.encoder().encode(me) { try? cache.setValue(data, forKey: Self.meKey) }
+        state = .expired(me)
+    }
+
     /// Drops the token and the cached person without asking the server.
     private func forget() {
         try? tokens.clear()

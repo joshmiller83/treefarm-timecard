@@ -41,8 +41,8 @@ struct SignInView: View {
             VStack(spacing: 28) {
                 AuthHeader(title: reauthenticating ? "Sign in again" : "Time Card",
                            subtitle: reauthenticating
-                               ? "Your sign-in ended. Your work is safe on this phone and syncs once you're back in."
-                               : "Clock in, mark your rows, and keep the crew's map in step.")
+                               ? "Your sign-in ended. Your work is safe on this phone and syncs once you’re back in."
+                               : "Clock in, mark your rows, and keep the crew’s map in step.")
 
                 VStack(spacing: 12) {
                     TextField("Email", text: $email)
@@ -110,7 +110,8 @@ struct SignInView: View {
         error = nil
         defer { busy = false }
         do {
-            try await session.signIn(email: email, password: password)
+            // Signing in again: someone else can't sign in over this person's unsynced work.
+            try await session.signIn(email: email, password: password, expecting: reauthenticating ? session.me?.user.id : nil)
             password = ""
             onSignedIn()
         } catch {

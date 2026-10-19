@@ -92,6 +92,31 @@ struct SessionAccountTests {
         #expect(session.snapshot.shifts.isEmpty)
     }
 
+    @Test func signingInAgainAsSomeoneElseCantWipeUnsyncedWork() async throws {
+        let stub = await makeStub()
+        let store = try LocalStore.inMemory()
+        let session = try await signedIn(stub, store: store)
+        let shift = Shift(userId: f.userId, farmId: f.farmId, start: Fixtures.t0, end: Fixtures.t0 + 3600, rateCents: 1800, updatedAt: Fixtures.t0)
+        // The token expires before the shift syncs.
+        await stub.failNext(.unauthorized(reason: "Please sign in again."))
+        try session.save([.shift(shift)])
+        _ = await session.syncNow()
+        try await waitUntil { await MainActor.run { if case .expired = session.auth { true } else { false } } }
+
+        await #expect(throws: AuthError.invalid("Josh’s changes on this phone haven’t synced yet. Sign in as josh@example.com to send them first.")) {
+            try await session.signIn(email: "sam@example.com", password: "sam's password", expecting: f.userId)
+        }
+        #expect(session.auth == .expired(me))
+        #expect(session.snapshot.shifts[shift.id] == shift)
+        #expect(try store.pendingCount() == 1)
+        #expect(try tokens.read() == nil)
+
+        // The right person signs in, and the work goes up.
+        try await session.signIn(email: "josh@example.com", password: "right horse", expecting: f.userId)
+        _ = await session.syncNow()
+        #expect(await stub.record(kind: .shift, id: shift.id) == .shift(shift))
+    }
+
     @Test func deletingTheAccountSendsLocalHoursFirstThenForgetsThePhone() async throws {
         let stub = await makeStub()
         let store = try LocalStore.inMemory()

@@ -108,9 +108,24 @@ public final class TimeCardSession {
 
     // MARK: Signing in and out
 
-    public func signIn(email: String, password: String) async throws {
-        let previous = auth.me?.user.id
-        await adopt(try await authService.login(email: email, password: password), previousUser: previous)
+    /// Signs in. `expecting` is the person whose sign-in ended (signing in again): if
+    /// someone else signs in while that person's changes still wait to sync, the sign-in is
+    /// taken back before anything is wiped, and the error says whose work is waiting.
+    public func signIn(email: String, password: String, expecting expected: UUID? = nil) async throws {
+        let previous = auth.me
+        let me = try await authService.login(email: email, password: password)
+        if let expected, let previous, previous.user.id == expected, me.user.id != expected,
+           ((try? store.pendingCount()) ?? 0) > 0 {
+            await authService.restoreExpired(previous)
+            auth = await authService.state
+            throw AuthError.invalid(Self.othersWorkWaiting(previous))
+        }
+        await adopt(me, previousUser: previous?.user.id)
+    }
+
+    /// "Josh’s changes on this phone haven’t synced yet. Sign in as josh@example.com to send them first."
+    nonisolated static func othersWorkWaiting(_ me: MeResponse) -> String {
+        "\(me.user.displayName)’s changes on this phone haven’t synced yet. Sign in as \(me.user.email) to send them first."
     }
 
     public func join(inviteCode: String, email: String, password: String, displayName: String) async throws {
