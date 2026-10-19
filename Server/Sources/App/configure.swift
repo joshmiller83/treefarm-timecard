@@ -48,4 +48,5 @@ func routes(_ app: Application) throws {
     try app.register(collection: MeController())
     try app.register(collection: AdminController())
     try app.register(collection: SyncController())
+    try app.register(collection: ExportController())
 }
