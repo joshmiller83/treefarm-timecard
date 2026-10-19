@@ -36,6 +36,63 @@ function siriLinesCheck() {
 }
 
 /**
+ * One render-blocking stylesheet for the page, and the in-app tab screens' CSS after it.
+ *
+ * Vite splits the page's CSS into a file per shared component group (the lab pages share the
+ * components), eight files in all. After the build, the page's links are merged, in their
+ * order, into one file (one request, and gzip sees all of it at once). The Trees, Clock and
+ * Report tabs' CSS (TreesTab, ClockTab and ReportTab chunks: their screens are all far below
+ * the fold) moves into a second file that loads without blocking the first paint; it is last
+ * in the cascade, as before. Until it has loaded, app screens stay blank (visibility: hidden,
+ * appended to the first file, so a dev server never hides them) and the motion core waits for
+ * it before it builds a scene that measures one (the tf:tabs-css event). Without JS it is a
+ * plain stylesheet (noscript). Lab pages keep Vite's files. scripts/budgets.ts measures both.
+ * @returns {import('astro').AstroIntegration}
+ */
+function pageCss() {
+  return {
+    name: 'treefarm:page-css',
+    hooks: {
+      'astro:build:done': async ({ dir, logger }) => {
+        const { readFile, writeFile } = await import('node:fs/promises');
+        const { createHash } = await import('node:crypto');
+        const { fileURLToPath } = await import('node:url');
+        const root = fileURLToPath(dir);
+        const page = `${root}index.html`;
+        let html = await readFile(page, 'utf8');
+        const links = [...html.matchAll(/<link rel="stylesheet" href="\/_astro\/([\w.-]+\.css)">/g)].map((m) => ({ tag: m[0], file: String(m[1]) }));
+        if (links.length < 2) return;
+        const later = (/** @type {string} */ f) => /^(TreesTab|ClockTab|ReportTab)\./.test(f);
+        const read = (/** @type {string} */ f) => readFile(`${root}_astro/${f}`, 'utf8');
+        const hash = (/** @type {string} */ s) => createHash('sha256').update(s).digest('base64url').slice(0, 8);
+        const first = links.filter((l) => !later(l.file));
+        const rest = links.filter((l) => later(l.file));
+        if (!first.length || later(links[0]?.file ?? '')) return;
+        const blank = 'html.js:not(.tabs-css) [data-app]{visibility:hidden}';
+        const main = (await Promise.all(first.map((l) => read(l.file)))).join('\n') + `\n${blank}\n`;
+        const mainFile = `page.${hash(main)}.css`;
+        await writeFile(`${root}_astro/${mainFile}`, main);
+        // The merged file takes the place of the first link (the page's cascade order).
+        links.forEach((l, i) => (html = html.replace(l.tag, i === 0 ? `<link rel="stylesheet" href="/_astro/${mainFile}">` : '')));
+        if (rest.length) {
+          const tabs = (await Promise.all(rest.map((l) => read(l.file)))).join('\n');
+          const tabsFile = `tabs.${hash(tabs)}.css`;
+          await writeFile(`${root}_astro/${tabsFile}`, tabs);
+          const href = `/_astro/${tabsFile}`;
+          const onload = "this.media='all';this.onload=null;document.documentElement.classList.add('tabs-css');dispatchEvent(new Event('tf:tabs-css'))";
+          html = html.replace(
+            '</head>',
+            `<link rel="preload" href="${href}" as="style"><link rel="stylesheet" href="${href}" media="print" onload="${onload}" data-later-css><noscript><link rel="stylesheet" href="${href}"></noscript></head>`,
+          );
+        }
+        await writeFile(page, html);
+        logger.info(`index.html: ${first.length} stylesheets merged into ${mainFile}; ${rest.length} tab screens' stylesheets load after the first paint`);
+      },
+    },
+  };
+}
+
+/**
  * @param {string} pkg
  * @param {string} file
  */
@@ -56,7 +113,7 @@ export default defineConfig({
     inlineStylesheets: 'auto',
     format: 'directory',
   },
-  integrations: [sitemap({ filter: (page) => !isToolRoute(page) }), siriLinesCheck()],
+  integrations: [sitemap({ filter: (page) => !isToolRoute(page) }), siriLinesCheck(), pageCss()],
   fonts: [
     {
       provider: fontProviders.local(),
@@ -103,6 +160,13 @@ export default defineConfig({
     build: {
       // The motion chunk (GSAP + plugins + core) is ~140 KB raw, ~53 KB gzipped.
       chunkSizeWarningLimit: 180,
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (/src\/(data\/(ledger|siri)|scripts\/(odometer|wave|text)|components\/system\/lockscreen\/activity)\.ts$/.test(id)) return 'shared';
+          },
+        },
+      },
     },
   },
 });

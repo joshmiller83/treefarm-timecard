@@ -165,6 +165,18 @@ export function boot(): void {
       requestAnimationFrame(poll);
     });
 
+  // ---- The tab screens' CSS (Trees, Clock, Report) arrives after the first paint ----
+  const laterCss = document.querySelector('link[data-later-css]');
+  const tabsCss =
+    !laterCss || root.classList.contains('tabs-css')
+      ? Promise.resolve()
+      : new Promise<void>((r) => {
+          addEventListener('tf:tabs-css', () => r(), { once: true });
+          window.setTimeout(r, 3000);
+        });
+  const hasApp = (section: HTMLElement) =>
+    !!section.querySelector('[data-app]') || Array.from(section.querySelectorAll('template')).some((t) => !!t.content.querySelector('[data-app]'));
+
   // ---- Chapters: which section is in charge of the day ----
   const activate = (section: HTMLElement) => {
     active = section;
@@ -265,6 +277,9 @@ export function boot(): void {
           console.warn(`[motion] scene ${id} failed to load`, err);
         }
         const entry = getScene(id);
+        // A scene that measures an app screen waits for the tab screens' CSS (it loads after the
+        // first paint: astro.config.mjs, pageCss).
+        if (hasApp(section)) await tabsCss;
         if (entry && alive && (desk ? entry.options.desk !== false : entry.options.mob !== false)) {
           await buildScene(section, entry.build, entry.options);
         }
@@ -649,6 +664,8 @@ export function boot(): void {
     refreshTimer = window.setTimeout(go, 150);
   };
   void document.fonts?.ready.then(refresh);
+  // Late tab CSS (a slow connection, after the 3 s wait) re-lays out the app screens.
+  addEventListener('tf:tabs-css', refresh, { once: true });
   const main = document.querySelector('main');
   if (main) new ResizeObserver(refresh).observe(main);
 
