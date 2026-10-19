@@ -8,7 +8,7 @@ import { settle } from './helpers';
  * 24 positions through the whole page, in each page project's solo run (playwright.config.ts:
  * alone, after everything else, so axe is never starved by parallel workers).
  */
-test('axe: no serious or critical violations at 24 scroll positions', async ({ page }) => {
+test('axe: no serious or critical violations at 24 scroll positions', { tag: '@solo' }, async ({ page }) => {
   test.setTimeout(300_000);
   await page.goto('/');
   await settle(page);

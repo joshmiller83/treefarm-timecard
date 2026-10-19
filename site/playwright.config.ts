@@ -14,15 +14,17 @@ import { defineConfig, devices } from '@playwright/test';
 const port = Number(process.env.PW_PORT ?? 4321);
 const all = !!process.env.PW_ALL;
 /**
- * Timing-sensitive specs (long animation frames; axe at 24 scroll positions) run alone, one
- * test at a time, after every other project has finished: on a machine busy with parallel
- * workers their frames run long and axe runs stretch for reasons that are not the page's.
- * A failure elsewhere skips them (project dependencies); run them on their own with
+ * Timing-sensitive tests, tagged @solo (long animation frames; axe at 24 scroll positions; a
+ * reader's wheel through eight chapters in two engines), run alone, one test at a time, after
+ * every other project has finished: on a machine busy with parallel workers their frames run
+ * long and their waits run out for reasons that are not the page's. A failure elsewhere skips
+ * them (project dependencies); run them on their own with
  * `--project=desktop-solo --project=mobile-solo --no-deps`.
  */
-const solo = /e2e\/(perf|a11y-scroll)\.spec\.ts$/;
+const solo = /@solo/;
+const pageFiles = /(e2e|sections)\/.*\.spec\.ts$/;
 /** The page projects run tests/e2e and tests/sections; the lab projects run tests/lab. */
-const page = { testMatch: /(e2e|sections)\/.*\.spec\.ts$/, testIgnore: solo };
+const page = { testMatch: pageFiles, grepInvert: solo };
 const devicesFor = {
   desktop: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 } },
   mobile: { ...devices['Pixel 7'], viewport: { width: 375, height: 812 } },
@@ -66,7 +68,8 @@ export default defineConfig({
     // One after another, each after everything else: `<name>-solo`.
     ...pageProjects.map((name, i) => ({
       name: `${name}-solo`,
-      testMatch: solo,
+      testMatch: pageFiles,
+      grep: solo,
       workers: 1,
       fullyParallel: false,
       dependencies: [...rest, ...pageProjects.slice(0, i).map((n) => `${n}-solo`)],
