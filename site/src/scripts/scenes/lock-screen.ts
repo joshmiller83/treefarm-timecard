@@ -5,30 +5,36 @@
  *               from Row 35 to Row 36 as row 35 is finished (2:12), the sheen sweeps
  *   [.08, .2]   the phone zooms (1.7 desktop, 1.4 mobile) about the Live Activity's centre;
  *               the lock screen dims to .45 under the card
- *   [.2, .5]    desktop: six callouts draw in .05 slots, the ghost Clock out with the sixth,
- *               its strike last. Mobile: pins 1–6 pop and pulse while card 1's notes light up
+ *   [.2, .45]   desktop: callouts 1–4 and 6 draw in .05 slots, the ghost Clock out with the
+ *               sixth, its strike last. Mobile: pins 1–4 and 6 pop and pulse while card 1's
+ *               notes light up
  *   [.5, .62]   the tap on Row 36: the strip moves one step, trees 220 → 230, the field bar
- *               creeps on, 'Row 36 marked · Undo' rises in
- *   [.62, .7]   zoom back, callouts fade, the dim lifts
- *   [.7, .85]   unlock to the home screen, 2:14 → 2:16; the island goes rest → compact
- *               [.74, .78] → expanded [.78, .85]
- *   [.85, .95]  the island collapses, the lock screen returns, ControlsCard fades up and the
- *               Action button glows twice
+ *               creeps on, 'Row 36 marked · Undo' rises in; then callout 5 (pin 5) points at it
+ *   [.62, .7]   the callouts fade [.62, .64], then the zoom back; the dim lifts
+ *   [.7, .85]   unlock to the home screen, 2:14 → 2:16. On phones (and small stage phones)
+ *               the phone zooms on the island. The island goes rest → compact (held to .78)
+ *               → expanded (held to .858)
+ *   [.85, .95]  the island collapses, the close-up lets go, the lock screen returns; on
+ *               desktop beat 3, ControlsCard and the footnote fade up and the Action button
+ *               glows twice
  *   [.95, 1]    rest on the lock screen in the tapped state
  *
- * Geometry and copy come from src/sections/lock-screen/model.ts; numbers from the ledger.
+ * Cues, geometry and copy come from src/sections/lock-screen/model.ts; numbers from the ledger.
  * Every hook is optional: a real capture swapped in for a layer turns its part into a still.
  */
 import { registerScene } from '../scene.ts';
 import { MOMENTS } from '../../data/ledger.ts';
 import {
   BEFORE,
+  calloutWindows,
   CALLOUTS,
+  CUE,
   deskLayout,
   ISLAND_AT,
+  ISLAND_ORIGIN,
+  islandZoom,
   mobZoom,
   ORIGIN,
-  slots,
   T,
   TAPPED,
   WORKING,
@@ -83,13 +89,9 @@ registerScene(
     // ---- Layers at progress 0: the 2:01 lock screen ----
     util.show(screens, 'lock-1414-activity');
 
-    /** One strip step in px: two neighbouring row buttons' layout distance (transforms ignored). */
-    const stepOf = (root: Element | null) => () => {
-      const rows = root ? Array.from(root.querySelectorAll<HTMLElement>('[data-row]')) : [];
-      return rows.length > 1 ? rows[1]!.offsetLeft - rows[0]!.offsetLeft : 0;
-    };
-    const stepPre = stepOf(pre);
-    const stepTap = stepOf(tapped);
+    // The strips move by --ls-shift, in whole button steps (LockScreen.astro turns it into a
+    // CSS translate of the button width plus the gap), so no pixel value is ever cached and a
+    // resize can't leave a strip half a step out.
 
     // ---- Zoom geometry (desktop: around the stage phone; mobile: the section phone in place) ----
     let L: DeskLayout | null = null;
@@ -160,7 +162,22 @@ registerScene(
       ScrollTrigger.addEventListener('refreshInit', layout);
       cleanups.push(() => ScrollTrigger.removeEventListener('refreshInit', layout));
     }
-    const zoom = () => (useCallouts && L ? { scale: L.zoom, x: L.x, y: L.y } : mobZoom(phone?.offsetHeight ?? 0));
+    const gutter = () => parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--gutter')) || 16;
+    const phoneBox = () => ({ width: phone?.offsetWidth ?? 0, height: phone?.offsetHeight ?? 0 });
+    const zoom = () => (useCallouts && L ? { scale: L.zoom, x: L.x, y: L.y } : mobZoom(phoneBox(), innerWidth, gutter()));
+    // Mobile pins are drawn at 22px / zoom, so they land at 22px whatever the zoom.
+    const pinRoot = inTap('[data-pins]');
+    const pinZoom = () => {
+      if (!useCallouts) pinRoot?.style.setProperty('--pin-zoom', zoom().scale.toFixed(3));
+    };
+    pinZoom();
+    if (!useCallouts) {
+      ScrollTrigger.addEventListener('refreshInit', pinZoom);
+      cleanups.push(() => ScrollTrigger.removeEventListener('refreshInit', pinZoom));
+    }
+    /** The island close-up: mobile, and stage phones too small to read the island at 1×. */
+    const islandClose = () =>
+      islandZoom({ phone: phoneBox(), viewportWidth: innerWidth, gutter: gutter(), desk: useCallouts, top: useCallouts ? undefined : 10 });
 
     // ---- [0, .08] 2:01 → 2:14 ----
     day.to(tl, MOMENTS.lockScreen, T.step[0], T.step[1], MOMENTS.status);
@@ -168,13 +185,13 @@ registerScene(
     // Row 35's last eight trees land at 2:12 (≈ .068): trees, field bar and the buttons move on.
     util.odometer(tl, inPre('[data-trees]'), BEFORE.trees, WORKING.trees, 0.058, 0.014);
     fromTo(inPre('[data-fieldbar]'), { scaleX: BEFORE.fieldPct }, { scaleX: WORKING.fieldPct, duration: 0.016, ease: 'power2.out' }, 0.058);
-    fromTo(inPre('[data-strip-track]'), { x: () => stepPre() }, { x: 0, duration: 0.018, ease: 'power2.inOut' }, 0.06);
+    fromTo(inPre('[data-strip-track]'), { '--ls-shift': 1 }, { '--ls-shift': 0, duration: 0.018, ease: 'power2.inOut' }, 0.06);
 
-    // The tapped layer takes over, identical at this instant (before the tap).
+    // The tapped layer takes over, identical at this instant (before the tap): Row 36 is in
+    // (its strip one step back; the tap's tween below renders that from-state immediately).
     set(pre, { opacity: 0 }, T.step[1]);
     set(tapped, { opacity: 1 }, T.step[1]);
     const strip = inTap('[data-strip-track]');
-    set(strip, { x: () => stepTap() });
     util.odometer(tl, inTap('[data-trees]'), WORKING.trees, TAPPED.trees, 0.54, 0.03);
     const bar = inTap('[data-fieldbar]');
     const undo = inTap('[data-undo]');
@@ -191,11 +208,13 @@ registerScene(
       );
     }
     fromTo(dim, { opacity: 0 }, { opacity: 0.45, duration: 0.1, ease: 'none', immediateRender: false }, T.zoomIn[0] + 0.01);
-    // Desktop: the headline steps aside as the zoomed phone reaches into the copy column.
+    // The headline steps aside as the zoomed phone reaches into the copy column (desktop) or
+    // grows over the intro's last lines (mobile).
     if (useCallouts) to(ctx.beats[0], { opacity: 0, duration: 0.06, ease: 'power1.in' }, T.zoomIn[0] + 0.01);
+    else to(ctx.beats[0], { opacity: 0, duration: 0.045, ease: 'power1.in' }, T.zoomIn[0] + 0.005);
 
-    // ---- [.2, .5] callouts (desktop) or pins (mobile) ----
-    const s = slots(T.callouts[0], T.callouts[1], CALLOUTS.length);
+    // ---- [.2, .45] callouts (desktop) or pins (mobile); 5 after the tap, at the Undo ----
+    const win = calloutWindows();
     const lines = Array.from(callRoot?.querySelectorAll<SVGPathElement>('[data-line]') ?? []);
     const dots = Array.from(callRoot?.querySelectorAll<SVGCircleElement>('[data-dot]') ?? []);
     const labels = Array.from(callRoot?.querySelectorAll<HTMLElement>('[data-callout]') ?? []);
@@ -206,7 +225,7 @@ registerScene(
       set(lines, { strokeDasharray: 1, strokeDashoffset: 1 });
       set(strike, { scaleX: 0 });
       CALLOUTS.forEach((c, i) => {
-        const [a, b] = s[i]!;
+        const [a, b] = win[c.n];
         const w = b - a;
         fromTo(dots[i], { opacity: 0, scale: 0, transformOrigin: '50% 50%' }, { opacity: 1, scale: 1, duration: w * 0.25, ease: 'back.out(2)', immediateRender: false }, a);
         util.callout(tl, { line: lines[i], label: labels[i], from: c.side === 'left' ? 'right' : 'left' }, a, w);
@@ -220,15 +239,21 @@ registerScene(
       const rules = q<HTMLElement>('[data-ls-notes] [data-note-rule]');
       const nums = q<HTMLElement>('[data-ls-notes] .ls-num');
       set(pins, { opacity: 0, scale: 0 });
-      CALLOUTS.forEach((_, i) => {
-        const [a, b] = s[i]!;
+      // Note 5 lights in the tap card, beside the Undo; in card 1 it waits its turn unlit.
+      const tapNote = section.querySelector<HTMLElement>('[data-ls-tap-note]');
+      const ruleFor = (n: number) => (n === 5 ? tapNote?.querySelector<HTMLElement>('[data-note-rule]') : rules[n - 1]);
+      const numFor = (n: number) => (n === 5 ? tapNote?.querySelector<HTMLElement>('.ls-num') : nums[n - 1]);
+      CALLOUTS.forEach((c, i) => {
+        const [a, b] = win[c.n];
         const w = b - a;
         fromTo(pins[i], { opacity: 0, scale: 0 }, { opacity: 1, scale: 1, duration: w * 0.3, ease: 'back.out(2.2)', immediateRender: false }, a);
         to(pins[i], { keyframes: { scale: [1, 1.28, 1] }, duration: w * 0.45, ease: 'power1.inOut' }, a + w * 0.35);
-        fromTo(rules[i], { scaleY: 0 }, { scaleY: 1, duration: w * 0.25, ease: 'power2.out', immediateRender: false }, a);
-        to(rules[i], { scaleY: 0, duration: w * 0.25, ease: 'power2.in' }, i < CALLOUTS.length - 1 ? b : T.tap[0] + 0.02);
-        to(nums[i], { keyframes: { scale: [1, 1.18, 1] }, duration: w * 0.45, ease: 'power1.inOut' }, a + w * 0.35);
+        fromTo(ruleFor(c.n), { scaleY: 0 }, { scaleY: 1, duration: w * 0.25, ease: 'power2.out', immediateRender: false }, a);
+        // Each rule hands over to the next; the last of card 1 stays until the card goes.
+        if (c.n !== 6) to(ruleFor(c.n), { scaleY: 0, duration: w * 0.25, ease: 'power2.in' }, c.n === 5 ? T.zoomOut[0] : b);
+        to(numFor(c.n), { keyframes: { scale: [1, 1.18, 1] }, duration: w * 0.45, ease: 'power1.inOut' }, a + w * 0.35);
       });
+      to(rules[5], { scaleY: 0, duration: 0.012, ease: 'power2.in' }, 0.49);
       to(pins, { opacity: 0, duration: 0.03, stagger: 0.004, ease: 'power1.in' }, T.zoomOut[0]);
 
       // The caption slot: notes [.19, .5], the tap [.515, .66], the island [.69, .87].
@@ -243,36 +268,45 @@ registerScene(
     }
 
     // ---- [.5, .62] the tap on Row 36 ----
-    util.tap(tl, inTap(`[data-row="${TAPPED.undoRow}"]`), T.tap[0], { shake: false });
+    util.tap(tl, inTap(`[data-row="${TAPPED.undoRow}"]`), CUE.tap, { shake: false });
     // The 2px haptic shake, on top of the zoom (util.tap's own would reset x to 0).
-    if (phone) [2, -2, 2, -2, 0].forEach((dx, i) => to(phone, { x: () => zoom().x + dx, duration: 0.008, ease: 'none' }, T.tap[0] + i * 0.008));
-    fromTo(strip, { x: () => stepTap() }, { x: 0, duration: 0.04, ease: 'power2.inOut', immediateRender: false }, 0.535);
+    if (phone) [2, -2, 2, -2, 0].forEach((dx, i) => to(phone, { x: () => zoom().x + dx, duration: 0.008, ease: 'none' }, CUE.tap + i * 0.008));
+    // The strip's only tween, and immediateRender: ScrollTrigger's refresh (on resize) reverts
+    // and invalidates the timeline, then re-renders exactly these, so the step survives it.
+    const [s0, s1] = CUE.strip;
+    fromTo(strip, { '--ls-shift': 1 }, { '--ls-shift': 0, duration: s1 - s0, ease: 'power2.inOut', immediateRender: true }, s0);
     fromTo(bar, { scaleX: WORKING.fieldPct }, { scaleX: TAPPED.fieldPct, duration: 0.03, ease: 'power2.out' }, 0.54);
-    fromTo(undo, { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: 0.035, ease: 'power2.out' }, 0.56);
+    const [u0, u1] = CUE.undo;
+    fromTo(undo, { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: u1 - u0, ease: 'power2.out' }, u0);
 
-    // ---- [.62, .7] zoom back ----
-    if (phone) {
-      to(phone, { scale: 1, x: 0, y: 0, duration: T.zoomOut[1] - T.zoomOut[0], ease: 'power2.inOut' }, T.zoomOut[0]);
-      set(phone, { transformOrigin: '50% 50%' }, T.zoomOut[1]);
-    }
-    to(dim, { opacity: 0, duration: 0.07, ease: 'none' }, T.zoomOut[0]);
+    // ---- [.62, .7] the callouts go, then the zoom back ----
+    const [o0, o1] = CUE.calloutsOut;
     if (useCallouts) {
+      // Right side first (6, 5, 3), then the left (4, 1, 2): all gone by .64.
       const order = [6, 5, 3, 4, 1, 2].map((n) => n - 1);
-      to(ghost, { opacity: 0, duration: 0.03, ease: 'power1.in' }, T.zoomOut[0]);
-      to(
-        order.flatMap((i) => [labels[i], lines[i], dots[i]]),
-        { opacity: 0, duration: 0.03, stagger: 0.0015, ease: 'power1.in' },
-        T.zoomOut[0] + 0.005,
+      const each = 0.001;
+      to(ghost, { opacity: 0, duration: o1 - o0, ease: 'power1.in' }, o0);
+      order.forEach((i, k) =>
+        to([labels[i], lines[i], dots[i]], { opacity: 0, duration: o1 - o0 - each * (order.length - 1), ease: 'power1.in' }, o0 + k * each),
       );
     }
+    if (phone) {
+      const [z0, z1] = CUE.zoomOut;
+      to(phone, { scale: 1, x: 0, y: 0, duration: z1 - z0, ease: 'power2.inOut' }, z0);
+      set(phone, { transformOrigin: '50% 50%' }, z1);
+    }
+    to(dim, { opacity: 0, duration: 0.07, ease: 'none' }, T.zoomOut[0]);
 
-    // Desktop: the island and controls copy rise through the callouts' column unseen, then
-    // fade in once the phone is back at rest.
+    // Desktop: the island copy rises through the callouts' column unseen and fades in once the
+    // phone is back at rest; the controls copy waits for the island to collapse.
+    const islandBeat = section.querySelector('.ls-island-beat');
+    const controlsBeat = section.querySelector('.ls-controls-beat');
     if (useCallouts) {
-      const islandBeat = section.querySelector('.ls-island-beat');
-      const controlsBeat = section.querySelector('.ls-controls-beat');
       fromTo(islandBeat, { opacity: 0 }, { opacity: 1, duration: 0.045, ease: 'power1.out' }, 0.665);
-      fromTo(controlsBeat, { opacity: 0 }, { opacity: 1, duration: 0.05, ease: 'power1.out' }, 0.69);
+      const [b0, b1] = CUE.controls.beat;
+      fromTo(controlsBeat, { opacity: 0 }, { opacity: 1, duration: b1 - b0, ease: 'power1.out' }, b0);
+      // One message leads: the island line steps back as the controls arrive.
+      to(islandBeat, { opacity: 0.45, duration: b1 - b0, ease: 'power1.inOut' }, b0);
     }
 
     // ---- [.7, .85] unlock, 2:14 → 2:16, the island ----
@@ -291,42 +325,60 @@ registerScene(
       });
     }
     const size = (k: keyof typeof ISLAND) => ({ '--isl-w': ISLAND[k][0], '--isl-h': ISLAND[k][1], '--isl-r': ISLAND[k][2] });
-    set(island, size('rest'));
-    set([compact, expanded], { opacity: 0 });
-    set(home, { '--island-yield': 0 });
 
     set(home, { opacity: 1 }, T.unlock[0]);
     fromTo(tapped, { yPercent: 0 }, { yPercent: -100, duration: 0.045, ease: 'power2.inOut', immediateRender: false }, T.unlock[0]);
     fromTo(home, { scale: 0.94 }, { scale: 1, duration: 0.05, ease: 'power2.out', immediateRender: false }, T.unlock[0] + 0.004);
     util.sheen(tl, T.unlock[0] + 0.01, 0.05);
 
-    const [c0, c1] = T.compact;
-    fromTo(island, size('rest'), { ...size('compact'), duration: c1 - c0, ease: 'power3.inOut', immediateRender: false }, c0);
-    fromTo(home, { '--island-yield': 0 }, { '--island-yield': 1, duration: c1 - c0, ease: 'power3.inOut', immediateRender: false }, c0);
-    fromTo(compact, { opacity: 0 }, { opacity: 1, duration: (c1 - c0) * 0.3, ease: 'none', immediateRender: false }, c0 + (c1 - c0) * 0.7);
+    // Each morph does its geometry early in its window, then holds so the state can be read.
+    const I = CUE.island;
+    const span = (w: readonly [number, number]) => w[1] - w[0];
 
-    const [e0, e1] = T.expanded;
-    to(island, { ...size('expanded'), duration: e1 - e0, ease: 'power3.inOut' }, e0);
-    to(home, { '--island-yield': 2, duration: e1 - e0, ease: 'power3.inOut' }, e0);
-    to(compact, { opacity: 0, duration: (e1 - e0) * 0.2, ease: 'none' }, e0);
-    fromTo(expanded, { opacity: 0 }, { opacity: 1, duration: (e1 - e0) * 0.3, ease: 'none', immediateRender: false }, e0 + (e1 - e0) * 0.7);
+    // The close-up: the phone zooms about the island (a no-op on a large stage phone).
+    if (phone) {
+      set(phone, { transformOrigin: `${ISLAND_ORIGIN.x * 100}% ${(ISLAND_ORIGIN.y * 100).toFixed(3)}%` }, I.zoomIn[0] - 0.0005);
+      fromTo(
+        phone,
+        { scale: 1, x: 0, y: 0 },
+        { scale: () => islandClose().scale, y: () => islandClose().y, duration: span(I.zoomIn), ease: 'power2.inOut', immediateRender: false },
+        I.zoomIn[0],
+      );
+    }
+
+    // The first tween on each of these renders its from-state at once (immediateRender), the
+    // rest island with no content, and ScrollTrigger re-renders exactly those after the revert
+    // its refresh does on a resize, so the island is never left without a size.
+    fromTo(island, size('rest'), { ...size('compact'), duration: span(I.compact.size), ease: 'power3.inOut', immediateRender: true }, I.compact.size[0]);
+    fromTo(home, { '--island-yield': 0 }, { '--island-yield': 1, duration: span(I.compact.size), ease: 'power3.inOut', immediateRender: true }, I.compact.size[0]);
+    fromTo(compact, { opacity: 0 }, { opacity: 1, duration: span(I.compact.content), ease: 'none', immediateRender: true }, I.compact.content[0]);
+
+    to(island, { ...size('expanded'), duration: span(I.expanded.size), ease: 'power3.inOut' }, I.expanded.size[0]);
+    to(home, { '--island-yield': 2, duration: span(I.expanded.size), ease: 'power3.inOut' }, I.expanded.size[0]);
+    to(compact, { opacity: 0, duration: span(I.compact.out), ease: 'none' }, I.compact.out[0]);
+    fromTo(expanded, { opacity: 0 }, { opacity: 1, duration: span(I.expanded.content), ease: 'none', immediateRender: true }, I.expanded.content[0]);
 
     // ---- [.85, .95] the island collapses, the lock screen returns, the controls ----
-    to(expanded, { opacity: 0, duration: 0.01, ease: 'none' }, T.collapse[0]);
-    to(island, { ...size('rest'), duration: 0.035, ease: 'power3.inOut' }, T.collapse[0] + 0.002);
-    to(home, { '--island-yield': 0, duration: 0.035, ease: 'power3.inOut' }, T.collapse[0] + 0.002);
-    to(tapped, { yPercent: 0, duration: 0.05, ease: 'power2.inOut' }, 0.865);
-    to(home, { scale: 0.96, duration: 0.05, ease: 'power2.in' }, 0.865);
-    set(home, { opacity: 0 }, 0.93);
+    to(expanded, { opacity: 0, duration: span(I.expanded.out), ease: 'none' }, I.expanded.out[0]);
+    to(island, { ...size('rest'), duration: span(I.rest), ease: 'power3.inOut' }, I.rest[0]);
+    to(home, { '--island-yield': 0, duration: span(I.rest), ease: 'power3.inOut' }, I.rest[0]);
+    if (phone) {
+      to(phone, { scale: 1, y: 0, duration: span(I.zoomOut), ease: 'power2.inOut' }, I.zoomOut[0]);
+      set(phone, { transformOrigin: '50% 50%' }, I.zoomOut[1] + 0.0005);
+    }
+    to(tapped, { yPercent: 0, duration: span(I.lock), ease: 'power2.inOut' }, I.lock[0]);
+    to(home, { scale: 0.96, duration: span(I.lock), ease: 'power2.in' }, I.lock[0]);
+    set(home, { opacity: 0 }, I.homeOff);
 
     const controls = section.querySelector<HTMLElement>('[data-controls]');
-    // Mobile: ControlsCard sits under its copy in the last card, which scrolls up from the
-    // bottom; it fades up as it comes into view.
-    const cAt = useCallouts ? T.collapse[0] : 0.9;
-    fromTo(controls, { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.06, ease: 'power2.out' }, cAt);
-    // The footnote arrives with the card, so the copy never shows a hole where the card will be.
-    fromTo(section.querySelector('[data-ls-footnote]'), { opacity: 0 }, { opacity: 1, duration: 0.05, ease: 'power1.out' }, cAt + 0.02);
-    fromTo(controls?.querySelector('[data-action-label]'), { opacity: 0, x: -8 }, { opacity: 1, x: 0, duration: 0.04, ease: 'power2.out' }, cAt + 0.03);
+    // Desktop: after beat 3's copy. Mobile: ControlsCard sits under its copy in the last card,
+    // which scrolls up from the bottom; it fades up as it comes into view.
+    const cAt = useCallouts ? CUE.controls.card : 0.9;
+    const fAt = useCallouts ? CUE.controls.footnote : cAt + 0.02;
+    fromTo(controls, { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.05, ease: 'power2.out' }, cAt);
+    // The footnote follows the card, so the copy never shows a hole where the card will be.
+    fromTo(section.querySelector('[data-ls-footnote]'), { opacity: 0 }, { opacity: 1, duration: 0.04, ease: 'power1.out' }, fAt);
+    fromTo(controls?.querySelector('[data-action-label]'), { opacity: 0, x: -8 }, { opacity: 1, x: 0, duration: 0.04, ease: 'power2.out' }, cAt + 0.02);
     fromTo(controls?.querySelector('[data-action-button]'), { opacity: 0 }, { keyframes: { opacity: [0, 1, 0.2, 1, 0.2, 1] }, duration: Math.min(0.09, 0.995 - (cAt + 0.02)), ease: 'none' }, cAt + 0.02);
 
     section.dataset.lsScene = 'built';

@@ -79,9 +79,14 @@ export const ROWS = (() => {
   return { pill, timer, trees, buttons };
 })();
 
-export const ZOOM = { desk: 1.7, mob: 1.4, min: 1.2 } as const;
+/** Card zoom: 1.7 on desktop (less on narrow windows); 1.4–1.8 on mobile, as wide as the gutters allow. */
+export const ZOOM = { desk: 1.7, mob: 1.4, mobMax: 1.8, min: 1.2 } as const;
 /** Mobile: the card's centre lands this far down the phone (clear of the copy cards). */
-export const MOB_TARGET = 0.38;
+export const MOB_TARGET = 0.35;
+/** Mobile: the caption slot's top, as a fraction of the phone's height below its top. */
+export const MOB_CAPTION = 0.545;
+/** Mobile: the island beat's caption sits lower, under the zoomed island. */
+export const MOB_CAPTION_ISLAND = 0.62;
 /** Mobile pins: 22px circles after the zoom, or 33 pt on phones too small for that. */
 export const PIN_PX = 22;
 export const PIN_PT = 33;
@@ -147,6 +152,48 @@ export const T = {
   expanded: [0.78, 0.85],
   collapse: [0.85, 0.95],
 } as const;
+
+/**
+ * The cues inside those windows. Each morph does its geometry early in its window and then
+ * holds, so every state stays up long enough to read; nothing points at a part that is not
+ * there yet, and no leader outlives the card it points at.
+ */
+export const CUE = {
+  /** Callouts 1–4 and 6 (with the ghost and its strike) draw in .05 slots over [.2, .45]. */
+  callouts: [0.2, 0.45],
+  tap: 0.5,
+  /** The strip steps one button left. */
+  strip: [0.535, 0.575],
+  undo: [0.56, 0.595],
+  /** Callout 5 (pin 5 on mobile) points at the Undo, so it draws once the Undo is there. */
+  callout5: [0.585, 0.615],
+  /** Every callout, line, dot and the ghost fade out together, just before the zoom-out. */
+  calloutsOut: [0.62, 0.64],
+  zoomOut: [0.628, 0.7],
+  island: {
+    /** Mobile and small stage phones: the phone zooms about the island, then back. */
+    zoomIn: [0.735, 0.757],
+    compact: { size: [0.74, 0.756], content: [0.752, 0.76], out: [0.78, 0.784] },
+    expanded: { size: [0.78, 0.8], content: [0.796, 0.806], out: [0.858, 0.864] },
+    /** Back to the bare island. */
+    rest: [0.862, 0.885],
+    zoomOut: [0.865, 0.9],
+    /** The lock screen slides back down over the home screen. */
+    lock: [0.875, 0.92],
+    homeOff: 0.925,
+  },
+  /** Desktop: beat 3 waits for the island to collapse; ControlsCard and the footnote follow. */
+  controls: { beat: [0.855, 0.885], card: 0.87, footnote: 0.885 },
+} as const;
+
+/** Each callout's draw window: 1–4 and 6 in turn, then 5 once the Undo exists. */
+export function calloutWindows(): Record<Callout['n'], readonly [number, number]> {
+  const order = CALLOUTS.filter((c) => c.n !== 5).map((c) => c.n);
+  const s = slots(CUE.callouts[0], CUE.callouts[1], order.length);
+  const out = { 5: CUE.callout5 } as Record<Callout['n'], readonly [number, number]>;
+  order.forEach((n, i) => (out[n] = s[i]!));
+  return out;
+}
 
 // ---------------------------------------------------------------------------
 // Desktop: the zoom and the callouts around it
@@ -341,7 +388,55 @@ export function deskLayout({
 // ---------------------------------------------------------------------------
 // Mobile: the section's own phone zooms in place
 
-/** Translation (px) and scale that lift the card to MOB_TARGET of a phone `height` px tall. */
-export function mobZoom(height: number): { x: number; y: number; scale: number } {
-  return { x: 0, y: (MOB_TARGET - ORIGIN.y) * height, scale: ZOOM.mob };
+/**
+ * Translation (px) and scale that lift the card to MOB_TARGET of the phone and make it as
+ * wide as the gutters allow (1.4–1.8×), so its text reads at phone sizes.
+ */
+export function mobZoom(phone: { width: number; height: number }, viewportWidth: number, gutter: number): { x: number; y: number; scale: number } {
+  const card = (CARD.w * phone.width) / FRAME.w;
+  const fit = card > 0 ? Math.floor(((viewportWidth - 2 * gutter) / card) * 1000) / 1000 : ZOOM.mob;
+  return { x: 0, y: (MOB_TARGET - ORIGIN.y) * phone.height, scale: Math.min(ZOOM.mobMax, Math.max(ZOOM.mob, fit)) };
+}
+
+// ---------------------------------------------------------------------------
+// The island close-up (mobile, and stage phones too small to read the island)
+
+/** The island on the 393 × 852 pt screen: rest centre line, rest height, expanded size. */
+export const ISLAND_PT = { cy: 11 + 37 / 2, restH: 37, expandedW: 371, expandedH: 160 } as const;
+/** The close-up's transform-origin: the island's centre as fractions of the phone frame. */
+export const ISLAND_ORIGIN = { x: 0.5, y: (FRAME.inset + ISLAND_PT.cy) / FRAME.h };
+/** Desktop: a stage phone narrower than this (px) zooms until it is this wide. */
+export const ISLAND_DESK_W = 330;
+export const ISLAND_ZOOM_MAX = 2;
+/** Mobile: the zoomed phone keeps this much (px) inside each side of the viewport. */
+export const ISLAND_PHONE_EDGE = 4;
+
+/**
+ * The close-up on the island. Mobile: as large as the expanded island (371 pt) can be inside
+ * the gutters, up to 2×, with the zoomed phone still on screen (a wider one would scroll the
+ * page sideways); `top` (px below the phone's own top) is where the island's top lands.
+ * Desktop: only a stage phone under ISLAND_DESK_W px zooms (to that width), in place.
+ */
+export function islandZoom({
+  phone,
+  viewportWidth,
+  gutter,
+  desk,
+  top,
+}: {
+  phone: { width: number; height: number };
+  viewportWidth: number;
+  gutter: number;
+  desk: boolean;
+  top?: number;
+}): { scale: number; y: number } {
+  if (!(phone.width > 0)) return { scale: 1, y: 0 };
+  const ppt = phone.width / FRAME.w;
+  const fit = desk
+    ? ISLAND_DESK_W / phone.width
+    : Math.min((viewportWidth - 2 * gutter) / (ISLAND_PT.expandedW * ppt), (viewportWidth - 2 * ISLAND_PHONE_EDGE) / phone.width);
+  const scale = Math.min(ISLAND_ZOOM_MAX, Math.max(1, Math.floor(fit * 1000) / 1000));
+  if (desk || top === undefined || scale === 1) return { scale, y: 0 };
+  const islandTop = ISLAND_ORIGIN.y * phone.height - (ISLAND_PT.restH / 2) * ppt * scale;
+  return { scale, y: top - islandTop };
 }

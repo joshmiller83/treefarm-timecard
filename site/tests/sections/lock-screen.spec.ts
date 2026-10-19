@@ -18,12 +18,19 @@ const NOTE_TEXT = CALLOUTS.map((c) => [c.label, c.sub].filter(Boolean).join(' ')
 
 const overflow = (page: Page) => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
 
-/** Scrolls so the section's track is at scroll progress `p` (0–1). */
+type Trigger = { trigger?: Element; animation?: unknown; start: number; end: number };
+
+/**
+ * Scrolls so the section's track is at scroll progress `p` (0–1): by the scene's own
+ * ScrollTrigger when there is one (mobile emulation changes innerHeight as it scrolls).
+ */
 async function toProgress(page: Page, p: number, wait = 900) {
   await page.evaluate((p) => {
     const track = document.querySelector<HTMLElement>('#lock-screen .track')!;
+    const tf = (window as unknown as { __tf?: { ScrollTrigger: { getAll(): Trigger[] } } }).__tf;
+    const st = tf?.ScrollTrigger.getAll().find((t) => t.trigger === track && !!t.animation);
     const top = track.getBoundingClientRect().top + scrollY;
-    window.scrollTo(0, Math.round(top + p * (track.offsetHeight - innerHeight)));
+    window.scrollTo(0, Math.round(st ? st.start + p * (st.end - st.start) : top + p * (track.offsetHeight - innerHeight)));
   }, p);
   await page.waitForTimeout(wait);
 }
@@ -33,6 +40,12 @@ async function sceneBuilt(page: Page) {
   await toProgress(page, 0, 200);
   await expect(page.locator('#lock-screen[data-ls-scene="built"]')).toHaveCount(1, { timeout: 8000 });
 }
+
+/** Computed opacity of the first match. */
+const opacity = (loc: Locator) => loc.first().evaluate((el) => Number(getComputedStyle(el).opacity));
+
+/** The scale of an element's own transform (1 when none). */
+const scaleOf = (loc: Locator) => loc.evaluate((el) => new DOMMatrix(getComputedStyle(el).transform).a);
 
 /** The pt scale of the screen an element sits in. */
 const pt = (loc: Locator) => loc.evaluate((el) => el.closest('.screen')!.getBoundingClientRect().width / 393);
@@ -111,6 +124,14 @@ test.describe('reduced motion: the static final state', () => {
       await crops.nth(i).scrollIntoViewIfNeeded();
       await expect(crops.nth(i)).toBeVisible();
     }
+    // A crop of the top of the screen: the search pill and the dock stay below it.
+    for (let i = 0; i < 2; i += 1) {
+      const clear = await crops.nth(i).evaluate((crop) => {
+        const screen = crop.querySelector('.crop-screen')!.getBoundingClientRect();
+        return Array.from(crop.querySelectorAll('.home-search, .home-dock')).every((el) => el.getBoundingClientRect().top >= screen.bottom - 0.5);
+      });
+      expect(clear, `crop ${i + 1} shows only the top of the home screen`).toBe(true);
+    }
     await expect(crops.nth(0)).toHaveAttribute('aria-label', /compact.*Row 37.*6:29/i);
     await expect(crops.nth(1)).toHaveAttribute('aria-label', /expanded.*North field.*Block 2.*6:29:10/i);
 
@@ -174,10 +195,21 @@ test.describe('motion, desktop stage', () => {
     await expect(callouts).toHaveCount(6);
     for (let i = 0; i < 6; i += 1) await expect(callouts.nth(i)).toContainText(NOTE_TEXT[i]!);
 
-    // Mid-callouts: the phone is zoomed and every callout is on screen, none overlapping.
-    await toProgress(page, 0.52, 1400);
-    const scale = await stage.evaluate((el) => new DOMMatrix(getComputedStyle(el).transform).a);
+    // Before the tap callout 5 waits: it points at the Undo, which is not there yet.
+    await toProgress(page, 0.5, 1400);
+    for (let i = 0; i < 6; i += 1) {
+      const o = await opacity(callouts.nth(i));
+      if (i === 4) expect(o, 'callout 5 before the Undo').toBeLessThan(0.05);
+      else expect(o, `callout ${i + 1}`).toBeGreaterThan(0.9);
+    }
+    expect(await opacity(page.locator('#lock-screen [data-ls-callouts] [data-line-for="5"] [data-dot]'))).toBeLessThan(0.05);
+
+    // After the tap, before the zoom-out: the phone is zoomed and every callout is on screen,
+    // none overlapping, and the Undo is there for callout 5.
+    await toProgress(page, 0.617, 1400);
+    const scale = await scaleOf(stage);
     expect(scale).toBeGreaterThan(1.3);
+    await expect(page.locator('[data-stage] [data-screen="lock-1414-tapped"] [data-undo]')).toBeVisible();
     const boxes = [];
     for (let i = 0; i < 6; i += 1) {
       const c = callouts.nth(i);
@@ -198,6 +230,11 @@ test.describe('motion, desktop stage', () => {
       }
     await expect(page.locator('#lock-screen [data-ls-callouts] [data-ls-ghost]')).toBeVisible();
 
+    // The zoom-out: no leader outlives the card it points at.
+    await toProgress(page, 0.645, 1400);
+    for (let i = 0; i < 6; i += 1) expect(await opacity(callouts.nth(i)), `callout ${i + 1} at .645`).toBeLessThan(0.02);
+    expect(await opacity(page.locator('#lock-screen [data-ls-callouts] [data-ls-ghost]'))).toBeLessThan(0.02);
+
     // After the tap: Row 37, Row 38, Row 39 and Break; 230 trees.
     await toProgress(page, 0.66, 1400);
     const la = page.locator('[data-stage] [data-screen="lock-1414-tapped"] [data-la]');
@@ -205,12 +242,28 @@ test.describe('motion, desktop stage', () => {
     await expect(la.locator('[data-trees]')).toHaveAttribute('data-odo-text', fmtCount(TAPPED.trees));
     await expect(la).not.toContainText(/clock out/i);
 
-    // The island beat: unlocked, the island expanded.
-    await toProgress(page, 0.84, 1400);
+    // The island beat: each state holds long enough to read.
     const island = page.locator('[data-stage] [data-screen="home-1416-island-compact"] [data-island]');
-    const w = await island.evaluate((el) => el.getBoundingClientRect().width / el.closest('.screen')!.getBoundingClientRect().width);
-    expect(w).toBeGreaterThan(330 / 393);
-    await expect(island.locator('[data-island-expanded]')).toContainText('North field · Block 2');
+    const compact = island.locator('[data-island-compact]');
+    const expanded = island.locator('[data-island-expanded]');
+    const controlsBeat = page.locator('#lock-screen .ls-controls-beat');
+    await toProgress(page, 0.77, 1400);
+    expect(await opacity(compact), 'compact content at .77').toBe(1);
+    expect(await opacity(expanded)).toBe(0);
+    for (const p of [0.82, 0.855]) {
+      await toProgress(page, p, 1400);
+      expect(await opacity(expanded), `expanded content at ${p}`).toBe(1);
+      expect(await opacity(compact)).toBe(0);
+      const w = await island.evaluate((el) => el.getBoundingClientRect().width / el.closest('.screen')!.getBoundingClientRect().width);
+      expect(w).toBeGreaterThan(370 / 393);
+      // One message at a time: beat 3 (the Action button) waits for the island to collapse.
+      expect(await opacity(controlsBeat), `controls beat at ${p}`).toBeLessThan(0.05);
+    }
+    await expect(expanded).toContainText('North field · Block 2');
+    await toProgress(page, 0.95, 1400);
+    expect(await opacity(controlsBeat)).toBe(1);
+    expect(await opacity(page.locator('#lock-screen [data-controls]'))).toBe(1);
+    expect(await opacity(page.locator('#lock-screen [data-ls-footnote]'))).toBe(1);
 
     // The end: the phone at rest on the lock screen in the tapped state.
     await toProgress(page, 1, 1400);
@@ -219,6 +272,41 @@ test.describe('motion, desktop stage', () => {
     expect(Number(await page.locator('[data-stage] [data-screen="lock-1414-tapped"]').evaluate((el) => getComputedStyle(el).opacity))).toBeGreaterThan(0.99);
     expect(await visibleRows(la)).toEqual(TAPPED.rows.map((r) => `Row ${r}`));
     expect(problems).toEqual([]);
+  });
+
+  test('keeps the button strip right after a resize mid-section', async ({ page }) => {
+    await page.goto('/');
+    await settle(page);
+    await sceneBuilt(page);
+    const la = page.locator('[data-stage] [data-screen="lock-1414-tapped"] [data-la]');
+    await toProgress(page, 0.3, 1400);
+    expect(await visibleRows(la)).toEqual(['Row 36', 'Row 37', 'Row 38']);
+    await page.setViewportSize({ width: 1180, height: 760 });
+    await page.waitForTimeout(800);
+    await toProgress(page, 0.3, 1600);
+    expect(await visibleRows(la)).toEqual(['Row 36', 'Row 37', 'Row 38']);
+    await toProgress(page, 0.45, 1400);
+    expect(await visibleRows(la)).toEqual(['Row 36', 'Row 37', 'Row 38']);
+    await toProgress(page, 0.66, 1400);
+    expect(await visibleRows(la)).toEqual(TAPPED.rows.map((r) => `Row ${r}`));
+  });
+
+  test('on a short window zooms the small stage phone on the island, then lets it go', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 600 });
+    await page.goto('/');
+    await settle(page);
+    await sceneBuilt(page);
+    const stage = page.locator('[data-stage] [data-phone]');
+    await toProgress(page, 0.82, 1400);
+    const island = page.locator('[data-stage] [data-screen="home-1416-island-compact"] [data-island]');
+    expect(await scaleOf(stage)).toBeGreaterThan(1.3);
+    // As wide as on a 1440 × 900 stage phone (330px: the island at 0.79 px per pt).
+    const box = (await island.boundingBox())!;
+    expect(box.width).toBeGreaterThan(285);
+    expect(box.y).toBeGreaterThan(59);
+    expect(box.y + box.height).toBeLessThan(600);
+    await toProgress(page, 0.95, 1400);
+    expect(await scaleOf(stage)).toBeCloseTo(1, 3);
   });
 
   test('axe: no serious or critical violations mid-scene', async ({ page }) => {
@@ -238,6 +326,9 @@ test.describe('motion, mobile section phone', () => {
     await page.goto('/');
     await settle(page);
     await sceneBuilt(page);
+    // The headline and intro step aside as the phone zooms over them.
+    await toProgress(page, 0.14, 1200);
+    expect(await opacity(page.locator('#lock-screen .beat-head'))).toBeLessThan(0.05);
     for (let i = 0; i <= 20; i += 1) {
       await toProgress(page, i / 20, 120);
       expect(await overflow(page), `at progress ${i / 20}`).toBeLessThanOrEqual(0);
@@ -252,10 +343,31 @@ test.describe('motion, mobile section phone', () => {
     expect(box.width).toBeGreaterThan(18);
     expect(box.width).toBeLessThan(28);
 
-    await toProgress(page, 0.57, 1200);
+    // Pin 5 waits for the Undo it points at.
+    await toProgress(page, 0.5, 1200);
+    expect(await opacity(pins.nth(4))).toBeLessThan(0.05);
+    await toProgress(page, 0.61, 1200);
+    expect(await opacity(pins.nth(4))).toBeGreaterThan(0.9);
     await expect(page.locator('#lock-screen [data-ls-tap-card] [data-ls-ghost]')).toBeInViewport();
 
+    // The island close-up: the phone zooms on the island so its text reads.
+    const phone = page.locator('#lock-screen figure.shot [data-phone]');
+    const island = page.locator('#lock-screen figure.shot [data-screen="home-1416-island-compact"] [data-island]');
+    await toProgress(page, 0.77, 1400);
+    expect(await scaleOf(phone)).toBeGreaterThan(1.7);
+    expect(await opacity(island.locator('[data-island-compact]'))).toBe(1);
+    await toProgress(page, 0.83, 1400);
+    expect(await opacity(island.locator('[data-island-expanded]'))).toBe(1);
+    const ib = (await island.boundingBox())!;
+    expect(ib.width).toBeGreaterThan(300);
+    expect(ib.x).toBeGreaterThanOrEqual(15);
+    expect(ib.x + ib.width).toBeLessThanOrEqual(375 - 15);
+    const cap = (await page.locator('#lock-screen .ls-island-beat').boundingBox())!;
+    expect(cap.y).toBeGreaterThan(ib.y + ib.height);
+    await expect(page.locator('#lock-screen .ls-island-beat')).toBeInViewport();
+
     await toProgress(page, 1, 1400);
+    expect(await scaleOf(phone)).toBeCloseTo(1, 3);
     const la = page.locator('#lock-screen figure.shot [data-screen="lock-1414-tapped"] [data-la]');
     expect(await visibleRows(la)).toEqual(TAPPED.rows.map((r) => `Row ${r}`));
     expect(problems).toEqual([]);

@@ -6,14 +6,16 @@
  * they sit in LockScreen's overlay slot, inside the aria-hidden mock.
  *
  * Size: 22px circles (at most 33 pt, so they never crowd on small phones). In the mobile
- * scene the phone zooms 1.4×, so under motion they are drawn at 22 / 1.4 px and land at
- * 22px on screen. The desktop stage uses callouts instead.
+ * scene the phone zooms 1.4–1.8× (model.mobZoom); the scene sets --pin-zoom to that zoom, so
+ * under motion they are drawn at 22 / zoom px and land at 22px on screen. The desktop stage
+ * uses callouts instead.
  * Hooks: [data-pins], [data-pin="1".."6"].
  */
 import { CALLOUTS, PIN_PT, ZOOM } from './model.ts';
+// Until the scene measures the phone: the zoom most phones get.
 ---
 
-<div class="pins" data-pins style={`--pin-zoom:${ZOOM.mob};--pin-pt:${PIN_PT}`}>
+<div class="pins" data-pins style={`--pin-zoom:${ZOOM.mobMax};--pin-pt:${PIN_PT}`}>
   {
     CALLOUTS.map((c) => (
       <span class="pin" data-pin={c.n} style={`--x:${c.pin.x};--y:${c.pin.y}`}>
@@ -46,8 +48,8 @@ import { CALLOUTS, PIN_PT, ZOOM } from './model.ts';
     display: grid;
     place-items: center;
     border-radius: 50%;
-    background: #e2a644;
-    color: #14221a;
+    background: var(--gold-lit);
+    color: var(--ink);
     font-family: var(--font-body);
     font-weight: 700;
     font-size: calc(var(--pin) * 0.56);

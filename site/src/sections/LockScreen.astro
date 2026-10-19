@@ -25,7 +25,7 @@ import Pins from './lock-screen/Pins.astro';
 import Ghost from './lock-screen/Ghost.astro';
 import Callouts from './lock-screen/Callouts.astro';
 import IslandCrop from './lock-screen/IslandCrop.astro';
-import { BEFORE, CALLOUTS, ISLAND_AT, phoneLabel, TAPPED, WORKING } from './lock-screen/model';
+import { BEFORE, CALLOUTS, ISLAND_AT, MOB_CAPTION, MOB_CAPTION_ISLAND, phoneLabel, TAPPED, WORKING } from './lock-screen/model';
 import { FIELD, MOMENTS, fmtClock, fmtHMS, fmtTime, positionAt, workedAt } from '../data/ledger';
 
 const label = phoneLabel();
@@ -39,6 +39,8 @@ const compactLabel = `Dynamic Island, compact, over the home screen: Row ${islan
 const expandedLabel = `Dynamic Island, expanded: On the clock, ${place}, Row ${islandPos.row}, ${expandedTimer} worked, and buttons for row ${islandPos.row}, row ${islandPos.row + 1} and Break.`;
 // The 2:01 → 2:14 layer: Row 35 waits off the left edge so the buttons can step to Row 36.
 const preUndo = BEFORE.rows[0];
+// Mobile: pin 5 pops beside the Undo during the tap card, which repeats its note.
+const undoNote = CALLOUTS.find((c) => c.n === 5)!;
 ---
 
 <SectionShell id="lock-screen">
@@ -50,7 +52,7 @@ const preUndo = BEFORE.rows[0];
   </Fragment>
 
   <!-- Mobile card 1, and the static numbered list beside the phone. -->
-  <div class="beat ls-cap ls-notes-beat" data-beat="1" style="--at:.36">
+  <div class="beat ls-cap ls-notes-beat" data-beat="1" style={`--at:.36;--ls-cap:${MOB_CAPTION}`}>
     <p class="ls-kicker">On the card</p>
     <ol class="ls-notes" data-ls-notes>
       {
@@ -75,16 +77,22 @@ const preUndo = BEFORE.rows[0];
     </ol>
   </div>
 
-  <!-- Mobile card 2 (motion only): the tap, and the button that isn't there. -->
-  <div class="beat ls-cap ls-tap-beat motion-only" data-beat="2" style="--at:.6" data-ls-tap-card>
+  <!-- Mobile card 2 (motion only): the tap, note 5 (its pin waits for the Undo), and the
+       button that isn't there. -->
+  <div class="beat ls-cap ls-tap-beat motion-only" data-beat="2" style={`--at:.6;--ls-cap:${MOB_CAPTION}`} data-ls-tap-card>
     <p>
       <strong>Tap Row {TAPPED.undoRow}.</strong> The whole row is marked, and Row {TAPPED.rows[2]} moves in. Still no
       clock-out button, on purpose.
     </p>
+    <p class="ls-tap-note" data-ls-tap-note>
+      <span class="ls-rule" data-note-rule aria-hidden="true"></span>
+      <span class="ls-num" aria-hidden="true">{undoNote.n}</span>
+      <span class="ls-note-main">{undoNote.label}</span>
+    </p>
     <Ghost variant="inline" />
   </div>
 
-  <div class="beat ls-cap ls-island-beat" data-beat="3" style="--at:.7">
+  <div class="beat ls-cap ls-island-beat" data-beat="3" style={`--at:.7;--ls-cap:${MOB_CAPTION_ISLAND}`}>
     <p><strong>Using another app?</strong> Your timer and your row stay up top in the Dynamic Island.</p>
     <figure class="ls-island-fig static-only" data-ls-island-fig>
       <div class="ls-crops">
@@ -126,7 +134,7 @@ const preUndo = BEFORE.rows[0];
             <LiveActivity at={MOMENTS.lockScreen} state="tapped" undoRow={preUndo} rows={WORKING.rows} />
           </LockScreenMock>
         </Screen>
-        <Screen stateId="lock-1414-tapped" alt={label} final>
+        <Screen stateId="lock-1414-tapped" alt={label} final class="ls-tapped">
           <LockScreenMock time={lockTime}>
             <LiveActivity at={MOMENTS.tapped} />
             <Pins slot="overlay" />
@@ -232,6 +240,25 @@ const preUndo = BEFORE.rows[0];
   /* The 2:01 → 2:14 layer never shows an Undo (row 35 was finished in the app). */
   .ls-pre [data-undo] {
     visibility: hidden;
+  }
+  /* The scene steps the button strips by --ls-shift whole buttons (unitless): a CSS translate
+     of one button plus the gap, so it is exact at any phone size, even after a resize. It is
+     the translate property, so the track's transform stays free. */
+  .ls-pre [data-strip-track],
+  .ls-tapped [data-strip-track] {
+    translate: calc(var(--ls-shift, 0) * (var(--btn-w) + var(--gap))) 0;
+  }
+
+  /* Card 2's note 5: the same numbered row as card 1's list. */
+  .sec-lock-screen .ls-tap-note {
+    position: relative;
+    display: grid;
+    grid-template-columns: 22px minmax(0, 1fr);
+    column-gap: 12px;
+    align-items: start;
+    margin: 0;
+    font-size: 0.9375rem;
+    line-height: 1.4;
   }
 
   /* ---------- Static figure 2: the island crops ---------- */
@@ -340,13 +367,14 @@ const preUndo = BEFORE.rows[0];
 
   /* ---------- Motion, mobile: a caption slot under the zoomed card ----------
      The notes, the tap and the island cards wait in one slot just under the zoomed Live
-     Activity while the phone is stuck, and the scene crossfades them on cue (scrolling cards
+     Activity (--ls-cap of the phone's height, from model.ts; the island card's sits lower,
+     under the zoomed-in island) while the phone is stuck, and the scene crossfades them on cue (scrolling cards
      could not stay up through the pins' [.2, .5]). ControlsCard is the last card and scrolls
      up over the phone as usual. */
   @media (max-width: 899.98px) {
     html.motion .sec-lock-screen[data-mob='sticky'][data-layout='beats'] .beat.ls-cap:not(.beat-head) {
       position: fixed;
-      top: calc(var(--sticky-top-mob) + var(--phone-h-mob) * 0.545);
+      top: calc(var(--sticky-top-mob) + var(--phone-h-mob) * var(--ls-cap, 0.545));
       left: var(--gutter);
       right: var(--gutter);
       max-width: 34rem;
@@ -404,6 +432,17 @@ const preUndo = BEFORE.rows[0];
     }
     html.motion .sec-lock-screen .ls-cap > p {
       font-size: 1rem;
+    }
+    html.motion .sec-lock-screen .ls-cap > p.ls-tap-note {
+      font-size: 0.875rem;
+      line-height: 1.3;
+      grid-template-columns: 20px minmax(0, 1fr);
+      column-gap: 10px;
+    }
+    html.motion .sec-lock-screen .ls-tap-note .ls-num {
+      width: 20px;
+      height: 20px;
+      font-size: 0.6875rem;
     }
   }
 </style>
