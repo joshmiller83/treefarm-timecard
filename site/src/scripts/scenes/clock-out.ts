@@ -104,8 +104,8 @@ registerScene(
     const rowNums = all(act, '[data-strip] [data-row]').map((btn, i) => {
       const before = btn.innerHTML;
       undo.push(() => (btn.innerHTML = before));
-      const n = String(L.rows[0][0] + i);
-      btn.innerHTML = `<span class="co-rowlabel">Row <span class="odo" data-odo data-odo-text="${n}">${odometerHTML(n)}</span></span>`;
+      const label = `Row ${L.rows[0][0] + i}`;
+      btn.innerHTML = `<span class="odo co-rowodo" data-odo data-odo-text="${label}">${odometerHTML(label)}</span>`;
       return btn.querySelector<HTMLElement>('.odo');
     });
     if (bar) gsap.set(bar, { scaleX: L.fieldPct[0] });
@@ -117,7 +117,7 @@ registerScene(
       prevTrees = s.trees;
       rowNums.forEach((el, i) => {
         const from = L.rows[0][0] + i + k;
-        util.odometer(tl, el, from, from + 1, t, d, (v) => String(v));
+        util.odometer(tl, el, from, from + 1, t, d, (v) => `Row ${v}`);
       });
       if (bar) tl.to(bar, { scaleX: s.fieldPct, duration: d, ease: 'power2.out' }, t);
     });

@@ -563,20 +563,35 @@ const alt = {
       row-gap: 32px;
       align-items: start;
     }
-    .co-copy {
-      grid-column: 1 / span 6;
+    /* Headline left, the words right; then the paper beside the Report tab. */
+    .co-after > .co-copy {
+      grid-column: 1 / -1;
       grid-row: 1;
+      max-width: none;
+      display: grid;
+      grid-template-columns: repeat(12, minmax(0, 1fr));
+      column-gap: var(--col-gap);
+      row-gap: 18px;
+      align-items: start;
+    }
+    .co-after > .co-copy > .co-h3 {
+      grid-column: 1 / span 5;
+      grid-row: 1 / span 2;
+    }
+    .co-after > .co-copy > .co-body,
+    .co-after > .co-copy > .co-points {
+      grid-column: 7 / -1;
     }
     .co-report {
       grid-column: 9 / -1;
-      grid-row: 1 / span 2;
+      grid-row: 2;
       align-self: center;
       --phone-h: min(70svh, 640px);
     }
     .co-pb {
       grid-column: 1 / span 8;
       grid-row: 2;
-      margin-top: 24px;
+      margin-top: 40px;
     }
     .co-fit {
       transform: rotate(-1deg);
@@ -733,6 +748,8 @@ const alt = {
     .co-stage-copy {
       grid-column: 1 / span 5;
       max-width: 34rem;
+      /* A little below center: the safety-net beat is still leaving above it. */
+      margin-top: 8svh;
     }
     .co-stage-slot {
       grid-column: 1 / span 7;
@@ -772,16 +789,21 @@ const alt = {
     }
   }
 
-  /* The time-lapse's rolling row numbers stay on the button's one line. */
-  :global(.co-rowlabel) {
-    white-space: nowrap;
+  /* The time-lapse's rolling row labels keep the button's own type (system, tabular digits). */
+  :global(.co-rowodo) {
+    font-family: inherit;
+    font-weight: inherit;
+    font-variant-numeric: tabular-nums;
+  }
+  :global(.co-rowodo .odo-s) {
+    white-space: pre;
   }
   /* Gold rule under the stopped timer (injected by the scene into the answer layer). */
   :global(.co-underline) {
     position: absolute;
     left: 0.04em;
     right: 0.04em;
-    bottom: 0.02em;
+    bottom: 0.1em;
     height: 1px;
     background: var(--gold-lit);
     transform-origin: 0 50%;

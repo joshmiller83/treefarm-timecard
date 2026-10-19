@@ -118,11 +118,11 @@ export const DESK = {
   /** The section turns light (data-theme, with 0.4 s color transitions). */
   theme: 0.4,
   /** The report copy takes over columns 1–5 (it holds in the sticky frame). */
-  copyIn: [0.39, 0.44],
+  copyIn: [0.42, 0.47],
   /** Unlock to the Report tab and tap This week. */
   unlock: [0.44, 0.52],
   /** The dusk copy makes way for the paper. */
-  copyOut: [0.5, 0.545],
+  copyOut: [0.51, 0.555],
   /** The paper lifts out of the preview; the phone steps right. */
   lift: [0.52, 0.6],
   /** Rows print top to bottom; Friday last, with a gold flash. */
@@ -162,9 +162,9 @@ export const MOB = {
  */
 export const BEAT_AT = {
   head: { desk: -0.08, mob: 0 },
-  askEx: { desk: 0.09, mob: 0.22 },
-  yesEx: { desk: 0.227, mob: 0.46 },
-  forgot: { desk: 0.34, mob: 0.7 },
+  askEx: { desk: 0.085, mob: 0.22 },
+  yesEx: { desk: 0.215, mob: 0.46 },
+  forgot: { desk: 0.32, mob: 0.7 },
 } as const;
 
 // ---------------------------------------------------------------------------
