@@ -138,23 +138,14 @@ struct ClockView: View {
 
     @ViewBuilder
     private func content(_ state: FieldState) -> some View {
-        let now = Date()
-        let status = ClockStatus(state: state, now: now)
+        let status = ClockStatus(state: state, now: Date())
         let working = NowWorking(state: state, live: model.actions.liveSnapshot())
 
-        StatusCardView(
-            state: state,
-            status: status,
-            clockOutQuestion: confirmingOut ? model.actions.confirmation(for: .clockOut) : nil,
-            confirmingOut: $confirmingOut,
-            onClockIn: { run(.clockIn(fieldId: nil)) },
-            onLunch: { run(.startBreak(.lunch, reason: "")) },
-            onOtherBreak: { sheet = .breakReason },
-            onBackToWork: { run(.endBreak) },
-            onClockOut: { run(.clockOut) },
-            onChangeStart: { if let open = state.openShift { sheet = .startTime(open) } },
-            onEditShift: { sheet = .editShift(status.shiftId) })
-            .id("status")
+        // The card's words roll over with the clock (midnight, the 16-hour warning) without a tap.
+        TimelineView(.everyMinute) { context in
+            statusCard(state, status: ClockStatus(state: state, now: context.date))
+        }
+        .id("status")
 
         if status.phase == .off {
             offTheClockLinks
@@ -175,12 +166,14 @@ struct ClockView: View {
                 .id("trees")
         }
 
-        TimelineView(.periodic(from: .now, by: 30)) { context in
-            if let pace = PaceCard(state: state, now: context.date, showPay: showPay) {
-                PaceCardView(pace: pace)
+        if PaceCard(state: state, now: Date(), showPay: showPay) != nil {
+            TimelineView(.periodic(from: .now, by: 30)) { context in
+                if let pace = PaceCard(state: state, now: context.date, showPay: showPay) {
+                    PaceCardView(pace: pace)
+                }
             }
+            .id("pace")
         }
-        .id("pace")
 
         if status.shiftId != nil {
             ShiftNotesCardView(editor: notes)
@@ -193,6 +186,21 @@ struct ClockView: View {
             }
         }
         .id("hours")
+    }
+
+    private func statusCard(_ state: FieldState, status: ClockStatus) -> some View {
+        StatusCardView(
+            state: state,
+            status: status,
+            clockOutQuestion: confirmingOut ? model.actions.confirmation(for: .clockOut) : nil,
+            confirmingOut: $confirmingOut,
+            onClockIn: { run(.clockIn(fieldId: nil)) },
+            onLunch: { run(.startBreak(.lunch, reason: "")) },
+            onOtherBreak: { sheet = .breakReason },
+            onBackToWork: { run(.endBreak) },
+            onClockOut: { run(.clockOut) },
+            onChangeStart: { if let open = state.openShift { sheet = .startTime(open) } },
+            onEditShift: { sheet = .editShift(status.shiftId) })
     }
 
     private var offTheClockLinks: some View {

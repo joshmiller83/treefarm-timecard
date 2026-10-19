@@ -70,7 +70,8 @@ struct ClockStatus: Equatable {
             pill = "On the clock"
             workedLabel = label
             let breaks = open.breakTime(at: now)
-            meta = ["\(clockedIn) · " + (breaks > 0 ? "Breaks \(Fmt.minutesText(breaks))" : "No breaks yet")]
+            let breakText = open.breaks.isEmpty ? "No breaks yet" : breaks < 30 ? "Breaks under 1 min" : "Breaks \(Fmt.minutesText(breaks))"
+            meta = ["\(clockedIn) · \(breakText)"]
         }
     }
 

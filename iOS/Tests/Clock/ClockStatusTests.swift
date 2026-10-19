@@ -50,6 +50,12 @@ struct ClockStatusTests {
         #expect(s.worked == 2 * 3600 - 12 * 60)
     }
 
+    @Test func aBreakOfAFewSecondsIsNotZeroMinutes() {
+        let open = f.shift(f.today(7, 0), breaks: [Break(kind: .lunch, start: f.today(8, 0), end: f.today(8, 0, 10))])
+        let s = ClockStatus(state: f.state(shifts: [open]), now: f.today(9, 0))
+        #expect(s.meta == ["Clocked in 7:00 AM · Breaks under 1 min"])
+    }
+
     @Test func onLunchTheClockStopsAndTheBreakIsNamed() {
         let open = f.shift(f.today(7, 0), breaks: [Break(kind: .lunch, start: f.today(12, 1))])
         let s = ClockStatus(state: f.state(shifts: [open]), now: f.today(12, 20))

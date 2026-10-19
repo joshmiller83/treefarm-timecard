@@ -142,6 +142,30 @@ final class ClockFlowUITests: XCTestCase {
         waitFor(element("break-line", in: app), labelContains: "Fuel run")
     }
 
+    func testChangeStartTimeSaysWhyATimeWontWork() throws {
+        let calendar = Calendar.current
+        let midnight = calendar.startOfDay(for: calendar.date(byAdding: .day, value: 1, to: Date())!)
+        try XCTSkipIf(midnight.timeIntervalSinceNow < 10 * 60, "Five minutes later would land on tomorrow")
+
+        let app = launch()
+        let clockIn = app.buttons["clock-in"]
+        XCTAssertTrue(clockIn.waitForExistence(timeout: 10))
+        clockIn.tap()
+        app.buttons["change-start"].tap()
+        let later = app.buttons["start-nudge5"]
+        XCTAssertTrue(later.waitForExistence(timeout: 5))
+        later.tap()
+        app.buttons["start-save"].tap()
+        waitFor(element("form-error", in: app), label: "That time hasn’t happened yet. Pick an earlier time.")
+        shot(app, "Change start time refused")
+
+        app.buttons["start-nudge-15"].tap()
+        app.buttons["start-nudge-5"].tap()
+        app.buttons["start-save"].tap()
+        waitFor(element("toast", in: app), labelBeginsWith: "Start time changed to")
+        waitFor(element("status-pill", in: app), label: "On the clock")
+    }
+
     func testAShiftLeftOpenOffersToFixTheTimes() {
         let app = launch(["-UITestClock", "stale"])
         let warning = element("stale-warning", in: app)

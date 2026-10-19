@@ -6,6 +6,8 @@ import TimeCardCore
 
 /// "Trees this shift" while working; the field's progress while off the clock.
 struct TreesCardView: View {
+    @Environment(\.dynamicTypeSize) private var typeSize
+
     enum Content {
         case shift(NowWorking)
         case field(FieldSummary)
@@ -16,23 +18,14 @@ struct TreesCardView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .center, spacing: 12) {
-                VStack(alignment: .leading, spacing: 2) {
-                    SectionLabel(label)
-                    Text(big)
-                        .font(.custom(Typeface.numberSemiBold, size: 34, relativeTo: .largeTitle))
-                        .monospacedDigit()
-                        .foregroundStyle(Palette.ink)
-                        .contentTransition(.numericText())
-                        .accessibilityIdentifier("trees-big")
-                }
-                Spacer(minLength: 8)
-                if let onOpenMap {
-                    Button(action: onOpenMap) {
-                        Label(buttonTitle, systemImage: "map")
-                    }
-                    .buttonStyle(GloveButtonStyle(kind: isShift ? .primary : .secondary))
-                    .fixedSize()
+            if typeSize.isAccessibilitySize {
+                count
+                mapButton
+            } else {
+                HStack(alignment: .center, spacing: 12) {
+                    count
+                    Spacer(minLength: 8)
+                    mapButton.fixedSize()
                 }
             }
             Text(line)
@@ -47,6 +40,27 @@ struct TreesCardView: View {
         .card()
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier("trees-card")
+    }
+
+    private var count: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            SectionLabel(label)
+            Text(big)
+                .font(.custom(Typeface.numberSemiBold, size: 34, relativeTo: .largeTitle))
+                .monospacedDigit()
+                .foregroundStyle(Palette.ink)
+                .contentTransition(.numericText())
+        }
+    }
+
+    @ViewBuilder
+    private var mapButton: some View {
+        if let onOpenMap {
+            Button(action: onOpenMap) {
+                Label(buttonTitle, systemImage: "map")
+            }
+            .buttonStyle(GloveButtonStyle(kind: isShift ? .primary : .secondary))
+        }
     }
 
     private var isShift: Bool {
@@ -257,6 +271,7 @@ struct HoursPayCardView: View {
     var hours: HoursPay
     @Binding var showPay: Bool
     var onSetRate: () -> Void
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -271,9 +286,16 @@ struct HoursPayCardView: View {
                 .accessibilityIdentifier("pay-toggle")
             }
             .padding(.bottom, -10)
-            HStack(alignment: .top, spacing: 12) {
-                cell("Today", pay: hours.todayPay, hours: hours.todayHours, id: "today")
-                cell("This week", pay: hours.weekPay, hours: hours.weekHours, id: "week")
+            if typeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: 12) {
+                    cell("Today", pay: hours.todayPay, hours: hours.todayHours, id: "today")
+                    cell("This week", pay: hours.weekPay, hours: hours.weekHours, id: "week")
+                }
+            } else {
+                HStack(alignment: .top, spacing: 12) {
+                    cell("Today", pay: hours.todayPay, hours: hours.todayHours, id: "today")
+                    cell("This week", pay: hours.weekPay, hours: hours.weekHours, id: "week")
+                }
             }
             if showPay && hours.needsRate {
                 Button(action: onSetRate) {
@@ -284,6 +306,8 @@ struct HoursPayCardView: View {
                 .accessibilityIdentifier("set-rate")
             }
             WeekChart(hours: hours)
+                // Seven day labels have to share one row; past this size they'd collide.
+                .dynamicTypeSize(...DynamicTypeSize.xLarge)
                 .frame(height: 132)
             Text(hours.footnote(showPay: showPay))
                 .font(.footnote)

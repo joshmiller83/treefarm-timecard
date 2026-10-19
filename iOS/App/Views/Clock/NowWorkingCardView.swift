@@ -14,14 +14,16 @@ struct NowWorkingCardView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .firstTextBaseline) {
-                SectionLabel("Now working")
-                Spacer(minLength: 8)
-                if !card.fieldName.isEmpty {
-                    Label(card.fieldName, systemImage: "tree")
-                        .font(.subheadline)
-                        .foregroundStyle(Palette.muted)
-                        .lineLimit(1)
+            if typeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: 6) {
+                    SectionLabel("Now working")
+                    fieldLabel
+                }
+            } else {
+                HStack(alignment: .firstTextBaseline) {
+                    SectionLabel("Now working")
+                    Spacer(minLength: 8)
+                    fieldLabel
                 }
             }
             Text(card.place ?? card.done ?? "")
@@ -50,6 +52,16 @@ struct NowWorkingCardView: View {
         .card()
     }
 
+    @ViewBuilder
+    private var fieldLabel: some View {
+        if !card.fieldName.isEmpty {
+            Label(card.fieldName, systemImage: "tree")
+                .font(.subheadline)
+                .foregroundStyle(Palette.muted)
+                .lineLimit(typeSize.isAccessibilitySize ? 2 : 1)
+        }
+    }
+
     private var buttons: some View {
         let columns = typeSize.isAccessibilitySize ? 2 : 4
         return LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: columns), spacing: 8) {
@@ -76,27 +88,44 @@ struct NowWorkingCardView: View {
         }
     }
 
+    @ViewBuilder
     private func undoLine(_ last: String) -> some View {
-        HStack(spacing: 12) {
-            Label(last, systemImage: "checkmark.circle.fill")
-                .font(.callout.weight(.medium))
-                .foregroundStyle(Palette.firText)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .accessibilityIdentifier("last-action")
-            Button(action: onUndo) {
-                Label("Undo", systemImage: "arrow.uturn.backward")
-                    .font(.callout.weight(.semibold))
-                    .padding(.horizontal, 16)
-                    .frame(minHeight: GloveButtonStyle.minHeight)
-                    .background(Palette.surface, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                    .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Palette.line, lineWidth: 1))
-                    .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        let label = Label(last, systemImage: "checkmark.circle.fill")
+            .font(.callout.weight(.medium))
+            .foregroundStyle(Palette.firText)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .fixedSize(horizontal: false, vertical: true)
+            .accessibilityIdentifier("last-action")
+        if typeSize.isAccessibilitySize {
+            VStack(alignment: .leading, spacing: 10) {
+                label
+                undoButton.frame(maxWidth: .infinity)
             }
-            .buttonStyle(.plain)
-            .foregroundStyle(Palette.ink)
-            .accessibilityIdentifier("undo")
+            .padding(.top, 2)
+        } else {
+            HStack(spacing: 12) {
+                label
+                undoButton
+            }
+            .padding(.top, 2)
         }
-        .padding(.top, 2)
+    }
+
+    private var undoButton: some View {
+        Button(action: onUndo) {
+            Label("Undo", systemImage: "arrow.uturn.backward")
+                .font(.callout.weight(.semibold))
+                .lineLimit(1)
+                .padding(.horizontal, 16)
+                .frame(maxWidth: typeSize.isAccessibilitySize ? .infinity : nil, minHeight: GloveButtonStyle.minHeight)
+                .background(Palette.surface, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Palette.line, lineWidth: 1))
+                .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(Palette.ink)
+        .fixedSize(horizontal: !typeSize.isAccessibilitySize, vertical: false)
+        .accessibilityIdentifier("undo")
     }
 
     private var moveMenu: some View {

@@ -106,6 +106,7 @@ struct StatusCardView: View {
             .minimumScaleFactor(0.5)
             .contentTransition(.numericText())
             .accessibilityLabel("\(Fmt.spokenDuration(worked)) \(status.workedLabel.components(separatedBy: " · ").first ?? "")")
+            .accessibilityAddTraits(status.isWorking ? .updatesFrequently : [])
             .accessibilityIdentifier("big-timer")
     }
 
