@@ -2,13 +2,15 @@ import { expect, test } from '@playwright/test';
 import { SECTION_IDS, settle } from './helpers';
 
 /**
+ * Runs in the solo projects (playwright.config.ts): alone, after everything else.
+ *
  * Scroll smoothness (Chromium, 1x CPU): once the page has settled, scrolling the whole page
  * never produces a long animation frame over 200 ms. Scenes are pre-built in idle time
  * (motion.ts), so no scene is built while the reader scrolls.
  */
 test('no long frames over 200 ms while scrolling the whole page', async ({ page, browserName }, info) => {
   test.skip(browserName !== 'chromium', 'Long Animation Frames is Chromium only');
-  test.skip(info.project.name !== 'desktop' && info.project.name !== 'mobile', 'Chromium page projects');
+  test.skip(!/^(desktop|mobile)(-solo)?$/.test(info.project.name), 'Chromium page projects');
   test.setTimeout(120_000);
   await page.addInitScript(() => {
     const w = window as unknown as { __loaf: { start: number; duration: number; what: string }[] };
@@ -34,7 +36,7 @@ test('no long frames over 200 ms while scrolling the whole page', async ({ page,
   await page.waitForTimeout(500);
   const t0 = await page.evaluate(() => performance.now());
   const h = await page.evaluate(() => document.documentElement.scrollHeight - innerHeight);
-  if (info.project.name === 'mobile') {
+  if (info.project.name.startsWith('mobile')) {
     // Touch emulation has no wheel: step the scroll position at a reader's pace.
     for (let y = 0; y <= h; y += 160) {
       await page.evaluate((y) => window.scrollTo(0, y), y);
@@ -57,7 +59,7 @@ test('no long frames over 200 ms while scrolling the whole page', async ({ page,
 
 test('scroll layout shift over the whole page stays under 0.02 at 375', async ({ page, browserName }, info) => {
   test.skip(browserName !== 'chromium', 'layout-shift entries are Chromium only');
-  test.skip(info.project.name !== 'mobile', 'the phone layout');
+  test.skip(!/^mobile(-solo)?$/.test(info.project.name), 'the phone layout');
   test.setTimeout(120_000);
   await page.addInitScript(() => {
     const w = window as unknown as { __ls: { v: number; t: number; src: string }[] };

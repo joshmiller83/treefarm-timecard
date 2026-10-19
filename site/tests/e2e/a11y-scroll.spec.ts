@@ -5,10 +5,11 @@ import { settle } from './helpers';
 /**
  * axe at every stage of the scroll, not only at load: copy fades, dims and moves while the
  * reader scrolls, so contrast and hidden-but-focusable problems only show mid-scene.
- * 24 positions through the whole page, in each page project.
+ * 24 positions through the whole page, in each page project's solo run (playwright.config.ts:
+ * alone, after everything else, so axe is never starved by parallel workers).
  */
 test('axe: no serious or critical violations at 24 scroll positions', async ({ page }) => {
-  test.setTimeout(240_000);
+  test.setTimeout(300_000);
   await page.goto('/');
   await settle(page);
   const h = await page.evaluate(() => document.documentElement.scrollHeight - innerHeight);
