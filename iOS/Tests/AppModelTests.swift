@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 import TimeCardCore
+import TreeFarmKitTestSupport
 @testable import TimeCard
 
 @MainActor
@@ -41,6 +42,35 @@ struct AppModelTests {
         try model.save([.shift(shift)])
         #expect(model.snapshot.shifts[shift.id] == shift)
         #expect(try model.session.store.pendingCount() >= 1)
+    }
+
+    @Test func concurrentStartCallersAllSeeALoadedSession() async {
+        // The window, an intent and a watch request can all start the app at once; none of them
+        // may run on a session that is still loading (and say "Open Time Card to sign in.").
+        let model = AppEnvironment.makeModel(mode: .uiTest(signedIn: true))
+        let callers = (0..<4).map { _ in
+            Task { @MainActor in
+                await model.start()
+                return model.session.hasOpened && model.session.farm != nil && model.actions.state() != nil
+            }
+        }
+        var loaded: [Bool] = []
+        for caller in callers { loaded.append(await caller.value) }
+        #expect(loaded == [true, true, true, true])
+    }
+
+    @Test func theWatchLinkIsActivatedWhenTheModelIsMade() {
+        // Not in a view: a watch message can launch the app in the background with no scene.
+        let fake = FakeWatchTransport()
+        let model = AppEnvironment.makeModel(mode: .uiTest(signedIn: true), watchTransport: fake)
+        #expect(fake.activations == 1)
+        #expect(model.watch != nil)
+    }
+
+    @Test func testModesNeverTouchTheRealWatchConnectivity() {
+        let model = AppEnvironment.makeModel(mode: .uiTest(signedIn: true))
+        #expect(model.watch != nil)
+        #expect(LaunchMode.isTestHost)
     }
 
     @Test func storageErrorsStopTheApp() async {
