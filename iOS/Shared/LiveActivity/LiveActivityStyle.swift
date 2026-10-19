@@ -84,8 +84,9 @@ struct LiveColors: Equatable {
     })
 }
 
-/// IBM Plex Mono for numbers, as in the app. The extension registers the font at launch
-/// (`LiveFonts.register()`); if it ever can't, the system font stands in with even digits.
+/// IBM Plex Mono for numbers, as in the app. The app registers it through `UIAppFonts`; the
+/// extension registers the app's copy at launch (`WidgetFonts`). If that ever fails, the
+/// system font stands in, still with even digits.
 enum LiveFonts {
     static let numberName = "IBMPlexMono-SemiBold"
 
