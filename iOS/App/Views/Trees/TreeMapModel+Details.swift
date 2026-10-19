@@ -98,7 +98,9 @@ extension TreeMapModel {
     /// A new note goes through FieldActions, like "Note a tree" by voice. Returns what to show.
     @discardableResult
     func addNote(_ tree: TreeRef, body: String, flag: NoteFlag) -> FieldReply {
-        performCommand(.addTreeNote(tree, body: body, flag: flag))
+        let reply = performCommand(.addTreeNote(tree, body: body, flag: flag))
+        show(MapMessage(reply.speech, tone: reply.succeeded ? .done : .warning))
+        return reply
     }
 
     /// Saves changes to a note. Nil when saved, else what went wrong.
@@ -130,6 +132,9 @@ extension TreeMapModel {
 
     // MARK: Field progress
 
+    /// Worked time on shifts with trees before a time-left estimate is shown.
+    static var paceMinimum: TimeInterval { 30 * 60 }
+
     var progress: FieldProgress? {
         guard let data, let field else { return nil }
         let walker = FieldWalker(blocks: data.blocks(in: field.id))
@@ -142,7 +147,8 @@ extension TreeMapModel {
         }
         let pace = Pace.stats(data.myShifts, now: currentTime(), treeCount: data.treeCount)
         var timeLeft: String?
-        if pace.trees > 0, let hours = Pace.hoursLeft(treesLeft: left, treesPerHour: pace.treesPerHour) {
+        // Like the best-day note, a pace needs half an hour of marked work before it means much.
+        if pace.trees > 0, pace.worked >= Self.paceMinimum, let hours = Pace.hoursLeft(treesLeft: left, treesPerHour: pace.treesPerHour) {
             timeLeft = "At \(Pace.rateText(pace.treesPerHour)) trees an hour, the rest takes about \(Pace.hoursWords(hours))."
         }
         return FieldProgress(shaped: shaped, total: total, percent: percent,

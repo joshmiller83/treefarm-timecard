@@ -48,9 +48,9 @@ enum MapMode: String, CaseIterable, Identifiable, Sendable {
     /// The line under the modes before anything has been tapped.
     var hint: String {
         switch self {
-        case .one: "Tap a tree to mark it shaped, or a row number to mark the whole row. Tap again to unmark."
-        case .fill: "Tap the first tree, then the last. Every tree between them, row by row, gets marked."
-        case .erase: "Tap a tree to unmark it. Tap a row number to clear that row."
+        case .one: "Tap a tree to mark it, or a row number to mark the whole row."
+        case .fill: "Tap the first tree, then the last. Everything between gets marked."
+        case .erase: "Tap a tree to unmark it, or a row number to clear the row."
         case .notes: "Tap a tree to see who shaped it and read or add notes."
         }
     }

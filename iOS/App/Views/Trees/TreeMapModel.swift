@@ -196,10 +196,11 @@ final class TreeMapModel {
         data?.treeCount(shift) ?? 0
     }
 
-    /// "Mon, Oct 19 · 7:02 AM – now · 38 trees"
+    /// "Today · 7:02 AM – now · 38 trees", "Sun, Oct 18 · 8:00 AM – 4:30 PM · 212 trees"
     func shiftTitle(_ shift: Shift) -> String {
         guard let cal = data?.calendar else { return "" }
-        var text = "\(Fmt.day(shift.start, cal)) · \(Fmt.time(shift.start, cal)) – \(shift.end.map { Fmt.time($0, cal) } ?? "now")"
+        let day = cal.isSameDay(shift.start, now()) ? "Today" : Fmt.day(shift.start, cal)
+        var text = "\(day) · \(Fmt.time(shift.start, cal)) – \(shift.end.map { Fmt.time($0, cal) } ?? "now")"
         let n = treeCount(shift)
         if n > 0 { text += " · \(Fmt.plural(n, "tree"))" }
         return text

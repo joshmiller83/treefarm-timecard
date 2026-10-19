@@ -45,7 +45,7 @@ struct TreeMapModelTests {
     @Test func shiftTitlesReadLikeTheArtifact() {
         let f = TreeMapFixture()
         #expect(f.model.shiftTitle(f.earlier) == "Sun, Oct 18 · 8:00 AM – 10:00 AM · 12 trees")
-        #expect(f.model.shiftTitle(f.open!) == "Mon, Oct 19 · 7:00 AM – now")
+        #expect(f.model.shiftTitle(f.open!) == "Today · 7:00 AM – now")
     }
 
     // MARK: Row numbers
@@ -445,6 +445,20 @@ struct TreeMapModelTests {
         #expect(p.summary == "36 of 504 trees shaped.")
         // My only shift with trees: 12 trees in 2 hours, so 468 trees left take 78 hours.
         #expect(p.timeLeft == "At 6.0 trees an hour, the rest takes about 78 hours.")
+    }
+
+    @Test func aMinutesOldPaceIsNotAnEstimate() throws {
+        let f = TreeMapFixture(clockedIn: false)
+        var gone = f.earlier
+        gone.deletedAt = f.now
+        f.snapshot.apply(.shift(gone))
+        let fresh = Shift(userId: f.me.userId, farmId: f.farm.id, start: f.now.addingTimeInterval(-90), rateCents: 2000)
+        f.snapshot.apply(.shift(fresh))
+        f.sync()
+        _ = f.model.typeRange(blockId: f.block2.id, fromRow: 1, toRow: 2, fromTree: nil, toTree: nil, add: true)
+        let p = try #require(f.model.progress)
+        #expect(p.summary == "60 of 504 trees shaped.")
+        #expect(p.timeLeft == nil, "24 trees in 90 seconds isn't a pace yet")
     }
 
     @Test func aDoneFieldSaysSo() throws {
