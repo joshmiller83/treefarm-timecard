@@ -233,7 +233,8 @@ struct ComplicationFace: Equatable {
 /// ignores `TimelineEntryRelevance`):
 /// - clocked in: from the shift's start for 10 hours, so it stays up all shift;
 /// - off the clock with a usual start: from 30 minutes before it to an hour after, in the farm's
-///   time zone, today (unless that's over) and tomorrow, so "Clock in" rises in the morning;
+///   time zone, today (unless that's over) and each of the next 7 days, so "Clock in" rises in
+///   the morning even after a weekend with nothing new from the phone to ask again;
 /// - otherwise (signed out, never connected, fewer than 3 shifts so far): never.
 enum ComplicationRelevance {
     enum Kind: Equatable, Sendable {
@@ -251,6 +252,8 @@ enum ComplicationRelevance {
     static let shiftLength: TimeInterval = 10 * 3600
     static let beforeUsualStart: TimeInterval = 30 * 60
     static let afterUsualStart: TimeInterval = 60 * 60
+    /// Usual-start windows run this many days past today.
+    static let daysAhead = 7
 
     static func windows(for state: WatchState?, now: Date) -> [Window] {
         guard let state, state.signedIn else { return [] }
@@ -261,8 +264,9 @@ enum ComplicationRelevance {
         }
         guard let usual = state.usualStart, let hour = usual.hour else { return [] }
         let calendar = state.calendar
-        let today = calendar.dayKey(now)
-        return [today, calendar.dayKey(calendar.addDays(calendar.startOfDay(now), 1))]
+        let today = calendar.startOfDay(now)
+        return (0...daysAhead)
+            .map { calendar.dayKey(calendar.addDays(today, $0)) }
             .map { day in
                 let start = calendar.date(on: day, hour: hour, minute: usual.minute ?? 0)
                 return Window(interval: DateInterval(start: start.addingTimeInterval(-beforeUsualStart),
