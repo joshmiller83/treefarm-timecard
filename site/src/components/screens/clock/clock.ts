@@ -11,10 +11,10 @@ import {
   DAY,
   FIELD,
   FIELD_TREES,
+  MOMENTS,
   SHIFT,
   SHIFT_NOTE,
   WEEK,
-  WEEK_RANGE,
   breakAt,
   fieldShapedAt,
   fmtCount,
@@ -27,10 +27,10 @@ import {
   perTreeAt,
   positionAt,
   rowsAt,
-  t,
   treesAt,
   weekHoursAt,
   workedAt,
+  type Day,
   type Minute,
   type Seconds,
 } from '../../../data/ledger';
@@ -40,9 +40,6 @@ export type PaceRange = 'today' | 'week' | 'season';
 
 /** Pay is hidden in every screen on the page. */
 export const HIDDEN = '•••';
-
-/** When Alex dictated the shift note ("Add a note in Time Card"). */
-export const SHIFT_NOTE_AT: Minute = t(14, 36);
 
 /** Rounded to the minute: "45 min", "1 h 5 min", "2 h" (TreeFarmKit Fmt.minutesText). */
 export function minutesText(seconds: Seconds): string {
@@ -183,8 +180,10 @@ export interface PaceModel {
 }
 
 /**
- * Today uses the ledger's own pace helpers. This week and Season count every shift the
- * ledger knows (Mon–Thu plus Friday so far): the story's history starts on Monday.
+ * Today uses the ledger's own pace helpers. This week counts every shift the ledger knows
+ * (Mon–Thu plus Friday so far). Season counts the same shifts for now: the ledger carries no
+ * earlier-season shifts for Alex yet (asked of the foundation owner), and no number here is
+ * typed by hand. No section shows the Season segment.
  */
 function pace(min: Minute, range: PaceRange): PaceModel {
   let perHour = 0;
@@ -219,9 +218,35 @@ export interface NotesModel {
 
 function notes(min: Minute): NotesModel {
   return {
-    text: min >= SHIFT_NOTE_AT && min >= SHIFT.in ? SHIFT_NOTE : '',
+    // Alex dictates the shift note at MOMENTS.shiftNote ("Add a note in Time Card").
+    text: min >= MOMENTS.shiftNote && min >= SHIFT.in ? SHIFT_NOTE : '',
     placeholder: 'Which rows or blocks, what you worked on, anything to remember',
   };
+}
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
+
+/**
+ * A ledger day's month and day of the month, read from its time-card date ('Mon, Oct 12').
+ * The ledger's Day carries no structured month-day yet; this is the one place that reads it,
+ * and its test checks Friday against the ledger's own DAY.monthDay.
+ */
+export function monthDayOf(d: Pick<Day, 'date'>): { month: (typeof MONTHS)[number]; day: number } {
+  const m = /^\w{3}, (\w{3}) (\d{1,2})$/.exec(d.date);
+  const month = MONTHS.find((x) => x === m?.[1]);
+  if (!m || !month) throw new Error(`Not a ledger day: ${d.date}`);
+  return { month, day: Number(m[2]) };
+}
+
+/**
+ * The farm week that holds the ledger's days, Monday to Sunday, the way the app's
+ * Fmt.rangeLabel writes it (without the year, which the page never shows): 'Oct 12 – Oct 18'.
+ */
+export function weekOf(): string {
+  const mon = monthDayOf(WEEK[0]!);
+  // The ledger has no year; the stand-in (2001) only matters for a week across the end of February.
+  const sun = new Date(Date.UTC(2001, MONTHS.indexOf(mon.month), mon.day + 6));
+  return `${mon.month} ${mon.day} – ${MONTHS[sun.getUTCMonth()]} ${sun.getUTCDate()}`;
 }
 
 export interface DayBar {
@@ -265,7 +290,7 @@ function hours(min: Minute): HoursModel {
     week: fmtHM(total),
     pay: HIDDEN,
     days,
-    footnote: `${WEEK_RANGE}. Breaks don’t count toward hours. Pay never shows on the report.`,
+    footnote: `Week of ${weekOf()}. Breaks don’t count toward hours. Pay never shows on the report.`,
   };
 }
 

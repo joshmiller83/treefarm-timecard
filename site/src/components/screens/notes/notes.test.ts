@@ -35,10 +35,23 @@ describe('noteSheet', () => {
     expect(treeShaped(2, 36, MOMENTS.treeNote).text).toBe('Shaped today at 2:14 PM by Alex');
     // Block 2 rows 1–13 were shaped earlier this season.
     expect(treeShaped(2, 5, MOMENTS.treeNote)).toEqual({ state: 'earlier', text: 'Shaped earlier this season' });
-    // Sam's row 12 in block 3 at 2:49 PM wins over Alex's later mark.
-    expect(treeShaped(3, 12, t(15, 0)).text).toBe('Shaped today at 2:49 PM by Sam');
     // A sheet before the note's own row was marked says so.
     expect(noteSheet([TREE_NOTE], t(14, 0)).shaped.state).toBe('not-yet');
+  });
+
+  it('shows crew marks green and only the viewer’s own shift gold (decisions.md #4)', () => {
+    // After the 3:00 sync, Sam's 2:49 PM mark on block 3 row 12 wins; on Alex's phone it is green.
+    expect(treeShaped(3, 12, MOMENTS.synced)).toEqual({ state: 'earlier', text: 'Shaped today at 2:49 PM by Sam' });
+    // On Sam's own phone the same row is his shift: gold.
+    expect(treeShaped(3, 12, MOMENTS.synced, 'Sam')).toEqual({ state: 'today', text: 'Shaped today at 2:49 PM by Sam' });
+    // Offline at 2:56, Alex's phone has not heard of Sam's mark and shows its own (later rejected) mark gold.
+    expect(treeShaped(3, 12, MOMENTS.alexRow12)).toEqual({ state: 'today', text: 'Shaped today at 2:56 PM by Alex' });
+    // Alex's offline row 11 is gold on his phone at once, but Sam does not see it until the sync.
+    expect(treeShaped(3, 11, MOMENTS.alexRow11).state).toBe('today');
+    expect(treeShaped(3, 11, MOMENTS.alexRow11, 'Sam').state).toBe('not-yet');
+    expect(treeShaped(3, 11, MOMENTS.synced, 'Sam')).toEqual({ state: 'earlier', text: 'Shaped today at 2:50 PM by Alex' });
+    // A sheet on someone else's phone follows its own `who`.
+    expect(noteSheet([TREE_NOTE], MOMENTS.treeNote, 'Sam').shaped.state).toBe('earlier');
   });
 
   it('needs at least one note', () => {

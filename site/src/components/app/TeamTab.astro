@@ -1,8 +1,8 @@
 ---
 /**
  * TEAM TAB (screens team): the admin's view of the crew. 'This week' lists each member's
- * hours and trees from the ledger (through Fri 3:00 PM), then Invite someone and the
- * Fields & blocks editor. No invite code, no expiry, no pay.
+ * hours and trees from the ledger (through Fri 3:00 PM, MOMENTS.synced, which the status bar
+ * shows), then Invite someone and the Fields & blocks editor. No invite code, no expiry, no pay.
  *
  * Hooks: [data-team-row="Alex"|"Sam"|"Rosa"] with [data-hours] (odometer markup, so util.odometer
  * can roll it) and [data-trees] inside,
@@ -12,8 +12,9 @@ import AppChrome from './AppChrome.astro';
 import Icon from './Icon.astro';
 import AppKit from '../screens/AppKit.astro';
 import { teamTab } from '../screens/team/team';
+import { weekOf } from '../screens/clock/clock';
 import { odometerHTML } from '../../scripts/odometer';
-import { FIELD, TEAM, WEEK } from '../../data/ledger';
+import { FIELD, MOMENTS, TEAM, fmtClock } from '../../data/ledger';
 
 export interface Props {
   /** Default ledger TEAM (through Fri 3:00 PM). */
@@ -21,11 +22,11 @@ export interface Props {
 }
 const { rows = TEAM } = Astro.props;
 const m = teamTab(rows);
-const span = `${WEEK[0]!.date.slice(5)} – ${WEEK[WEEK.length - 1]!.date.slice(5)}`;
+const span = weekOf();
 ---
 
 <AppKit />
-<AppChrome class="sc sc-team" title="Team" tab="team" time="3:00">
+<AppChrome class="sc sc-team" title="Team" tab="team" time={fmtClock(MOMENTS.synced)}>
   <div class="tm-team">
     <div class="tm-sec-head">
       <span class="sc-label">This week</span>

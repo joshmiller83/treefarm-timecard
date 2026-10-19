@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { MOMENTS, SHIFT_NOTE, t } from '../../../data/ledger';
-import { clockTab, minutesText, percentShaped } from './clock';
+import { DAY, MOMENTS, SHIFT_NOTE, WEEK, t } from '../../../data/ledger';
+import { clockTab, minutesText, monthDayOf, percentShaped, weekOf } from './clock';
 
 const everyString = (v: unknown): string[] =>
   typeof v === 'string' ? [v] : Array.isArray(v) ? v.flatMap(everyString) : v && typeof v === 'object' ? Object.values(v).flatMap(everyString) : [];
@@ -44,8 +44,10 @@ describe('clockTab at 3:40 PM (the pace chapter)', () => {
     expect(m.pace.left).toBe('About 179 hours left in North field at your pace');
   });
 
-  it('shift notes carry the 2:36 dictated note', () => {
+  it('shift notes carry the 2:36 dictated note, and not a minute before', () => {
     expect(m.notes.text).toBe(SHIFT_NOTE);
+    expect(clockTab(MOMENTS.shiftNote).notes.text).toBe(SHIFT_NOTE);
+    expect(clockTab(MOMENTS.shiftNote - 1).notes.text).toBe('');
   });
 
   it('hours: the week chart, today in gold, pay hidden', () => {
@@ -59,7 +61,8 @@ describe('clockTab at 3:40 PM (the pace chapter)', () => {
     expect(m.hours.today).toBe('7:39');
     expect(m.hours.week).toBe('39:04');
     expect(m.hours.pay).toBe('•••');
-    expect(m.hours.footnote).toBe('Mon, Oct 12 – Fri, Oct 16. Breaks don’t count toward hours. Pay never shows on the report.');
+    // Like the app's HoursPay footnote: the farm week runs Monday to Sunday, the chart's seven days.
+    expect(m.hours.footnote).toBe('Week of Oct 12 – Oct 18. Breaks don’t count toward hours. Pay never shows on the report.');
   });
 
   it('never shows a currency figure', () => {
@@ -130,6 +133,16 @@ describe('clockTab at other moments', () => {
 });
 
 describe('helpers', () => {
+  it('monthDayOf reads a ledger day, and agrees with the ledger’s own Friday', () => {
+    expect(monthDayOf(WEEK[0]!)).toEqual({ month: 'Oct', day: 12 });
+    const fri = monthDayOf(WEEK.find((d) => d.key === 'fri')!);
+    expect(`${fri.month} ${fri.day}`).toBe(DAY.monthDay);
+  });
+
+  it('weekOf spans the farm week Monday to Sunday, like Fmt.rangeLabel', () => {
+    expect(weekOf()).toBe('Oct 12 – Oct 18');
+  });
+
   it('minutesText reads like the app', () => {
     expect(minutesText(0)).toBe('0 min');
     expect(minutesText(59 * 60)).toBe('59 min');
