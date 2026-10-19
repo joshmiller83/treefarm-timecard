@@ -490,7 +490,9 @@ const headline = 'Built on a working tree farm. Out\u00a0in\u00a0the\u00a0open.'
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    min-height: 30px;
+    /* A 44px target that keeps the bar's 30px rhythm. */
+    min-height: 44px;
+    margin-block: -7px;
     margin-right: -8px;
     padding: 4px 10px;
     border: 0;
@@ -503,11 +505,6 @@ const headline = 'Built on a working tree farm. Out\u00a0in\u00a0the\u00a0open.'
     letter-spacing: 0.04em;
   }
   /* 44px touch target around the 30px chip */
-  .copy::after {
-    content: '';
-    position: absolute;
-    inset: -7px -4px;
-  }
   .copy:hover {
     color: var(--on-stage);
     background: rgba(242, 245, 239, 0.06);

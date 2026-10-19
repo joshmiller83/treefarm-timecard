@@ -407,6 +407,16 @@ const modes = [
     border-radius: 8px;
     background: rgba(136, 207, 164, 0.1);
   }
+  /* A 44px tall target around the 30px row number (the trees have their own cells). */
+  .tryit-num::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 50%;
+    height: 44px;
+    translate: 0 -50%;
+  }
   .tryit-num:hover::before {
     background: rgba(136, 207, 164, 0.18);
   }
@@ -575,6 +585,35 @@ const modes = [
     }
     .tryit-today-n {
       font-size: 2.25rem;
+    }
+  }
+
+  /* Windows High Contrast (forced colors): fills would vanish, so the tree states and the
+     chosen mode are drawn with system colours and outlines instead. */
+  @media (forced-colors: active) {
+    .tryit-tree::before {
+      border-color: CanvasText;
+    }
+    .tryit-tree::after {
+      forced-color-adjust: none;
+      background: Highlight;
+    }
+    .tryit-tree[data-s='earlier']::after {
+      background: CanvasText;
+    }
+    .tryit-thumb {
+      forced-color-adjust: none;
+      background: transparent;
+      box-shadow: none;
+      outline: 2px solid Highlight;
+      outline-offset: -2px;
+    }
+    .tryit-opt:has(input:checked) {
+      outline: 2px solid Highlight;
+      outline-offset: -2px;
+    }
+    .tryit-num::before {
+      border: 1px solid CanvasText;
     }
   }
 </style>

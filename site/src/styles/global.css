@@ -337,7 +337,8 @@ q::after {
   font-size: 0.75rem;
   line-height: 1.2;
   letter-spacing: 0.02em;
-  white-space: nowrap;
+  /* Wraps rather than clips when a reader's text spacing makes it wider (WCAG 1.4.12). */
+  max-width: 100%;
 }
 .pill-status::before {
   content: '';
