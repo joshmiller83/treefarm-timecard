@@ -246,6 +246,26 @@ extension TextFieldStyle where Self == GloveFieldStyle {
 }
 
 /// A message in rust with an icon, for errors under a form.
+/// Says something to VoiceOver once: a message that just appeared on screen. The same words
+/// within a second (a view and its action both asking) are said once.
+@MainActor
+enum Announcer {
+    private static var last: (text: String, at: Date)?
+
+    static func say(_ text: String?, after delay: Duration = .milliseconds(250)) {
+        guard let text, !text.isEmpty else { return }
+        let now = Date()
+        if let last, last.text == text, now.timeIntervalSince(last.at) < 1 { return }
+        last = (text, now)
+        Task { @MainActor in
+            // After VoiceOver has read the button that was tapped.
+            try? await Task.sleep(for: delay)
+            AccessibilityNotification.Announcement(text).post()
+        }
+    }
+}
+
+/// A problem under a form, said to VoiceOver as it appears.
 struct ErrorMessage: View {
     var text: String
 
@@ -259,6 +279,7 @@ struct ErrorMessage: View {
         .foregroundStyle(Palette.rust)
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityIdentifier("form-error")
+        .task(id: text) { Announcer.say(text) }
     }
 }
 

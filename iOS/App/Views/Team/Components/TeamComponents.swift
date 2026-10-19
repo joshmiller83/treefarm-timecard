@@ -308,18 +308,8 @@ enum CrewStatusText {
 /// The same sentence twice within a second is said once.
 @MainActor
 enum TeamAnnounce {
-    private static var last: (text: String, at: Date)?
-
     static func say(_ text: String?) {
-        guard let text, !text.isEmpty else { return }
-        let now = Date()
-        if let last, last.text == text, now.timeIntervalSince(last.at) < 1 { return }
-        last = (text, now)
-        Task { @MainActor in
-            // After VoiceOver has read the button that was tapped.
-            try? await Task.sleep(for: .milliseconds(250))
-            AccessibilityNotification.Announcement(text).post()
-        }
+        Announcer.say(text)
     }
 }
 

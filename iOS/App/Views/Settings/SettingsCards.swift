@@ -74,6 +74,7 @@ struct ProfileCard: View {
                     .font(.callout.weight(.medium))
                     .foregroundStyle(Palette.firText)
                     .accessibilityIdentifier("profile-saved")
+                    .task(id: text) { Announcer.say(text) }
             case .problem(let text):
                 ErrorMessage(text: text)
             case nil:
