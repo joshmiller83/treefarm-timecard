@@ -77,14 +77,20 @@ export function boot(): void {
   // ---- Ambient loops: only while scrolling + 5 s, never while paused ----
   let idleTimer = 0;
   const runAmbients = (run: boolean) => ambients.forEach((a) => (run && !paused ? a.resume() : a.pause()));
+  // While the reader scrolls, odometers jump instead of easing. The class goes on the chapter
+  // in charge and the stage only (not on <html>): toggling it there restyled every
+  // odometer on the page twice per scroll.
+  let scrolling = false;
   ScrollTrigger.addEventListener('scrollStart', () => {
-    root.classList.add('scrubbing');
+    scrolling = true;
+    for (const el of [active, stage?.el]) el?.classList.add('scrubbing');
     clock.wake();
     clearTimeout(idleTimer);
     runAmbients(true);
   });
   ScrollTrigger.addEventListener('scrollEnd', () => {
-    root.classList.remove('scrubbing');
+    scrolling = false;
+    document.querySelectorAll('.scrubbing').forEach((el) => el.classList.remove('scrubbing'));
     clock.idle();
     clearTimeout(idleTimer);
     idleTimer = window.setTimeout(() => runAmbients(false), IDLE_LOOPS_MS);
@@ -312,7 +318,7 @@ export function boot(): void {
       // never during a scroll. The observer stays as the fallback for a reader who outruns it.
       const whenStill = () =>
         new Promise<void>((r) => {
-          if (!root.classList.contains('scrubbing')) return r();
+          if (!scrolling) return r();
           const done = () => (ScrollTrigger.removeEventListener('scrollEnd', done), r());
           ScrollTrigger.addEventListener('scrollEnd', done);
         });
@@ -353,7 +359,7 @@ export function boot(): void {
             do {
               await whenStill();
               await idleSlot();
-            } while (root.classList.contains('scrubbing'));
+            } while (scrolling);
             if (!alive || built.has(s)) continue;
             io.unobserve(s);
             await build(s);

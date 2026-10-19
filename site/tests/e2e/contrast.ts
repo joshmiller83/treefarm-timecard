@@ -58,7 +58,7 @@ export async function contrastOf(page: Page, selector: string, index = 0): Promi
     content: '[data-contrast-probe], [data-contrast-probe] * { color: transparent !important; -webkit-text-fill-color: transparent !important; text-decoration-color: transparent !important; }',
   });
   const png = await page.screenshot({ clip: info.box, animations: 'disabled' });
-  await style.evaluate((s) => s.remove());
+  await style.evaluate((s) => (s as Element).remove());
   await page.evaluate((selector) => document.querySelectorAll('[data-contrast-probe]').forEach((e) => e.removeAttribute('data-contrast-probe')), selector);
   const img = UPNG.decode(png.buffer.slice(png.byteOffset, png.byteOffset + png.byteLength) as ArrayBuffer);
   const px = new Uint8Array(UPNG.toRGBA8(img)[0]!);
