@@ -318,7 +318,12 @@ registerScene(
           { x: 0, y: 0, scale: 1, rotation: -1, duration: liftSpan, ease: 'power3.inOut' },
           D.lift[0],
         );
-        tl.fromTo(paper, { opacity: 0 }, { opacity: 1, duration: liftSpan * 0.2, ease: 'none' }, D.lift[0]);
+        tl.fromTo(paper, { opacity: 0 }, { opacity: 1, duration: liftSpan * 0.12, ease: 'none' }, D.lift[0]);
+        // The preview dims as its sheet lifts off, and comes back once the sheet is clear.
+        if (thumb) {
+          tl.to(thumb, { opacity: 0.3, duration: liftSpan * 0.15, ease: 'power1.out' }, D.lift[0]);
+          tl.to(thumb, { opacity: 1, duration: liftSpan * 0.4, ease: 'power1.inOut' }, D.lift[0] + liftSpan * 0.55);
+        }
         if (shadow) tl.fromTo(shadow, { opacity: 0 }, { opacity: 1, duration: liftSpan * 0.8 }, D.lift[0] + liftSpan * 0.2);
 
         // ---- Print: rows top to bottom, Friday last with a gold flash ----
