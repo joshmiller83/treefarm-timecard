@@ -37,7 +37,12 @@ const DAY: DayState[] = [
   { id: 'lab-a-1430', at: MOMENTS.break, title: '2:30 · Break', note: 'break · Sharpening shears · 6:43:00 worked' },
   { id: 'lab-a-1540', at: MOMENTS.pace, title: '3:40 · Pace', note: 'working · 7:39:00 · 260 trees · rows 39–41' },
   { id: 'lab-a-1631', at: MOMENTS.clockOut, title: '4:31 · Clock out', note: 'working · 8:30:00 · 290 trees · 29% · dusk', wallpaper: 'dusk-rows' },
-  { id: 'lab-a-1631-quiet', at: MOMENTS.clockOut, title: '4:31 · Clocked out', note: 'a quiet lock screen, no activity', wallpaper: 'dusk-rows', quiet: true },
+];
+
+const QUIET: DayState[] = [
+  { id: 'lab-a-dawn-quiet', at: MOMENTS.clockIn - 2, title: 'dawn-rows', note: '7:00, before clocking in: no activity', quiet: true },
+  { id: 'lab-a-1631-quiet', at: MOMENTS.clockOut, title: 'dusk-rows', note: '4:31, clocked out: a quiet lock screen', wallpaper: 'dusk-rows', quiet: true },
+  { id: 'lab-a-1414-dim', at: MOMENTS.tapped, title: 'dim .45', note: 'the zoom beat: the card stays above the dim', dim: true },
 ];
 
 const lockLabel = (s: DayState) =>
@@ -66,7 +71,7 @@ const pt = (n: number) => `${Math.round(n * 100) / 100} pt`;
   <section class="intro">
     <p>
       The phone frame, status bar, screen layers, lock screen and Live Activity. Phones here are at real device size:
-      one CSS pixel per point, a 393 × 852 screen in a 420 × 879 frame. Drop a 1179 × 2556 simulator capture into
+      one CSS pixel per point, a 393 × 852 screen in a 420 × 879 frame. Drop a 1179 × 2556 simulator capture into{' '}
       <code>public/screens/&lt;state-id&gt;.png</code> and the matching <code>&lt;Screen&gt;</code> renders it instead.
     </p>
   </section>
@@ -76,6 +81,31 @@ const pt = (n: number) => `${Math.round(n * 100) / 100} pt`;
     <div class="phones">
       {
         DAY.map((s) => (
+          <figure class="cell" data-lab-state={s.id} data-lab-at={s.at}>
+            <Phone label={lockLabel(s)} height="var(--real-h)">
+              <div class="screens" data-screens>
+                <Screen stateId={s.id} alt={lockLabel(s)} final>
+                  <LockScreen time={fmtClock(s.at)} live={false} wallpaper={s.wallpaper} dim={s.dim}>
+                    {!s.quiet && <LiveActivity at={s.at} fixed />}
+                  </LockScreen>
+                </Screen>
+              </div>
+            </Phone>
+            <figcaption>
+              <strong>{s.title}</strong>
+              <span>{s.note}</span>
+            </figcaption>
+          </figure>
+        ))
+      }
+    </div>
+  </section>
+
+  <section aria-labelledby="wallpapers">
+    <h2 id="wallpapers">Wallpapers and the dim</h2>
+    <div class="phones">
+      {
+        QUIET.map((s) => (
           <figure class="cell" data-lab-state={s.id}>
             <Phone label={lockLabel(s)} height="var(--real-h)">
               <div class="screens" data-screens>
@@ -99,8 +129,7 @@ const pt = (n: number) => `${Math.round(n * 100) / 100} pt`;
   <section aria-labelledby="cards">
     <h2 id="cards">The card, every state, at 1x</h2>
     <p class="lab-note">
-      361 × {pt(cardHeight)}. Buttons {pt(buttonWidth)} wide, 46 pt tall, 8 pt apart. One advance moves the strip
-      {pt(stripStep)}.
+      {`361 × ${pt(cardHeight)}. Buttons ${pt(buttonWidth)} wide, 46 pt tall, 8 pt apart. One advance moves the strip ${pt(stripStep)}.`}
     </p>
     <div class="cards">
       {
@@ -120,12 +149,13 @@ const pt = (n: number) => `${Math.round(n * 100) / 100} pt`;
     <h2 id="strip">The strip, unclipped</h2>
     <p class="lab-note">
       The row buttons sit in an overflow-clipped strip. Working: the next row waits off the right edge. Tapped: the row just
-      marked waits off the left edge, so a scene can replay the tap with <code>x: step → 0</code>. Break stays put.
+      marked waits off the left edge, so a scene can replay the tap with <code>x:&nbsp;step&nbsp;→&nbsp;0</code>. Break stays
+      put.
     </p>
     <div class="cards">
       <figure class="card-cell reveal">
         <div class="card-bg"><LiveActivity placement="solo" fixed at={MOMENTS.lockScreen} /></div>
-        <figcaption>working: Row 39 waits on the right</figcaption>
+        <figcaption>working: Row 39 waits on the right, under Break</figcaption>
       </figure>
       <figure class="card-cell reveal">
         <div class="card-bg"><LiveActivity placement="solo" fixed at={MOMENTS.tapped} /></div>
@@ -208,19 +238,19 @@ const pt = (n: number) => `${Math.round(n * 100) / 100} pt`;
         <figcaption><strong>peek · black titanium</strong><span>No Service, no activity</span></figcaption>
       </figure>
       <figure class="cell">
-        <Phone label="iPhone lock screen, dimmed" height="460px" class="lab-rim">
+        <Phone label="iPhone lock screen with the gold rim light on" height="460px" class="lab-rim">
           <div class="screens" data-screens>
-            <Screen stateId="lab-a-dim" alt="" final>
-              <LockScreen time="2:14" live={false} dim>
+            <Screen stateId="lab-a-rim" alt="" final>
+              <LockScreen time="2:14" live={false}>
                 <LiveActivity at={MOMENTS.tapped} fixed />
               </LockScreen>
             </Screen>
           </div>
         </Phone>
-        <figcaption><strong>rim light on · dim .45</strong><span>the card sits above the dim</span></figcaption>
+        <figcaption><strong>rim light on</strong><span>[data-rim] at opacity 1</span></figcaption>
       </figure>
       <figure class="cell">
-        <Phone label="iPhone lock screen" height="300px">
+        <Phone label="iPhone lock screen at 2:14 PM, drawn 300 px tall" height="300px">
           <div class="screens" data-screens>
             <Screen stateId="lab-a-300" alt="" final>
               <LockScreen time="2:14" live={false}>
@@ -428,23 +458,34 @@ const pt = (n: number) => `${Math.round(n * 100) / 100} pt`;
     padding: 0;
     background: #142219;
   }
+  /* Unclipped: the strip's outline in gold, the waiting row ghosted behind Break. */
+  .reveal {
+    width: min(361px + 2 * 88px, 100%);
+  }
+  .reveal .card-bg {
+    margin-inline: clamp(40px, 12vw, 88px);
+  }
   .reveal :global(.la),
   .reveal :global(.la-strip) {
     overflow: visible;
   }
-  .reveal :global([data-row]) {
-    outline: 1px dashed rgba(226, 166, 68, 0.6);
-  }
-  .reveal :global(.la-strip) {
-    outline: 1px solid rgba(226, 166, 68, 0.9);
-    outline-offset: 2px;
-  }
   .reveal :global(.la-twin) {
     display: none;
   }
-  .reveal {
-    padding-inline: 96px;
-    width: min(361px + 192px, 100%);
+  .reveal :global(.la-strip) {
+    outline: 1.5px solid rgba(226, 166, 68, 0.95);
+    outline-offset: 3px;
+    border-radius: 4px;
+  }
+  .reveal :global(.la-track > :last-child),
+  .reveal :global(.la-track--lead > :first-child) {
+    opacity: 0.55;
+    outline: 1px dashed rgba(226, 166, 68, 0.8);
+    outline-offset: -1px;
+  }
+  /* Break stays where it is; fade it so the row waiting under it shows. */
+  .reveal :global(.la-break) {
+    opacity: 0.18;
   }
 
   .play {
@@ -508,7 +549,7 @@ const pt = (n: number) => `${Math.round(n * 100) / 100} pt`;
     background: #000;
   }
 
-  .lab-rim :global([data-rim]) {
+  :global(.lab-rim [data-rim]) {
     opacity: 1;
   }
   .fake-card {
