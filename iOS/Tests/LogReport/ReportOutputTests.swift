@@ -52,6 +52,31 @@ struct ReportOutputTests {
         #expect(card.prepared == "Prepared Mon, Oct 19 at 4:31 PM")
     }
 
+    @Test func oneTreeIsATree() {
+        let shift = F.shift(10, 16, from: (7, 0), to: (15, 30), breaks: [F.lunch(10, 16)])
+        let card = content(F.snapshot(shifts: [shift], marks: F.marks(rows: 0...0, on: shift, positions: 0..<1))).card
+        #expect(card.totalsLine == "8.00 hours · 1 tree")
+        #expect(PaperTimeCard.treesText(card.rows[0].trees) == "1 tree")
+        #expect(PaperTimeCard.treesText("–") == "no trees")
+        #expect(PaperTimeCard.treesText("1,347") == "1,347 trees")
+    }
+
+    @Test func dateRangesWrapOnlyAtTheDash() {
+        #expect("Oct 12 – Oct 18, 2026".wrappingOnlyAtDash == "Oct\u{00A0}12\u{00A0}– Oct\u{00A0}18,\u{00A0}2026")
+        #expect("This week".wrappingOnlyAtDash == "This\u{00A0}week")
+    }
+
+    @MainActor
+    @Test func theTreesCacheRebuildsOnlyWhenMarksChange() {
+        let (snapshot, mon, _) = lastWeek()
+        let cache = ShiftTreesCache()
+        #expect(cache.trees(for: snapshot).count(mon.id) == 124)
+        var more = snapshot
+        for mark in F.marks(rows: 18...18, on: mon) { more.marks[mark.id] = mark }
+        #expect(cache.trees(for: more).count(mon.id) == 134)
+        #expect(cache.trees(for: snapshot).count(mon.id) == 124)
+    }
+
     @Test func anOpenShiftSaysItsStillOnTheClock() {
         let open = Shift(userId: F.me, farmId: F.farmId, start: F.at(10, 19, 7, 0), rateCents: 2000)
         let card = content(F.snapshot(shifts: [open]), .thisWeek).card

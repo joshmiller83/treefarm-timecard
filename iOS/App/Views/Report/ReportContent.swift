@@ -27,9 +27,10 @@ struct ReportContent {
     var trees: String { card.totalTrees }
     var days: Int { report.daysWorked }
 
-    init(snapshot: FarmSnapshot, farm: Farm, request: ReportRequest, now: Date) {
+    /// Pass `trees` when a `ShiftTreesCache` already holds them for this snapshot.
+    init(snapshot: FarmSnapshot, farm: Farm, request: ReportRequest, now: Date, trees: ShiftTrees? = nil) {
         let calendar = FarmCalendar(farm: farm)
-        let trees = ShiftTrees(snapshot: snapshot)
+        let trees = trees ?? ShiftTrees(snapshot: snapshot)
         let worker = snapshot.members[request.userId]
         report = PaperTimeCard.report(for: request, shifts: snapshot.shifts.values, trees: trees, calendar: calendar, now: now)
         card = PaperTimeCard(report: report, farmName: farm.name, worker: worker, calendar: calendar, now: now)

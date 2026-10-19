@@ -260,7 +260,8 @@ enum ReportPDF {
             sum.append(NSAttributedString(string: card.totalHours, attributes: [.font: Face.number(13, semibold: true), .foregroundColor: Ink.ink]))
             sum.append(NSAttributedString(string: " hours  ·  ", attributes: [.font: Face.body(10.5), .foregroundColor: Ink.muted]))
             sum.append(NSAttributedString(string: card.totalTrees, attributes: [.font: Face.number(13, semibold: true), .foregroundColor: Ink.ink]))
-            sum.append(NSAttributedString(string: " trees", attributes: [.font: Face.body(10.5), .foregroundColor: Ink.muted]))
+            sum.append(NSAttributedString(string: " " + PaperTimeCard.treesWord(card.totalTrees),
+                                          attributes: [.font: Face.body(10.5), .foregroundColor: Ink.muted]))
             sum.draw(at: CGPoint(x: right - sum.size().width, y: baseline - big.ascender))
 
             // The double rule under the totals, as on a ledger.

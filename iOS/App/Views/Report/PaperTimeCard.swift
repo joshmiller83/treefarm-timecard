@@ -72,8 +72,16 @@ struct PaperTimeCard: Equatable {
 
     /// "Crew lead · Alex Rivera", or just the name.
     var whoLine: String { job.isEmpty ? worker : "\(job) · \(worker)" }
-    /// "39.92 hours · 1,347 trees"
-    var totalsLine: String { "\(totalHours) hours · \(totalTrees) trees" }
+    /// "39.92 hours · 1,347 trees" ("1 tree")
+    var totalsLine: String { "\(totalHours) hours · \(totalTrees) \(Self.treesWord(totalTrees))" }
+
+    /// "tree" after a printed count of one, else "trees".
+    static func treesWord(_ printed: String) -> String { printed == "1" ? "tree" : "trees" }
+
+    /// A row's trees in words: "1 tree", "290 trees", "no trees".
+    static func treesText(_ printed: String) -> String {
+        printed == "–" ? "no trees" : "\(printed) \(treesWord(printed))"
+    }
 
     init(farm: String, worker: String, job: String, range: String, rows: [Row], totalHours: String, totalTrees: String, days: String, prepared: String) {
         self.farm = farm

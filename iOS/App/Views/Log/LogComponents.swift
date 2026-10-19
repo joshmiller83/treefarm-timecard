@@ -13,36 +13,31 @@ struct PickerRow<Picker: View>: View {
     var identifier: String
     var toggle: () -> Void
     @ViewBuilder var picker: Picker
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         VStack(spacing: 0) {
             Button(action: toggle) {
-                HStack(spacing: 10) {
-                    Text(title)
-                        .font(.body)
-                        .foregroundStyle(Palette.ink)
-                    Spacer(minLength: 8)
-                    if let tag {
-                        Text(tag)
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(Palette.sapInk)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 3)
-                            .background(Palette.sapSoft, in: Capsule())
-                    }
-                    Group {
-                        if monospaced {
-                            Text(value).numberStyle(.body)
-                        } else {
-                            Text(value).font(.body.weight(.medium))
+                Group {
+                    if typeSize.isAccessibilitySize {
+                        // The title over the value, so "9:15 AM" keeps the whole width.
+                        VStack(alignment: .leading, spacing: 6) {
+                            titleText
+                            HStack(spacing: 10) {
+                                valueBox
+                                tagText
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.vertical, 6)
+                    } else {
+                        HStack(spacing: 10) {
+                            titleText
+                            Spacer(minLength: 8)
+                            tagText
+                            valueBox
                         }
                     }
-                    .foregroundStyle(isExpanded ? Palette.firText : Palette.ink)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .background(isExpanded ? Palette.firSoft : Palette.stripe, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                    .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .strokeBorder(isExpanded ? Palette.fir.opacity(0.35) : Palette.line, lineWidth: 1))
                 }
                 .frame(minHeight: GloveButtonStyle.minHeight)
                 .contentShape(Rectangle())
@@ -60,43 +55,97 @@ struct PickerRow<Picker: View>: View {
             }
         }
     }
+
+    private var titleText: some View {
+        Text(title)
+            .font(.body)
+            .foregroundStyle(Palette.ink)
+    }
+
+    @ViewBuilder
+    private var tagText: some View {
+        if let tag {
+            Text(tag)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(Palette.sapInk)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 3)
+                .background(Palette.sapSoft, in: Capsule())
+        }
+    }
+
+    private var valueBox: some View {
+        Group {
+            if monospaced {
+                Text(value).numberStyle(.body)
+            } else {
+                Text(value).font(.body.weight(.medium))
+            }
+        }
+        .foregroundStyle(isExpanded ? Palette.firText : Palette.ink)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(isExpanded ? Palette.firSoft : Palette.stripe, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous)
+            .strokeBorder(isExpanded ? Palette.fir.opacity(0.35) : Palette.line, lineWidth: 1))
+    }
 }
 
-/// Two or three big choices side by side (Lunch | Break, This week | Last week | …).
+/// Two or three big choices side by side (Lunch | Break, This week | Last week | …), or one
+/// under another when the words wouldn't fit on one line each (the largest text sizes), so a
+/// word never breaks ("Lun/ch").
 struct GloveSegmented<Value: Hashable>: View {
     var options: [(value: Value, title: String)]
     @Binding var selection: Value
     var identifier: String
 
     var body: some View {
-        HStack(spacing: 6) {
-            ForEach(options.indices, id: \.self) { i in
-                let option = options[i]
-                let selected = option.value == selection
-                Button {
-                    withAnimation(.easeInOut(duration: 0.15)) { selection = option.value }
-                } label: {
-                    Text(option.title)
-                        .font(.subheadline.weight(selected ? .semibold : .regular))
-                        .multilineTextAlignment(.center)
-                        .foregroundStyle(selected ? Palette.firText : Palette.ink)
-                        .padding(.horizontal, 6)
-                        .frame(maxWidth: .infinity, minHeight: GloveButtonStyle.minHeight)
-                        .background(selected ? Palette.firSoft : .clear, in: RoundedRectangle(cornerRadius: 11, style: .continuous))
-                        .overlay {
-                            if selected {
-                                RoundedRectangle(cornerRadius: 11, style: .continuous).strokeBorder(Palette.fir.opacity(0.35), lineWidth: 1)
-                            }
-                        }
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityAddTraits(selected ? [.isSelected] : [])
-                .accessibilityIdentifier("\(identifier)-\(option.title)")
-            }
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 6) { segments(oneLine: true) }
+            VStack(spacing: 6) { segments(oneLine: false) }
         }
         .padding(4)
         .background(Palette.stripe, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+
+    private func segments(oneLine: Bool) -> some View {
+        ForEach(options.indices, id: \.self) { i in
+            let option = options[i]
+            let selected = option.value == selection
+            Button {
+                withAnimation(.easeInOut(duration: 0.15)) { selection = option.value }
+            } label: {
+                Text(option.title)
+                    .font(.subheadline.weight(selected ? .semibold : .regular))
+                    .multilineTextAlignment(.center)
+                    .lineLimit(oneLine ? 1 : nil)
+                    .minimumScaleFactor(oneLine ? 0.75 : 1)
+                    .foregroundStyle(selected ? Palette.firText : Palette.ink)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, oneLine ? 0 : 8)
+                    .frame(maxWidth: .infinity, minHeight: GloveButtonStyle.minHeight)
+                    .background(selected ? Palette.firSoft : .clear, in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+                    .overlay {
+                        if selected {
+                            RoundedRectangle(cornerRadius: 11, style: .continuous).strokeBorder(Palette.fir.opacity(0.35), lineWidth: 1)
+                        }
+                    }
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityAddTraits(selected ? [.isSelected] : [])
+            .accessibilityIdentifier("\(identifier)-\(option.title)")
+        }
+    }
+}
+
+extension String {
+    /// "Oct 12 – Oct 18, 2026" with no-break spaces inside each date, so a long line wraps
+    /// after the dash and never inside a date ("Oct" / "18").
+    var wrappingOnlyAtDash: String {
+        components(separatedBy: " – ")
+            .map { $0.replacingOccurrences(of: " ", with: "\u{00A0}") }
+            .joined(separator: "\u{00A0}– ")
     }
 }
 

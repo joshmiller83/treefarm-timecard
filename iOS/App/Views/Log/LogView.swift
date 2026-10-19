@@ -11,6 +11,8 @@ struct LogView: View {
     @State private var editing: EditorTarget?
     @State private var treesFor: TreesTarget?
     @State private var toast: String?
+    @State private var treesCache = ShiftTreesCache()
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         NavigationStack {
@@ -19,17 +21,6 @@ struct LogView: View {
             }
             .screenBackground()
             .navigationTitle("Log")
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        withAnimation(.easeInOut(duration: 0.2)) { showPay.toggle() }
-                    } label: {
-                        Image(systemName: showPay ? "eye.slash" : "eye")
-                    }
-                    .accessibilityLabel(showPay ? "Hide pay" : "Show pay")
-                    .accessibilityIdentifier("log-pay-toggle")
-                }
-            }
         }
         .toast($toast)
         .sheet(item: $editing) { target in
@@ -57,14 +48,31 @@ struct LogView: View {
         let weeks = self.weeks(now: now)
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 14) {
-                Button {
-                    editing = EditorTarget(shiftId: nil)
-                } label: {
-                    Label("Add a shift", systemImage: "plus")
+                AdaptiveStack(spacing: 10) {
+                    Button {
+                        editing = EditorTarget(shiftId: nil)
+                    } label: {
+                        Label("Add a shift", systemImage: "plus")
+                    }
+                    .buttonStyle(.gloveSecondary)
+                    .accessibilityHint("For a day you forgot to clock in")
+                    .accessibilityIdentifier("add-shift")
+                    // Glove-size, beside the other button, rather than a small toolbar icon.
+                    // Its own row with words at the largest sizes, so "Add a shift" isn't squeezed.
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.2)) { showPay.toggle() }
+                    } label: {
+                        if typeSize.isAccessibilitySize {
+                            Label(showPay ? "Hide pay" : "Show pay", systemImage: showPay ? "eye.slash" : "eye")
+                        } else {
+                            Image(systemName: showPay ? "eye.slash" : "eye")
+                        }
+                    }
+                    .buttonStyle(.gloveSecondary)
+                    .fixedSize(horizontal: !typeSize.isAccessibilitySize, vertical: false)
+                    .accessibilityLabel(showPay ? "Hide pay" : "Show pay")
+                    .accessibilityIdentifier("log-pay-toggle")
                 }
-                .buttonStyle(.gloveSecondary)
-                .accessibilityHint("For a day you forgot to clock in")
-                .accessibilityIdentifier("add-shift")
 
                 if weeks.isEmpty {
                     EmptyLog()
@@ -91,7 +99,7 @@ struct LogView: View {
         guard let farm = session.farm, let me = session.membership else { return [] }
         let snapshot = session.snapshot
         let mine = snapshot.shifts.values.filter { $0.userId == me.userId }
-        return LogBuilder.weeks(shifts: mine, trees: ShiftTrees(snapshot: snapshot), calendar: FarmCalendar(farm: farm), now: now)
+        return LogBuilder.weeks(shifts: mine, trees: treesCache.trees(for: snapshot), calendar: FarmCalendar(farm: farm), now: now)
     }
 }
 
@@ -114,11 +122,11 @@ private struct WeekHeader: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(week.title)
+                Text(week.title.wrappingOnlyAtDash)
                     .headingStyle(.tcTitle2)
                     .accessibilityAddTraits(.isHeader)
                 if week.title != week.range {
-                    Text(week.range)
+                    Text(week.range.wrappingOnlyAtDash)
                         .font(.subheadline)
                         .foregroundStyle(Palette.muted)
                 }
@@ -150,11 +158,47 @@ private struct ShiftCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
+            // Everything but the buttons is one VoiceOver stop that reads the whole shift.
+            info
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(row.spoken(showPay: showPay))
+                .accessibilityIdentifier("log-shift-row")
+
+            AdaptiveStack(spacing: 10) {
+                Button(action: edit) {
+                    Label("Edit", systemImage: "pencil")
+                }
+                .buttonStyle(.gloveSecondary)
+                .accessibilityLabel("Edit shift, \(row.day)")
+                .accessibilityIdentifier("log-edit")
+                Button(action: trees) {
+                    Label("Trees", systemImage: "tree")
+                }
+                .buttonStyle(.gloveSecondary)
+                .accessibilityLabel("Trees on \(row.day)")
+                .accessibilityIdentifier("log-trees")
+            }
+        }
+        .card()
+        .overlay(alignment: .leading) {
+            if row.isOpen {
+                UnevenRoundedRectangle(topLeadingRadius: 14, bottomLeadingRadius: 14, style: .continuous)
+                    .fill(Palette.fir)
+                    .frame(width: 4)
+            }
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("log-shift-card")
+    }
+
+    private var info: some View {
+        VStack(alignment: .leading, spacing: 12) {
             if typeSize.isAccessibilitySize {
+                // Stacked, so a number never wraps inside itself ("5.0" / "0").
                 VStack(alignment: .leading, spacing: 6) {
                     day
                     times
-                    HStack(alignment: .firstTextBaseline, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 2) {
                         hours
                         if showPay { pay }
                     }
@@ -200,33 +244,7 @@ private struct ShiftCard: View {
             }
             .font(.subheadline)
             .foregroundStyle(Palette.ink)
-
-            AdaptiveStack(spacing: 10) {
-                Button(action: edit) {
-                    Label("Edit", systemImage: "pencil")
-                }
-                .buttonStyle(.gloveSecondary)
-                .accessibilityLabel("Edit shift")
-                .accessibilityIdentifier("log-edit")
-                Button(action: trees) {
-                    Label("Trees", systemImage: "tree")
-                }
-                .buttonStyle(.gloveSecondary)
-                .accessibilityLabel("Trees on this shift")
-                .accessibilityIdentifier("log-trees")
-            }
         }
-        .card()
-        .overlay(alignment: .leading) {
-            if row.isOpen {
-                UnevenRoundedRectangle(topLeadingRadius: 14, bottomLeadingRadius: 14, style: .continuous)
-                    .fill(Palette.fir)
-                    .frame(width: 4)
-            }
-        }
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel(row.spoken(showPay: showPay))
-        .accessibilityIdentifier("log-shift-row")
     }
 
     private var day: some View {
@@ -240,12 +258,16 @@ private struct ShiftCard: View {
             Text(row.hours).numberStyle(.stat)
             Text("hrs").font(.subheadline)
         }
+        .lineLimit(1)
+        .minimumScaleFactor(0.5)
         .foregroundStyle(Palette.ink)
     }
 
     private var pay: some View {
         Text(row.pay)
             .numberStyle(.small)
+            .lineLimit(1)
+            .minimumScaleFactor(0.5)
             .foregroundStyle(Palette.muted)
     }
 

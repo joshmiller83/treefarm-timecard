@@ -21,30 +21,41 @@ struct ShiftEditorView: View {
     }
 }
 
-/// Makes the model once, from the session in the environment.
+/// Makes the model once, when the sheet appears. (Making it in `init` would rebuild it, and
+/// re-index every tree mark, on each snapshot change while the sheet is open.)
 private struct EditorHost: View {
-    @State private var model: ShiftEditorModel?
+    var session: TimeCardSession
+    var shiftId: UUID?
     var onFinish: ((String) -> Void)?
+    @State private var load: Load = .waiting
     @Environment(\.dismiss) private var dismiss
 
-    init(session: TimeCardSession, shiftId: UUID?, onFinish: ((String) -> Void)?) {
-        _model = State(initialValue: ShiftEditorModel(session: session, shiftId: shiftId))
-        self.onFinish = onFinish
+    private enum Load {
+        case waiting
+        case ready(ShiftEditorModel)
+        case missing
     }
 
     var body: some View {
         NavigationStack {
             Group {
-                if let model {
+                switch load {
+                case .waiting:
+                    Color.clear
+                case .ready(let model):
                     EditorForm(model: model) { message in
                         onFinish?(message)
                         dismiss()
                     }
-                } else {
+                case .missing:
                     MissingShift { dismiss() }
                 }
             }
             .screenBackground()
+        }
+        .onAppear {
+            guard case .waiting = load else { return }
+            load = ShiftEditorModel(session: session, shiftId: shiftId).map(Load.ready) ?? .missing
         }
     }
 }
@@ -59,8 +70,12 @@ private struct EditorForm: View {
     @Bindable var model: ShiftEditorModel
     var finish: (String) -> Void
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.dynamicTypeSize) private var typeSize
     @State private var open: EditorField?
+    @State private var confirmingDiscard = false
     @FocusState private var typing: Bool
+
+    private var hasChanges: Bool { model.draft != model.initialDraft }
 
     private var calendar: FarmCalendar { model.calendar }
 
@@ -104,8 +119,11 @@ private struct EditorForm: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
-                Button("Cancel") { dismiss() }
-                    .accessibilityIdentifier("editor-cancel")
+                Button("Cancel") {
+                    typing = false
+                    if hasChanges { confirmingDiscard = true } else { dismiss() }
+                }
+                .accessibilityIdentifier("editor-cancel")
             }
             ToolbarItem(placement: .confirmationAction) {
                 Button("Save") { save() }
@@ -123,7 +141,12 @@ private struct EditorForm: View {
                 saveBar
             }
         }
-        .interactiveDismissDisabled(model.draft != model.initialDraft)
+        .interactiveDismissDisabled(hasChanges)
+        // An alert, not a popover: both answers stay on screen as big targets.
+        .alert(LogWording.discardQuestion, isPresented: $confirmingDiscard) {
+            Button("Discard changes", role: .destructive) { dismiss() }
+            Button("Keep editing", role: .cancel) {}
+        }
     }
 
     // MARK: When
@@ -159,7 +182,7 @@ private struct EditorForm: View {
             if let end = model.draft.end {
                 Divider().overlay(Palette.line)
                 PickerRow(title: "Clock out", value: Fmt.time(model.draft.endDate(calendar) ?? Date(), calendar),
-                          tag: model.draft.endsNextDay ? "Next day" : nil,
+                          tag: model.draft.dayTag(end, calendar),
                           isExpanded: open == .clockOut, identifier: "editor-clock-out",
                           toggle: { toggle(.clockOut) }) {
                     DatePicker("Clock out", selection: timeBinding(get: { end }, set: { model.draft.end = $0 }),
@@ -182,14 +205,14 @@ private struct EditorForm: View {
     private var dateRow: some View {
         let today = calendar.dayKey(Date())
         return VStack(spacing: 0) {
-            HStack(spacing: 8) {
+            HStack(spacing: 4) {
                 Text("Date")
                     .font(.body)
                     .foregroundStyle(Palette.ink)
                 Spacer(minLength: 4)
                 Button { shiftDay(-1) } label: {
                     Image(systemName: "chevron.left").font(.body.weight(.semibold))
-                        .frame(width: 48, height: GloveButtonStyle.minHeight)
+                        .frame(width: GloveButtonStyle.minHeight, height: GloveButtonStyle.minHeight)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -214,7 +237,7 @@ private struct EditorForm: View {
                 .accessibilityIdentifier("editor-date")
                 Button { shiftDay(1) } label: {
                     Image(systemName: "chevron.right").font(.body.weight(.semibold))
-                        .frame(width: 48, height: GloveButtonStyle.minHeight)
+                        .frame(width: GloveButtonStyle.minHeight, height: GloveButtonStyle.minHeight)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -228,6 +251,8 @@ private struct EditorForm: View {
                     .datePickerStyle(.graphical)
                     .tint(Palette.fir)
                     .labelsHidden()
+                    // The farm's weeks: Monday first on a Monday farm, as on the Log.
+                    .environment(\.calendar, calendar.calendar)
                     .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
@@ -264,31 +289,46 @@ private struct EditorForm: View {
             get: { model.draft.breaks.first { $0.id == id } ?? item },
             set: { new in if let i = model.draft.breaks.firstIndex(where: { $0.id == id }) { model.draft.breaks[i] = new } })
         let isLast = index == model.draft.breaks.count - 1
+        let number = Text("\(index + 1)")
+            .numberStyle(.small)
+            .foregroundStyle(Palette.sapInk)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 2)
+            .frame(minWidth: 26, minHeight: 26)
+            .background(Palette.sapSoft, in: Capsule())
+            .accessibilityLabel("Break \(index + 1)")
+        let kind = GloveSegmented(options: [(BreakKind.lunch, "Lunch"), (BreakKind.break, "Break")],
+                                  selection: binding.kind, identifier: "editor-break-kind")
+        let remove = Button(role: .destructive) {
+            model.removeBreak(id)
+        } label: {
+            Image(systemName: "trash")
+                .font(.body.weight(.semibold))
+                .frame(width: GloveButtonStyle.minHeight, height: GloveButtonStyle.minHeight)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(Palette.rust)
+        .accessibilityLabel("Remove break \(index + 1)")
+        .accessibilityIdentifier("editor-remove-break")
         return VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 8) {
-                Text("\(index + 1)")
-                    .numberStyle(.small)
-                    .foregroundStyle(Palette.sapInk)
-                    .frame(width: 26, height: 26)
-                    .background(Palette.sapSoft, in: Circle())
-                    .accessibilityLabel("Break \(index + 1)")
-                GloveSegmented(options: [(BreakKind.lunch, "Lunch"), (BreakKind.break, "Break")],
-                               selection: binding.kind, identifier: "editor-break-kind")
-                Button(role: .destructive) {
-                    model.removeBreak(id)
-                } label: {
-                    Image(systemName: "trash")
-                        .font(.body.weight(.semibold))
-                        .frame(width: GloveButtonStyle.minHeight, height: GloveButtonStyle.minHeight)
-                        .contentShape(Rectangle())
+            if typeSize.isAccessibilitySize {
+                // Lunch | Break gets the whole width, so neither word breaks.
+                HStack(spacing: 8) {
+                    number
+                    Spacer(minLength: 8)
+                    remove
                 }
-                .buttonStyle(.plain)
-                .foregroundStyle(Palette.rust)
-                .accessibilityLabel("Remove break \(index + 1)")
-                .accessibilityIdentifier("editor-remove-break")
+                kind
+            } else {
+                HStack(spacing: 8) {
+                    number
+                    kind
+                    remove
+                }
             }
             PickerRow(title: "Start", value: Fmt.time(model.draft.date(item.start, calendar), calendar),
-                      tag: model.draft.isNextDay(item.start) ? "Next day" : nil,
+                      tag: model.draft.dayTag(item.start, calendar),
                       isExpanded: open == .breakStart(id), identifier: "editor-break-start",
                       toggle: { toggle(.breakStart(id)) }) {
                 DatePicker("Break start", selection: timeBinding(get: { binding.wrappedValue.start }, set: { binding.wrappedValue.start = $0 }),
@@ -304,8 +344,8 @@ private struct EditorForm: View {
                     .toggleStyle(GloveToggleStyle())
             }
             if let end = item.end {
-                PickerRow(title: "End", value: Fmt.time(model.draft.date(end, calendar), calendar),
-                          tag: model.draft.isNextDay(end) ? "Next day" : nil,
+                PickerRow(title: "End", value: Fmt.time(model.draft.date(end, breakStart: item.start, calendar), calendar),
+                          tag: model.draft.dayTag(end, breakStart: item.start, calendar),
                           isExpanded: open == .breakEnd(id), identifier: "editor-break-end",
                           toggle: { toggle(.breakEnd(id)) }) {
                     DatePicker("Break end", selection: timeBinding(get: { end }, set: { binding.wrappedValue.end = $0 }),
@@ -429,7 +469,7 @@ private struct EditorForm: View {
                 } label: {
                     Text(model.deleteButton)
                 }
-                .buttonStyle(.gloveDestructive)
+                .buttonStyle(ConfirmDeleteStyle())
                 .accessibilityIdentifier("editor-confirm-delete")
                 Button("Keep this shift") { model.cancelDelete() }
                     .buttonStyle(.gloveSecondary)
@@ -541,6 +581,30 @@ struct GloveToggleStyle: ToggleStyle {
         .accessibilityRepresentation {
             Toggle(isOn: configuration.$isOn) { configuration.label }
         }
+    }
+}
+
+/// The one button that can't be undone: white on rust, with a deeper rust in dark mode so the
+/// text keeps at least 4.5:1 contrast there too (the light-mode rust is already 6.7:1).
+private struct ConfirmDeleteStyle: ButtonStyle {
+    @Environment(\.colorScheme) private var scheme
+
+    /// #B4452B: white on it is 5.5:1.
+    private static let darkFill = Color(red: 0xB4 / 255, green: 0x45 / 255, blue: 0x2B / 255)
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.headline)
+            .multilineTextAlignment(.center)
+            .foregroundStyle(.white)
+            .padding(.horizontal, 18)
+            .padding(.vertical, 12)
+            .frame(maxWidth: .infinity, minHeight: GloveButtonStyle.minHeight)
+            .background(scheme == .dark ? Self.darkFill : Palette.rust, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .opacity(configuration.isPressed ? 0.82 : 1)
+            .scaleEffect(configuration.isPressed ? 0.98 : 1)
+            .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
     }
 }
 

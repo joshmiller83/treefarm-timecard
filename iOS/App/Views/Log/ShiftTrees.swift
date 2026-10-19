@@ -62,3 +62,22 @@ struct ShiftTrees {
         snapshot.marks.values.filter { $0.isLive && $0.shiftId == shiftId }
     }
 }
+
+/// Keeps the last `ShiftTrees` and builds a new one only when the marks or blocks change, so a
+/// screen can ask on every body pass (each minute, a toast, a sheet) without re-indexing a
+/// whole farm of marks. Comparing an unchanged dictionary with its copy is quick.
+@MainActor
+final class ShiftTreesCache {
+    private var marks: [UUID: TreeMark]?
+    private var blocks: [UUID: Block]?
+    private var value: ShiftTrees?
+
+    func trees(for snapshot: FarmSnapshot) -> ShiftTrees {
+        if let value, marks == snapshot.marks, blocks == snapshot.blocks { return value }
+        let built = ShiftTrees(snapshot: snapshot)
+        marks = snapshot.marks
+        blocks = snapshot.blocks
+        value = built
+        return built
+    }
+}

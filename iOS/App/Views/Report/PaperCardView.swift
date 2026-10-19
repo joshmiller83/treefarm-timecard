@@ -110,7 +110,7 @@ struct PaperCardView: View {
     }
 
     private var range: some View {
-        Text(card.range)
+        Text(card.range.wrappingOnlyAtDash)
             .font(.custom(Typeface.numberMedium, size: 11.5, relativeTo: .caption))
             .foregroundStyle(.white.opacity(0.88))
             .accessibilityIdentifier("paper-range")
@@ -154,7 +154,7 @@ struct PaperCardView: View {
                 Text("\(row.clockIn) – \(row.clockOut)\(row.nextDay ? " (+1 day)" : "")")
                     .font(numberFont)
                     .foregroundStyle(Ink.ink)
-                Text("\(row.hours) h · \(row.trees == "–" ? "no" : row.trees) trees")
+                Text("\(row.hours) h · \(PaperTimeCard.treesText(row.trees))")
                     .font(numberFont)
                     .foregroundStyle(Ink.ink)
             } else {
@@ -217,7 +217,7 @@ struct PaperCardView: View {
 
     private func spoken(_ row: PaperTimeCard.Row) -> String {
         var parts = ["\(row.date): in \(row.clockIn), out \(row.clockOut == "—" ? "still on the clock" : row.clockOut)\(row.nextDay ? " the next day" : "")",
-                     "\(row.hours) hours", row.trees == "–" ? "no trees" : "\(row.trees) trees"]
+                     "\(row.hours) hours", PaperTimeCard.treesText(row.trees)]
         parts += row.details.map { [$0.label, $0.text].compactMap { $0 }.joined(separator: ": ") }
         return parts.joined(separator: ". ")
     }
@@ -246,7 +246,7 @@ struct PaperCardView: View {
             }
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Total, \(card.days): \(card.totalHours) hours, \(card.totalTrees) trees")
+        .accessibilityLabel("Total, \(card.days): \(card.totalHours) hours, \(card.totalTrees) \(PaperTimeCard.treesWord(card.totalTrees))")
         .accessibilityIdentifier("paper-totals")
     }
 
@@ -262,7 +262,7 @@ struct PaperCardView: View {
             Text(card.totalHours).font(.custom(Typeface.numberSemiBold, size: 15, relativeTo: .subheadline))
             Text("hours ·").font(.caption).foregroundStyle(Ink.muted)
             Text(card.totalTrees).font(.custom(Typeface.numberSemiBold, size: 15, relativeTo: .subheadline))
-            Text("trees").font(.caption).foregroundStyle(Ink.muted)
+            Text(PaperTimeCard.treesWord(card.totalTrees)).font(.caption).foregroundStyle(Ink.muted)
         }
         .foregroundStyle(Ink.ink)
     }

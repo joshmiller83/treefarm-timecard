@@ -11,6 +11,7 @@ struct ReportView: View {
     @State private var pickingDates = false
     /// Whose time card an admin is looking at; nil = their own.
     @State private var personId: UUID?
+    @State private var treesCache = ShiftTreesCache()
     @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
@@ -52,8 +53,10 @@ struct ReportView: View {
     private func content(farm: Farm, me: Member, now: Date) -> some View {
         let calendar = FarmCalendar(farm: farm)
         let who = session.isAdmin ? (personId ?? me.userId) : me.userId
-        let report = ReportContent(snapshot: session.snapshot, farm: farm,
-                                   request: ReportRequest(period: period(calendar: calendar, now: now), userId: who), now: now)
+        let snapshot = session.snapshot
+        let report = ReportContent(snapshot: snapshot, farm: farm,
+                                   request: ReportRequest(period: period(calendar: calendar, now: now), userId: who), now: now,
+                                   trees: treesCache.trees(for: snapshot))
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 if session.isAdmin {
@@ -93,10 +96,13 @@ struct ReportView: View {
             }
         } label: {
             HStack(spacing: 10) {
-                Image(systemName: "person.crop.circle")
-                    .font(.title3)
-                    .foregroundStyle(Palette.firText)
-                    .accessibilityHidden(true)
+                // At the largest sizes the words need the room more than the picture does.
+                if !typeSize.isAccessibilitySize {
+                    Image(systemName: "person.crop.circle")
+                        .font(.title3)
+                        .foregroundStyle(Palette.firText)
+                        .accessibilityHidden(true)
+                }
                 VStack(alignment: .leading, spacing: 1) {
                     Text("Time card for")
                         .font(.caption)
@@ -104,8 +110,9 @@ struct ReportView: View {
                     Text(name)
                         .font(.body.weight(.semibold))
                         .foregroundStyle(Palette.ink)
-                        .multilineTextAlignment(.leading)
                 }
+                .multilineTextAlignment(.leading)
+                .frame(maxWidth: .infinity, alignment: .leading)
                 Spacer()
                 Image(systemName: "chevron.up.chevron.down")
                     .font(.footnote.weight(.semibold))
@@ -134,7 +141,7 @@ struct ReportView: View {
                     Text(range == .custom ? "Your dates" : "Dates")
                         .font(.caption)
                         .foregroundStyle(Palette.muted)
-                    Text(card.range)
+                    Text(card.range.wrappingOnlyAtDash)
                         .font(.body.weight(.semibold))
                         .foregroundStyle(Palette.ink)
                         .accessibilityIdentifier("report-range-label")
@@ -227,8 +234,10 @@ struct PickDatesSheet: View {
                     }
                     .card()
                     .animation(.easeInOut(duration: 0.2), value: open)
-                    Text(Fmt.rangeLabel(start: calendar.startOfDay(from), endExclusive: calendar.addDays(calendar.startOfDay(to), 1), calendar))
+                    Text(Fmt.rangeLabel(start: calendar.startOfDay(from), endExclusive: calendar.addDays(calendar.startOfDay(to), 1), calendar)
+                        .wrappingOnlyAtDash)
                         .font(.body.weight(.semibold))
+                        .multilineTextAlignment(.center)
                         .foregroundStyle(Palette.ink)
                         .frame(maxWidth: .infinity)
                         .accessibilityIdentifier("pick-summary")
@@ -239,6 +248,8 @@ struct PickDatesSheet: View {
             }
             .screenBackground()
             .environment(\.timeZone, calendar.timeZone)
+            // The farm's weeks: Monday first on a Monday farm, as on the Log.
+            .environment(\.calendar, calendar.calendar)
             .navigationTitle("Pick dates")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

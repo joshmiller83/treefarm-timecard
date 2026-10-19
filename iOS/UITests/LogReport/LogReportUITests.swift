@@ -7,7 +7,8 @@ import XCTest
 /// `-UITestReportPeriod lastWeek` starts the Report on last week.
 ///
 /// With `TEST_RUNNER_LOGREPORT_ARTIFACTS=<folder>` passed to xcodebuild, the screenshot test
-/// saves PNGs of each screen there for a person to look at.
+/// saves PNGs of each screen there for a person to look at, then the Log, the editor and the
+/// Report again at the largest text size (`-UIPreferredContentSizeCategoryName`).
 @MainActor
 final class LogReportUITests: XCTestCase {
     override func setUp() async throws {
@@ -53,9 +54,7 @@ final class LogReportUITests: XCTestCase {
         let breakStart = element("editor-break-start", in: app)
         XCTAssertTrue(breakStart.waitForExistence(timeout: 5))
         XCTAssertEqual(breakStart.value as? String, "12:00 PM")
-        let reason = app.textFields["editor-break-reason"]
-        reason.tap()
-        reason.typeText("Rain")
+        type("Rain", into: app.textFields["editor-break-reason"])
         app.buttons["editor-save"].tap()
 
         XCTAssertTrue(toast(app).waitForExistence(timeout: 5))
@@ -112,6 +111,29 @@ final class LogReportUITests: XCTestCase {
         XCTAssertTrue(toast(app).waitForExistence(timeout: 5))
         XCTAssertTrue(toast(app).label.hasPrefix("Shift deleted."), toast(app).label)
         XCTAssertTrue(toast(app).label.contains("trees unmarked"), toast(app).label)
+    }
+
+    func testCancelWithChangesAsksFirst() {
+        let app = launch(["-UITestTab", "log", "-UITestLog", "weeks", "-UITestOpenShift", "last"])
+        XCTAssertTrue(app.navigationBars["Edit Shift"].waitForExistence(timeout: 15))
+        // Nothing changed yet: Cancel just closes.
+        app.buttons["editor-cancel"].tap()
+        XCTAssertTrue(app.navigationBars["Edit Shift"].waitForNonExistence(timeout: 5))
+
+        app.buttons["log-edit"].firstMatch.tap()
+        XCTAssertTrue(app.navigationBars["Edit Shift"].waitForExistence(timeout: 5))
+        app.buttons["editor-day-back"].tap()
+        app.buttons["editor-cancel"].tap()
+        let discard = app.buttons["Discard changes"]
+        XCTAssertTrue(discard.waitForExistence(timeout: 5), "Cancel with changes asks before throwing them away")
+        app.buttons["Keep editing"].tap()
+        XCTAssertTrue(discard.waitForNonExistence(timeout: 3))
+        XCTAssertTrue(app.navigationBars["Edit Shift"].exists)
+        app.buttons["editor-cancel"].tap()
+        XCTAssertTrue(discard.waitForExistence(timeout: 5))
+        discard.tap()
+        XCTAssertTrue(app.navigationBars["Edit Shift"].waitForNonExistence(timeout: 5))
+        XCTAssertFalse(toast(app).exists, "nothing was saved")
     }
 
     func testTreesButtonShowsTheShiftsRows() {
@@ -220,9 +242,56 @@ final class LogReportUITests: XCTestCase {
         sleep(1)
         shot("report-pick")
         app.terminate()
+
+        // The largest text size: numbers, dates and choices never break inside a word.
+        let ax5 = ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"]
+        app = launch(["-UITestTab", "log", "-UITestLog", "weeks"] + ax5)
+        XCTAssertTrue(element("log-shift-row", in: app).waitForExistence(timeout: 15))
+        sleep(1)
+        shot("ax5-log-1")
+        app.swipeUp()
+        sleep(1)
+        shot("ax5-log-2")
+        app.terminate()
+
+        app = launch(["-UITestTab", "log", "-UITestLog", "weeks", "-UITestOpenShift", "last"] + ax5)
+        XCTAssertTrue(app.navigationBars["Edit Shift"].waitForExistence(timeout: 15))
+        app.buttons["editor-add-break"].tap()
+        sleep(1)
+        shot("ax5-editor-1")
+        app.terminate()
+
+        app = launch(["-UITestTab", "report", "-UITestLog", "weeks", "-UITestReportPeriod", "lastWeek"] + ax5)
+        XCTAssertTrue(element("paper-row", in: app).waitForExistence(timeout: 15))
+        sleep(1)
+        shot("ax5-report-1")
+        app.swipeUp()
+        sleep(1)
+        shot("ax5-report-2")
+        app.terminate()
     }
 
     // MARK: Helpers
+
+    /// Taps a text field until it has the keyboard, then types. A tap that lands while the
+    /// editor is still scrolling a new break into view can miss the field.
+    private func type(_ text: String, into field: XCUIElement, file: StaticString = #filePath, line: UInt = #line) {
+        XCTAssertTrue(field.waitForExistence(timeout: 5), file: file, line: line)
+        var focused = false
+        for _ in 0..<3 where !focused {
+            wait(for: field, "isHittable == true", timeout: 5)
+            field.tap()
+            focused = wait(for: field, "hasKeyboardFocus == true", timeout: 3)
+        }
+        XCTAssertTrue(focused, "the field never took the keyboard", file: file, line: line)
+        field.typeText(text)
+    }
+
+    @discardableResult
+    private func wait(for element: XCUIElement, _ predicate: String, timeout: TimeInterval) -> Bool {
+        let expectation = XCTNSPredicateExpectation(predicate: NSPredicate(format: predicate), object: element)
+        return XCTWaiter().wait(for: [expectation], timeout: timeout) == .completed
+    }
 
     /// Waits for the system share sheet, however this iOS version shows it.
     private func waitForShareSheet(in app: XCUIApplication, timeout: TimeInterval = 10) -> Bool {
