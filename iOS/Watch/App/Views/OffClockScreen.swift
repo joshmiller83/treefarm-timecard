@@ -68,6 +68,7 @@ struct OffClockScreen: View {
 
         }
         .padding(.horizontal, 2)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(PhaseGlow(phase: .offClock))
         .watchToast(model.toast, alignment: .top)
         .navigationTitle(WatchDisplay.appName)

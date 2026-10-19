@@ -64,6 +64,7 @@ struct ShiftDoneScreen: View {
             .accessibilityIdentifier("summaryDone")
         }
         .padding(.horizontal, 4)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(PhaseGlow(phase: .offClock))
     }
 }

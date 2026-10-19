@@ -32,7 +32,6 @@ struct NowScreen: View {
         VStack(spacing: metrics.isSmall ? 4 : 6) {
             info(phase: phase, compact: showUndoClockIn)
                 .frame(maxHeight: .infinity)
-                .watchToast(model.toast, alignment: .bottom)
 
             primaryButton(primary, chips: chips)
 
@@ -76,13 +75,21 @@ struct NowScreen: View {
 
     // MARK: The top: phase, timer, place
 
+    /// The phase, the timer and the place. The toast takes the place line's spot for a moment,
+    /// so it never covers the timer or the button. With Undo clock-in on a small watch, the
+    /// timer moves up beside the phase to leave the buttons their full size.
     @ViewBuilder
     private func info(phase: WatchPhase, compact: Bool) -> some View {
         let snapshot = state.snapshot
+        let tight = compact && metrics.isSmall
         VStack(alignment: .leading, spacing: metrics.isSmall ? 0 : 2) {
-            HStack {
+            HStack(alignment: .center, spacing: 4) {
                 PhaseTag(phase: phase, title: WatchDisplay.breakLine(state))
-                Spacer(minLength: 4)
+                Spacer(minLength: 2)
+                if tight, let snapshot {
+                    timer(snapshot, phase: phase, size: 20)
+                        .fixedSize()
+                }
                 if model.waitingCount > 0 {
                     QueueBadge(count: model.waitingCount, action: showQueue)
                 } else {
@@ -92,17 +99,24 @@ struct NowScreen: View {
 
             Spacer(minLength: 0)
 
-            if let snapshot {
-                timer(snapshot, phase: phase)
+            if let snapshot, !tight {
+                timer(snapshot, phase: phase, size: metrics.timer * timerScale)
+            }
+            if let toast = model.toast {
+                ToastView(toast: toast)
+                    .transition(.opacity)
+                    .id(toast)
+            } else if let snapshot, !tight {
                 subline(snapshot, phase: phase, compact: compact)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .animation(.easeOut(duration: 0.25), value: model.toast)
     }
 
     @ViewBuilder
-    private func timer(_ snapshot: LiveSnapshot, phase: WatchPhase) -> some View {
-        let font = Font.system(size: metrics.timer * timerScale, weight: .semibold, design: .rounded).monospacedDigit()
+    private func timer(_ snapshot: LiveSnapshot, phase: WatchPhase, size: CGFloat) -> some View {
+        let font = Font.system(size: size, weight: .semibold, design: .rounded).monospacedDigit()
         Group {
             if phase == .working {
                 Text(timerInterval: snapshot.timerStart...Date.distantFuture, countsDown: false)
@@ -127,8 +141,8 @@ struct NowScreen: View {
                     .font(.system(.caption2, design: .rounded))
                     .foregroundStyle(.secondary)
             }
-            if !(compact && metrics.isSmall), let place = WatchDisplay.placeLine(state) {
-                Text(placeWithHeart(place))
+            if let place = WatchDisplay.placeLine(state) {
+                placeLine(place)
                     .font(.system(.footnote, design: .rounded).weight(.medium))
                     .foregroundStyle(dimmed ? .secondary : .primary)
                     .lineLimit(1)
@@ -143,10 +157,11 @@ struct NowScreen: View {
         }
     }
 
-    /// The 49 mm screen has room for the heart rate on the place line.
-    private func placeWithHeart(_ place: String) -> String {
-        guard metrics.isLarge, let bpm = ShiftWorkout.shared.live.heartRate else { return place }
-        return "\(place) · ♥\(Int(bpm.rounded()))"
+    /// "Block 2 · 38 trees", and on the 49 mm screen the heart rate after it.
+    private func placeLine(_ place: String) -> Text {
+        guard metrics.isLarge, let bpm = ShiftWorkout.shared.live.heartRate else { return Text(place) }
+        return Text("\(place) · ") + Text(Image(systemName: WatchDisplay.Glyph.heart)).foregroundStyle(WatchPalette.rustBright)
+            + Text(" \(Int(bpm.rounded()))")
     }
 
     // MARK: The primary button
