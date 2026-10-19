@@ -140,7 +140,8 @@ test.describe('acceptance: the Live Activity', () => {
   test.use({ reducedMotion: 'reduce' });
   test('is 160 pt or less, with 44 pt buttons and never a clock-out control', async ({ page }) => {
     await page.goto('/');
-    const las = page.locator('#lock-screen [data-la]');
+    // Without motion only the final layer renders (the others are display: none).
+    const las = page.locator('#lock-screen [data-final] [data-la]');
     const n = await las.count();
     expect(n).toBeGreaterThan(0);
     for (let i = 0; i < n; i += 1) {

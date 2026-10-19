@@ -4,6 +4,8 @@
  * for the static figures (reduced motion and no JS). A titanium band and black glass around
  * the screen's top corners, fading out downward, so it reads as a crop of the real thing.
  * Frozen values (no DayClock): the island at 2:16 PM, compact or expanded.
+ * A still shows only what is on screen: no status bar under the expanded island (it covers
+ * it), and the parts the island and status bar fade for other sizes are left out entirely.
  *
  * The crop is one image with a label; the mock inside is aria-hidden.
  */
@@ -24,7 +26,7 @@ const { size, label, time } = Astro.props;
     <div class="crop-glass">
       <div class="crop-screen" data-screen={`ls-crop-${size}`}>
         <HomeLayer />
-        <StatusBar time={time} live={false} tone="light" />
+        {size === 'compact' && <StatusBar time={time} live={false} tone="light" />}
         <DynamicIsland size={size} />
       </div>
     </div>
@@ -32,6 +34,15 @@ const { size, label, time } = Astro.props;
 </div>
 
 <style>
+  /* Only what this size shows (the components fade the rest by opacity, for scenes). */
+  .crop--compact :global([data-island-expanded]),
+  .crop--expanded :global([data-island-compact]),
+  .crop :global([data-no-service]),
+  .crop--compact :global([data-statusbar] :is(:has(> [data-bar]), [data-wifi])) {
+    display: none;
+    opacity: 1 !important; /* nothing in a still is "faded" */
+  }
+
   /* Frame proportions follow Phone: a 4.5 u titanium band and a 9 u glass border, u = 1/420
      of the crop's width (.crop is the container; its children size against it). */
   .crop {
