@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://treefarm.joshnliz.com/sitemap-index.xml
