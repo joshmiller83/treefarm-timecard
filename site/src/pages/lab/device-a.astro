@@ -1,63 +1,565 @@
 ---
-/** Lab: device-a (owner). Show every state of your components at small and large sizes. */
+/**
+ * Lab: device-a. The phone frame, status bar, screen layers, lock screen and every Live
+ * Activity state, at real device size (1 CSS px = 1 pt, so a phone is 420 × 879 px with a
+ * 393 × 852 screen), plus 1x cards, the strip geometry and a play-through of the card's
+ * transitions using only transform, opacity and clip-path.
+ */
 import Lab from '../../layouts/Lab.astro';
 import Phone from '../../components/phone/Phone.astro';
 import Screen from '../../components/phone/Screen.astro';
+import StatusBar from '../../components/phone/StatusBar.astro';
 import LockScreen from '../../components/phone/LockScreen.astro';
 import LiveActivity from '../../components/phone/LiveActivity.astro';
-import { MOMENTS, fmtClock } from '../../data/ledger';
+import AppChrome from '../../components/app/AppChrome.astro';
+import { fmtClock, fmtTime, MOMENTS } from '../../data/ledger';
+import { activityLabel, activityView, buttonWidth, cardHeight, stripStep } from '../../components/system/lockscreen/activity';
+import type { WallpaperId } from '../../components/system/lockscreen/wallpaper';
+import type { Props as StatusBarProps } from '../../components/phone/StatusBar.astro';
 
-const states = [
-  { at: MOMENTS.clockIn, note: '7:02 working' },
-  { at: MOMENTS.lunch, note: '12:01 lunch' },
-  { at: MOMENTS.lockScreen, note: '2:14 working' },
-  { at: MOMENTS.tapped, note: '2:14 tapped' },
-  { at: MOMENTS.treeNote, note: '2:33 break' },
-  { at: MOMENTS.clockOut, note: '4:31 working' },
+interface DayState {
+  id: string;
+  at: number;
+  title: string;
+  note: string;
+  wallpaper?: WallpaperId;
+  quiet?: boolean;
+  dim?: boolean;
+}
+
+const DAY: DayState[] = [
+  { id: 'lab-a-0702', at: MOMENTS.clockIn, title: '7:02 · Clock in', note: 'working · 0 trees · rows 14–16 · bar 26%' },
+  { id: 'lab-a-0719', at: MOMENTS.firstRow, title: '7:19 · Next row', note: 'working · 10 trees · rows 15–17' },
+  { id: 'lab-a-1201', at: MOMENTS.lunch, title: '12:01 · Lunch', note: 'lunch · gold · 4:44:00 worked' },
+  { id: 'lab-a-1401', at: MOMENTS.status, title: '2:01 · Status', note: 'working · 212 trees · 6:14:00' },
+  { id: 'lab-a-1414', at: MOMENTS.lockScreen, title: '2:14 · Before the tap', note: 'working · 220 trees · bar 28% · Row 39 waiting' },
+  { id: 'lab-a-1414-tapped', at: MOMENTS.tapped, title: '2:14 · Tapped', note: 'tapped · 230 trees · Row 36 marked · Undo' },
+  { id: 'lab-a-1430', at: MOMENTS.break, title: '2:30 · Break', note: 'break · Sharpening shears · 6:43:00 worked' },
+  { id: 'lab-a-1540', at: MOMENTS.pace, title: '3:40 · Pace', note: 'working · 7:39:00 · 260 trees · rows 39–41' },
+  { id: 'lab-a-1631', at: MOMENTS.clockOut, title: '4:31 · Clock out', note: 'working · 8:30:00 · 290 trees · bar 29% · dusk', wallpaper: 'dusk-rows' },
 ];
+
+const QUIET: DayState[] = [
+  { id: 'lab-a-dawn-quiet', at: MOMENTS.clockIn - 2, title: 'dawn-rows', note: '7:00, before clocking in: no activity', quiet: true },
+  { id: 'lab-a-1631-quiet', at: MOMENTS.clockOut, title: 'dusk-rows', note: '4:31, clocked out: a quiet lock screen', wallpaper: 'dusk-rows', quiet: true },
+  { id: 'lab-a-1414-dim', at: MOMENTS.tapped, title: 'dim .45', note: 'the zoom beat: the card stays above the dim', dim: true },
+];
+
+const lockLabel = (s: DayState) =>
+  `iPhone lock screen at ${fmtTime(s.at)}.` + (s.quiet ? ' No Live Activity.' : ` ${activityLabel(activityView({ at: s.at }))}`);
+
+const CARDS = [
+  { at: MOMENTS.lockScreen, title: 'working' },
+  { at: MOMENTS.tapped, title: 'tapped' },
+  { at: MOMENTS.lunch, title: 'lunch' },
+  { at: MOMENTS.break, title: 'break with a reason' },
+  { at: MOMENTS.lockScreen, state: 'break' as const, breakReason: null, breakTime: '0:00:00', title: 'break from the card (no reason)' },
+  { at: MOMENTS.clockOut, title: 'end of the day' },
+];
+const BARS: Array<{ label: string; props: StatusBarProps }> = [
+  { label: 'lock screen: no time (the big clock shows it)', props: { tone: 'light', showTime: false } },
+  { label: 'light, full signal', props: { tone: 'light' } },
+  { label: 'dark (app screens)', props: { tone: 'dark', time: '3:40' } },
+  { label: 'two bars, battery 20%', props: { tone: 'dark', time: '2:48', signal: 2, battery: 20 } },
+  { label: 'No Service (the crew offline beat)', props: { tone: 'dark', time: '2:52', noService: true } },
+  { label: 'No Service, light', props: { tone: 'light', time: '2:52', noService: true } },
+];
+const pt = (n: number) => `${Math.round(n * 100) / 100} pt`;
 ---
 
 <Lab title="device-a" owner="device-a">
-  <section>
-    <h2>Live Activity states</h2>
-    <div class="lab-row">
+  <section class="intro">
+    <p>
+      The phone frame, status bar, screen layers, lock screen and Live Activity. Phones here are at real device size:
+      one CSS pixel per point, a 393 × 852 screen in a 420 × 879 frame. Drop a 1179 × 2556 simulator capture into{' '}
+      <code>public/screens/&lt;state-id&gt;.png</code> and the matching <code>&lt;Screen&gt;</code> renders it instead.
+    </p>
+  </section>
+
+  <section aria-labelledby="day">
+    <h2 id="day">The day on the lock screen</h2>
+    <div class="phones">
       {
-        states.map((s) => (
-          <div class="lab-cell">
-            <Phone label={`Lock screen at ${s.note}`} height="560px">
+        DAY.map((s) => (
+          <figure class="cell" data-lab-state={s.id} data-lab-at={s.at}>
+            <Phone label={lockLabel(s)} height="var(--real-h)">
               <div class="screens" data-screens>
-                <Screen stateId={`lab-${s.at}`} alt="" final>
-                  <LockScreen time={fmtClock(s.at)} live={false}>
-                    <LiveActivity at={s.at} fixed />
+                <Screen stateId={s.id} alt={lockLabel(s)} final>
+                  <LockScreen time={fmtClock(s.at)} live={false} wallpaper={s.wallpaper} dim={s.dim}>
+                    {!s.quiet && <LiveActivity at={s.at} fixed />}
                   </LockScreen>
                 </Screen>
               </div>
             </Phone>
-            <p>{s.note}</p>
-          </div>
+            <figcaption>
+              <strong>{s.title}</strong>
+              <span>{s.note}</span>
+            </figcaption>
+          </figure>
         ))
       }
     </div>
   </section>
-  <section>
-    <h2>Sizes</h2>
-    <div class="lab-row">
+
+  <section aria-labelledby="wallpapers">
+    <h2 id="wallpapers">Wallpapers and the dim</h2>
+    <div class="phones">
       {
-        ['300px', '460px', '760px'].map((h) => (
-          <div class="lab-cell">
-            <Phone label="Lock screen" height={h}>
+        QUIET.map((s) => (
+          <figure class="cell" data-lab-state={s.id}>
+            <Phone label={lockLabel(s)} height="var(--real-h)">
               <div class="screens" data-screens>
-                <Screen stateId="lab-size" alt="" final>
-                  <LockScreen time="2:14" live={false}>
-                    <LiveActivity at={MOMENTS.lockScreen} fixed />
+                <Screen stateId={s.id} alt={lockLabel(s)} final>
+                  <LockScreen time={fmtClock(s.at)} live={false} wallpaper={s.wallpaper} dim={s.dim}>
+                    {!s.quiet && <LiveActivity at={s.at} fixed />}
                   </LockScreen>
                 </Screen>
               </div>
             </Phone>
-            <p>{h}</p>
-          </div>
+            <figcaption>
+              <strong>{s.title}</strong>
+              <span>{s.note}</span>
+            </figcaption>
+          </figure>
         ))
       }
+    </div>
+  </section>
+
+  <section aria-labelledby="cards">
+    <h2 id="cards">The card, every state, at 1x</h2>
+    <p class="lab-note">
+      {`361 × ${pt(cardHeight)}. Buttons ${pt(buttonWidth)} wide, 46 pt tall, 8 pt apart. One advance moves the strip ${pt(stripStep)}.`}
+    </p>
+    <div class="cards">
+      {
+        CARDS.map((c) => (
+          <figure class="card-cell">
+            <div class="card-bg">
+              <LiveActivity placement="solo" fixed {...c} />
+            </div>
+            <figcaption>{c.title}</figcaption>
+          </figure>
+        ))
+      }
+    </div>
+  </section>
+
+  <section aria-labelledby="strip">
+    <h2 id="strip">The strip, unclipped</h2>
+    <p class="lab-note">
+      The row buttons sit in an overflow-clipped strip. Working: the next row waits off the right edge. Tapped: the row just
+      marked waits off the left edge, so a scene can replay the tap with <code>x:&nbsp;step&nbsp;→&nbsp;0</code>. Break stays
+      put.
+    </p>
+    <div class="cards">
+      <figure class="card-cell reveal">
+        <div class="card-bg"><LiveActivity placement="solo" fixed at={MOMENTS.lockScreen} /></div>
+        <figcaption>working: Row 39 waits on the right, under Break</figcaption>
+      </figure>
+      <figure class="card-cell reveal">
+        <div class="card-bg"><LiveActivity placement="solo" fixed at={MOMENTS.tapped} /></div>
+        <figcaption>tapped: Row 36 waits on the left</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section aria-labelledby="play">
+    <h2 id="play">Play it</h2>
+    <p class="lab-note">
+      A rehearsal of what the scenes do, with the Web Animations API and only transform, opacity and clip-path. Under
+      reduced motion each step lands at once.
+    </p>
+    <div class="play" data-play>
+      <div class="play-phone">
+        <Phone label="Practice lock screen for the Live Activity transitions" height="var(--real-h)">
+          <div class="screens" data-screens>
+            <Screen stateId="lab-a-play" alt="" final>
+              <LockScreen time={fmtClock(MOMENTS.lockScreen)} live={false}>
+                <LiveActivity at={MOMENTS.lockScreen} fixed />
+              </LockScreen>
+            </Screen>
+          </div>
+        </Phone>
+      </div>
+      <div class="play-controls">
+        <button type="button" class="btn btn-gold" data-play-step="tap">Tap Row 36</button>
+        <button type="button" class="btn btn-gold" data-play-step="break">Tap Break</button>
+        <button type="button" class="btn btn-gold" data-play-step="back">Back to work</button>
+        <button type="button" class="btn btn-quiet" data-play-step="dim">Dim the lock screen</button>
+        <button type="button" class="btn btn-quiet" data-play-step="sheen">Sheen and rim</button>
+        <button type="button" class="btn btn-quiet" data-play-step="reset">Reset</button>
+        <p class="lab-note" data-play-log aria-live="polite">Ready: 2:14, Row 36 next.</p>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="sb">
+    <h2 id="sb">Status bar</h2>
+    <div class="bars">
+      {
+        BARS.map((b) => (
+          <figure class="bar-cell">
+            <div class:list={['bar-strip', `bar-strip--${b.props.tone}`]}>
+              <div class="bar-island" />
+              <StatusBar live={false} {...b.props} />
+            </div>
+            <figcaption>{b.label}</figcaption>
+          </figure>
+        ))
+      }
+    </div>
+  </section>
+
+  <section aria-labelledby="frames">
+    <h2 id="frames">Frames and sizes</h2>
+    <div class="phones phones--small">
+      <figure class="cell">
+        <Phone label="iPhone showing the Clock tab" height="460px">
+          <div class="screens" data-screens>
+            <Screen stateId="lab-a-app" alt="" tone="light" final>
+              <AppChrome title="Clock" tab="clock" time="3:40" trailing={[{ icon: 'gear' }]}>
+                <div class="fake-card"></div>
+                <div class="fake-card fake-card--short"></div>
+              </AppChrome>
+            </Screen>
+          </div>
+        </Phone>
+        <figcaption><strong>inline · app screen</strong><span>460 px · dark status bar</span></figcaption>
+      </figure>
+      <figure class="cell">
+        <Phone label="Sam’s iPhone lock screen" height="460px" variant="peek">
+          <div class="screens" data-screens>
+            <Screen stateId="lab-a-peek" alt="" final>
+              <LockScreen time="2:49" live={false} noService signal={0} />
+            </Screen>
+          </div>
+        </Phone>
+        <figcaption><strong>peek · black titanium</strong><span>No Service, no activity</span></figcaption>
+      </figure>
+      <figure class="cell">
+        <Phone label="iPhone lock screen with the gold rim light on" height="460px" class="lab-rim">
+          <div class="screens" data-screens>
+            <Screen stateId="lab-a-rim" alt="" final>
+              <LockScreen time="2:14" live={false}>
+                <LiveActivity at={MOMENTS.tapped} fixed />
+              </LockScreen>
+            </Screen>
+          </div>
+        </Phone>
+        <figcaption><strong>rim light on</strong><span>[data-rim] at opacity 1</span></figcaption>
+      </figure>
+      <figure class="cell">
+        <Phone label="iPhone lock screen at 2:14 PM, drawn 300 px tall" height="300px">
+          <div class="screens" data-screens>
+            <Screen stateId="lab-a-300" alt="" final>
+              <LockScreen time="2:14" live={false}>
+                <LiveActivity at={MOMENTS.tapped} fixed />
+              </LockScreen>
+            </Screen>
+          </div>
+        </Phone>
+        <figcaption><strong>300 px</strong><span>still crisp: everything is in pt</span></figcaption>
+      </figure>
+      <figure class="cell">
+        <Phone variant="stage" decorative height="460px" />
+        <figcaption><strong>stage · empty</strong><span>decorative, aria-hidden</span></figcaption>
+      </figure>
     </div>
   </section>
 </Lab>
+
+<script>
+  import { setOdometer } from '../../scripts/odometer';
+
+  const root = document.querySelector<HTMLElement>('[data-play]');
+  if (root) {
+    const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const q = <T extends Element = HTMLElement>(s: string) => root.querySelector<T>(s)!;
+    const qa = (s: string) => Array.from(root.querySelectorAll<HTMLElement>(s));
+    const la = q('[data-la]');
+    const log = q('[data-play-log]');
+    const ease = 'cubic-bezier(0.32, 0.72, 0, 1)';
+    const done: Animation[] = [];
+    let tapped = false;
+    let onBreak = false;
+
+    const go = (el: Element | null, frames: Keyframe[], opts: KeyframeAnimationOptions = {}) => {
+      if (!el) return;
+      const a = el.animate(frames, { duration: reduce ? 0 : 420, easing: ease, fill: 'forwards', ...opts });
+      done.push(a);
+    };
+    const odo = (sel: string, text: string) => {
+      const el = root.querySelector<HTMLElement>(sel);
+      if (el) setOdometer(el, text);
+    };
+    const step = () => {
+      const [a, b] = qa('[data-row]');
+      return a && b ? b.offsetLeft - a.offsetLeft : 0;
+    };
+
+    const steps: Record<string, () => string> = {
+      tap() {
+        if (tapped || onBreak) return 'Already tapped.';
+        tapped = true;
+        const btn = q('[data-row="36"]');
+        go(btn, [{ transform: 'scale(1)' }, { transform: 'scale(.94)', offset: 0.35 }, { transform: 'scale(1)' }], { duration: reduce ? 0 : 260 });
+        go(q('[data-strip-track]'), [{ transform: 'translateX(0)' }, { transform: `translateX(${-step()}px)` }], { delay: reduce ? 0 : 180 });
+        go(q('[data-undo]'), [{ opacity: 0, transform: 'translateY(8px)' }, { opacity: 1, transform: 'none' }], { delay: reduce ? 0 : 260 });
+        go(q('[data-fieldbar]'), [{ transform: 'scaleX(.2822)' }, { transform: 'scaleX(.2834)' }]);
+        odo('[data-trees]', '230');
+        return `Row 36 marked. The strip moved ${step()} px; Row 39 came in from the right.`;
+      },
+      break() {
+        if (onBreak) return 'Already on break.';
+        onBreak = true;
+        go(q('[data-la-break]'), [{ opacity: 0 }, { opacity: 1 }]);
+        go(q('[data-pill-face="clock"]'), [{ opacity: 1 }, { opacity: 0 }]);
+        go(q('[data-pill-face="break"]'), [{ opacity: 0 }, { opacity: 1 }]);
+        q('[data-pill-text="break"]').textContent = 'On break';
+        la.dataset.state = 'break';
+        odo('.la-timer', '0:00:00');
+        go(q('[data-worked-line]'), [{ opacity: 0 }, { opacity: 1 }], { delay: reduce ? 0 : 120 });
+        go(q('[data-undo]'), [{ opacity: tapped ? 1 : 0 }, { opacity: 0 }], { duration: reduce ? 0 : 160 });
+        qa('[data-row]').reverse().forEach((r, i) =>
+          go(r, [{ transform: 'scaleX(1)', transformOrigin: '100% 50%' }, { transform: 'scaleX(0)', transformOrigin: '100% 50%' }], { delay: reduce ? 0 : i * 40, duration: reduce ? 0 : 260 }),
+        );
+        go(q('[data-break-btn]'), [{ opacity: 1 }, { opacity: 0 }], { duration: reduce ? 0 : 200 });
+        go(q('[data-back-btn]'), [{ clipPath: 'inset(0 100% 0 0)' }, { clipPath: 'inset(0 0% 0 0)' }], { delay: reduce ? 0 : 200 });
+        return 'On break: the card turned gold, the break timer started at 0:00:00 and one big button says Back to work.';
+      },
+      back() {
+        if (!onBreak) return 'Not on break.';
+        onBreak = false;
+        go(q('[data-back-btn]'), [{ clipPath: 'inset(0 0% 0 0)' }, { clipPath: 'inset(0 100% 0 0)' }], { duration: reduce ? 0 : 260 });
+        go(q('[data-la-break]'), [{ opacity: 1 }, { opacity: 0 }]);
+        go(q('[data-pill-face="clock"]'), [{ opacity: 0 }, { opacity: 1 }]);
+        go(q('[data-pill-face="break"]'), [{ opacity: 1 }, { opacity: 0 }]);
+        la.dataset.state = tapped ? 'tapped' : 'working';
+        odo('.la-timer', '6:27:00');
+        go(q('[data-worked-line]'), [{ opacity: 1 }, { opacity: 0 }], { duration: reduce ? 0 : 160 });
+        qa('[data-row]').forEach((r, i) =>
+          go(r, [{ transform: 'scaleX(0)', transformOrigin: '0% 50%' }, { transform: 'scaleX(1)', transformOrigin: '0% 50%' }], { delay: reduce ? 0 : 160 + i * 40, duration: reduce ? 0 : 300 }),
+        );
+        go(q('[data-break-btn]'), [{ opacity: 0 }, { opacity: 1 }], { delay: reduce ? 0 : 260 });
+        return 'Back to work: green again, the worked timer picks up where it stopped.';
+      },
+      dim() {
+        const dim = q('[data-dim]');
+        const on = dim.dataset.on !== '1';
+        dim.dataset.on = on ? '1' : '0';
+        go(dim, [{ opacity: on ? 0 : 0.45 }, { opacity: on ? 0.45 : 0 }]);
+        return on ? 'Dimmed to .45: the card stays bright above it.' : 'Dim off.';
+      },
+      sheen() {
+        const phone = q('[data-phone]');
+        go(phone.querySelector('[data-rim]'), [{ opacity: 0 }, { opacity: 1, offset: 0.4 }, { opacity: 0 }], { duration: reduce ? 0 : 1400, fill: 'none' });
+        go(phone.querySelector('[data-sheen]'), [
+          { opacity: 0, transform: 'translateX(-70%)' },
+          { opacity: 1, transform: 'translateX(0)', offset: 0.5 },
+          { opacity: 0, transform: 'translateX(70%)' },
+        ], { duration: reduce ? 0 : 700, fill: 'none' });
+        return 'A sheen across the glass and a gold rim light.';
+      },
+      reset() {
+        for (const a of done.splice(0)) a.cancel();
+        tapped = false;
+        onBreak = false;
+        la.dataset.state = 'working';
+        odo('[data-trees]', '220');
+        odo('.la-timer', '6:27:00');
+        const dim = q('[data-dim]');
+        dim.dataset.on = '0';
+        return 'Ready: 2:14, Row 36 next.';
+      },
+    };
+
+    root.addEventListener('click', (e) => {
+      const b = (e.target as Element).closest<HTMLButtonElement>('[data-play-step]');
+      const fn = b && steps[b.dataset.playStep!];
+      if (fn) log.textContent = fn();
+    });
+  }
+</script>
+
+<style>
+  /* Real device size: a 420 × 879 px phone, shrunk only when the window is narrower. */
+  :global(.lab-main) {
+    --real-h: min(879px, calc((100vw - 2 * var(--gutter)) * 879 / 420));
+  }
+  .intro p {
+    max-width: 72ch;
+    color: var(--on-stage-muted);
+    line-height: 1.6;
+  }
+  code {
+    font-family: var(--font-mono);
+    font-size: 0.9em;
+    color: var(--on-stage);
+  }
+  .lab-note {
+    max-width: 72ch;
+    margin: -4px 0 24px;
+    color: var(--on-stage-muted);
+    font-size: 0.9375rem;
+    line-height: 1.55;
+  }
+
+  .phones {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 48px 40px;
+  }
+  .phones--small {
+    align-items: flex-end;
+  }
+  .cell {
+    margin: 0;
+    display: grid;
+    justify-items: center;
+    gap: 16px;
+  }
+  .cell figcaption {
+    display: grid;
+    justify-items: center;
+    gap: 2px;
+    text-align: center;
+  }
+  .cell figcaption strong {
+    font-family: var(--font-mono);
+    font-weight: 600;
+    font-size: 0.875rem;
+    color: var(--on-stage);
+  }
+  .cell figcaption span {
+    font-size: 0.8125rem;
+    color: var(--on-stage-muted);
+  }
+
+  .cards {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 32px;
+  }
+  .card-cell {
+    margin: 0;
+    width: min(361px, 100%);
+    display: grid;
+    gap: 10px;
+  }
+  .card-cell figcaption {
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
+    color: var(--on-stage-muted);
+  }
+  /* A card on its lock-screen backdrop: the darkest band of the dawn wallpaper. */
+  .card-bg {
+    border-radius: 26px;
+    padding: 0;
+    background: #142219;
+  }
+  /* Unclipped: the strip's outline in gold, the waiting row ghosted behind Break. */
+  .reveal {
+    width: min(361px + 2 * 88px, 100%);
+  }
+  .reveal .card-bg {
+    margin-inline: clamp(40px, 12vw, 88px);
+  }
+  .reveal :global(.la),
+  .reveal :global(.la-strip) {
+    overflow: visible;
+  }
+  .reveal :global(.la-twin) {
+    display: none;
+  }
+  .reveal :global(.la-strip) {
+    outline: 1.5px solid rgba(226, 166, 68, 0.95);
+    outline-offset: 3px;
+    border-radius: 4px;
+  }
+  .reveal :global(.la-track > :last-child),
+  .reveal :global(.la-track--lead > :first-child) {
+    opacity: 0.55;
+    outline: 1px dashed rgba(226, 166, 68, 0.8);
+    outline-offset: -1px;
+  }
+  /* Break stays where it is; fade it so the row waiting under it shows. */
+  .reveal :global(.la-break) {
+    opacity: 0.18;
+  }
+
+  .play {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 32px 48px;
+    align-items: flex-start;
+  }
+  .play-controls {
+    display: grid;
+    gap: 12px;
+    max-width: 22rem;
+  }
+  .play-controls .btn {
+    min-height: 44px;
+    justify-content: flex-start;
+  }
+  .btn-quiet {
+    background: transparent;
+    color: var(--on-stage);
+    box-shadow: inset 0 0 0 1px var(--stage-line);
+  }
+
+  .bars {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(393px, 100%), 1fr));
+    gap: 24px 32px;
+  }
+  .bar-cell {
+    margin: 0;
+    display: grid;
+    gap: 8px;
+  }
+  .bar-cell figcaption {
+    font-size: 0.8125rem;
+    color: var(--on-stage-muted);
+  }
+  .bar-strip {
+    position: relative;
+    width: min(393px, 100%);
+    aspect-ratio: 393 / 54;
+    container-type: inline-size;
+    --pt: calc(100cqw / 393);
+    border-radius: 14px 14px 0 0;
+    overflow: hidden;
+  }
+  .bar-strip--light {
+    background: linear-gradient(180deg, #0d2418, #14301f);
+  }
+  .bar-strip--dark {
+    background: #fafcf9;
+  }
+  .bar-island {
+    position: absolute;
+    left: 50%;
+    top: calc(11 * var(--pt));
+    width: calc(126 * var(--pt));
+    height: calc(37 * var(--pt));
+    margin-left: calc(-63 * var(--pt));
+    border-radius: 999px;
+    background: #000;
+  }
+
+  :global(.lab-rim [data-rim]) {
+    opacity: 1;
+  }
+  .fake-card {
+    height: calc(150 * var(--pt));
+    margin: calc(12 * var(--pt)) calc(16 * var(--pt));
+    border-radius: calc(22 * var(--pt));
+    background: var(--paper);
+    box-shadow: 0 0 0 calc(0.5 * var(--pt)) var(--line);
+  }
+  .fake-card--short {
+    height: calc(90 * var(--pt));
+  }
+</style>

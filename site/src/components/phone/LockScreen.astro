@@ -1,71 +1,227 @@
 ---
-/** STUB (device-a): replace the look, keep the Props, slots and hooks in CONTRACT.md. */
-import Stub from '../dev/Stub.astro';
+/**
+ * LOCK SCREEN: iOS 26 on a Dynamic Island iPhone, in the phone's 393 × 852 pt space.
+ *
+ * Top to bottom: status bar (no time on the lock screen), the padlock under the island,
+ * the date (20 pt, y 70), the big clock (92 pt rounded, y 92), the wallpaper, the Live
+ * Activity slot (the card's bottom edge at y 760), the flashlight and camera buttons and
+ * the home indicator. No notifications unless a slot brings them.
+ *
+ * Slots: default → the Live Activity, "top" → Siri glow and snippet, "overlay" → anything
+ * over the whole screen (the voice section's pocket panel).
+ * Hooks: [data-lock], [data-wallpaper], [data-date], [data-clock] (big clock and status
+ * bar), [data-dim] (black, opacity; sits under the activity), [data-activity-slot],
+ * [data-lock-quick] (flashlight and camera), [data-home-indicator].
+ */
 import StatusBar from './StatusBar.astro';
 import { DAY } from '../../data/ledger';
+import type { WallpaperId } from '../system/lockscreen/wallpaper';
 
 export interface Props {
+  /** Default ledger DAY.date: 'Friday, October 16'. */
   date?: string;
+  /** '7:02'. The big clock carries data-clock unless live is false. */
   time: string;
   live?: boolean;
-  wallpaper?: 'dawn-rows';
+  /** 'dawn-rows' (default) or 'dusk-rows' (the clock-out hour). */
+  wallpaper?: WallpaperId;
+  /** Start with the dim overlay on (lock-screen zoom beat). */
   dim?: boolean;
+  /** Status bar signal (0–4) and offline text, as on StatusBar. */
+  signal?: 0 | 1 | 2 | 3 | 4;
+  noService?: boolean;
 }
-const { date = DAY.date, time, live = true, wallpaper = 'dawn-rows', dim = false } = Astro.props;
+const { date = DAY.date, time, live = true, wallpaper = 'dawn-rows', dim = false, signal = 4, noService = false } = Astro.props;
 ---
 
-<div class="lock" data-lock data-wallpaper={wallpaper}>
-  <StatusBar tone="light" time={time} live={live} />
+<div class:list={['lock', `lock--${wallpaper}`]} data-lock data-wallpaper-id={wallpaper}>
+  <div class="lock-wp" data-wallpaper></div>
+
+  <div class="lock-sb">
+    <StatusBar tone="light" time={time} live={live} showTime={false} signal={signal} noService={noService} />
+  </div>
+
+  <svg class="lock-padlock" viewBox="0 0 12 16" aria-hidden="true">
+    <path d="M3 7V4.6a3 3 0 0 1 6 0V7" fill="none" stroke="currentColor" stroke-width="1.7"></path>
+    <rect x="0.6" y="6.6" width="10.8" height="8.8" rx="2.2" fill="currentColor"></rect>
+  </svg>
   <div class="lock-date" data-date>{date}</div>
   <div class="lock-clock" data-clock={live ? '' : 'fixed'}>{time}</div>
-  <div class="lock-top"><slot name="top" /></div>
+
+  <div class="lock-quick" data-lock-quick>
+    <span class="lock-btn lock-btn--left">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path
+          d="M7.2 2.5h9.6c.7 0 1.2.5 1.2 1.2v1.6c0 .6-.2 1.1-.6 1.5l-2.2 2.6v11.4c0 .9-.7 1.7-1.7 1.7h-3c-.9 0-1.7-.8-1.7-1.7V9.4L6.6 6.8A2.2 2.2 0 0 1 6 5.3V3.7c0-.7.5-1.2 1.2-1.2z"
+          fill="currentColor"></path>
+        <rect x="6.6" y="5.3" width="10.8" height="1.1" rx=".5" fill="#000" opacity=".28"></rect>
+        <circle cx="12" cy="13.2" r="1.35" fill="#000" opacity=".34"></circle>
+      </svg>
+    </span>
+    <span class="lock-btn lock-btn--right">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path
+          fill-rule="evenodd"
+          fill="currentColor"
+          d="M9.2 4.2h5.6c.6 0 1.1.3 1.4.8l.9 1.6h2.3c1.6 0 2.8 1.2 2.8 2.8v8.4c0 1.6-1.2 2.8-2.8 2.8H4.6c-1.6 0-2.8-1.2-2.8-2.8V9.4c0-1.6 1.2-2.8 2.8-2.8h2.3l.9-1.6c.3-.5.8-.8 1.4-.8zM12 9a4.3 4.3 0 1 0 0 8.6A4.3 4.3 0 0 0 12 9z"
+        ></path>
+        <circle cx="12" cy="13.3" r="2.8" fill="currentColor"></circle>
+      </svg>
+    </span>
+  </div>
+  <div class="lock-home" data-home-indicator></div>
+
   <div class="lock-dim" data-dim style={dim ? 'opacity:.45' : undefined}></div>
   <div class="lock-activity" data-activity-slot><slot /></div>
-  <slot name="overlay" />
-  <Stub name="LockScreen" owner="device-a" note="wallpaper, flashlight, camera" box="position:absolute;left:calc(16*var(--pt));right:calc(16*var(--pt));top:calc(230*var(--pt));height:calc(120*var(--pt));" />
+  <div class="lock-top"><slot name="top" /></div>
+  <div class="lock-overlay"><slot name="overlay" /></div>
 </div>
 
 <style>
   .lock {
     position: absolute;
     inset: 0;
-    background: linear-gradient(180deg, #0d2418, #29483a 62%, #c79a5e);
+    overflow: hidden;
     color: #fff;
     font-family: var(--font-system);
+    background: #0d2418;
+    /* The blurred twin of the wallpaper, behind Live Activity and button materials. */
+    --lock-twin: url('../system/lockscreen/dawn-rows-blur.webp');
   }
-  .lock-date {
+  .lock--dusk-rows {
+    background: #16131c;
+    --lock-twin: linear-gradient(180deg, #2a1d26 0%, #6a3e2e 64%, #2b1d1d 72%, #120c0e 100%);
+  }
+  .lock-wp {
     position: absolute;
-    top: calc(70 * var(--pt));
-    width: 100%;
-    text-align: center;
-    font-weight: 600;
-    font-size: calc(20 * var(--pt));
+    inset: 0;
+    background: url('../system/lockscreen/dawn-rows.svg') 50% 50% / 100% 100% no-repeat;
   }
+  .lock--dusk-rows .lock-wp {
+    /* Its own file, fetched only when a dusk lock screen renders (the dawn one is inlined). */
+    background-image: url('../system/lockscreen/dusk-rows.svg?no-inline');
+  }
+
+  .lock-sb {
+    position: absolute;
+    inset: 0 0 auto;
+    height: calc(54 * var(--pt));
+    z-index: 1;
+  }
+
+  .lock-padlock {
+    position: absolute;
+    left: 50%;
+    top: calc(53.5 * var(--pt));
+    width: calc(10.5 * var(--pt));
+    height: calc(14 * var(--pt));
+    margin-left: calc(-5.25 * var(--pt));
+    color: rgba(255, 255, 255, 0.92);
+    z-index: 1;
+  }
+  .lock-date,
   .lock-clock {
     position: absolute;
-    top: calc(92 * var(--pt));
-    width: 100%;
+    left: 0;
+    right: 0;
     text-align: center;
+    white-space: nowrap;
+    z-index: 1;
+  }
+  .lock-date {
+    top: calc(70 * var(--pt));
+    font-weight: 600;
+    font-size: calc(20 * var(--pt));
+    line-height: calc(24 * var(--pt));
+    letter-spacing: 0.005em;
+    color: rgba(255, 255, 255, 0.9);
+  }
+  .lock-clock {
+    top: calc(92 * var(--pt));
     font-family: var(--font-rounded);
     font-weight: 600;
     font-size: calc(92 * var(--pt));
-    line-height: 1;
+    /* A tight box: the digits start about 6 pt under y 92, ten points below the date. */
+    line-height: 0.82;
+    letter-spacing: -0.02em;
+    color: rgba(255, 255, 255, 0.97);
   }
-  .lock-top {
+
+  .lock-quick {
     position: absolute;
-    inset: 0 0 auto;
-    z-index: 4;
+    inset: auto 0 0;
+    height: 0;
+    z-index: 1;
   }
+  /* iOS 26 glass: the blurred wallpaper, lifted, with a light rim. */
+  .lock-btn {
+    position: absolute;
+    top: calc(-83 * var(--pt));
+    width: calc(50 * var(--pt));
+    height: calc(50 * var(--pt));
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    color: #fff;
+    background:
+      radial-gradient(120% 90% at 50% 0%, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.06) 60%, rgba(255, 255, 255, 0.1)),
+      var(--lock-twin) calc(-41 * var(--pt)) calc(-769 * var(--pt)) / calc(393 * var(--pt)) calc(852 * var(--pt)) no-repeat;
+    box-shadow:
+      inset 0 0 0 calc(0.75 * var(--pt)) rgba(255, 255, 255, 0.2),
+      inset 0 calc(1 * var(--pt)) calc(1 * var(--pt)) rgba(255, 255, 255, 0.22),
+      0 calc(2 * var(--pt)) calc(10 * var(--pt)) rgba(0, 0, 0, 0.18);
+  }
+  .lock-btn--left {
+    left: calc(41 * var(--pt));
+  }
+  .lock-btn--right {
+    right: calc(41 * var(--pt));
+    background-position:
+      0 0,
+      calc(-302 * var(--pt)) calc(-769 * var(--pt));
+  }
+  .lock-btn svg {
+    width: calc(23 * var(--pt));
+    height: calc(23 * var(--pt));
+  }
+  .lock-home {
+    position: absolute;
+    left: 50%;
+    bottom: calc(8 * var(--pt));
+    width: calc(139 * var(--pt));
+    height: calc(5 * var(--pt));
+    margin-left: calc(-69.5 * var(--pt));
+    border-radius: 999px;
+    background: #fff;
+    z-index: 1;
+  }
+
   .lock-dim {
     position: absolute;
     inset: 0;
     background: #000;
     opacity: 0;
     z-index: 2;
+    pointer-events: none;
   }
   .lock-activity {
     position: absolute;
     inset: 0;
     z-index: 3;
+  }
+  .lock-top {
+    position: absolute;
+    inset: 0 0 auto;
+    z-index: 4;
+  }
+  .lock-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    pointer-events: none;
+  }
+  .lock-overlay:empty,
+  .lock-top:empty {
+    display: none;
   }
 </style>
