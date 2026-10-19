@@ -1,7 +1,7 @@
 /**
  * The field map's pure parts: geometry, ledger-driven tree states, the map in words, the field
  * scene's choreography, the camera and the in-app map window. The canvas renderer itself is
- * checked in Playwright (tests/e2e/lab-map.spec.ts).
+ * checked in Playwright (tests/lab/map.spec.ts).
  */
 import { describe, expect, it } from 'vitest';
 import {

@@ -26,13 +26,14 @@ test.describe('reduced motion', () => {
   });
 });
 
-test('landmarks, skip link and one H1', async ({ page }) => {
+test('landmarks, skip link and one H1', async ({ page, browserName }) => {
   await page.goto('/');
   await expect(page.locator('header')).toHaveCount(1);
   await expect(page.locator('main#content')).toHaveCount(1);
   await expect(page.locator('body > footer')).toHaveCount(1);
   await expect(page.locator('nav[aria-label="The shift"]')).toHaveCount(1);
-  await page.keyboard.press('Tab');
+  // WebKit (like Safari by default) skips links on Tab; Option-Tab reaches them.
+  await page.keyboard.press(browserName === 'webkit' ? 'Alt+Tab' : 'Tab');
   const first = page.locator(':focus');
   await expect(first).toHaveText('Skip to content');
   await expect(first).toHaveAttribute('href', '#content');

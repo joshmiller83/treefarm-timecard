@@ -3,13 +3,13 @@
  * and ControlsCard and checks the geometry and hooks in src/components/CONTRACT.md, plus how
  * they sit with device-a's lock screen and status bar.
  *
- *   npm run build && PW_PORT=4414 npx playwright test lab-device-b
+ *   npm run build && PW_PORT=4414 npx playwright test tests/lab/device-b.spec.ts --project=lab-desktop --project=lab-mobile
  */
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { SIRI } from '../../src/data/siri';
 import { WAVE_MIN, waveHeights } from '../../src/scripts/wave';
-import { watch } from './helpers';
+import { watch } from '../e2e/helpers';
 
 const URL = '/lab/device-b/';
 const cell = (page: Page, id: string) => page.locator(`[data-lab-cell="${id}"]`);
@@ -129,9 +129,11 @@ test.describe('SiriSnippet', () => {
   test('wraps greedily and never starts a line with a unit split from its number', async ({ page }) => {
     for (const id of SNIPPET_CELLS) {
       const text = cell(page, id).locator('[data-snippet-text]');
-      expect(await text.evaluate((el) => getComputedStyle(el).textWrapStyle || getComputedStyle(el).getPropertyValue('text-wrap')), id).toContain(
-        'pretty',
-      );
+      // text-wrap: pretty where the engine has it (Firefox does not yet); the line checks below hold everywhere.
+      if (await text.evaluate(() => CSS.supports('text-wrap', 'pretty')))
+        expect(await text.evaluate((el) => getComputedStyle(el).textWrapStyle || getComputedStyle(el).getPropertyValue('text-wrap')), id).toContain(
+          'pretty',
+        );
       const starts = await text.evaluate((el) => {
         const out: string[] = [];
         let top = -Infinity;
@@ -144,7 +146,9 @@ test.describe('SiriSnippet', () => {
         }
         return out;
       });
-      for (const line of starts) expect(line, `${id}: a line starts with "${line}"`).not.toMatch(/^(split:|minutes?|hours?|seconds?|trees?|rows?|an hour)\b/);
+      // A unit may not open a line apart from its number ('26 / rows ahead'); 'row 14' (unit first, kept whole) may.
+      for (const line of starts)
+        expect(line, `${id}: a line starts with "${line}"`).not.toMatch(/^(split:|minutes?\b|hours?\b|seconds?\b|trees?\b|rows?\b(?! \d)|an hour\b)/);
     }
     // '8 hours 30 minutes' stays on one line.
     const dur = cell(page, 'snippet-clock-out').locator('[data-word]', { hasText: 'hours' });
@@ -157,7 +161,7 @@ test.describe('SiriSnippet', () => {
         .locator('[data-lock]')
         .evaluate((lock) =>
           Array.from(lock.children)
-            .filter((el) => el.matches('[data-date], [data-clock], [data-padlock], .lock-padlock'))
+            .filter((el) => el.matches('[data-date], [data-clock], [data-padlock]'))
             .map((el) => ({ hook: el.getAttribute('class') ?? el.tagName, opacity: getComputedStyle(el).opacity })),
         );
     for (const id of CARD_CELLS) {

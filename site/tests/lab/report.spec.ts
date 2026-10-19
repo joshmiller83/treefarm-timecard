@@ -210,10 +210,10 @@ test('the preview is the paper in miniature (same proportions, for the Flip)', a
   await open(page);
   const big = await card(page).boundingBox();
   const ratio = (b: { width: number; height: number }) => b.width / b.height;
-  // The 760px stage phone is where the clock-out Flip runs; the real-size phone is the lab's 910px.
+  // The 760px stage phone is where the clock-out Flip runs; the real-size phone is the lab's 879px.
   for (const [name, mini] of [
     ['760 stage', stageMini(page)],
-    ['910 real size', page.locator('[data-lab-state="report-week"] [data-paper-mini]')],
+    ['879 real size', page.locator('[data-lab-state="report-week"] [data-paper-mini]')],
   ] as const) {
     const box = await mini.boundingBox();
     expect(Math.abs(ratio(big!) / ratio(box!) - 1), name).toBeLessThan(0.015);
