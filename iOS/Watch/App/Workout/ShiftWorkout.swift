@@ -116,7 +116,8 @@ final class ShiftWorkout {
     @ObservationIgnored private var deadline: (stoppedAt: Date, task: Task<Void, Never>)?
     @ObservationIgnored private var eventsTask: Task<Void, Never>?
     @ObservationIgnored private var actionButtonShifts: [UUID] = []
-    @ObservationIgnored private var summaries: WorkoutStore.Summaries
+    /// Observed: the summary screen comes and goes with it.
+    private var summaries: WorkoutStore.Summaries
 
     init(driver: any WorkoutDriver, notifier: any ShiftNotifier, store: WorkoutStore, hooks: Hooks = Hooks()) {
         self.driver = driver
@@ -271,10 +272,10 @@ final class ShiftWorkout {
         case .inputs:
             await settle()
         case .phoneLaunch:
-            await run(WorkoutPlan.phoneLaunch(inputs: inputs, local: driver.local, now: hooks.now()), fromPhone: true)
+            await run(WorkoutPlan.phoneLaunch(inputs: inputs, local: driver.local, now: hooks.now()), inBackground: true)
             await settle()
         case .recordAgain:
-            await run(WorkoutPlan.recordAgain(inputs: inputs, local: driver.local, now: hooks.now()), fromPhone: true)
+            await run(WorkoutPlan.recordAgain(inputs: inputs, local: driver.local, now: hooks.now()), inBackground: true)
             await settle()
         case .endedUnexpectedly:
             await salvage()
@@ -288,17 +289,20 @@ final class ShiftWorkout {
         guard hasInputs else { return }
         for _ in 0..<4 {
             let steps = WorkoutPlan.reconcile(inputs: inputs, local: driver.local, now: hooks.now())
-            guard !steps.isEmpty, await run(steps, fromPhone: false) else { return }
+            guard !steps.isEmpty, await run(steps, inBackground: false) else { return }
         }
     }
 
     /// Does the steps in order. False when one couldn't be done (the next input tries again).
     @discardableResult
-    private func run(_ steps: [WorkoutStep], fromPhone: Bool) async -> Bool {
+    /// `inBackground`: a phone launch (`handle(_ workoutConfiguration:)`) may start a session
+    /// without the app on screen, and Record again is the person's own tap; a start that only a
+    /// state change asked for waits for the foreground.
+    private func run(_ steps: [WorkoutStep], inBackground: Bool) async -> Bool {
         for step in steps {
             switch step {
             case .start(let date, let shiftId, let origin):
-                guard await start(at: date, shiftId: shiftId, origin: origin, fromPhone: fromPhone) else { return false }
+                guard await start(at: date, shiftId: shiftId, origin: origin, inBackground: inBackground) else { return false }
             case .tag(let shiftId):
                 driver.tag(shiftId: shiftId)
             case .pause:
@@ -319,8 +323,8 @@ final class ShiftWorkout {
         return true
     }
 
-    private func start(at date: Date, shiftId: UUID?, origin: WorkoutLocal.Origin, fromPhone: Bool) async -> Bool {
-        guard access == .authorized, fromPhone || hooks.isForeground() else { return false }
+    private func start(at date: Date, shiftId: UUID?, origin: WorkoutLocal.Origin, inBackground: Bool) async -> Bool {
+        guard access == .authorized, inBackground || hooks.isForeground() else { return false }
         let origin = origin == .watchTap && shiftId.map(actionButtonShifts.contains) == true ? .actionButton : origin
         do {
             try await driver.start(at: date, shiftId: shiftId, origin: origin)
