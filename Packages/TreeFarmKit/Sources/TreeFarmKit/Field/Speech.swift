@@ -18,6 +18,12 @@ public enum Speech {
         "You’ve been clocked in since \(Fmt.day(shift.start, calendar)) at \(Fmt.time(shift.start, calendar))."
     }
 
+    /// Clocking out a shift left open more than `Limits.maxShift`: the server would refuse it,
+    /// so the clock-out time is set in the Log instead.
+    public static func tooLongToClockOut(_ shift: Shift, calendar: FarmCalendar) -> String {
+        "\(clockedInSince(shift, calendar: calendar)) A shift can’t be longer than 24 hours, so set the clock-out time in the Log."
+    }
+
     /// Follows `clockedInSince` where the times can be fixed.
     public static let fixTheTimes = "If you forgot to clock out, fix the times."
 

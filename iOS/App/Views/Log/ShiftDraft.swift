@@ -142,6 +142,15 @@ struct ShiftDraft: Hashable {
         return draft
     }
 
+    /// A clock-out for a shift left open too long: the last sign of work on it (a break, a
+    /// tree mark), or 8 hours after clock-in when there's nothing to go on; never more than
+    /// `Limits.maxShift` after clock-in, and never after now.
+    static func suggestedEnd(for shift: Shift, lastMark: Date?, now: Date) -> Date {
+        let signs = shift.breaks.flatMap { [$0.start, $0.end].compactMap { $0 } } + [lastMark].compactMap { $0 }
+        let last = signs.filter { $0 > shift.start }.max() ?? shift.start.addingTimeInterval(8 * 3600)
+        return min(last, shift.start.addingTimeInterval(Limits.maxShift), now)
+    }
+
     // MARK: Turning times into instants
 
     /// How many days after the start day a time falls on. A loaded time keeps its own day; a

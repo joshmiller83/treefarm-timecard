@@ -8,13 +8,15 @@ import TimeCardCore
 ///   since a little over three hours ago with a short break, four rows marked and notes.
 /// - `lunch`: the same, on lunch for the last 14 minutes.
 /// - `stale`: still clocked in since 7:00 AM yesterday (forgot to clock out).
+/// - `weekend`: still clocked in since 7:00 AM three days ago, with lunch and two rows; too
+///   long to clock out, so the card offers "Fix clock-out time".
 ///
 /// `-UITestScrollTo <card>` and `-UITestOpen <sheet>` (below) help take screenshots.
 /// Live launches ignore all of these. Records go through `session.save` and rows through
 /// `FieldActions`, the same paths the app uses.
 @MainActor
 enum ClockScenario: String {
-    case working, lunch, stale
+    case working, lunch, stale, weekend
 
     static let argument = "-UITestClock"
     private static var applied = false
@@ -115,6 +117,16 @@ enum ClockScenario: String {
             past(-2, from: (7, 15), to: (15, 45), rows: 8)
             let start = at(day(-1), 7, 0)
             records.append(.shift(Shift(userId: me.userId, farmId: state.farm.id, start: start, rateCents: me.rateCents, updatedAt: start)))
+            try? model.session.save(records)
+            model.actions.publishLiveSnapshot()
+
+        case .weekend:
+            let d = day(-3)
+            let shift = Shift(userId: me.userId, farmId: state.farm.id, start: at(d, 7, 0),
+                              breaks: [Break(kind: .lunch, start: at(d, 12, 0), end: at(d, 12, 30))],
+                              rateCents: me.rateCents, updatedAt: at(d, 12, 30))
+            records.append(.shift(shift))
+            shaped(2, on: shift)
             try? model.session.save(records)
             model.actions.publishLiveSnapshot()
         }

@@ -218,7 +218,8 @@ struct ClockView: View {
             onBackToWork: { run(.endBreak) },
             onClockOut: { run(.clockOut) },
             onChangeStart: { if let open = state.openShift { sheet = .startTime(open) } },
-            onEditShift: { sheet = .editShift(status.shiftId) })
+            onEditShift: { sheet = .editShift(status.shiftId) },
+            onFixClockOut: { if let id = status.shiftId { sheet = .fixClockOut(id) } })
     }
 
     private var offTheClockLinks: some View {
@@ -258,6 +259,10 @@ struct ClockView: View {
             ShiftEditorView(shiftId: id)
                 .accessibilityElement(children: .contain)
                 .accessibilityIdentifier("shift-editor-sheet")
+        case .fixClockOut(let id):
+            ShiftEditorView(shiftId: id, suggestingEnd: true)
+                .accessibilityElement(children: .contain)
+                .accessibilityIdentifier("shift-editor-sheet")
         }
     }
 
@@ -294,6 +299,8 @@ enum ClockSheet: Identifiable {
     case breakReason
     case startTime(Shift)
     case editShift(UUID?)
+    /// The editor with a clock-out filled in, for a shift open more than 24 hours.
+    case fixClockOut(UUID)
 
     var id: String {
         switch self {
@@ -301,6 +308,7 @@ enum ClockSheet: Identifiable {
         case .breakReason: "break"
         case .startTime(let shift): "start-\(shift.id)"
         case .editShift(let id): "edit-\(id?.uuidString ?? "new")"
+        case .fixClockOut(let id): "fix-out-\(id)"
         }
     }
 }

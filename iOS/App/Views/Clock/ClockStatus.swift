@@ -29,6 +29,9 @@ struct ClockStatus: Equatable {
     var breakStart: Date?
     /// "You’ve been clocked in since Tue, Oct 13 at 7:00 AM." for a shift left open.
     var stale: String?
+    /// Open longer than a shift may be, so Clock out can't close it: the card offers
+    /// "Fix clock-out time" instead, which opens the editor with an end filled in.
+    var needsClockOutFix = false
 
     init(state: FieldState, now: Date) {
         let cal = state.calendar
@@ -57,6 +60,7 @@ struct ClockStatus: Equatable {
         if earlierDay || Hours.forgotToClockOut(open, now: now) {
             stale = Speech.clockedInSince(open, calendar: cal)
         }
+        needsClockOutFix = now.timeIntervalSince(open.start) > Limits.maxShift
         // A shift from an earlier day names the day, so 7:00 AM can't read as later today.
         let clockedIn = earlierDay
             ? "Clocked in \(Fmt.day(open.start, cal)) at \(Fmt.time(open.start, cal))"

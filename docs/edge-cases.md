@@ -11,6 +11,7 @@ Each line here has a test, written before the code it covers. The test name is i
 - An open shift from yesterday shows "worked this shift" with a warning.
 - A shift open more than 16 hours prompts a "forgot to clock out?" fix.
 - A closed shift can't be longer than 24 hours; a zero-length shift is refused.
+- A clock-in left open for days: Clock out (and Siri) checks the same rules as the server and points to the Log; the Clock tab's button becomes "Fix clock-out time", which opens the shift with a clock-out filled in from the last break or tree [clockingOutAfter25HoursPointsToTheLog, fixingAClockOutLeftOpenForDaysFillsInTheLastWork].
 
 ## Shifts and breaks
 - Overlapping shifts, including overlap with the shift that's still open.

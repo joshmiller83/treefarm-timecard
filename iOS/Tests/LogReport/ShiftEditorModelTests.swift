@@ -146,6 +146,32 @@ struct ShiftEditorModelTests {
         #expect(saved.breaks[0].end == F.at(10, 19, 16, 0))
     }
 
+    @Test func fixingAClockOutLeftOpenForDaysFillsInTheLastWork() async throws {
+        // Clocked in Friday at 7:00, lunch at noon, last tree at 3:12 PM; it's Monday at 4 PM.
+        let start = F.at(10, 16, 7, 0)
+        let open = Shift(userId: F.me, farmId: F.farmId, start: start, breaks: [F.lunch(10, 16)], rateCents: 2000)
+        var marks = F.marks(rows: 0...0, on: open)
+        marks[marks.count - 1].markedAt = F.at(10, 16, 15, 12)
+        let session = try await F.session(shifts: [open], marks: marks)
+        defer { Task { await session.stop() } }
+        let model = try #require(ShiftEditorModel(session: session, shiftId: open.id, suggestingEnd: true, now: { now }))
+        #expect(model.draft.endDate(model.calendar) == F.at(10, 16, 15, 12))
+        #expect(model.problem == nil)
+        #expect(model.save() == "Shift saved.")
+        #expect(session.snapshot.shifts[open.id]?.end == F.at(10, 16, 15, 12))
+    }
+
+    @Test func aSuggestedClockOutWithNothingToGoOnIsEightHours() {
+        let start = F.at(10, 16, 7, 0)
+        let open = Shift(userId: F.me, farmId: F.farmId, start: start, rateCents: 2000)
+        #expect(ShiftDraft.suggestedEnd(for: open, lastMark: nil, now: now) == F.at(10, 16, 15, 0))
+        // A running break counts as work done, and the end never passes 24 hours or now.
+        var onBreak = open
+        onBreak.breaks = [Break(kind: .break, start: F.at(10, 17, 9, 0))]
+        #expect(ShiftDraft.suggestedEnd(for: onBreak, lastMark: nil, now: now) == start.addingTimeInterval(Limits.maxShift))
+        #expect(ShiftDraft.suggestedEnd(for: open, lastMark: nil, now: F.at(10, 16, 9, 0)) == F.at(10, 16, 9, 0))
+    }
+
     @Test func aClosedShiftCantBeLeftOpenAgain() async throws {
         let closed = F.shift(10, 16, from: (7, 0), to: (15, 0))
         let session = try await F.session(shifts: [closed])

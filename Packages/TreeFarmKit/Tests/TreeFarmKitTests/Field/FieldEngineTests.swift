@@ -62,6 +62,32 @@ struct FieldEngineTests {
         #expect(shift.breaks.first?.end == f.at(200))
     }
 
+    @Test mutating func clockingOutAfter25HoursPointsToTheLog() throws {
+        _ = FieldEngine.run(.clockIn(fieldId: nil), &f.state, &undo, at: f.monday9)
+        let r = FieldEngine.run(.clockOut, &f.state, &undo, at: f.at(25 * 60))
+        let since = Speech.clockedInSince(try #require(f.state.openShift), calendar: cal)
+        #expect(r.speech == "\(since) A shift can’t be longer than 24 hours, so set the clock-out time in the Log.")
+        #expect(f.state.openShift != nil)
+        if case .success = r { Issue.record("a 25-hour shift was closed") }
+    }
+
+    @Test mutating func aShiftLeftOpenStillTakesBreaksAndNotes() {
+        _ = FieldEngine.run(.clockIn(fieldId: nil), &f.state, &undo, at: f.monday9)
+        #expect(FieldEngine.run(.startBreak(.lunch, reason: ""), &f.state, &undo, at: f.at(26 * 60)).speech.hasPrefix("Lunch started"))
+        #expect(FieldEngine.run(.endBreak, &f.state, &undo, at: f.at(26 * 60 + 5)).speech.hasPrefix("Back at"))
+        #expect(FieldEngine.run(.addShiftNote("Forgot to clock out"), &f.state, &undo, at: f.at(26 * 60 + 6)).speech == "Added to today’s notes.")
+    }
+
+    @Test mutating func clockOutChecksTheRulesTheServerChecks() throws {
+        _ = FieldEngine.run(.clockIn(fieldId: nil), &f.state, &undo, at: f.monday9)
+        // A shift added in the Log for the same morning overlaps the open one.
+        let added = Shift(userId: f.josh.userId, farmId: f.farm.id, start: f.at(30), end: f.at(90), rateCents: 1500, updatedAt: f.at(100))
+        f.state.myShifts.append(added)
+        let r = FieldEngine.run(.clockOut, &f.state, &undo, at: f.at(120))
+        #expect(r.speech.hasPrefix("This overlaps your shift on"))
+        #expect(f.state.openShift != nil)
+    }
+
     // MARK: breaks
 
     @Test mutating func lunchAndBackToWork() {

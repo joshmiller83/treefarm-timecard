@@ -247,6 +247,7 @@ public enum FieldEngine {
         guard let open = state.openShift else { throw FieldFailure(Speech.notClockedIn) }
         let closed: Shift
         do { closed = try Clock.clockOut(at: now, shift: open) } catch { throw FieldFailure(error.message) }
+        try check(closed, state, now)
         let trees = state.treeCount(closed)
         var speech = "Clocked out at \(Fmt.spokenTime(now, state.calendar)). \(Fmt.spokenDuration(closed.workedTime(at: now)))"
         speech += trees > 0 ? ", \(Fmt.plural(trees, "tree"))." : "."
@@ -262,6 +263,7 @@ public enum FieldEngine {
         let why = Limits.clampReason(reason)
         let updated: Shift
         do { updated = try Clock.startBreak(kind, reason: why, at: now, in: open) } catch { throw FieldFailure(error.message) }
+        try check(updated, state, now)
         let at = Fmt.spokenTime(now, cal)
         let speech: String
         switch kind {
@@ -279,12 +281,22 @@ public enum FieldEngine {
         guard let b = open.openBreak else { throw FieldFailure("You’re not on a break.") }
         let updated: Shift
         do { updated = try Clock.endBreak(at: now, in: open) } catch { throw FieldFailure(error.message) }
+        try check(updated, state, now)
         let what = b.kind == .lunch ? "Lunch" : "The break"
         let speech = "Back at \(Fmt.spokenTime(now, state.calendar)). \(what) was \(Fmt.spokenDuration(now.timeIntervalSince(b.start)))."
         let label = b.kind == .lunch ? "the end of lunch" : "the end of the break"
         return FieldOutcome(records: [.shift(updated)], position: nil,
                             undo: UndoEntry(label: label, restore: [.shift(open)], position: state.position, after: [.shift(updated)]),
                             speech: speech, lastAction: "Back to work")
+    }
+
+    /// The checks the server runs on every pushed shift, so nothing reported as done here is
+    /// refused later (a 72-hour clock-out, say, which would reopen the shift).
+    private static func check(_ shift: Shift, _ state: FieldState, _ now: Date) throws(FieldFailure) {
+        let others = state.liveShifts.filter { $0.id != shift.id }
+        guard let problem = ShiftRules.validate(shift, others: others, now: now, calendar: state.calendar) else { return }
+        if problem == .tooLong { throw FieldFailure(Speech.tooLongToClockOut(shift, calendar: state.calendar)) }
+        throw FieldFailure(problem.message)
     }
 
     // MARK: rows
@@ -425,6 +437,7 @@ public enum FieldEngine {
         var updated = target
         updated.notes = kept
         updated.updatedAt = now
+        try check(updated, state, now)
         let speech = kept.count < combined.count ? "Added to today’s notes, but it was cut short to fit." : "Added to today’s notes."
         return FieldOutcome(records: [.shift(updated)], position: nil,
                             undo: UndoEntry(label: "the note", restore: [.shift(target)], position: state.position, after: [.shift(updated)]),

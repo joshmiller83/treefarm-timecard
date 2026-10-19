@@ -7,17 +7,20 @@ import TimeCardCore
 /// Opened from the Log tab and from the Clock tab's "fix the times" warning.
 struct ShiftEditorView: View {
     var shiftId: UUID?
+    /// Fills in a clock-out for an open shift ("Fix clock-out time").
+    var suggestingEnd = false
     /// Hears "Shift saved.", "Shift deleted. 48 trees unmarked." and so on, to show after the sheet closes.
     var onFinish: ((String) -> Void)?
     @Environment(TimeCardSession.self) private var session
 
-    init(shiftId: UUID?, onFinish: ((String) -> Void)? = nil) {
+    init(shiftId: UUID?, suggestingEnd: Bool = false, onFinish: ((String) -> Void)? = nil) {
         self.shiftId = shiftId
+        self.suggestingEnd = suggestingEnd
         self.onFinish = onFinish
     }
 
     var body: some View {
-        EditorHost(session: session, shiftId: shiftId, onFinish: onFinish)
+        EditorHost(session: session, shiftId: shiftId, suggestingEnd: suggestingEnd, onFinish: onFinish)
     }
 }
 
@@ -26,6 +29,7 @@ struct ShiftEditorView: View {
 private struct EditorHost: View {
     var session: TimeCardSession
     var shiftId: UUID?
+    var suggestingEnd: Bool
     var onFinish: ((String) -> Void)?
     @State private var load: Load = .waiting
     @Environment(\.dismiss) private var dismiss
@@ -55,7 +59,7 @@ private struct EditorHost: View {
         }
         .onAppear {
             guard case .waiting = load else { return }
-            load = ShiftEditorModel(session: session, shiftId: shiftId).map(Load.ready) ?? .missing
+            load = ShiftEditorModel(session: session, shiftId: shiftId, suggestingEnd: suggestingEnd).map(Load.ready) ?? .missing
         }
     }
 }

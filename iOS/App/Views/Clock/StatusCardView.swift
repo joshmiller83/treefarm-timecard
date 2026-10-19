@@ -16,6 +16,8 @@ struct StatusCardView: View {
     var onClockOut: () -> Void
     var onChangeStart: () -> Void
     var onEditShift: () -> Void
+    /// Opens the editor with a clock-out filled in, for a shift open longer than a shift may be.
+    var onFixClockOut: () -> Void = {}
 
     @Environment(\.dynamicTypeSize) private var typeSize
     /// When "Tap again to clock out" appeared.
@@ -154,9 +156,11 @@ struct StatusCardView: View {
                     .foregroundStyle(ClockColors.alarm)
             }
             .font(.callout)
-            Button("Fix the times", action: onEditShift)
-                .buttonStyle(.glovePrimary)
-                .accessibilityIdentifier("fix-times")
+            if !status.needsClockOutFix {
+                Button("Fix the times", action: onEditShift)
+                    .buttonStyle(.glovePrimary)
+                    .accessibilityIdentifier("fix-times")
+            }
         }
         .foregroundStyle(Palette.paperInk)
         .padding(12)
@@ -224,7 +228,22 @@ struct StatusCardView: View {
         }
     }
 
+    @ViewBuilder
     private func clockOut(outline: CardButtonStyle.Kind, confirm: CardButtonStyle.Kind) -> some View {
+        if status.needsClockOutFix {
+            // Clock out would make a shift longer than 24 hours, which the server refuses.
+            Button(action: onFixClockOut) {
+                Label("Fix clock-out time", systemImage: "clock.badge.exclamationmark")
+            }
+            .buttonStyle(.card(confirm))
+            .accessibilityIdentifier("fix-clock-out")
+            .accessibilityHint("Opens the shift with a clock-out time filled in.")
+        } else {
+            twoStepClockOut(outline: outline, confirm: confirm)
+        }
+    }
+
+    private func twoStepClockOut(outline: CardButtonStyle.Kind, confirm: CardButtonStyle.Kind) -> some View {
         VStack(spacing: 8) {
             if confirmingOut, let clockOutQuestion {
                 Text(clockOutQuestion)

@@ -30,8 +30,9 @@ final class ShiftEditorModel {
     @ObservationIgnored private let session: TimeCardSession
     @ObservationIgnored private let now: () -> Date
 
-    /// Nil when there's no farm open, or `shiftId` isn't on this phone.
-    init?(session: TimeCardSession, shiftId: UUID?, now: @escaping () -> Date = Date.init) {
+    /// Nil when there's no farm open, or `shiftId` isn't on this phone. `suggestingEnd` fills
+    /// in a clock-out for an open shift (the Clock tab's "Fix clock-out time").
+    init?(session: TimeCardSession, shiftId: UUID?, suggestingEnd: Bool = false, now: @escaping () -> Date = Date.init) {
         guard let farm = session.farm, let me = session.membership else { return nil }
         let calendar = FarmCalendar(farm: farm)
         self.calendar = calendar
@@ -45,7 +46,14 @@ final class ShiftEditorModel {
             loaded = ShiftDraft.newShift(userId: me.userId, farmId: farm.id, rateCents: me.rateCents,
                                          mine: Array(session.snapshot.shifts.values), now: now(), calendar: calendar)
         }
-        draft = loaded
+        var opened = loaded
+        if suggestingEnd, let shift = loaded.original, shift.isOpen {
+            let lastMark = session.snapshot.marks.values.lazy.filter { $0.shiftId == shift.id }.map(\.markedAt).max()
+            let end = WallClock(ShiftDraft.suggestedEnd(for: shift, lastMark: lastMark, now: now()), calendar, startDay: loaded.day)
+            opened.end = end
+            for i in opened.breaks.indices where opened.breaks[i].end == nil { opened.breaks[i].end = end }
+        }
+        draft = opened
         initialDraft = loaded
         recountTrees()
     }

@@ -89,6 +89,14 @@ struct ClockStatusTests {
         #expect(s.meta == ["Clocked in Tue, Oct 13 at 7:00 AM · No breaks yet"])
     }
 
+    @Test func aShiftOpenPastADayNeedsItsClockOutFixed() {
+        let open = f.shift(f.at(f.day(-1), 7, 0))
+        #expect(!ClockStatus(state: f.state(shifts: [open]), now: f.today(6, 59)).needsClockOutFix)
+        let s = ClockStatus(state: f.state(shifts: [open]), now: f.today(7, 1))
+        #expect(s.needsClockOutFix)
+        #expect(s.stale != nil)
+    }
+
     @Test func aShiftOpenMoreThanSixteenHoursIsFlaggedToo() {
         let open = f.shift(f.today(0, 30))
         let fine = ClockStatus(state: f.state(shifts: [open]), now: f.today(16, 0))
