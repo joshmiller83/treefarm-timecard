@@ -24,7 +24,8 @@
  *   [data-phone]                       ← load       [data-hero-float] ← mobile parallax
  *
  * The section ends at rest (lock screen, clock and Live Activity) for the voice section.
- * html.hero-intro is on while the sequence plays; 'tf:hero-intro' fires when it is done.
+ * html.hero-intro is on while part of the sequence is playing, and html[data-hero-intro] is
+ * 'playing', 'waiting' (the mobile phone's half) or 'done'; 'tf:hero-intro' fires on each change.
  */
 import { registerScene } from '../scene.ts';
 import { PAUSE_EVENT } from '../header.ts';
@@ -69,6 +70,7 @@ registerScene(
     const device = section.querySelector<HTMLElement>('[data-hero-device]');
     const float = section.querySelector<HTMLElement>('[data-hero-float]');
     const phone = ctx.phone;
+    const rim = phone?.querySelector<HTMLElement>('[data-rim]') ?? null;
 
     // ---- Screen parts (in the stage phone on desktop). A real capture has none of them. ----
     const layer = q1('[data-screen="lock-0702-clockin"]');
@@ -127,8 +129,9 @@ registerScene(
     }
     {
       const c = k(INTRO.snippet);
-      // The lock screen's date, clock and padlock show when the screen wakes, then give way to Siri.
-      if (lockChrome.length) phoneTl.fromTo(lockChrome, { opacity: 1 }, { opacity: 0, duration: c.dur * 0.7, ease: 'power1.out' }, c.at);
+      // The lock screen's date, clock and padlock show when the screen wakes, then give way to
+      // Siri: quickly, so the clock never ghosts through the card as it lands.
+      if (lockChrome.length) phoneTl.fromTo(lockChrome, { opacity: 1 }, { opacity: 0, duration: c.dur * 0.4, ease: 'power2.out' }, c.at - 0.04 * scale);
       if (snippet) phoneTl.fromTo(snippet, { opacity: 0, y: -16 }, { opacity: 1, y: 0, duration: c.dur }, c.at);
       // Siri's words appear as the card lands, quickly, one after another.
       if (snipWords.length) {
@@ -146,6 +149,11 @@ registerScene(
     if (la) {
       const c = k(INTRO.activity);
       phoneTl.fromTo(la, { opacity: 0, y: 48, scale: 0.96 }, { opacity: 1, y: 0, scale: 1, duration: c.dur, transformOrigin: '50% 100%' }, c.at);
+      // As the card lands, the dawn catches the phone's titanium edge for a moment.
+      if (rim) {
+        phoneTl.fromTo(rim, { opacity: 0 }, { opacity: 0.42, duration: c.dur * 0.45, ease: 'power2.out', immediateRender: false }, c.at);
+        phoneTl.to(rim, { opacity: 0, duration: c.dur * 0.55, ease: 'power1.in' }, c.at + c.dur * 0.45);
+      }
       // The timer starts ticking as the card lands (0:00:00, 0:00:01, …).
       phoneTl.call(() => clock?.idle(), undefined, c.at);
     }
@@ -159,16 +167,34 @@ registerScene(
     }
 
     // ---- When it plays ----
-    let open = 0;
-    const settle = () => {
-      open -= 1;
-      if (open > 0) return;
-      root.classList.remove('hero-intro');
-      window.dispatchEvent(new CustomEvent('tf:hero-intro', { detail: { done: true } }));
+    // html.hero-intro is on while a half is actually playing (tests and screenshots wait for
+    // it to go); data-hero-intro says where the sequence is: 'playing', 'waiting' (mobile:
+    // the phone's half waits for the phone) or 'done'. 'tf:hero-intro' fires at each change.
+    const halves = new Set<GSAPTimeline>();
+    const state = (s: 'playing' | 'waiting' | 'done') => {
+      root.dataset.heroIntro = s;
+      root.classList.toggle('hero-intro', s === 'playing');
+      window.dispatchEvent(new CustomEvent('tf:hero-intro', { detail: { state: s } }));
     };
+    let waiting = false;
+    const start = (half: GSAPTimeline, from = 0) => {
+      halves.add(half);
+      if (half === phoneTl) waiting = false;
+      state('playing');
+      half.play(from);
+    };
+    const ended = (half: GSAPTimeline) => {
+      halves.delete(half);
+      if (halves.size === 0) state(waiting ? 'waiting' : 'done');
+    };
+    pageTl.eventCallback('onComplete', () => ended(pageTl));
+    phoneTl.eventCallback('onComplete', () => ended(phoneTl));
     const finish = () => {
+      waiting = false;
       if (pageTl.progress() < 1) pageTl.progress(1);
       if (phoneTl.progress() < 1) phoneTl.progress(1);
+      halves.clear();
+      state('done');
     };
 
     const vh = innerHeight;
@@ -176,19 +202,14 @@ registerScene(
       finish();
     } else {
       played = true;
-      open = 2;
-      root.classList.add('hero-intro');
-      pageTl.eventCallback('onComplete', settle);
-      phoneTl.eventCallback('onComplete', settle);
       clock?.wake();
-      pageTl.play(0);
       // On mobile the phone sits under the copy: its half plays when it comes into view.
       const r = device?.getBoundingClientRect();
-      if (isDesk || !r || r.top < vh * 0.85) phoneTl.play(0);
-      else {
-        const from = k(INTRO.phone).at;
-        ctx.trigger({ trigger: device!, start: 'top 85%', once: true, onEnter: () => phoneTl.play(from) });
-      }
+      const later = !isDesk && !!r && r.top >= vh * 0.85;
+      waiting = later;
+      start(pageTl);
+      if (!later) start(phoneTl);
+      else ctx.trigger({ trigger: device!, start: 'top 85%', once: true, onEnter: () => start(phoneTl, k(INTRO.phone).at) });
     }
 
     // Pause motion ends the sequence at once.
@@ -235,6 +256,7 @@ registerScene(
     return () => {
       removeEventListener(PAUSE_EVENT, onPause);
       root.classList.remove('hero-intro');
+      delete root.dataset.heroIntro;
     };
   },
   { dayStart: MOMENTS.clockIn },

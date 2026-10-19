@@ -47,7 +47,7 @@ async function booted(page: Page) {
 async function introDone(page: Page) {
   await booted(page);
   if (isMobile(page)) await page.locator('#hero [data-hero-device]').scrollIntoViewIfNeeded();
-  await page.waitForFunction(() => !document.documentElement.classList.contains('hero-intro'), null, { timeout: 8000 });
+  await page.waitForFunction(() => document.documentElement.dataset.heroIntro === 'done', null, { timeout: 8000 });
 }
 
 const opacity = (page: Page, sel: string) => page.locator(sel).first().evaluate((el) => Number(getComputedStyle(el).opacity));
@@ -183,8 +183,10 @@ test.describe('the hero on a phone', () => {
     // The copy has played; the phone below the fold is still waiting.
     expect(await opacity(page, '#hero .hero-body')).toBe(1);
     expect(await opacity(page, '#hero [data-phone]')).toBe(0);
+    await expect(page.locator('html')).toHaveAttribute('data-hero-intro', 'waiting');
+    await expect(page.locator('html')).not.toHaveClass(/hero-intro/);
     await page.locator('#hero [data-hero-device]').scrollIntoViewIfNeeded();
-    await page.waitForFunction(() => !document.documentElement.classList.contains('hero-intro'), null, { timeout: 6000 });
+    await page.waitForFunction(() => document.documentElement.dataset.heroIntro === 'done', null, { timeout: 6000 });
     expect(await opacity(page, '#hero [data-phone]')).toBe(1);
     expect(await opacity(page, '[data-screen="lock-0702-clockin"] [data-la]')).toBe(1);
   });
