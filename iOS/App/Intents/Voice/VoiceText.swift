@@ -1,4 +1,5 @@
 import Foundation
+import TimeCardCore
 
 /// The few things Siri says that aren't the result of a field action: the questions it
 /// asks, and what it says when the answer is "no". Everything an action itself says comes
@@ -6,14 +7,12 @@ import Foundation
 ///
 /// Kept short, so an answer is over before the shears are back in hand.
 enum VoiceText {
-    /// The database is sealed until the phone is unlocked once after a restart.
-    static let unlockOnce = "Unlock your phone once, then try again."
-    /// "No" to "Clock out?"
-    static let stillClockedIn = "Okay, you’re still clocked in."
-    /// "No" to "Row 40 in block 2? That’s 26 rows ahead."
-    static let nothingMarked = "Okay, nothing marked."
-    /// "No" to "Row 40 in block 2? That’s 26 rows ahead." when noting a tree.
-    static let nothingNoted = "Okay, no note added."
+    // What Siri says when nothing happens lives in TreeFarmKit's `Speech`, with every other
+    // sentence the app, Siri and the lock screen say.
+    static let unlockOnce = Speech.unlockOnce
+    static let stillClockedIn = Speech.stillClockedIn
+    static let nothingMarked = Speech.nothingMarked
+    static let nothingNoted = Speech.nothingNoted
 
     // Questions. The same words are in each parameter's `requestValueDialog`.
     static let whichRow = "Which row?"

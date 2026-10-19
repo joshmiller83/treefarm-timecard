@@ -14,13 +14,13 @@ struct VoiceCommandsTests {
         let model = await Demo.model(signedIn: false)
         let voice = Demo.voice(model)
         let asked = Answerer(true)
-        #expect(await voice.clockIn(field: nil).speech == "Open Time Card to sign in.")
-        #expect(await voice.status(.hours).speech == "Open Time Card to sign in.")
+        #expect(await voice.clockIn(field: nil).speech == Speech.signedOut)
+        #expect(await voice.status(.hours).speech == Speech.signedOut)
         let reply = await voice.markRow(RowRef(blockId: UUID(), row: 3), confirm: asked.confirm)
-        #expect(reply.speech == "Open Time Card to sign in.")
+        #expect(reply.speech == Speech.signedOut)
         #expect(!reply.succeeded)
         #expect(asked.questions.isEmpty)
-        #expect(await voice.problem(before: .shiftNote) == "Open Time Card to sign in.")
+        #expect(await voice.problem(before: .shiftNote) == Speech.signedOut)
     }
 
     @Test func beforeTheFirstUnlockSiriAsksForOne() async {
@@ -29,9 +29,9 @@ struct VoiceCommandsTests {
         // Locked since the restart: the database file is still sealed, so there's no point
         // trying to open it again yet.
         let locked = Demo.voice(sealed, locked: true, reopen: { tries += 1; return sealed })
-        #expect(await locked.clockIn(field: nil).speech == "Unlock your phone once, then try again.")
-        #expect(await locked.status(.trees).speech == "Unlock your phone once, then try again.")
-        #expect(await locked.problem(before: .marking) == "Unlock your phone once, then try again.")
+        #expect(await locked.clockIn(field: nil).speech == Speech.unlockOnce)
+        #expect(await locked.status(.trees).speech == Speech.unlockOnce)
+        #expect(await locked.problem(before: .marking) == Speech.unlockOnce)
         #expect(tries == 0)
     }
 
@@ -100,7 +100,7 @@ struct VoiceCommandsTests {
         let no = Answerer(false)
         let kept = await voice.clockOut(confirm: no.confirm)
         #expect(no.questions == ["You’ve worked less than a minute today. Clock out?"])
-        #expect(kept.speech == "Okay, you’re still clocked in.")
+        #expect(kept.speech == Speech.stillClockedIn)
         #expect(!kept.succeeded)
         let open = try #require(Demo.openShift(model))
 
@@ -135,7 +135,7 @@ struct VoiceCommandsTests {
         #expect(started.kind == .lunch)
 
         let twice = await voice.takeBreak(.lunch, reason: nil, askReason: Speaker("x").ask)
-        #expect(twice.speech == "You’re already on lunch since \(Demo.spoken(started.start, model)). Say \"back to work\" when you’re done.")
+        #expect(twice.speech == "You’re already on lunch since \(Demo.spoken(started.start, model)). Say “back to work” when you’re done.")
 
         let back = await voice.backToWork()
         let ended = try #require(Demo.openShift(model)?.breaks.last?.end)
@@ -213,7 +213,7 @@ struct VoiceCommandsTests {
         let no = Answerer(false)
         let declined = await voice.markRow(row20, confirm: no.confirm)
         #expect(no.questions == ["Row 20 in block 1? That’s 15 rows ahead."])
-        #expect(declined.speech == "Okay, nothing marked.")
+        #expect(declined.speech == Speech.nothingMarked)
         #expect(Demo.marks(model, row: row20) == 0)
 
         let otherBlock = Answerer(false)
@@ -283,7 +283,7 @@ struct VoiceCommandsTests {
         let no = Answerer(false)
         let declined = await voice.markTrees(row: row20, first: 1, last: 6, confirm: no.confirm)
         #expect(no.questions == ["Row 20 in block 1? That’s 15 rows ahead."])
-        #expect(declined.speech == "Okay, nothing marked.")
+        #expect(declined.speech == Speech.nothingMarked)
         #expect(!declined.succeeded)
         #expect(Demo.marks(model, row: row20) == 0)
 

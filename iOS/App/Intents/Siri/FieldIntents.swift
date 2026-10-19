@@ -111,7 +111,7 @@ struct BackToWorkIntent: AppIntent, LiveActivityIntent {
 
 struct NextRowIntent: AppIntent, LiveActivityIntent {
     static let title: LocalizedStringResource = "Next Row"
-    static var description: IntentDescription? { IntentDescription("Marks the row you're on shaped, like the lock-screen button, and says which row is next.") }
+    static var description: IntentDescription? { IntentDescription("Marks the row you’re on shaped, like the lock-screen button, and says which row is next.") }
     static let openAppWhenRun = false
     static let authenticationPolicy: IntentAuthenticationPolicy = .alwaysAllowed
 
@@ -185,14 +185,14 @@ struct MarkTreesIntent: AppIntent, LiveActivityIntent {
 
 struct MoveToBlockIntent: AppIntent, LiveActivityIntent {
     static let title: LocalizedStringResource = "Move to a Block"
-    static var description: IntentDescription? { IntentDescription("Sets where you're working, so “next row” starts there.") }
+    static var description: IntentDescription? { IntentDescription("Sets where you’re working, so “next row” starts there.") }
     static let openAppWhenRun = false
     static let authenticationPolicy: IntentAuthenticationPolicy = .alwaysAllowed
 
     @Parameter(title: "Block", requestValueDialog: "Which block?")
     var block: BlockEntity?
 
-    @Parameter(title: "Row", description: "Leave empty for the block's first open row.", inclusiveRange: (1, 300))
+    @Parameter(title: "Row", description: "Leave empty for the block’s first open row.", inclusiveRange: (1, 300))
     var row: Int?
 
     static var parameterSummary: some ParameterSummary {
@@ -231,7 +231,7 @@ struct UndoIntent: AppIntent, LiveActivityIntent {
 
 struct AddShiftNoteIntent: AppIntent, LiveActivityIntent {
     static let title: LocalizedStringResource = "Add a Note"
-    static var description: IntentDescription? { IntentDescription("Adds a dictated note to today's shift.") }
+    static var description: IntentDescription? { IntentDescription("Adds a dictated note to today’s shift.") }
     static let openAppWhenRun = false
     static let authenticationPolicy: IntentAuthenticationPolicy = .alwaysAllowed
 
@@ -239,7 +239,7 @@ struct AddShiftNoteIntent: AppIntent, LiveActivityIntent {
     var note: String?
 
     static var parameterSummary: some ParameterSummary {
-        Summary("Add \(\.$note) to today's notes")
+        Summary("Add \(\.$note) to today’s notes")
     }
 
     init() {}
@@ -256,7 +256,7 @@ struct NoteTreeIntent: AppIntent, LiveActivityIntent {
     static let openAppWhenRun = false
     static let authenticationPolicy: IntentAuthenticationPolicy = .alwaysAllowed
 
-    @Parameter(title: "Row", description: "Leave empty for the row you're on.", requestValueDialog: "Which row?")
+    @Parameter(title: "Row", description: "Leave empty for the row you’re on.", requestValueDialog: "Which row?")
     var row: RowEntity?
 
     @Parameter(title: "Tree", inclusiveRange: (1, 300), requestValueDialog: "Which tree?")

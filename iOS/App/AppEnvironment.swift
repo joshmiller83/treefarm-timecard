@@ -56,7 +56,7 @@ enum AppEnvironment {
             let store = try! LocalStore.inMemory()
             let session = TimeCardSession(store: store, api: api, tokens: tokens, deviceName: UIDevice.current.name)
             return AppModel(session: session, mode: .live,
-                            storageError: "Time Card couldn't open its data on this phone (\(error.localizedDescription)). Restart the phone and try again.")
+                            storageError: "Time Card couldn’t open its data on this phone (\(error.localizedDescription)). Restart the phone and try again.")
         }
     }
 

@@ -42,8 +42,8 @@ struct FieldActionsTests {
         let actions = FieldActions(session: session, now: clock.read)
         let reply = actions.perform(.clockIn(fieldId: nil))
         #expect(!reply.succeeded)
-        #expect(reply.speech == "Open Time Card to sign in.")
-        #expect(actions.answer(.hours) == "Open Time Card to sign in.")
+        #expect(reply.speech == Speech.signedOut)
+        #expect(actions.answer(.hours) == Speech.signedOut)
     }
 
     @Test func clockingInSavesAShiftThatWaitsToSync() async throws {
@@ -217,7 +217,7 @@ struct FieldActionsTests {
         let before = try store.pendingCount(farmId: f.farmId)
         let reply = actions.perform(.markNextRow)
         #expect(!reply.succeeded)
-        #expect(reply.speech == "You’re not clocked in. Say \"clock in with Time Card\" first.")
+        #expect(reply.speech == "You’re not clocked in. Say “clock in with Time Card” first.")
         #expect(try store.pendingCount(farmId: f.farmId) == before)
     }
 

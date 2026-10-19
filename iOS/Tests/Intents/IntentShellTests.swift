@@ -122,7 +122,7 @@ final class IntentShellTests {
     @Test func lockScreenNotesAreOneSentence() {
         #expect(IntentRunner.lockScreenNote("Row 14 was shaped by Sam on Oct 16. Next open row is 15.") == "Row 14 was shaped by Sam on Oct 16.")
         #expect(IntentRunner.lockScreenNote(Speech.notClockedIn) == "You’re not clocked in.")
-        #expect(IntentRunner.lockScreenNote("You’re already on lunch since 12:01. Say \"back to work.\" when done.") == "You’re already on lunch since 12:01.")
+        #expect(IntentRunner.lockScreenNote("You’re already on lunch since 12:01. Say “back to work.” when done.") == "You’re already on lunch since 12:01.")
         #expect(IntentRunner.lockScreenNote("Block 1 has rows 1 to 20.") == "Block 1 has rows 1 to 20.")
         #expect(IntentRunner.lockScreenNote("No period") == "No period")
     }
@@ -220,7 +220,7 @@ final class IntentShellTests {
                                                   askRow: asked.row("row"), askFirst: asked.int("first", 1), askLast: asked.int("last", 6),
                                                   confirm: asked.yes("confirm"))
         #expect(asked.questions == ["row", "confirm: Row 18 in block 1? That’s 13 rows ahead."])
-        #expect(reply.speech == "Okay, nothing marked.")
+        #expect(reply.speech == Speech.nothingMarked)
     }
 
     @Test func aRowOutsideTheBlockForTreesIsSaidBeforeTheTrees() async throws {
@@ -317,8 +317,8 @@ final class IntentShellTests {
                                                 askNote: asked.text("note", "x"), askFlag: asked.flag("flag", .noFlag),
                                                 confirm: asked.yes("confirm"))
         let move = try await SiriFlows.moveTo(nil, row: nil, askBlock: asked.block("block"))
-        #expect(note.speech == "Open Time Card to sign in.")
-        #expect(move.speech == "Open Time Card to sign in.")
+        #expect(note.speech == Speech.signedOut)
+        #expect(move.speech == Speech.signedOut)
         #expect(asked.questions.isEmpty)
         #expect(try await RowQuery().suggestedEntities().isEmpty)
     }

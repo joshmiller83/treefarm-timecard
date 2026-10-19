@@ -292,7 +292,7 @@ public actor SyncEngine {
         do {
             try store.restartPulls(farmId: farmId, keepingOnlyShiftsOf: owner)
         } catch {
-            return .failed("Couldn't save on this phone: \(error.localizedDescription)")
+            return .failed("Couldn’t save on this phone: \(error.localizedDescription)")
         }
         return await syncNow()
     }
@@ -338,7 +338,7 @@ public actor SyncEngine {
             update { $0.phase = .idle }
             return .retryLater(.transport("The database is paused while Time Card is in the background."))
         } catch {
-            let message = "Couldn't save on this phone: \(error.localizedDescription)"
+            let message = "Couldn’t save on this phone: \(error.localizedDescription)"
             update { $0.phase = .failed; $0.lastError = message }
             return .failed(message)
         }
@@ -370,7 +370,7 @@ public actor SyncEngine {
             let rejections = try store.applyPushResults(response.results, farmId: farmId)
             let answered = Set(response.results.map(\.mutationId))
             let unanswered = batch.map(\.mutationId).filter { !answered.contains($0) }
-            try store.recordAttempt(mutationIds: unanswered, error: "The server didn't answer this change.")
+            try store.recordAttempt(mutationIds: unanswered, error: "The server didn’t answer this change.")
             pushed += response.results.filter { $0.status == .applied }.count
             refused += rejections
         }

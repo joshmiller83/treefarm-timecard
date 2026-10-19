@@ -50,7 +50,7 @@ struct FieldEngineTests {
 
     @Test mutating func clockOutWhenNotClockedIn() {
         let r = FieldEngine.run(.clockOut, &f.state, &undo, at: f.monday9)
-        #expect(r.speech == "You’re not clocked in. Say \"clock in with Time Card\" first.")
+        #expect(r.speech == "You’re not clocked in. Say “clock in with Time Card” first.")
     }
 
     @Test mutating func clockOutDuringLunchClosesTheLunch() throws {
@@ -95,7 +95,7 @@ struct FieldEngineTests {
         let start = FieldEngine.run(.startBreak(.lunch, reason: ""), &f.state, &undo, at: f.at(180))
         #expect(start.speech == "Lunch started at \(t(f.at(180))).")
         let again = FieldEngine.run(.startBreak(.lunch, reason: ""), &f.state, &undo, at: f.at(185))
-        #expect(again.speech == "You’re already on lunch since \(t(f.at(180))). Say \"back to work\" when you’re done.")
+        #expect(again.speech == "You’re already on lunch since \(t(f.at(180))). Say “back to work” when you’re done.")
         let back = FieldEngine.run(.endBreak, &f.state, &undo, at: f.at(210))
         #expect(back.speech == "Back at \(t(f.at(210))). Lunch was 30 minutes.")
         let notOnBreak = FieldEngine.run(.endBreak, &f.state, &undo, at: f.at(211))
@@ -113,7 +113,7 @@ struct FieldEngineTests {
 
     @Test mutating func markingNeedsAShift() {
         let r = FieldEngine.run(.markNextRow, &f.state, &undo, at: f.monday9)
-        #expect(r.speech == "You’re not clocked in. Say \"clock in with Time Card\" first.")
+        #expect(r.speech == "You’re not clocked in. Say “clock in with Time Card” first.")
     }
 
     @Test mutating func nextRowMarksTheFirstOpenRowAndMovesOn() {
@@ -399,7 +399,7 @@ struct FieldEngineTests {
 
     @Test mutating func shiftNotesNeedAShiftToday() {
         let r = FieldEngine.run(.addShiftNote("hello"), &f.state, &undo, at: f.monday9)
-        #expect(r.speech == "You’re not clocked in. Say \"clock in with Time Card\" first.")
+        #expect(r.speech == "You’re not clocked in. Say “clock in with Time Card” first.")
     }
 
     @Test mutating func treeNotes() throws {

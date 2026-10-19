@@ -301,7 +301,7 @@ struct ErrorMessage: View {
             Button("Take a break") {}.buttonStyle(.gloveSecondary)
             Button("Clock out") {}.buttonStyle(.gloveDestructive)
             TextField("Email", text: .constant("")).textFieldStyle(.glove)
-            ErrorMessage(text: "That email and password don't match.")
+            ErrorMessage(text: "That email and password don’t match.")
         }
         .padding()
     }

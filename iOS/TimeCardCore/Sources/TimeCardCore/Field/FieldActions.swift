@@ -22,7 +22,7 @@ public struct FieldReply: Equatable, Sendable {
 /// because Siri and lock-screen buttons may wake the app in a fresh process each time.
 @MainActor
 public final class FieldActions {
-    public static let signedOut = "Open Time Card to sign in."
+    public static let signedOut = Speech.signedOut
 
     public let session: TimeCardSession
     private let now: () -> Date

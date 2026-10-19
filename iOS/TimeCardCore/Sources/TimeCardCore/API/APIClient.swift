@@ -72,7 +72,7 @@ public enum APIError: Error, Equatable, Sendable {
     public var userMessage: String {
         switch self {
         case .offline:
-            return "You're offline. Changes are saved on this phone and sync when you're back online."
+            return "You’re offline. Changes are saved on this phone and sync when you’re back online."
         case .unauthorized(let reason):
             return reason.isEmpty ? "Your sign-in has ended. Sign in again." : reason
         case .rateLimited(let reason, let retryAfter):
@@ -82,9 +82,9 @@ public enum APIError: Error, Equatable, Sendable {
         case .client(_, let reason), .server(_, let reason):
             return reason.isEmpty ? Self.serverTrouble : reason
         case .badResponse:
-            return "The server sent an answer this app doesn't understand. Check for an app update."
+            return "The server sent an answer this app doesn’t understand. Check for an app update."
         case .transport(let detail):
-            return "Couldn't reach the server (\(detail))."
+            return "Couldn’t reach the server (\(detail))."
         }
     }
 

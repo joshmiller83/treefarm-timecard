@@ -79,7 +79,7 @@ public actor AuthService {
         do {
             return try adopt(await api.login(LoginRequest(email: email, password: password, deviceName: deviceName)))
         } catch APIError.unauthorized(let reason) {
-            throw APIError.unauthorized(reason: reason.isEmpty ? "That email and password don't match." : reason)
+            throw APIError.unauthorized(reason: reason.isEmpty ? "That email and password don’t match." : reason)
         }
     }
 
@@ -194,7 +194,7 @@ public actor AuthService {
         let trimmed = email.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { throw AuthError.invalid("Enter your email address.") }
         guard trimmed.contains("@"), !trimmed.hasPrefix("@"), !trimmed.hasSuffix("@") else {
-            throw AuthError.invalid("That doesn't look like an email address.")
+            throw AuthError.invalid("That doesn’t look like an email address.")
         }
         return trimmed
     }
@@ -211,6 +211,6 @@ public func userMessage(for error: any Error) -> String {
 
 /// Like `userMessage(for:)`, worded for the sign-in, join and reset screens.
 public func signInMessage(for error: any Error) -> String {
-    if case APIError.offline = error { return "You're offline. Connect to the internet to sign in." }
+    if case APIError.offline = error { return "You’re offline. Connect to the internet to sign in." }
     return userMessage(for: error)
 }

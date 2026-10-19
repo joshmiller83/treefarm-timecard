@@ -220,7 +220,7 @@ public actor StubAPIClient: APIClient {
             throw APIError.rateLimited(reason: "Too many tries. Try again in \(Int((wait / 60).rounded(.up))) minutes.", retryAfter: wait)
         }
         guard let account = accounts[email], account.password == request.password else {
-            throw APIError.unauthorized(reason: "That email and password don't match.")
+            throw APIError.unauthorized(reason: "That email and password don’t match.")
         }
         guard account.me.memberships.contains(where: { (member($0.userId, farmId: $0.farmId) ?? $0).removedAt == nil }) else {
             throw APIError.client(status: 403, reason: "You’re no longer on any farm. Ask an admin for a new invite.")
@@ -247,7 +247,7 @@ public actor StubAPIClient: APIClient {
         }
         let email = Self.normalize(request.email)
         guard accounts[email] == nil else {
-            throw APIError.client(status: 409, reason: "There's already an account for that email. Sign in instead.")
+            throw APIError.client(status: 409, reason: "There’s already an account for that email. Sign in instead.")
         }
         let user = UserProfile(id: UUID(), email: email, displayName: request.displayName)
         let member = Member(userId: user.id, farmId: farm.id, displayName: user.displayName, email: email, role: invite.info.role, updatedAt: now)
@@ -263,7 +263,7 @@ public actor StubAPIClient: APIClient {
         let email = Self.normalize(request.email)
         guard let code = resetCodes[email], code.code == Self.normalizeCode(request.resetCode), code.expiresAt > now(),
               var account = accounts[email] else {
-            throw APIError.client(status: 400, reason: "That reset code isn't right or has expired. Ask your admin for a new one.")
+            throw APIError.client(status: 400, reason: "That reset code isn’t right or has expired. Ask your admin for a new one.")
         }
         account.password = request.newPassword
         accounts[email] = account
@@ -574,7 +574,7 @@ public actor StubAPIClient: APIClient {
                 return other
             }.first { $0.isLive && $0.isOpen && $0.userId == shift.userId && $0.id != shift.id }
             if let open {
-                return .rejected(mutation.id, .openShiftExists, "You're already clocked in on another shift.", current: .shift(open))
+                return .rejected(mutation.id, .openShiftExists, "You’re already clocked in on another shift.", current: .shift(open))
             }
         default:
             break

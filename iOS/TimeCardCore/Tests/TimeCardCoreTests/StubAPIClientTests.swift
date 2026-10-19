@@ -69,7 +69,7 @@ struct StubAPIClientTests {
         let auth = try await stub.login(LoginRequest(email: "Josh@Example.com ", password: "right", deviceName: "d"))
         #expect(auth.me == me)
         #expect(!auth.token.isEmpty)
-        await #expect(throws: APIError.unauthorized(reason: "That email and password don't match.")) {
+        await #expect(throws: APIError.unauthorized(reason: "That email and password don’t match.")) {
             _ = try await stub.login(LoginRequest(email: "josh@example.com", password: "wrong", deviceName: "d"))
         }
     }

@@ -2,7 +2,7 @@ import Foundation
 
 /// Wording shared by Siri, the lock screen and the app, so they always say the same thing.
 public enum Speech {
-    public static let notClockedIn = "You’re not clocked in. Say \"clock in with Time Card\" first."
+    public static let notClockedIn = "You’re not clocked in. Say “clock in with Time Card” first."
     public static let noSeason = "There’s no active season. Ask an admin to start one."
     /// Fields and blocks are set up in the admin-only Team tab.
     public static let noField = "There’s no field set up yet. An admin adds fields in the Team tab."
@@ -17,6 +17,17 @@ public enum Speech {
     public static let nothingToUndo = "There’s nothing to undo."
     /// What the undo would put back was changed since (in the Log, by an admin, or by sync).
     public static let undoChanged = "That changed since, so it can’t be undone."
+    /// Siri woke the app before the first unlock after a restart: the data is still sealed.
+    public static let unlockOnce = "Unlock your phone once, then try again."
+    /// Signed out (or no farm): what Siri and a refused control say.
+    public static let signedOut = "Open Time Card to sign in."
+    /// "No" to "Clock out?"
+    public static let stillClockedIn = "Okay, you’re still clocked in."
+    /// "No" to "Row 40 in block 2? That’s 26 rows ahead."
+    public static let nothingMarked = "Okay, nothing marked."
+    /// The same, when noting a tree.
+    public static let nothingNoted = "Okay, no note added."
+
     /// The phone couldn't write the change (the app, Siri and the lock screen say the same).
     public static let saveFailed = "Couldn’t save that on this phone. Try again."
 

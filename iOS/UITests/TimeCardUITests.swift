@@ -96,7 +96,7 @@ final class TimeCardUITests: XCTestCase {
         password.tap()
         password.typeText("not it")
         app.buttons["sign-in-button"].tap()
-        XCTAssertTrue(app.staticTexts["That email and password don't match."].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["That email and password don’t match."].waitForExistence(timeout: 5))
     }
 
     func testJoinAndResetScreensOpen() {

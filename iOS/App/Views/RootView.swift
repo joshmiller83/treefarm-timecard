@@ -10,7 +10,7 @@ struct RootView: View {
     var body: some View {
         Group {
             if let error = model.storageError {
-                MessageScreen(systemImage: "externaldrive.badge.exclamationmark", title: "Can't open your time card", message: error)
+                MessageScreen(systemImage: "externaldrive.badge.exclamationmark", title: "Can’t open your time card", message: error)
             } else {
                 switch session.auth {
                 case .signedOut:

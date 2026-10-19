@@ -260,7 +260,7 @@ public enum FieldEngine {
         let cal = state.calendar
         guard let open = state.openShift else { throw FieldFailure(Speech.notClockedIn) }
         if let b = open.openBreak {
-            throw FieldFailure("You’re already on \(b.kind == .lunch ? "lunch" : "a break") since \(Fmt.spokenTime(b.start, cal)). Say \"back to work\" when you’re done.")
+            throw FieldFailure("You’re already on \(b.kind == .lunch ? "lunch" : "a break") since \(Fmt.spokenTime(b.start, cal)). Say “back to work” when you’re done.")
         }
         let why = Limits.clampReason(reason)
         let updated: Shift
