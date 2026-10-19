@@ -1,0 +1,54 @@
+name: Server
+
+on:
+  push:
+    paths:
+      - "Server/**"
+      - "Packages/**"
+      - ".github/workflows/server.yml"
+  pull_request:
+    paths:
+      - "Server/**"
+      - "Packages/**"
+      - ".github/workflows/server.yml"
+
+concurrency:
+  group: server-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  linux:
+    name: Server (Linux)
+    runs-on: ubuntu-latest
+    container: swift:6.2-noble
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install SQLite headers
+        run: apt-get update && apt-get install -y --no-install-recommends libsqlite3-dev
+      - uses: actions/cache@v4
+        with:
+          path: Server/.build
+          key: server-linux-${{ hashFiles('Server/Package.resolved') }}-${{ hashFiles('Packages/TreeFarmKit/Package.swift') }}
+          restore-keys: server-linux-
+      - name: Test
+        run: swift test --package-path Server
+
+  macos:
+    name: Server (macOS)
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      # The default toolchain on macos-15 is too old for Vapor's dependencies; use the newest Xcode.
+      - name: Pick the newest Xcode
+        run: |
+          XCODE=$(ls -d /Applications/Xcode_*.app | grep -vi beta | sort -V | tail -1)
+          echo "Using $XCODE"
+          sudo xcode-select -s "$XCODE/Contents/Developer"
+          swift --version
+      - uses: actions/cache@v4
+        with:
+          path: Server/.build
+          key: server-macos-${{ hashFiles('Server/Package.resolved') }}-${{ hashFiles('Packages/TreeFarmKit/Package.swift') }}
+          restore-keys: server-macos-
+      - name: Test
+        run: swift test --package-path Server
