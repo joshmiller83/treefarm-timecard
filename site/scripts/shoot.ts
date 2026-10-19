@@ -6,7 +6,10 @@
  *                    [--wait 900] [--no-full] [--build] [--selector 'header'] [--scale 2]
  *
  * - Builds once if dist/ is missing or older than src/ or public/ (or with --build).
- * - Serves dist with `astro preview` on --port (stops it when done).
+ * - Serves dist with `astro preview` on --port (stops it when done). If something already
+ *   answers on --port it is reused as is (a warning says so: it may be another build).
+ *   Under an AI agent Astro 7.4 starts preview as a background server; this script stops it
+ *   with `astro preview stop` when done.
  * - For each width: viewport shots stepping through the whole page, or through one section's
  *   scroll track with --section, plus a full-page shot. --reduced emulates
  *   prefers-reduced-motion (the static page).
@@ -72,23 +75,45 @@ function buildIfNeeded() {
   if (r.status !== 0) throw new Error('astro build failed');
 }
 
-async function startPreview(): Promise<ChildProcess> {
+const astroBin = join(site, 'node_modules', 'astro', 'bin', 'astro.mjs');
+
+async function answers(): Promise<boolean> {
+  try {
+    return (await fetch(base + '/')).ok;
+  } catch {
+    return false;
+  }
+}
+
+/** True when this run started the server (so it stops it afterwards). */
+let ownServer = false;
+
+async function startPreview(): Promise<ChildProcess | null> {
+  if (await answers()) {
+    console.warn(`shoot: reusing the server already on port ${port} (if it serves another build, stop it first)`);
+    return null;
+  }
+  ownServer = true;
   const child = spawn(process.execPath, [join(site, 'node_modules', 'astro', 'bin', 'astro.mjs'), 'preview', '--port', String(port)], {
     cwd: site,
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   const deadline = Date.now() + 20000;
   while (Date.now() < deadline) {
-    try {
-      const res = await fetch(base + '/');
-      if (res.ok) return child;
-    } catch {
-      /* not up yet */
-    }
+    if (await answers()) return child;
     await new Promise((r) => setTimeout(r, 200));
   }
-  child.kill();
+  stopPreview(child);
   throw new Error(`astro preview did not start on port ${port}`);
+}
+
+/** Kills the child and, if this run started the server, stops this project's background preview too. */
+function stopPreview(child: ChildProcess | null) {
+  child?.kill();
+  if (ownServer) {
+    ownServer = false;
+    spawnSync(process.execPath, [astroBin, 'preview', 'stop'], { cwd: site, stdio: 'ignore' });
+  }
 }
 
 const pause = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -107,7 +132,7 @@ async function scrollRange(page: Page): Promise<[number, number]> {
 }
 
 let server: ChildProcess | null = null;
-process.on('exit', () => server?.kill());
+process.on('exit', () => stopPreview(server));
 setTimeout(() => {
   console.error('shoot: timed out after 5 minutes');
   process.exit(2);
@@ -169,7 +194,7 @@ async function main() {
     }
   } finally {
     await browser.close();
-    server?.kill();
+    stopPreview(server);
   }
   console.log(written.join('\n'));
 }

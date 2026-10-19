@@ -1,11 +1,11 @@
 # Shared component contract
 
-Every shared component the parallel teams build: where it lives, its `Props`, the
-`data-*` hooks scenes animate, and how a real simulator capture replaces it. Each file
-already exists as a **stub** that compiles with these props and renders a labeled box
-(plus the hooks), so sections can be built against it today. Replace the stub's body;
-keep the `Props` interface and the hooks. If a prop must change, change it here first
-and tell the foundation owner (branch `site`).
+Every shared component: where it lives, its `Props`, the `data-*` hooks scenes animate,
+and how a real simulator capture replaces it. All of them are built (no stubs left) and
+merged on branch `site`; each has a workbench at `/lab/<team>/` with a Playwright spec in
+`tests/lab/<team>.spec.ts`. Section teams build against these props and hooks. If a prop or
+hook must change, ask the component's owner, change it here, and tell the foundation owner
+(branch `site`).
 
 Numbers and strings come from `src/data/ledger.ts` and `src/data/siri.ts`. Never type
 a number or a Siri line by hand.
@@ -28,6 +28,11 @@ a number or a Siri line by hand.
 - **Accessibility.** The phone root is `role="img"` with an `aria-label`; everything inside
   is `aria-hidden`. Mock text is presentational, so use `div`/`span`, not headings, `nav`
   or buttons. Page-level controls (Try it, ControlsCard copy) are real elements.
+- **Scope hook queries to a layer.** Several components share hook names (`[data-trees]` is
+  in the Live Activity, the Clock tab and the Team tab; `[data-bar="1".."4"]` are status-bar
+  signal bars and `[data-bar="mon".."fri"]` the Clock tab's chart; `[data-timer]` is
+  everywhere). One section's `[data-screens]` holds several layers, so query through the
+  layer: `q1('[data-screen="clock-1540"] [data-trees]')`.
 - **Animate only** transform, opacity, clip-path and stroke-dashoffset (the island morph
   may tween width, height and border-radius on one isolated element). No filter or
   backdrop-filter, no box-shadow animation: bake glows and shadows into layers.
@@ -45,11 +50,11 @@ a number or a Siri line by hand.
 
 | Team | Files |
 |---|---|
-| **device-a** | `phone/Phone.astro`, `phone/StatusBar.astro`, `phone/Screen.astro`, `phone/LockScreen.astro`, `phone/LiveActivity.astro`, `src/pages/lab/device-a.astro` |
-| **device-b** | `phone/DynamicIsland.astro`, `phone/SiriSnippet.astro`, `phone/SiriGlow.astro`, `phone/DictationWave.astro`, `src/scripts/wave.ts`, `ControlsCard.astro`, `src/pages/lab/device-b.astro` |
-| **screens** | `app/ClockTab.astro`, `app/TeamTab.astro`, `app/TreeNoteSheet.astro`, `src/pages/lab/screens.astro` |
-| **map** | `app/TreesTab.astro`, `FieldMap.astro`, `src/scripts/fieldmap.ts`, `src/pages/lab/map.astro` |
-| **report** | `app/ReportTab.astro`, `PaperTimeCard.astro`, `src/pages/lab/report.astro` |
+| **device-a** | `phone/Phone.astro`, `phone/StatusBar.astro`, `phone/Screen.astro`, `phone/LockScreen.astro`, `phone/LiveActivity.astro`, `phone/capture.ts`, `system/lockscreen/`, `src/pages/lab/device-a.astro`, `tests/lab/device-a.spec.ts` |
+| **device-b** | `phone/DynamicIsland.astro`, `phone/SiriSnippet.astro`, `phone/SiriGlow.astro`, `phone/DictationWave.astro`, `src/scripts/wave{,.test}.ts`, `ControlsCard.astro`, `src/pages/lab/device-b.astro`, `tests/lab/device-b.spec.ts` |
+| **screens** | `app/ClockTab.astro`, `app/TeamTab.astro`, `app/TreeNoteSheet.astro`, `screens/` (AppKit, Glyph, the Clock tab's cards and the clock/notes/team view models), `src/pages/lab/screens.astro`, `tests/lab/screens.spec.ts` |
+| **map** | `app/TreesTab.astro`, `app/trees/markup.ts`, `FieldMap.astro`, `src/scripts/fieldmap{,.test}.ts`, `src/scripts/fieldstate.ts`, `src/pages/lab/map.astro`, `tests/lab/map.spec.ts` |
+| **report** | `app/ReportTab.astro`, `PaperTimeCard.astro`, `report/` (report helpers and tests), `src/pages/lab/report.astro`, `tests/lab/report.spec.ts` |
 | **foundation** (`site`) | everything else: `SectionShell`, `Header`, `DayMark`, `AppIcon`, `app/AppChrome`, `app/Icon`, `app/icons.ts`, styles, data, motion core, tests, CI |
 | **section teams** | `src/sections/<Id>.astro` and `src/scripts/scenes/<id>.ts` for their chapter |
 
@@ -59,15 +64,20 @@ Paths below are relative to `site/src/components/`.
 
 ## device-a
 
+Helpers: `system/lockscreen/activity.ts` (`activityView(props)`: everything the card shows;
+`activityLabel(view)`: the sentence for a Phone's `aria-label`; `LA`, `buttonWidth`,
+`stripStep`, `stripWidth`, `cardHeight` in pt), `system/lockscreen/wallpaper.ts`
+(`WallpaperId`), `phone/capture.ts` (real captures). Lab: `/lab/device-a/`.
+
 ### `phone/Phone.astro`
 
 ```ts
 export interface Props {
-  /** aria-label for the role="img" root (required unless decorative). */
+  /** aria-label for the role="img" root. Required unless decorative: the build fails without one. */
   label?: string;
-  /** CSS length for the height; width follows 393/852. Default: var(--phone-h). */
+  /** CSS length for the height; the width follows the 420 : 879 frame. Default: var(--phone-h). */
   height?: string;
-  /** 'stage': the fixed desktop phone; 'inline': a section phone; 'peek': the crew's second phone. */
+  /** 'stage': the fixed desktop phone; 'inline': a section phone; 'peek': the crew's second phone (black titanium). */
   variant?: 'stage' | 'inline' | 'peek';
   /** aria-hidden instead of role="img" (the stage phone; it repeats the section figures). */
   decorative?: boolean;
@@ -79,8 +89,9 @@ export interface Props {
 DOM (keep these classes and hooks):
 
 ```html
-<div class="phone phone--inline" role="img" aria-label="…" data-phone>
-  <div class="phone-body" aria-hidden="true">        <!-- titanium edge, bezel, side buttons (Action button) -->
+<div class="phone phone--inline" role="img" aria-label="…" data-phone data-variant="inline">
+  <div class="phone-hw" aria-hidden="true">…</div>   <!-- Action, volume, side and Camera Control buttons -->
+  <div class="phone-body" aria-hidden="true">        <!-- titanium band, black glass border -->
     <div class="screen">                              <!-- container-type: inline-size; --pt -->
       <slot/>
     </div>
@@ -93,7 +104,12 @@ DOM (keep these classes and hooks):
 ```
 
 - `[data-phone]` is `ctx.phone` on mobile. Its transform must be at rest at progress 0 and 1.
-- Aspect ratio 393/852, radius `55 pt`, bezel 3.2% of width, no Apple logo.
+- **Geometry.** The outer frame is **420 × 879** (aspect-ratio `420 / 879`), drawn in u = 1/420
+  of its width. The screen is exactly **393 × 852 pt**, set in **13.5 u** on every side (a 4.5 u
+  titanium band and a 9 u glass border, 3.2% of the width), radius `55 pt`. No Apple logo.
+- **Width from height** is `height × 420 / 879`, not `× 393 / 852` (that is the screen, and is
+  3.6% narrower). `--stage-x/-y/-w/-h` are the stage phone's outer rect: place extras from
+  them, and find the screen at `13.5 / 420` of `--stage-w` inside each edge.
 - Height: `height` prop, else `var(--phone-h)` (SectionShell sets it per breakpoint).
 
 ### `phone/StatusBar.astro`
@@ -102,22 +118,25 @@ DOM (keep these classes and hooks):
 export interface Props {
   /** Shown before DayClock takes over; e.g. '7:02'. Default '7:02'. */
   time?: string;
-  /** 'light' = white (lock screen), 'dark' = ink (app screens). */
+  /** 'light' = white (lock screen), 'dark' = black (light app screens). */
   tone?: 'light' | 'dark';
   /** false freezes the time (data-clock="fixed"). Default true. */
   live?: boolean;
   /** Signal bars 0–4. Default 4. */
   signal?: 0 | 1 | 2 | 3 | 4;
-  /** Shows 'No Service' instead of bars (crew offline beat). */
+  /** Shows 'No Service' instead of bars and Wi-Fi (crew offline beat). */
   noService?: boolean;
-  /** Battery percent. Default 80. */
+  /** Battery percent. Default 80. At 20 and below the level is red, as on iOS. */
   battery?: number;
+  /** false hides the time (LockScreen passes false: the big clock shows it). Default true. */
+  showTime?: boolean;
 }
 ```
 
-Hooks: `[data-clock]` (time, -apple-system 600 17 pt), `[data-bar="1".."4"]` (signal bars,
-fade one by one), `[data-no-service]` (the text variant, hidden unless offline), `[data-wifi]`.
-Height 54 pt.
+Hooks: `[data-statusbar]` root (with `data-battery`, the level, and `data-battery-low` at 20%
+and below), `[data-clock]` (time, system 600 17 pt; still present, hidden, when `showTime` is
+false), `[data-bar="1".."4"]` (signal bars, fade one by one), `[data-no-service]` (the text,
+opacity 0 unless offline: fade it in where the bars were), `[data-wifi]`. Height 54 pt.
 
 ### `phone/Screen.astro`
 
@@ -136,11 +155,12 @@ export interface Props {
 // default slot: the HTML recreation
 ```
 
-Renders `<div class="layer" data-state={stateId} data-screen={stateId} data-final?>`. At
-build time it checks `public/screens/{stateId}.{avif,webp,png}` (1179 × 2556) and, when one
-exists, renders `<img width="1179" height="2556" alt loading="lazy" decoding="async">`
-filling the layer instead of the slot. Keep hooks your scene needs outside the swapped area
-(overlays, glows) or accept that a capture is a still.
+Renders `<div class="layer" data-state={stateId} data-screen={stateId} data-final? data-capture?>`.
+At build time it looks for `public/screens/{stateId}.{avif,webp}` (in Astro's `publicDir`, so
+any working directory works) and, when one exists, renders
+`<img class="capture" width="1179" height="2556" alt loading="lazy" decoding="async">` filling
+the layer instead of the slot. PNG is never used. Keep hooks your scene needs outside the
+swapped area (overlays, glows) or accept that a capture is a still.
 
 ### `phone/LockScreen.astro`
 
@@ -148,21 +168,26 @@ filling the layer instead of the slot. Keep hooks your scene needs outside the s
 export interface Props {
   /** Default ledger DAY.date: 'Friday, October 16'. */
   date?: string;
-  /** '7:02'. The big clock and status bar carry data-clock unless live is false. */
+  /** '7:02'. The big clock carries data-clock unless live is false. */
   time: string;
   live?: boolean;
-  wallpaper?: 'dawn-rows';
+  /** 'dawn-rows' (default) or 'dusk-rows' (the clock-out hour; fetched only where used). */
+  wallpaper?: 'dawn-rows' | 'dusk-rows';
   /** Start with the dim overlay on (lock-screen zoom beat). */
   dim?: boolean;
+  /** Status bar signal (0–4) and offline text, as on StatusBar. */
+  signal?: 0 | 1 | 2 | 3 | 4;
+  noService?: boolean;
 }
-// slots: default (bottom: the LiveActivity), "top" (Siri snippet/glow area), "overlay" (pocket panel etc.)
+// slots: default (the LiveActivity), "top" (Siri snippet/glow area), "overlay" (pocket panel etc.)
 ```
 
-Hooks: `[data-lock]` root, `[data-clock]` (big clock 92 pt ui-rounded 600 at y 92 pt and the
-status bar), `[data-date]` (20 pt 600 at y 70 pt), `[data-dim]` (black overlay, opacity),
-`[data-wallpaper]`, `[data-activity-slot]`. Wallpaper: SVG fir rows on #0D2418 → #29483A →
-#C79A5E, plus the pre-blurred WebP twin behind the Live Activity material. Flashlight and
-camera buttons and a white home indicator at the bottom. No notifications unless slotted.
+Hooks: `[data-lock]` root (`data-wallpaper-id`), `[data-wallpaper]`, `[data-date]` (20 pt 600
+at y 70 pt), `[data-clock]` (big clock 92 pt rounded 600 at y 92 pt; the status bar's own
+time is hidden on the lock screen, as on iOS), `[data-dim]` (black overlay, opacity; the
+activity sits above it), `[data-padlock]` (the padlock under the island), `[data-activity-slot]`,
+`[data-lock-quick]` (flashlight and camera buttons), `[data-home-indicator]`. Wallpaper: SVG fir rows on #0D2418 → #29483A → #C79A5E,
+plus the pre-blurred WebP twin behind the Live Activity material. No notifications unless slotted.
 
 ### `phone/LiveActivity.astro`
 
@@ -184,28 +209,41 @@ export interface Props {
   undoRow?: number | null;          // 36 in the tapped state
   /** Timer and counts frozen (static crops). */
   fixed?: boolean;
+  /** 'lock' (default): placed on the lock screen. 'solo': a standalone card filling its container's width. */
+  placement?: 'lock' | 'solo';
+  class?: string;
 }
 ```
+
+Layout: row 1 pill and '{field} · {block}'; row 2 the timer, and the 4 pt field bar on the
+right (row 3's right side belongs to Undo, so the bar sits beside the timer; like the app's,
+it has no visible label: VoiceOver gets '{shaped} of {total} trees shaped' through
+`activityLabel()`); row 3 '{trees} trees this shift', and on the right 'Row {n} marked · Undo'
+(tapped) or '{worked} worked' (break and lunch); row 4 the buttons.
 
 Hooks (scenes rely on every one):
 
 | Hook | What it is |
 |---|---|
-| `[data-la]` | root, `data-state` mirrors the state |
+| `[data-la]` | root; `data-state` mirrors the state. Flip it with `tl.set(la, { attr: { 'data-state': … } })`: it turns the timer gold on lunch/break |
 | `[data-la-material]`, `[data-la-break]` | green material and the gold break/lunch tint layer (crossfade by opacity) |
-| `[data-pill]`, `[data-pill-text]` | 'On the clock' / 'On lunch' / 'On break · {reason}' |
-| `[data-place]` | '{field} · {block}' |
+| `[data-pill]` > `[data-pill-face="clock"]`, `[data-pill-face="break"]` | **two stacked faces**: green 'On the clock', and gold 'On lunch' / 'On break · {reason}' / 'On break'. Crossfade the faces by opacity; never rewrite pill text to change state. Each face has its own `[data-pill-text="clock"|"break"]`; the gold one already names the coming break (a break from the card has no reason, decisions.md #3), so only a voice break with a reason needs `q1('[data-pill-text="break"]').textContent` set before it fades in |
+| `[data-place]` | '{field} · {block}' (on a break the field is dropped so the reason fits) |
 | `[data-timer]` | odometer timer, Plex Mono 600 38 pt (gold on break/lunch) |
-| `[data-worked-line]` | '{worked} worked' under the timer on break/lunch |
-| `[data-trees]` | odometer count in '{trees} trees this shift' |
-| `[data-fieldbar]` | the 4 pt bar fill (scaleX = fieldPct, origin left) |
-| `[data-undo]` | 'Row {n} marked · Undo' (tapped state) |
-| `[data-strip]` > `[data-strip-track]` > `[data-row="36"]`… | overflow-clipped row buttons; advance = translateX by one button + 8 pt gap; 4th row waits off the right |
+| `[data-field]` > `[data-fieldbar]` | the 4 pt bar: track, and the fill (`scaleX` = fieldPct, origin left). Tween the fill's scaleX on a tap |
+| `[data-trees-line]` > `[data-trees]` | the line, and the odometer count in '{trees} trees this shift'; roll it with `util.odometer` on a tap |
+| `[data-undo]` > `[data-undo-row]` | 'Row {n} marked · Undo' (opacity 1 in the tapped state); the row number is its own span |
+| `[data-worked-line]` | '{worked} worked', row 3 right, on break/lunch (fade [data-undo] out as it fades in) |
+| `[data-strip]` > `[data-strip-track]` > `[data-row="36"]`… | row buttons in a sideways-clipped strip; advance = `x: '-=' + step` (one button + 8 pt gap: `stripStep` pt, or two `[data-row]`s' `offsetLeft` apart in px). A fourth row waits off the right edge. **Tapped** layers render the track one step left with the marked row waiting off the left edge: `x: step → 0` replays the tap |
 | `[data-break-btn]` | Break (outlined), stays fixed while the strip moves |
-| `[data-back-btn]` | full-width Back to work (#E2A644 / #2A1C04), revealed by clip-path |
+| `[data-back-btn]` | full-width Back to work (#E2A644 / #2A1C04), revealed by clip-path `inset(0 100% 0 0)` → `inset(0)` |
 
-Geometry: width 361 pt, bottom at y 760 pt, radius 24 pt, padding 12/14 pt, height ≤ 160 pt,
-buttons 46 pt tall, radius 14 pt, 8 pt gap. **Never a clock-out button.**
+Break and lunch layers render the row buttons at `scaleX(0)` with `transform-origin: 0% 50%`
+(inline), so tweening them back to `scaleX: 1` grows them from the left; collapse working rows
+with `transformOrigin: '100% 50%'`. Pass `transformOrigin` to choose otherwise.
+
+Geometry: width 361 pt, bottom at y 760 pt, radius 24 pt, padding 12/14 pt, height ≤ 160 pt
+(159), buttons 46 pt tall, 77.25 pt wide, radius 14 pt, 8 pt gap. **Never a clock-out button.**
 
 ---
 
@@ -284,8 +322,7 @@ The reply wraps greedily (`text-wrap: pretty`) and keeps numbers with their unit
 `[data-wave]` hides its own `[data-date]`, big `[data-clock]` and padlock (opacity 0; the
 static final state). Scenes that drop the card in fade those three from 1 to 0 over the same
 span as the `[data-snippet]`/`[data-wave]` drop-in (`tl.fromTo(chrome, { opacity: 1 },
-{ opacity: 0 }, at)`). The padlock is matched as `[data-padlock], .lock-padlock`
-(device-a: a `[data-padlock]` hook on it would be welcome).
+{ opacity: 0 }, at)`). The padlock is LockScreen's `[data-padlock]`.
 
 ### `phone/SiriGlow.astro`
 
@@ -357,7 +394,7 @@ All app screens render inside `app/AppChrome.astro` (foundation):
 ```ts
 // AppChrome props
 { title: string; tab: 'clock' | 'trees' | 'log' | 'report' | 'team'; admin?: boolean;
-  time?: string; noService?: boolean; subtitle?: string;
+  time?: string; noService?: boolean; subtitle?: string; class?: string;
   leading?: { icon: IconName; text?: string; id?: string }[];
   trailing?: { icon: IconName; text?: string; id?: string }[] }
 // slots: default (content), "header" (pickers under the title), "overlay" (sheets, banners)
@@ -367,7 +404,9 @@ All app screens render inside `app/AppChrome.astro` (foundation):
 
 Tabs are **Clock, Trees, Log, Report, Team** (Team for admins). Settings is a gear in
 the Clock tab's toolbar. Icons: `<Icon name="…">` from `app/icons.ts` (add glyphs there
-via the foundation owner).
+via the foundation owner). The screens team's shared app styles (cards, chips, flags,
+buttons, avatars) live in `screens/AppKit.astro`; every value comes from the ledger through
+the view models in `screens/clock/clock.ts`, `screens/notes/notes.ts` and `screens/team/team.ts`.
 
 ### `app/ClockTab.astro`
 
@@ -377,20 +416,44 @@ export interface Props {
   at?: number;
   /** Pace card segment. Default 'today'. */
   range?: 'today' | 'week' | 'season';
+  /** Pace rows whose gold left rule shows statically (reduced-motion figures). Default none. */
+  highlight?: readonly ('trees-hour' | 'per-tree' | 'pay' | 'best' | 'left')[];
+  /** false freezes the status card timer (data-timer="fixed") for static crops. Default true. */
+  live?: boolean;
 }
 ```
 
-Content (1,700 pt tall scroll layer): status card (#1D5B3A, 'On the clock', timer 40 pt
-mono, 'Clocked in at 7:02 AM', [Break] [Clock out]); Now working 'North field · Block 2 ·
-Row 39' with [Row 39][Row 40][Row 41][Break]; Trees this shift 260; Pace card (segmented
-Today | This week | Season; '34 trees an hour', '1:46 a tree', 'Pay per tree •••',
-'Best day · Thu, Oct 15 · 318 trees', 'About 179 hours left in North field at your pace');
-Hours & pay chart (Mon 8:37 … Fri 7:39 gold), pay '•••', eye-slash 'Show pay'.
+Recreated from the app's Clock tab (about 1,850 pt tall inside `[data-scroll-layer]`; scenes
+translate it), top to bottom, each a card in `screens/clock/`:
 
-Hooks: `[data-scroll-layer]` (from AppChrome), `[data-status-card]`, `[data-timer]`,
-`[data-now-working]`, `[data-trees]`, `[data-pace-card]`, `[data-pace-row="trees-hour"|"per-tree"|"pay"|"best"|"left"]`,
-`[data-pace-rule]` (3 pt gold rule, scaleY), `[data-hours-card]`, `[data-bar="mon"…"fri"]`
-(scaleY from the baseline), `[data-pay]`, `[data-pay-toggle]`.
+- **Status** (`StatusCard`): fir while working, sap on a break or lunch, surface off the
+  clock; pill with a pulse light, the running h:mm:ss in Plex Mono 52 pt (odometer markup,
+  DayClock rolls it), 'worked today', 'Clocked in at 7:02 AM', [Break] [Clock out].
+- **Now working** (`NowWorkingCard`): 'North field · Block 2 · Row 39' and the next three
+  rows plus Break as tiles (on a break the tiles rest and a line says what's next).
+- **Trees this shift** (`TreesCard`): the count (260 at 3:40), Mark trees, and the field's
+  share beside a fir progress bar.
+- **Pace** (`PaceCard`): segmented Today | This week | Season; '34 trees an hour', '1:46 a
+  tree', 'Pay per tree •••', 'Best day · Thu, Oct 15 · 318 trees', 'About 179 hours left in
+  North field at your pace'.
+- **Shift notes** (`ShiftNotesCard`, hidden off the clock): the shift's note field, 'Saved'.
+- **Hours & pay** (`HoursPayCard`): today and this week, a bar per weekday (today gold), pay
+  masked '•••', eye-slash 'Show pay'.
+
+A scroll-edge fade sits under the status bar and above the floating tab bar, so no content
+reads through the glass.
+
+Hooks: `[data-clock-tab]` (root of the content, `data-at`), `[data-scroll-layer]` (from
+AppChrome), `[data-status-card]` (`data-phase`), `[data-timer]`, `[data-break-line]`,
+`[data-status-btn="clock-in"|"break"|"back"|"clock-out"]`, `[data-now-working]`,
+`[data-now-row="39"]`… and `[data-now-break]` (not `data-row`: the Live Activity's strip uses
+that in the same container), `[data-trees-card]`, `[data-trees]` (odometer: `util.odometer`),
+`[data-field-bar]` (fill: scaleX from the left), `[data-field-pct]`, `[data-pace-card]`,
+`[data-segment="today"|"week"|"season"]`, `[data-pace-row="trees-hour"|"per-tree"|"pay"|"best"|"left"]`,
+each with a `[data-pace-rule]` (3 pt gold rule in the left margin; rests at `scaleY(0)`, tween
+to 1; `highlight` draws it statically), `[data-shift-notes]`, `[data-shift-note-text]` (typing
+target), `[data-notes-state]`, `[data-hours-card]`, `[data-bar="mon"…"fri"]` (fills,
+transform-origin bottom: scaleY grows them from the baseline), `[data-pay]`, `[data-pay-toggle]`.
 
 ### `app/TeamTab.astro`
 
@@ -401,27 +464,43 @@ export interface Props {
 }
 ```
 
-Hooks: `[data-team-row="Alex"|"Sam"|"Rosa"]`, `[data-hours]`, `[data-trees]`,
-`[data-invite]` ('Invite someone'), `[data-fields-row]` ('Fields & blocks ›'). No invite
-code, no expiry, no pay.
+'This week' (the week's date span from the ledger) lists each member's hours and trees, a
+total, then Invite someone and Fields & blocks. The status bar shows 3:00 PM (MOMENTS.synced).
+Hooks: `[data-team-row="Alex"|"Sam"|"Rosa"]` with `[data-hours]` (odometer markup) and
+`[data-trees]` inside, `[data-team-total]`, `[data-invite]` ('Invite someone'),
+`[data-fields-row]` ('Fields & blocks ›'). No invite code, no expiry, no pay.
 
 ### `app/TreeNoteSheet.astro`
 
 ```ts
-import type { TreeNote } from '../../data/ledger';
+import type { Person, TreeNote } from '../../data/ledger';
 export interface Props {
   /** Default ledger TREE_NOTE. */
   note?: TreeNote;
+  /** All of this tree's notes, oldest first (listed newest first). Default [note]. */
+  notes?: readonly TreeNote[];
   /** Sheet height as a fraction of the screen. Default 0.55. */
   height?: number;
+  /** Ledger minute the sheet is open at: pass the host TreesTab's `at`. Default MOMENTS.treeNote (2:33 PM). */
+  at?: number;
+  /** Whose phone, for the shaped line's color (gold = their own shift). Default WORKER (Alex). */
+  who?: Person;
 }
 ```
 
-Overlay for TreesTab (use AppChrome's `overlay` slot or position absolutely). Grabber,
-'Block 2 · Row 36 · Tree 7' Zilla Slab 24 pt, flag chip (rust, white), the note, byline
-'Alex · Today 2:33 PM', [Add note] 50 pt. Hooks: `[data-sheet]` (yPercent 100 → 0),
-`[data-flag-chip]`, `[data-note-text]`, `[data-add-note]`. Flags are exactly
-'Needs attention', 'Dead', 'Replant' (ledger FLAGS).
+An iOS 26 medium-detent sheet, inset 6 pt with concentric corners, opaque: grabber, 'Block 2 ·
+Row 36 · Tree 7' in Zilla Slab 24 pt, a close button, whether the tree is shaped (in the map's
+colors), the notes newest first (flag chip, text, avatar and byline 'Alex · Today 2:33 PM'),
+and [Add note] 50 pt. TreesTab's `sheet` prop renders it with the tab's own `at`, `who` and
+that tree's notes, so prefer `<TreesTab sheet={note} …/>` to placing it yourself; standalone,
+put it in AppChrome's `overlay` slot or after the tab in the same layer.
+
+Hooks: `[data-sheet]` is the **slide wrapper**: full width, anchored to the screen's bottom,
+the sheet plus 40 pt of room above it for the shadow. Tween it `yPercent: 100 → 0`; at 100 the
+sheet and its shadow are wholly off screen. Its first child is the visible sheet. Inside:
+`[data-note="0"…]` per note, `[data-flag-chip]`, `[data-note-text]`, `[data-note-byline]`,
+`[data-shaped]` (`data-shaped` = the state), `[data-add-note]`. A home indicator sits outside
+`[data-sheet]` and stays put. Flags are exactly 'Needs attention', 'Dead', 'Replant' (ledger FLAGS).
 
 ---
 
@@ -434,51 +513,97 @@ export interface Props {
   /** Ledger minute for which trees are gold. Default MOMENTS.field. */
   at?: number;
   block: number;                         // 2
+  /** The rows this screen is about: centred between the controls and the legend when they
+      fit, otherwise `from` is the first row shown. An open sheet overrides both. */
   rows: [from: number, to: number];      // [28, 40]
   zoom?: 'All' | 'XS' | 'S' | 'M' | 'L'; // 'L'
   mode?: 'one' | 'fill' | 'erase';
-  /** Whose phone: Sam's shows his own row 12 gold. Default 'Alex'. */
+  /** Whose phone: Sam's shows his own row 12 gold (and no Team tab). Default 'Alex'. */
   who?: 'Alex' | 'Sam';
   /** Extra rows to show gold (offline marks before sync). */
   pending?: Array<{ block: number; row: number }>;
-  notes?: TreeNote[];                    // markers (rust flags)
+  /** Note markers (rust flags). Default: the notes that exist at `at`. */
+  notes?: TreeNote[];
   syncLine?: string | null;              // 'Offline · 2 changes waiting' | 'Synced'
+  /** Reserve the sync line's 38 pt row even without a line (an empty, hidden [data-sync-line]),
+      so states with and without one share the same map geometry. Default: true with a line. */
+  syncSlot?: boolean;
   banner?: string | null;                // CONFLICT_MESSAGE
   noService?: boolean;
-  /** Open the TreeNoteSheet on this note. */
+  /** Open the TreeNoteSheet on this note (the map scrolls so its row stays above the sheet). */
   sheet?: TreeNote | null;
 }
 ```
 
-Light-mode map: gold #B57A12 (today, this person), green #1D5B3A (shaped earlier, anyone),
-ring #A9C2AF (not yet); row numbers in a left margin at 13 pt mono; legend chips Today,
-Earlier, Not yet. Hooks: `[data-map]`, `[data-map-row="37"]` (a row of 10 dots),
-`[data-tree="2-37-4"]` (one dot), `[data-row-label="37"]`, `[data-note-marker="2-36-7"]`,
-`[data-sync-line]`, `[data-sync-count]`, `[data-banner]` (ink bg, 4 pt rust left rule,
-white 15 pt), `[data-mode]`, `[data-undo-btn]`, `[data-zoom-chip="L"]`.
+Light-mode map after the app's FieldLayout: 'Trees', [North field ▾], zoom chips
+All XS S M L, the optional sync line, [One | Fill | Erase] and [Undo]; the map with a pinned
+block header, row numbers in a 26 pt gutter, striped block; the legend chips Today, Earlier,
+Not yet above the floating tab bar. Gold = this person's current shift, green = shaped earlier
+by anyone, ring = not yet (decisions.md #4); states come from `treeStatus()` in
+`src/scripts/fieldstate.ts`. The conflict banner is a toast just above the legend.
 
-### `FieldMap.astro` and `src/scripts/fieldmap.ts`
+Hooks: `[data-map]` (root; `data-at`, `-who`, `-zoom`, `-mode`, `-block`), `[data-map-row="37"]`
+(a row of 10 dots, target block only), `[data-block-row="2-37"]` (every rendered row),
+`[data-tree="2-37-4"]` (one dot: `data-s="ring|earlier|today"`; its fills read the custom
+properties `--e` (green) and `--g` (gold), so fill a row with
+`gsap.to(q('[data-map-row="37"] [data-tree]'), { '--g': 1, stagger: 0.01 })` and crossfade
+gold to green with `{ '--g': 0, '--e': 1 }`; pops are transforms), `[data-row-label="37"]`,
+`[data-note-marker="2-36-7"]` > `[data-note-ripple]`, `[data-sync-line]`
+(`data-sync="offline|synced"`), `[data-sync-count]` (odometer), `[data-sync-plural]`,
+`[data-banner]`, `[data-mode]` > `[data-mode-thumb]`, `[data-mode-option="one"|"fill"|"erase"]`,
+`[data-undo-btn]`, `[data-zoom-chip="L"]`, `[data-legend]`, `[data-field-picker]`.
+
+### `FieldMap.astro`, `src/scripts/fieldmap.ts` and `src/scripts/fieldstate.ts`
 
 ```ts
 export interface Props {
   /** Ledger minute for the drawn state. Default MOMENTS.field (2:15 PM). */
   at?: number;
   view?: 'overview' | 'zoom';
-  /** Zoomed view: block 2 rows 28–40. */
+  /** Zoomed view. Default block 2 rows 28–40 (ZOOM_TARGET). */
   zoom?: { block: number; from: number; to: number };
-  /** Accessible summary (defaults to the ledger sentence in the brief). */
+  /** Accessible summary. Default: built from the ledger at `at` (at 2:15 PM, the brief's sentence; the close-up has its own). */
   label?: string;
   class?: string;
+  /** Draw the field scene's choreography statically at this progress (labs, tests). */
+  progress?: number;
+  /** Force the overview's orientation instead of following the box's shape. */
+  orientation?: 'portrait' | 'landscape';
 }
-// fieldmap.ts (pure layout is unit-tested)
-export function fieldLayout(): { width: number; height: number; dots: Array<{ x: number; y: number; block: number; row: number; tree: number }> };
-export function createFieldMap(canvas: HTMLCanvasElement, opts): { setProgress(p: number): void; draw(state): void; destroy(): void };
+// fieldmap.ts
+export function ensureFieldMap(canvas: HTMLCanvasElement, opts?: FieldMapOptions): FieldMapHandle;
+export interface FieldMapHandle {
+  setProgress(p: number): void;            // the field scene's choreography (sceneState); no-op if unchanged
+  draw(state: Partial<MapState>): void;    // anything custom; redraws next frame, once
+  render(sharp?: boolean): void;           // synchronous draw (labs, tests)
+  resize(): void;
+  pointAt(block: number, row: number, tree: number): { x: number; y: number }; // CSS px in the canvas
+  readonly state: Readonly<MapState>; readonly orientation: 'portrait' | 'landscape';
+  readonly frames: number; destroy(): void;
+}
+// fieldstate.ts (pure, unit-tested): fieldLayout(), treeStatus(), sceneState(p), finalState(),
+// BEATS (the scene's progress windows), fieldSummary(at), zoomSummary(), createTryIt() (the Try it model)
 ```
 
-Canvas 2D, DPR ≤ 2, sprites pre-rendered, overview bitmap cached, redraw only on change,
-init within one viewport (IntersectionObserver rootMargin 100%). Root `<canvas role="img"
-aria-label>` with `[data-fieldmap]`. Page dots: gold #E2A644 (20% larger), green #2E7A4E,
-ring #6F8F7A 1.5 px, rust note flag. Unit tests: 8,540 dots; 2,190 green + 230 gold at 2:15.
+North field's 8,540 trees on Canvas 2D (about 40 pattern-filled runs, DPR ≤ 2, one frame per
+change). The box takes the width it is given; its aspect comes from the layout: **portrait
+below 900px** (blocks 1–7 across, like the app), **landscape from 900px** (the field turned a
+quarter turn anticlockwise, about 1.58 : 1, Block 1 bottom-left; the zoom turns it back
+upright, so the close-up matches mobile). First paint and no-JS: an inline SVG of the same
+state; the canvas loads its renderer within one viewport, draws the final state and hides the
+SVG. In the close-up everything outside block 2 rows 28–40 dims to 22%.
+
+`MapState`: `at`, `reveal` (gold rows revealed, in mark order; null = all), `camera` (0
+overview, 1 zoomed), `labels`, `demo` (row 37's demo fill), `season` (1 = next season, fills
+faded to rings, notes stay), `pulse`, `touch`, `undo` (for the scene's own DOM Undo chip).
+`BEATS`: reveal .30–.52, zoomIn .52–.58, labelsIn .55–.59, touch .59–.625, demoIn .61–.64,
+undo .64–.67, demoOut .67–.70, seasonOut .73–.81, pulse .79–.87, seasonIn .88–.92,
+labelsOut .88–.90, zoomOut .90–.98.
+
+Hooks: `[data-fieldmap]` (the canvas, `role="img"` with the summary as its label),
+`[data-fieldmap-box]` (`data-ready` after the first frame), the event `fieldmap:ready` on the
+canvas. Page dots: gold #E2A644 (20% larger), green #2E7A4E, ring #6F8F7A, rust #C2462A note
+flag (`STAGE_THEME`). Unit tests: 8,540 dots; 2,190 green + 230 gold at 2:15.
 
 ---
 
@@ -489,12 +614,22 @@ ring #6F8F7A 1.5 px, rust note flag. Unit tests: 8,540 dots; 2,190 green + 230 g
 ```ts
 export interface Props {
   range?: 'This week' | 'Last week' | 'This month' | 'Pick dates';
+  /** Show the Pick dates sheet (From/To and a calendar) over the screen. Default false. */
+  picker?: boolean;
+  /** Status-bar time before DayClock takes over. Default '4:31'. */
+  time?: string;
 }
 ```
 
-AppChrome title 'Report', tab 'report'. Range chips (This week selected), a paper preview
-thumbnail, [Export PDF] [CSV]. Hooks: `[data-range-chip="this-week"…]`, `[data-paper-thumb]`
-(the Flip source rect), `[data-export="pdf"|"csv"]`. No pay.
+AppChrome title 'Report', tab 'report': range chips This week | Last week | This month as a
+segmented control, the period 'Mon, Oct 12 – Fri, Oct 16' with (Pick dates), totals HOURS
+39:55 · TREES 1,347 · DAYS 5, a PREVIEW of the paper in miniature (`PaperTimeCard mini`, the
+same proportions as the page card at 720px), [Export PDF] [CSV]. No pay anywhere.
+
+Hooks: `[data-range-chip="this-week"|"last-week"|"this-month"|"pick-dates"]` (the selected
+one has `data-selected`), `[data-range-thumb]` (the segmented control's thumb),
+`[data-report-total="hours"|"trees"|"days"]`, `[data-paper-thumb]` (the Flip source rect),
+`[data-export="pdf"|"csv"]`, and with `picker` the `[data-date-sheet]` and its `[data-date-scrim]`.
 
 ### `PaperTimeCard.astro` (page level, a real table)
 
@@ -507,16 +642,32 @@ export interface Props {
   worker?: string;
   /** Default WEEK_RANGE 'Mon, Oct 12 – Fri, Oct 16'. */
   range?: string;
+  /** The job in the band. Default 'Tree trimming'. */
+  job?: string;
+  /** Show 'Prepared Fri, Oct 16 at 4:31 PM' (the moment of clock-out). Default true. */
+  prepared?: boolean;
+  /** Presentational miniature for the in-phone preview (divs, no hooks, pt units). */
+  mini?: boolean;
+  /** Mini only: the preview is still drawing (no example data for this range). */
+  pending?: boolean;
+  class?: string;
 }
 ```
 
 `<table>` with `<caption>` 'Example time card for Alex, Mon, Oct 12 – Fri, Oct 16';
 `<th scope="col">` Date | In | Out | Trees | Hours | Breaks | Notes; totals in `<tfoot>`
-'39:55 hours · 1,347 trees' over a double rule; footnote 'Breaks are listed, not counted.'
-Stacked day blocks under 600 px (no horizontal scroll). Hooks: `[data-paper]`,
-`[data-paper-shadow]` (separate pre-blurred layer), `tr[data-day="mon"…"fri"]`,
-`[data-cell="fri-trees"]`, `[data-cell="fri-hours"]`, `[data-totals-rule]`, `[data-totals]`,
-`[data-paper-band]`. No pay column, ever.
+'39:55 hours · 1,347 trees' over a true double rule; footnote 'Breaks are listed, not counted.'
+and 'Prepared …'. Under 600px of **its own width** (a container query named `tc`, not the
+viewport) rows become stacked day blocks with no horizontal scroll; scenes can tell by
+`tr[data-day]` computing to `display: flex` (a Flip from the ReportTab preview only matches
+the card from 680px wide). Empty cells are visually hidden, never removed, so every row keeps
+seven cells for screen readers.
+
+Hooks: `[data-paper]` (root, the Flip target), `[data-paper-shadow]` (the pre-blurred shadow,
+its own layer: fade its opacity), `[data-paper-band]` (fir header band), `tr[data-day="mon"…"fri"]`
+(print rows by clip-path), `[data-cell="mon-trees"…"fri-hours"]` each holding a `[data-flash]`
+gold layer (animate opacity; rests at 0, hugs the number, paints behind the text),
+`[data-totals-rule]` (scaleX), `[data-totals]`. No pay column, ever.
 
 ---
 
@@ -543,8 +694,10 @@ state the next section starts from.
 
 ## Real captures: the state id registry
 
-Drop `public/screens/<state-id>.png` (or `.webp`/`.avif`), 1179 × 2556, and the matching
-`<Screen>` renders it instead of the recreation. Capture these first (decisions.md #9):
+Drop `public/screens/<state-id>.webp` (or `.avif`), 1179 × 2556 and at most 200 KB, and the
+matching `<Screen>` renders it instead of the recreation. Encode simulator PNGs first
+(`cwebp -q 80 -m 6 -sharp_yuv in.png -o out.webp`; see the site README); `npm test` fails on a
+PNG, a wrong size or a heavy file. Capture these first (decisions.md #9):
 **`lock-1414-activity`**, **`trees-1415-block2`**, **`report-week`**.
 
 | Section | State ids (final in bold) |

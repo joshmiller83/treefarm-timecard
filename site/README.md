@@ -27,8 +27,8 @@ npm run dev            # http://localhost:4321 (use your team's port: npm run de
 | `npm run build` | Static build into `dist/` (prints any unverified Siri lines) |
 | `npm run preview` | Serves `dist/` on 4321 |
 | `npm run check` | `astro check` (TypeScript strict) |
-| `npm test` | Vitest: ledger arithmetic, Siri wording, DayClock math, odometer |
-| `npm run test:e2e` | Playwright against the built site (smoke, reduced motion, axe, overflow, nav). Build first. `PW_PORT=4330` to change the port, `PW_ALL=1` to add WebKit and Firefox |
+| `npm test` | Vitest: ledger arithmetic, Siri wording, DayClock math, odometer, and the shared components' models (Live Activity, wallpapers, captures, wave, Clock/notes/team views, field map, report) |
+| `npm run test:e2e` | Playwright against the built site: the page (`tests/e2e`: smoke, reduced motion, axe, overflow, nav) and the component labs (`tests/lab`, one spec per team, projects `lab-desktop` and `lab-mobile`). Build first. `PW_PORT=4330` to change the port, `PW_ALL=1` to add WebKit and Firefox (page and labs). Just the page: `-- --project=desktop --project=mobile` |
 | `npm run test:all` | check + unit + build + e2e |
 | `npm run shoot -- …` | Screenshots (below) |
 | `npm run og` | Rebuilds `public/og.png` from the hidden `/og/` route (commit the PNG) |
@@ -47,6 +47,8 @@ npm run shoot -- [--url /] [--section voice] [--widths 375,1440] [--steps 6] [--
 
 - Builds once if `dist/` is missing or older than `src/`, `public/` or the config (`--build` forces it).
 - Serves `dist/` with `astro preview` on `--port` and stops it afterwards. **Use your team's port.**
+  If something already answers on that port it is reused as is (it warns: that may be another
+  worktree's build, so stop it first).
 - For each width it writes viewport shots stepping through the whole page, or through one
   section's scroll track with `--section <id>`, plus a full-page shot, to `.shots/<name>/`
   (git-ignored): `1440-01.png … 1440-full.png`, `375-reduced-03.png` and so on.
@@ -54,6 +56,21 @@ npm run shoot -- [--url /] [--section voice] [--widths 375,1440] [--steps 6] [--
 - Lab pages work too: `npm run shoot -- --url /lab/device-a/ --widths 1440 --steps 2`.
 
 Read the PNGs. Check 375 and 1440, several scroll positions, and reduced motion.
+
+### Astro preview under an AI agent
+
+Astro 7.4 detects AI agents and starts `astro preview` as a **background** server (with a lock
+file in this worktree's `.astro/`). Playwright's `webServer` then reports "exited early" and
+never stops it. From an agent shell, start it yourself, let Playwright reuse it, and stop it:
+
+```sh
+npm run build
+npx astro preview --background --port 4330      # your team's port
+PW_PORT=4330 npx playwright test                 # reuses the running server
+npx astro preview stop                           # stops this worktree's background server
+```
+
+`npm run shoot` stops the background server it started. CI is not an agent, so it is unaffected.
 
 ## How the page works
 
@@ -85,11 +102,11 @@ Read the PNGs. Check 375 and 1440, several scroll positions, and reduced motion.
 | Owner | Files |
 |---|---|
 | foundation (branch `site`) | `astro.config.mjs`, `package.json`, configs, `scripts/`, `tests/`, `src/styles/`, `src/data/`, `src/layouts/`, `src/pages/index.astro`, `src/pages/og.astro`, `src/pages/lab/index.astro`, `src/pages/lab/foundation.astro`, `src/scripts/{main,motion,stage,dayclock,util,scene,odometer,header}.ts`, `src/components/{SectionShell,Header,DayMark,AppIcon}.astro`, `src/components/app/{AppChrome,Icon,IconSprite}.astro`, `src/components/app/icons.ts`, `src/components/dev/`, `src/components/CONTRACT.md`, `.github/workflows/site.yml` |
-| device-a | `src/components/phone/{Phone,StatusBar,Screen,LockScreen,LiveActivity}.astro`, `src/pages/lab/device-a.astro` |
-| device-b | `src/components/phone/{DynamicIsland,SiriSnippet,SiriGlow,DictationWave}.astro`, `src/scripts/wave.ts`, `src/components/ControlsCard.astro`, `src/pages/lab/device-b.astro` |
-| screens | `src/components/app/{ClockTab,TeamTab,TreeNoteSheet}.astro`, `src/pages/lab/screens.astro` |
-| map | `src/components/app/TreesTab.astro`, `src/components/FieldMap.astro`, `src/scripts/fieldmap.ts`, `src/pages/lab/map.astro` |
-| report | `src/components/app/ReportTab.astro`, `src/components/PaperTimeCard.astro`, `src/pages/lab/report.astro` |
+| device-a | `src/components/phone/{Phone,StatusBar,Screen,LockScreen,LiveActivity}.astro`, `src/components/phone/capture{,.test}.ts`, `src/components/system/lockscreen/`, `src/pages/lab/device-a.astro`, `tests/lab/device-a.spec.ts` |
+| device-b | `src/components/phone/{DynamicIsland,SiriSnippet,SiriGlow,DictationWave}.astro`, `src/scripts/wave{,.test}.ts`, `src/components/ControlsCard.astro`, `src/pages/lab/device-b.astro`, `tests/lab/device-b.spec.ts` |
+| screens | `src/components/app/{ClockTab,TeamTab,TreeNoteSheet}.astro`, `src/components/screens/`, `src/pages/lab/screens.astro`, `tests/lab/screens.spec.ts` |
+| map | `src/components/app/TreesTab.astro`, `src/components/app/trees/`, `src/components/FieldMap.astro`, `src/scripts/{fieldmap,fieldstate}.ts`, `src/scripts/fieldmap.test.ts`, `src/pages/lab/map.astro`, `tests/lab/map.spec.ts` |
+| report | `src/components/app/ReportTab.astro`, `src/components/PaperTimeCard.astro`, `src/components/report/`, `src/pages/lab/report.astro`, `tests/lab/report.spec.ts` |
 | section teams | `src/sections/<PascalCaseId>.astro` and `src/scripts/scenes/<id>.ts` for their chapter; the open team also owns `src/components/Footer.astro` |
 
 Need a change in a file you don't own (a token, a ledger value, a new glyph, a SectionShell
@@ -98,11 +115,18 @@ prop)? Ask its owner; don't edit it in your worktree.
 ## Real simulator captures
 
 Recreated screens are stand-ins for real captures. To swap one in, export a 1179 × 2556
-screenshot from the simulator and save it as `public/screens/<state-id>.png` (or `.webp` /
-`.avif`), where `<state-id>` is the `stateId` of the matching `<Screen>` (the full registry is
-in `src/components/CONTRACT.md`). The next build renders the capture in place of the HTML
-recreation, with the same alt text. Capture first: `lock-1414-activity`, `trees-1415-block2`,
-`report-week`.
+screenshot from the simulator and encode it as WebP or AVIF named for the `stateId` of the
+matching `<Screen>` (the full registry is in `src/components/CONTRACT.md`):
+
+```sh
+cwebp -q 80 -m 6 -sharp_yuv capture.png -o public/screens/<state-id>.webp
+avifenc -q 60 -s 4 capture.png public/screens/<state-id>.avif      # smaller still
+```
+
+The next build renders the capture in place of the HTML recreation, with the same alt text.
+`npm test` fails if a file in `public/screens` is not AVIF or WebP, not exactly 1179 × 2556,
+or over 200 KB (a PNG capture is 1–3 MB). Capture first: `lock-1414-activity`,
+`trees-1415-block2`, `report-week`.
 
 ## CI and deploy
 
