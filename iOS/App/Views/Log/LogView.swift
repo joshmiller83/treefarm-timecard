@@ -172,12 +172,14 @@ private struct ShiftCard: View {
                 }
                 .buttonStyle(.gloveSecondary)
                 .accessibilityLabel("Edit shift, \(row.day)")
+                .accessibilityInputLabels(["Edit", "Edit shift"])
                 .accessibilityIdentifier("log-edit")
                 Button(action: trees) {
                     Label("Trees", systemImage: "tree")
                 }
                 .buttonStyle(.gloveSecondary)
                 .accessibilityLabel("Trees on \(row.day)")
+                .accessibilityInputLabels(["Trees", "Trees on \(row.day)"])
                 .accessibilityIdentifier("log-trees")
             }
         }

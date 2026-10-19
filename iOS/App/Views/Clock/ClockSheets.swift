@@ -159,6 +159,7 @@ struct StartTimeSheet: View {
         }
         .buttonStyle(.gloveSecondary)
         .accessibilityLabel("\(abs(minutes)) minutes \(minutes < 0 ? "earlier" : "later")")
+        .accessibilityInputLabels(["\(minutes < 0 ? "Minus" : "Plus") \(abs(minutes)) min", "\(abs(minutes)) minutes \(minutes < 0 ? "earlier" : "later")"])
         .accessibilityIdentifier("start-nudge\(minutes)")
     }
 

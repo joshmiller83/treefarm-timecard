@@ -72,6 +72,8 @@ struct NowWorkingCardView: View {
                 .buttonStyle(TileButtonStyle(tone: .fir))
                 .accessibilityLabel(card.showsBlock(chip) ? "Mark \(chip.blockName), \(chip.title.lowercased())" : "Mark \(chip.title.lowercased())")
                 .accessibilityHint("Marks every open tree in the row shaped.")
+                // Voice Control: "Tap Row 14" (the tile's words) or "Tap Mark row 14".
+                .accessibilityInputLabels(["Row \(chip.row + 1)", "Mark row \(chip.row + 1)"])
                 .accessibilityIdentifier("next-row-\(index)")
             }
             Button(action: onBreak) {
@@ -84,6 +86,7 @@ struct NowWorkingCardView: View {
             }
             .buttonStyle(TileButtonStyle(tone: .sap))
             .accessibilityLabel("Take a break")
+            .accessibilityInputLabels(["Break", "Take a break", "Start a break"])
             .accessibilityIdentifier("now-break")
         }
     }
@@ -158,7 +161,6 @@ private struct RowButtonLabel: View {
             Text("ROW")
                 .font(.caption2.weight(.bold))
                 .tracking(1)
-                .opacity(0.8)
             Text("\(chip.row + 1)")
                 .numberStyle(.stat)
                 .lineLimit(1)
