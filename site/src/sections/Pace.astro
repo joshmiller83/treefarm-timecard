@@ -357,6 +357,12 @@ const lit = tiles.map((t) => t.row);
       --phone-h: min(calc((100vw - 2 * var(--gutter) - 14px) / 2 * 879 / 420), 460px);
       gap: 14px;
     }
+    /* Landscape phones: the same phone size as every other chapter. */
+    @media (orientation: landscape) and (max-height: 559.98px) {
+      :global(html:not(.motion)) .pace-crops {
+        --phone-h: var(--phone-h-mob);
+      }
+    }
     :global(html:not(.motion)) .pace-crops > :global(.pace-phone--bottom) {
       margin-top: 36px;
     }

@@ -306,6 +306,12 @@ const label = heroPhoneLabel();
   #hero .hero-short {
     display: none;
   }
+  /* Landscape phones: the page's one readable phone size (tokens.css). */
+  @media (max-width: 899.98px) and (orientation: landscape) and (max-height: 559.98px) {
+    #hero .hero-shot {
+      --phone-h: var(--phone-h-mob);
+    }
+  }
   @media (max-width: 599.98px) {
     /* Phones: the short body (one display: none or the other, so a screen reader hears one). */
     #hero .hero-body .hero-s {

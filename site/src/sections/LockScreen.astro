@@ -314,6 +314,12 @@ const undoNote = CALLOUTS.find((c) => c.n === 5)!;
       --phone-h: min(calc((100vw - 2 * var(--gutter)) * 879 / 420), 600px);
     }
   }
+  /* Landscape phones: the same phone size as every other chapter. */
+  @media (max-width: 899.98px) and (orientation: landscape) and (max-height: 559.98px) {
+    html:not(.motion) .sec-lock-screen .ls-shot {
+      --phone-h: var(--phone-h-mob);
+    }
+  }
   @media (min-width: 900px) {
     /* Row 1: the copy and the notes | the phone. Row 2: the island | the controls. */
     html:not(.motion) .sec-lock-screen .beats {

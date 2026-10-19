@@ -156,3 +156,10 @@
     --chrome-h: 59px;
   }
 }
+/* Landscape phones (the static page: too short for motion): one phone size for every
+   chapter, large enough to read (52svh alone is a 180px phone with 3px text). */
+@media (orientation: landscape) and (max-height: 559.98px) {
+  :root {
+    --phone-h-mob: clamp(300px, 52svh, 460px);
+  }
+}

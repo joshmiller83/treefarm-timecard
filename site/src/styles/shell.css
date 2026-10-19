@@ -481,6 +481,16 @@ html.stage-on .sec .shot[data-stage-shot] {
   clip-path: inset(50%);
 }
 
+/* Landscape phones (always the static page: too short for motion): every chapter's phones
+   share one readable size, from 300px up (section rules that size their own phones from the
+   viewport's height would make 140-200px phones here). */
+@media (max-width: 899.98px) and (orientation: landscape) and (max-height: 559.98px) {
+  html:not(.motion) .sec :is(.shot, .co-report, .crew-shot, .hero-shot) {
+    --phone-h: var(--phone-h-mob);
+    --crew-static-h: var(--phone-h-mob);
+  }
+}
+
 /* In reduced-motion mode far sections skip rendering until they are near. A chapter link or
    a deep link renders them all first (header.ts adds html.cv-all), so it lands exactly. */
 html:not(.motion) .sec:not(:first-of-type) {
