@@ -21,6 +21,7 @@ Setup: a farm with a field of at least two blocks; you're signed in; you're not 
 | 10 | "Add a note in Time Card" → "Fuel low on the shears" | Asks: What's the note? Then: Added to today's notes. | Note on today's shift |
 | 11 | "Note a tree in Time Card" → "6" → "Leader broken" → "Needs attention" | Asks: Which tree? What's the note? Any flag? Needs attention, dead, replant, or none. Then: Noted on block 1, row <r>, tree 6. | Marker on that tree on the map |
 | 12 | "Mark trees in Time Card" → "row 5" → "1" → "6" | Asks: Which row? First tree? Last tree? Then: Marked trees 1 to 6 in row 5. | Six trees gold in row 5 |
+| 12b | "Mark trees in Time Card" → "row 40" → "1" → "2" → "No" | Asks the three questions, then: Row 40 in block 1? That's <n> rows ahead. Then: Okay, nothing marked. (A row more than 5 away or in another block is checked, as for Mark a row and Note a tree.) | Nothing changed |
 | 13 | "I'm in block 2 in Time Card" | Okay, block 2, row 1 is next. | Buttons show block 2 rows |
 | 14 | "How long have I worked in Time Card?" | <h> hours <m> minutes today, <x> this week. | Card shows the same |
 | 15 | "How many trees in Time Card?" | <n> trees today, <r> an hour. You're on block 2, row 1. | Card shows the same, trees in front |
@@ -29,10 +30,12 @@ Setup: a farm with a field of at least two blocks; you're signed in; you're not 
 | 18 | "How much have I made in Time Card?" (locked) | Unlock your phone to hear your pay. (With "Say pay out loud when locked" on: $<x> today, $<y> this week.) | The card never shows pay while locked unless that setting is on |
 | 19 | "How much have I made in Time Card?" (unlocked) | $<x> today, $<y> this week. | |
 | 20 | "Fix my start time in Time Card" → "7:30" | Asks: What time did you start? Then: Start time changed to 7:30. | Clock card shows the new start |
+| 20b | In the evening, on a shift open since the morning: "Fix my start time in Time Card" → "7:30" | Start time changed to 7:30. (The morning: the 7:30 nearest the shift's start, never 7:30 PM.) | |
 | 21 | "Take a break with Time Card" with "Ask for a break reason" on → "Water" | Asks: What's the break for? Then: Break for Water started at <time>. | Break reason on the Live Activity |
 | 22 | Airplane mode, then "Next row in Time Card" | Row … marked … (works offline) | Settings shows 1 change waiting; it syncs when back online |
 | 23 | Second phone marks a row, then this phone says "Mark row <same> in Time Card" before syncing | After sync: Row … was shaped by <name> on <day>. Next open row is …. | Map shows the other person's mark |
 | 24 | Restart the phone; before unlocking it, "Next row in Time Card" | Unlock your phone once, then try again. | Nothing changed |
+| 24b | Then unlock the phone, lock it again, and say "Next row in Time Card" | Row … marked … (the app opens its data again; it doesn't need to be restarted) | Live Activity updates |
 | 25 | Sign out in Settings, then "Clock in with Time Card" | Open Time Card to sign in. | |
 | 26 | "Clock out with Time Card" → "No" | Asks: You've worked <time> today. Clock out? Then: Okay, you're still clocked in. (iOS may say its own "Okay" instead.) | Still clocked in |
 | 27 | "Clock out with Time Card" → "Yes" | Clocked out at <time>. <h> hours, <n> trees. | Live Activity ends |
@@ -64,15 +67,19 @@ iOS gives an app ten App Shortcuts, so the status questions share one (the quest
   - Mark trees / Mark some trees / Mark part of a row / Mark a few trees → "Which row?", "First tree?", "Last tree?"
   - Fix my start time / Change my start time / I started earlier / Change when I started → "What time did you start?"
 
+A time can't be part of a Siri phrase (App Shortcut phrases can't hold a date or time), so there's no "I started at 7:30 in Time Card": say "Fix my start time in Time Card" and Siri asks "What time did you start?".
+
 All of these, plus Add a Note, Note a Tree, Mark Trees and Fix My Start Time on their own, are in the Shortcuts app under Time Card, ready for the Action button (one press, gloves on: "Next Row" is a good choice).
 
 ## How it behaves
 
-- **Locked phone.** Every command runs with the phone locked and never opens the app. The database is readable after the first unlock since a restart; before that, Siri says "Unlock your phone once, then try again."
-- **Is the phone locked?** Time Card asks iOS whether files protected `complete` are readable (`isProtectedDataAvailable`). They're sealed a few seconds after a phone with a passcode locks, so that's "locked". A phone with no passcode counts as unlocked. Pay is said and shown on a locked phone only with "Say pay out loud when locked" on.
+- **Locked phone.** Every command runs with the phone locked and never opens the app. The database is readable after the first unlock since a restart; before that, Siri says "Unlock your phone once, then try again." After that unlock the app opens its data again, even if iOS kept it in memory since it woke before the unlock.
+- **Is the phone locked?** Time Card asks iOS whether files protected `complete` are readable (`isProtectedDataAvailable`). They're sealed shortly after a phone with a passcode locks, so that's "locked". A phone with no passcode counts as unlocked. Pay is said and shown on a locked phone only with "Say pay out loud when locked" on. The limit: for up to about 10 seconds after locking, or the Require Passcode delay when that's longer, the phone still counts as unlocked, so "How much have I made" asked right after pocketing the phone says the pay.
+- **The lock-screen timer.** Every command that changes the day can start the Live Activity from the background (they're Live Activity intents), so "Clock in with Time Card" puts it up with the phone locked, and any later command brings it back if iOS ended it after eight hours or it was swiped away.
 - **Nothing is asked when the answer would be no.** Mark trees, notes and fixing the start time check first (signed in, clocked in) so nobody answers three questions only to hear "You're not clocked in."
 - **What Siri says** is TreeFarmKit's wording, the same as the lock screen and the app.
-- **Lock-screen buttons can't speak.** When a press is refused (the row was shaped by someone else since the screen was drawn), the first sentence of the reason replaces the last action on the Live Activity.
+- **Lock-screen buttons can't speak.** When a press is refused (the row was shaped by someone else since the screen was drawn), the first sentence of the reason replaces the last action on the Live Activity, with no Undo beside it. A press after clocking out on another phone takes the leftover activity down.
+- **Rows and blocks Siri knows by name** follow the farm: the next ten open rows and the twelve blocks nearest you in your field are refreshed when the app opens, when you sign in or out or switch farms, after a sync, and after any row, break or move from Siri, the lock screen or the app.
 - **Suggestions.** Using the app's own buttons for clock in, breaks, back to work, rows and moving blocks teaches Siri when you usually do them.
 
 ## Checked automatically
