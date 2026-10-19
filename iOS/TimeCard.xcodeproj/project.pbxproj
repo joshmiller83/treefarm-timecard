@@ -95,6 +95,7 @@
 		8D457847218411DA14307832 /* TreeCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 178A486A3A7F9EE7F4495318 /* TreeCardView.swift */; };
 		8EB4B8C0543506D785998774 /* LiveActivityHosting.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2877EF49D9830B22D5631380 /* LiveActivityHosting.swift */; };
 		904DC96DF54580278D189DA6 /* SpokenNumberTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5852DDF9A8C7AC498ED1E6AC /* SpokenNumberTests.swift */; };
+		92A931177D45678D97BBE01D /* AccessibilityAuditUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7F7EA3926D07889532C803E /* AccessibilityAuditUITests.swift */; };
 		941E68A3C8534E38C5E723B0 /* TeamComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4AB3938E4833DB856539DF2 /* TeamComponents.swift */; };
 		95D69985A9669CD05A073D1F /* TeamScenario.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2EC514FE3B9BAFBFC052D9F /* TeamScenario.swift */; };
 		96CED505F7707F4ED3F801B4 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E751EFB1A84C048A71D83B9 /* AppModel.swift */; };
@@ -370,6 +371,7 @@
 		E48D61AF82088B1C9CFDD3F2 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		E687D581925CC7F2691A1045 /* TreeMapModel+Details.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TreeMapModel+Details.swift"; sourceTree = "<group>"; };
 		E71FAB5FE8BD15A8D3A01A07 /* StartTimeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StartTimeTests.swift; sourceTree = "<group>"; };
+		E7F7EA3926D07889532C803E /* AccessibilityAuditUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccessibilityAuditUITests.swift; sourceTree = "<group>"; };
 		E889DC9312E112369BABE29B /* CrewRosterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CrewRosterTests.swift; sourceTree = "<group>"; };
 		E9889E7910F184D691D439FD /* TreeMapModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TreeMapModelTests.swift; sourceTree = "<group>"; };
 		ED1E5603217835C939822825 /* TreeMapModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TreeMapModel.swift; sourceTree = "<group>"; };
@@ -517,6 +519,14 @@
 			path = Season;
 			sourceTree = "<group>";
 		};
+		3FDF7116615F3ED5DEA381CD /* Accessibility */ = {
+			isa = PBXGroup;
+			children = (
+				E7F7EA3926D07889532C803E /* AccessibilityAuditUITests.swift */,
+			);
+			path = Accessibility;
+			sourceTree = "<group>";
+		};
 		402A70B1184F9C8B793C17D8 /* Log */ = {
 			isa = PBXGroup;
 			children = (
@@ -639,6 +649,7 @@
 			isa = PBXGroup;
 			children = (
 				7C111B64C0C07020B9DCCDD2 /* TimeCardUITests.swift */,
+				3FDF7116615F3ED5DEA381CD /* Accessibility */,
 				A91872FA180589C0A3E50380 /* Clock */,
 				91EFE18303082927054CF022 /* Integration */,
 				C280E5962FB60731D2B95AE1 /* Intents */,
@@ -1135,6 +1146,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				92A931177D45678D97BBE01D /* AccessibilityAuditUITests.swift in Sources */,
 				E2E1F25BCF2A97279C69637D /* AppTourUITests.swift in Sources */,
 				56196C19D16D487B1AA1A347 /* ClockFlowUITests.swift in Sources */,
 				0A0CF0700206A6ABB115235F /* LiveActivityUITests.swift in Sources */,

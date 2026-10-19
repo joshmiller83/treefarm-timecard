@@ -11,6 +11,13 @@ enum LaunchMode: Equatable {
     case uiTest(signedIn: Bool)
 
     static let inMemoryArgument = "-UITestInMemory"
+
+    /// True when this process hosts unit tests (XCTest loads them into the app). Such a run
+    /// never asks for permissions: an alert left behind breaks the next UI test.
+    static var isTestHost: Bool {
+        ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+            || NSClassFromString("XCTestCase") != nil
+    }
     static let signedOutArgument = "-UITestSignedOut"
 
     static func current(arguments: [String] = ProcessInfo.processInfo.arguments,

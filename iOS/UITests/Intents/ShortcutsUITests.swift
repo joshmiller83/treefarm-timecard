@@ -13,6 +13,14 @@ final class ShortcutsUITests: XCTestCase {
 
     override func setUp() async throws {
         continueAfterFailure = false
+        // A permission alert left up by another run would cover the Shortcuts app.
+        addUIInterruptionMonitor(withDescription: "Permission alert") { alert in
+            for label in ["Don’t Allow", "Don't Allow", "Not Now"] where alert.buttons[label].exists {
+                alert.buttons[label].tap()
+                return true
+            }
+            return false
+        }
     }
 
     /// A morning in the field, by voice command: clock in, mark rows, lunch, ask how it's

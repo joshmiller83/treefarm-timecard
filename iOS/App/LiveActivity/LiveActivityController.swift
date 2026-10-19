@@ -72,7 +72,7 @@ final class LiveActivityController {
     ///
     /// The shared model's controller also follows that model's session (`LiveActivityFeed`).
     convenience init() {
-        self.init(host: ActivityKitHost(), reminders: NotificationReminders(asksPermission: LaunchMode.current() == .live),
+        self.init(host: ActivityKitHost(), reminders: NotificationReminders(asksPermission: LaunchMode.current() == .live && !LaunchMode.isTestHost),
                   ledger: DefaultsLedger(), now: Date.init, waitsForSession: true)
         LiveActivityLaunchScript.runIfRequested()
         // AppModel makes this while `AppModel.shared` is being made, so it waits a turn.
