@@ -208,6 +208,10 @@ const frames = [
 </script>
 
 <style>
+  /* Lab sections are grid items: let them shrink below their content's min width at 375. */
+  section {
+    min-width: 0;
+  }
   .lab-note {
     color: var(--on-stage-muted);
     font-size: 0.875rem;
