@@ -20,10 +20,18 @@ struct TreeRowsList: View {
                             Divider().overlay(Palette.line).padding(.leading, 16)
                         }
                     } header: {
-                        HStack(alignment: .firstTextBaseline) {
-                            Text(block.displayName).headingStyle(.tcHeadline)
-                            Spacer()
-                            Text(model.blockSummary(block)).font(.footnote).foregroundStyle(Palette.muted)
+                        // Side by side when it fits; at the largest sizes the summary goes under the name.
+                        ViewThatFits(in: .horizontal) {
+                            HStack(alignment: .firstTextBaseline) {
+                                Text(block.displayName).headingStyle(.tcHeadline).fixedSize()
+                                Spacer()
+                                Text(model.blockSummary(block)).font(.footnote).foregroundStyle(Palette.muted).fixedSize()
+                            }
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(block.displayName).headingStyle(.tcHeadline)
+                                Text(model.blockSummary(block)).font(.footnote).foregroundStyle(Palette.muted)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
                         }
                         .padding(.horizontal, 16)
                         .padding(.vertical, 10)
@@ -53,6 +61,7 @@ private struct RowCell: View {
     var row: RowRef
     var block: Block
     var openDetail: () -> Void
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         let summary = model.rowSummary(row)
@@ -60,19 +69,29 @@ private struct RowCell: View {
             Button {
                 model.tapRow(row)
             } label: {
-                HStack(spacing: 12) {
-                    Text("\(row.row + 1)")
-                        .font(.tcNumber.weight(.semibold))
-                        .foregroundStyle(summary.map { $0.shaped == $0.total } == true ? Palette.firText : Palette.ink)
-                        .frame(minWidth: 34, alignment: .trailing)
-                    RowBar(shaped: summary?.shaped ?? 0, mine: summary?.mine ?? 0, total: summary?.total ?? 1)
-                    if (summary?.notes ?? 0) > 0 {
-                        NoteCorner().fill(Palette.rust).frame(width: 10, height: 10)
+                Group {
+                    if typeSize.isAccessibilitySize {
+                        // The number and count on one line, the bar under them, so neither wraps.
+                        VStack(alignment: .leading, spacing: 6) {
+                            HStack(spacing: 12) {
+                                number(summary)
+                                Spacer(minLength: 4)
+                                if (summary?.notes ?? 0) > 0 { noteMark }
+                                count(summary)
+                            }
+                            RowBar(shaped: summary?.shaped ?? 0, mine: summary?.mine ?? 0, total: summary?.total ?? 1)
+                        }
+                        .padding(.vertical, 8)
+                    } else {
+                        HStack(spacing: 12) {
+                            number(summary)
+                                .frame(minWidth: 34, alignment: .trailing)
+                            RowBar(shaped: summary?.shaped ?? 0, mine: summary?.mine ?? 0, total: summary?.total ?? 1)
+                            if (summary?.notes ?? 0) > 0 { noteMark }
+                            count(summary)
+                                .frame(minWidth: 44, alignment: .trailing)
+                        }
                     }
-                    Text(summary.map { "\($0.shaped)/\($0.total)" } ?? "")
-                        .font(.tcNumberSmall)
-                        .foregroundStyle(Palette.muted)
-                        .frame(minWidth: 44, alignment: .trailing)
                 }
                 .padding(.leading, 16)
                 .frame(maxWidth: .infinity, minHeight: GloveButtonStyle.minHeight)
@@ -104,6 +123,27 @@ private struct RowCell: View {
         }
         .accessibilityAction(named: "Trees in this row", openDetail)
         .accessibilityIdentifier("row-\(block.name)-\(row.row + 1)")
+    }
+
+    private func number(_ summary: RowSummary?) -> some View {
+        Text("\(row.row + 1)")
+            .font(.tcNumber.weight(.semibold))
+            .foregroundStyle(summary.map { $0.shaped == $0.total } == true ? Palette.firText : Palette.ink)
+            .lineLimit(1)
+            .fixedSize()
+    }
+
+    /// "12/12": one piece, never broken across lines.
+    private func count(_ summary: RowSummary?) -> some View {
+        Text(summary.map { "\($0.shaped)/\($0.total)" } ?? "")
+            .font(.tcNumberSmall)
+            .foregroundStyle(Palette.muted)
+            .lineLimit(1)
+            .fixedSize()
+    }
+
+    private var noteMark: some View {
+        NoteCorner().fill(Palette.rust).frame(width: 10, height: 10)
     }
 }
 

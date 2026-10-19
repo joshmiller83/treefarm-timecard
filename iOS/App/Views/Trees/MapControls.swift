@@ -47,14 +47,16 @@ struct ModePicker: View {
 /// What the last tap did (or a hint), its follow-up button, and Undo.
 struct MessageBar: View {
     @Bindable var model: TreeMapModel
+    /// The rows are a list: the hint talks about rows, not trees.
+    var showsList = false
     @Environment(\.dynamicTypeSize) private var typeSize
 
     /// What the last tap did, or a hint. The mode's hint goes once a tree has been marked here.
     private var message: MapMessage? {
         if let message = model.message { return message }
-        if model.zoom == .all { return MapMessage("This is the whole field. Tap a block to zoom in and mark trees.", tone: .hint) }
+        if model.zoom == .all && !showsList { return MapMessage("This is the whole field. Tap a block to zoom in and mark trees.", tone: .hint) }
         if model.hasMarked { return nil }
-        return MapMessage(model.mode.hint, tone: .hint)
+        return MapMessage(showsList ? model.mode.listHint : model.mode.hint, tone: .hint)
     }
 
     var body: some View {

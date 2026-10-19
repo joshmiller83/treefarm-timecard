@@ -290,6 +290,22 @@ final class TreesUITests: XCTestCase {
         waitForMessage(app, "Marked Block 1, row 8, tree 3.")
     }
 
+    /// At the largest text size the row list keeps "12/12" on one line and the block header
+    /// puts its summary under the name.
+    func testTheRowListAtTheLargestTextSize() {
+        let app = launch(["-UITestTreesSeed"] + Self.largestText)
+        let toggle = app.buttons["trees-list-toggle"]
+        XCTAssertTrue(toggle.waitForExistence(timeout: 10))
+        toggle.tap()
+        let list = app.descendants(matching: .any)["tree-rows-list"]
+        XCTAssertTrue(list.waitForExistence(timeout: 5))
+        let row = app.descendants(matching: .any)["row-1-1"]
+        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        XCTAssertTrue((row.value as? String)?.isEmpty == false)
+        sleep(1)
+        attach(app, "Trees – row list at AX5")
+    }
+
     // MARK: Pictures for review
 
     func testScreenshotsOfTheTreesTab() {

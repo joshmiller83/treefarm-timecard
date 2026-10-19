@@ -36,6 +36,15 @@ enum MapMode: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
+    /// The same, for the row list (no trees to tap there, only rows and their arrows).
+    var listHint: String {
+        switch self {
+        case .one, .fill: "Tap a row to mark the whole row, or its arrow to mark single trees."
+        case .erase: "Tap a row to clear it, or its arrow to unmark single trees."
+        case .notes: "Tap a row’s arrow, then Notes beside a tree."
+        }
+    }
+
     /// The `MarkOps` mode for taps. Notes mode never marks a tree, but a row tap reads as "one".
     var tapMode: TapMode {
         switch self {

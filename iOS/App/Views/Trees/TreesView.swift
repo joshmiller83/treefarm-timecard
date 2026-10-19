@@ -151,7 +151,7 @@ struct TreesView: View {
                 ModePicker(model: model)
             }
             .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
-            MessageBar(model: model)
+            MessageBar(model: model, showsList: showsList)
         }
         .padding(.horizontal, 16)
         .padding(.top, 4)
