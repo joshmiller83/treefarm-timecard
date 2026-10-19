@@ -201,7 +201,7 @@ test.describe('motion', () => {
     expect(await finalState(page, true)).toEqual([]);
   });
 
-  test('pressing a button here never jumps the page (so the click lands)', async ({ page }) => {
+  test('pressing a button here never jumps the page (so the click lands)', async ({ page, browserName }) => {
     await page.goto('/');
     await arrive(page);
     const primary = page.locator('#open').getByRole('link', { name: 'Follow along on GitHub' });
@@ -213,7 +213,8 @@ test.describe('motion', () => {
     await page.mouse.down();
     await page.waitForTimeout(200);
     expect(await page.evaluate(() => scrollY)).toBe(before);
-    await expect(primary).toBeFocused();
+    // Chromium and Firefox focus a link on mousedown (that is what used to jump); WebKit does not.
+    if (browserName !== 'webkit') await expect(primary).toBeFocused();
   });
 
   test('the copy button copies the command', async ({ page, browserName, context }) => {
