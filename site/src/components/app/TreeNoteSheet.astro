@@ -1,40 +1,262 @@
 ---
-/** STUB (screens): replace the look, keep the Props and hooks in CONTRACT.md. */
-import Stub from '../dev/Stub.astro';
-import { TREE_NOTE, type TreeNote } from '../../data/ledger';
+/**
+ * TREE NOTE SHEET (screens team): the sheet that rises over the Trees tab for one tree.
+ * An iOS 26 medium-detent sheet: inset from the screen edges with concentric corners, a
+ * grabber, the tree in Zilla Slab 24 pt, a close button, whether the tree is shaped (in the
+ * map's colors), the tree's notes (flag chip, text, author and time; newest first) and a 50 pt
+ * [Add note] button.
+ *
+ * Place it in AppChrome's `overlay` slot or after the tab as a sibling in the same layer.
+ * Pass the host TreesTab's own `at` (and `who`), so the status bar clock, the map and the
+ * sheet's shaped line all tell the same time: <TreesTab at={x} …/><TreeNoteSheet at={x} />.
+ *
+ * Hooks: [data-sheet] is a full-width wrapper anchored to the screen's bottom edge that holds
+ * the visible sheet plus room for its shadow; scenes slide it yPercent 100 → 0, and at
+ * yPercent 100 the sheet and its shadow are wholly off the screen. Inside: [data-note="0"…]
+ * per note, [data-flag-chip], [data-note-text], [data-note-byline], [data-add-note].
+ * A home indicator sits outside [data-sheet], so it stays put while the sheet moves.
+ */
+import Icon from './Icon.astro';
+import AppKit from '../screens/AppKit.astro';
+import { noteSheet } from '../screens/notes/notes';
+import { MOMENTS, TREE_NOTE, WORKER, type Person, type TreeNote } from '../../data/ledger';
 
 export interface Props {
+  /** Default ledger TREE_NOTE. */
   note?: TreeNote;
+  /** All of this tree's notes, oldest first (listed newest first). Default [note]. */
+  notes?: readonly TreeNote[];
+  /** Sheet height as a fraction of the screen. Default 0.55. */
   height?: number;
+  /** Ledger minute the sheet is open at: use the host TreesTab's `at`. Default MOMENTS.treeNote (2:33 PM). */
+  at?: number;
+  /** Whose phone, for the shaped line's color (gold = their own shift). Default WORKER (Alex). */
+  who?: Person;
 }
-const { note = TREE_NOTE, height = 0.55 } = Astro.props;
+const { note = TREE_NOTE, height = 0.55, at = MOMENTS.treeNote, who = WORKER } = Astro.props;
+const m = noteSheet(Astro.props.notes ?? [note], at, who);
 ---
 
-<div class="sheet" data-sheet style={`height:${height * 100}%`}>
-  <div>Block {note.block} · Row {note.row} · Tree {note.tree}</div>
-  <span data-flag-chip>{note.flag}</span>
-  <p data-note-text>{note.text}</p>
-  <div>{note.byline}</div>
-  <div data-add-note>Add note</div>
-  <Stub name="TreeNoteSheet" owner="screens" tone="light" box="flex:1;" />
+<AppKit />
+<div class="sc ns-wrap" data-sheet style={`--sheet-h:${height}`}>
+  <div class="ns-sheet">
+    <div class="ns-grabber"></div>
+    <div class="ns-head">
+      <div class="ns-titles">
+        <div class="ns-title">{m.title}</div>
+        <div class="sc-sub">{m.subtitle}</div>
+      </div>
+      <span class="ns-close"><Icon name="xmark" size="calc(17 * var(--pt))" weight={2.4} /></span>
+    </div>
+
+    <div class="ns-shaped" data-shaped={m.shaped.state}>
+      <span class="ns-mark"></span>
+      {m.shaped.text}
+    </div>
+
+    <div class="sc-label ns-count">{m.count}</div>
+    <div class="ns-notes">
+      {
+        m.notes.map((n, i) => (
+          <div class="ns-note" data-note={i}>
+            <span class="sc-flag" data-tone={n.tone} data-flag-chip={i === 0 ? '' : undefined}>
+              <Icon name="flag.fill" />
+              {n.flag}
+            </span>
+            <div class="ns-text" data-note-text={i === 0 ? '' : undefined}>
+              {n.text}
+            </div>
+            <div class="ns-by" data-note-byline={i === 0 ? '' : undefined}>
+              <span class="sc-avatar" data-tint={n.author === 'Alex' ? 'fir' : n.author === 'Sam' ? 'sap' : 'bark'}>
+                {n.initial}
+              </span>
+              {n.byline}
+            </div>
+          </div>
+        ))
+      }
+    </div>
+
+    <span class="sc-btn sc-btn--primary sc-btn--wide ns-add" data-add-note>
+      <Icon name="plus" size="calc(19 * var(--pt))" weight={2.4} />
+      Add note
+    </span>
+  </div>
 </div>
+<div class="ns-sheet-home" aria-hidden="true"></div>
 
 <style>
-  .sheet {
+  /*
+   * The wrapper spans the screen's width from its bottom edge up to the sheet's top plus 40 pt
+   * of room for the shadow, so yPercent 100 moves the sheet and its shadow wholly off the
+   * screen. z-index 6 sits over the tab bar.
+   */
+  .ns-wrap {
     position: absolute;
     left: 0;
     right: 0;
     bottom: 0;
-    z-index: 7;
+    z-index: 6;
+    height: calc(var(--sheet-h, 0.55) * 100% + 40 * var(--pt));
+    padding: calc(40 * var(--pt)) calc(6 * var(--pt)) calc(6 * var(--pt));
+    pointer-events: none;
+  }
+  /*
+   * Inset 6 pt from the screen edges (iOS 26 partial-height sheets float), so the bottom
+   * corners run concentric with the 55 pt display corners. Opaque: a real sheet blurs what is
+   * under it, and a sharp see-through ghost would read as a glitch; the glass is in the top
+   * highlight and the inset hairline.
+   */
+  .ns-sheet {
+    position: relative;
+    height: 100%;
     display: flex;
     flex-direction: column;
-    gap: calc(6 * var(--pt));
-    padding: calc(16 * var(--pt));
-    border-radius: calc(32 * var(--pt)) calc(32 * var(--pt)) 0 0;
-    background: #fff;
+    padding: calc(18 * var(--pt)) calc(18 * var(--pt)) calc(30 * var(--pt));
+    border-radius: calc(38 * var(--pt)) calc(38 * var(--pt)) calc(49 * var(--pt)) calc(49 * var(--pt));
+    background: var(--surface);
     color: var(--ink);
-    font-family: var(--font-system);
+    box-shadow:
+      0 calc(-1 * var(--pt)) 0 rgba(255, 255, 255, 0.9),
+      inset 0 0 0 calc(0.5 * var(--pt)) rgba(20, 34, 26, 0.1),
+      0 calc(10 * var(--pt)) calc(40 * var(--pt)) rgba(20, 34, 26, 0.22),
+      0 calc(1 * var(--pt)) calc(4 * var(--pt)) rgba(20, 34, 26, 0.08);
+  }
+  .ns-grabber {
+    position: absolute;
+    top: calc(6 * var(--pt));
+    left: 50%;
+    width: calc(36 * var(--pt));
+    height: calc(5 * var(--pt));
+    margin-left: calc(-18 * var(--pt));
+    border-radius: 999px;
+    background: rgba(20, 34, 26, 0.22);
+  }
+  .ns-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: calc(12 * var(--pt));
+    padding-top: calc(6 * var(--pt));
+  }
+  .ns-titles {
+    min-width: 0;
+  }
+  .ns-title {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: calc(24 * var(--pt));
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+  }
+  .ns-titles .sc-sub {
+    margin-top: calc(2 * var(--pt));
+  }
+  /* iOS 26 glass close button. */
+  .ns-close {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: calc(40 * var(--pt));
+    height: calc(40 * var(--pt));
+    margin: calc(-4 * var(--pt)) calc(-4 * var(--pt)) 0 0;
+    border-radius: 50%;
+    background: rgba(20, 34, 26, 0.07);
+    color: #3c4a41;
+    box-shadow: inset 0 calc(1 * var(--pt)) 0 rgba(255, 255, 255, 0.8);
+  }
+  /* The tree's state in the map's own colors: gold today, green earlier, a ring not yet. */
+  .ns-shaped {
+    display: flex;
+    align-items: center;
+    gap: calc(8 * var(--pt));
+    margin-top: calc(14 * var(--pt));
+    padding: calc(11 * var(--pt)) calc(14 * var(--pt));
+    border-radius: calc(16 * var(--pt));
+    background: var(--sc-stripe);
     font-size: calc(15 * var(--pt));
-    box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.12);
+    font-weight: 500;
+    letter-spacing: -0.015em;
+    color: var(--ink);
+  }
+  .ns-mark {
+    flex: none;
+    width: calc(12 * var(--pt));
+    height: calc(12 * var(--pt));
+    border-radius: 50%;
+    background: var(--app-dot-today);
+  }
+  [data-shaped='earlier'] .ns-mark {
+    width: calc(10 * var(--pt));
+    height: calc(10 * var(--pt));
+    margin: 0 calc(1 * var(--pt));
+    background: var(--app-dot-earlier);
+  }
+  [data-shaped='not-yet'] .ns-mark {
+    width: calc(10 * var(--pt));
+    height: calc(10 * var(--pt));
+    margin: 0 calc(1 * var(--pt));
+    background: none;
+    box-shadow: inset 0 0 0 calc(1.5 * var(--pt)) var(--app-dot-ring);
+  }
+  .ns-count {
+    margin: calc(18 * var(--pt)) calc(4 * var(--pt)) 0;
+  }
+  .ns-notes {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: calc(10 * var(--pt));
+    margin-top: calc(8 * var(--pt));
+    overflow: hidden;
+  }
+  .ns-note {
+    padding: calc(14 * var(--pt)) calc(16 * var(--pt)) calc(14 * var(--pt));
+    border-radius: calc(22 * var(--pt));
+    background: #fff;
+    box-shadow:
+      inset 0 0 0 calc(1 * var(--pt)) var(--line),
+      0 calc(1 * var(--pt)) calc(2 * var(--pt)) rgba(20, 34, 26, 0.04);
+  }
+  .ns-text {
+    margin-top: calc(10 * var(--pt));
+    font-size: calc(19 * var(--pt));
+    line-height: calc(25 * var(--pt));
+    letter-spacing: -0.03em;
+    color: var(--ink);
+  }
+  .ns-by {
+    display: flex;
+    align-items: center;
+    gap: calc(8 * var(--pt));
+    margin-top: calc(12 * var(--pt));
+    font-size: calc(15 * var(--pt));
+    letter-spacing: -0.015em;
+    color: var(--muted);
+  }
+  .ns-by .sc-avatar {
+    width: calc(26 * var(--pt));
+    height: calc(26 * var(--pt));
+    font-size: calc(13 * var(--pt));
+  }
+  .ns-add {
+    flex: none;
+    min-height: calc(50 * var(--pt));
+    height: calc(50 * var(--pt));
+    margin-top: calc(14 * var(--pt));
+  }
+  .ns-sheet-home {
+    position: absolute;
+    left: 50%;
+    bottom: calc(8 * var(--pt));
+    z-index: 7;
+    width: calc(139 * var(--pt));
+    height: calc(5 * var(--pt));
+    margin-left: calc(-69.5 * var(--pt));
+    border-radius: 999px;
+    background: #111;
+    pointer-events: none;
   }
 </style>

@@ -1,0 +1,61 @@
+---
+/**
+ * "Shift notes" (ShiftNotesCardView): the open shift's notes in a soft text field, saved
+ * as you type, with the line that says where they go. Hooks: [data-shift-notes],
+ * [data-shift-note-text] (typing target), [data-notes-state] ('Saved').
+ */
+import Icon from '../../app/Icon.astro';
+import type { NotesModel } from './clock';
+
+interface Props {
+  notes: NotesModel;
+}
+const { notes } = Astro.props;
+---
+
+<div class="sc-card sn-notes" data-shift-notes>
+  <div class="sc-head-row">
+    <span class="sc-heading">Shift notes</span>
+    {
+      notes.text && (
+        <span class="sn-saved" data-notes-state>
+          <Icon name="check" size="calc(13 * var(--pt))" weight={2.6} />
+          Saved
+        </span>
+      )
+    }
+  </div>
+  <div class="sn-field">
+    {notes.text ? <span data-shift-note-text>{notes.text}</span> : <span class="sn-ph">{notes.placeholder}</span>}
+  </div>
+  <div class="sc-foot">Notes go on the report next to this shift.</div>
+</div>
+
+<style>
+  .sn-saved {
+    display: inline-flex;
+    align-items: center;
+    gap: calc(4 * var(--pt));
+    font-size: calc(13 * var(--pt));
+    font-weight: 600;
+    color: var(--fir);
+  }
+  .sn-field {
+    margin-top: calc(10 * var(--pt));
+    min-height: calc(88 * var(--pt));
+    padding: calc(12 * var(--pt)) calc(13 * var(--pt));
+    border-radius: calc(12 * var(--pt));
+    background: var(--sc-field);
+    box-shadow: inset 0 0 0 calc(1 * var(--pt)) var(--line);
+    font-size: calc(17 * var(--pt));
+    line-height: calc(22 * var(--pt));
+    letter-spacing: -0.025em;
+    color: var(--ink);
+  }
+  .sn-ph {
+    color: var(--muted);
+  }
+  .sc-foot {
+    margin-top: calc(10 * var(--pt));
+  }
+</style>

@@ -1,5 +1,9 @@
 ---
-/** Lab: screens (owner). */
+/**
+ * Lab: screens (owner). Every state of the Clock tab, the Team tab and the tree note sheet,
+ * side by side at real device size (1 pt = 1 CSS px: the screen is 393 px wide) and scaled
+ * down to fit narrow windows. Crops scroll the Clock tab's [data-scroll-layer] statically.
+ */
 import Lab from '../../layouts/Lab.astro';
 import Phone from '../../components/phone/Phone.astro';
 import Screen from '../../components/phone/Screen.astro';
@@ -7,29 +11,172 @@ import ClockTab from '../../components/app/ClockTab.astro';
 import TeamTab from '../../components/app/TeamTab.astro';
 import TreesTab from '../../components/app/TreesTab.astro';
 import TreeNoteSheet from '../../components/app/TreeNoteSheet.astro';
+import AppKit from '../../components/screens/AppKit.astro';
+import Icon from '../../components/app/Icon.astro';
+import { FLAGS, MOMENTS, OLD_NOTE, TREE_NOTE, fmtTime, t } from '../../data/ledger';
+import { flagTone } from '../../components/screens/notes/notes';
+
+/** The phone is 3.2% bezel on each side, so 910 px tall gives a 393 px wide screen. */
+const H = 'min(910px, calc((100vw - 32px) * 852 / 393))';
+
+const clockCrops = [
+  { id: 'top', crop: 'top', caption: 'Top: status, now working, trees' },
+  { id: 'pace', crop: 'pace', caption: 'Scrolled to Pace, stat rules lit', highlight: ['trees-hour', 'per-tree', 'left'] as const },
+  { id: 'bottom', crop: 'bottom', caption: 'Scrolled to the end: shift notes, hours & pay' },
+];
+
+const moments = [
+  { at: MOMENTS.status, caption: 'Working, 2:01 PM (212 trees)' },
+  { at: t(12, 10), caption: 'On lunch, 12:10 PM' },
+  { at: MOMENTS.treeNote, caption: 'On break, 2:33 PM · Sharpening shears' },
+  { at: MOMENTS.crew, caption: 'Helping on block 3, 2:47 PM' },
+  { at: t(16, 40), caption: 'Off the clock, 4:40 PM' },
+];
 ---
 
 <Lab title="screens" owner="screens">
-  <div class="lab-row">
-    <div class="lab-cell">
-      <Phone label="Clock tab" height="760px">
-        <div class="screens" data-screens><Screen stateId="lab-clock" alt="" tone="light" final><ClockTab /></Screen></div>
-      </Phone>
-      <p>ClockTab 3:40 PM</p>
+  <section aria-labelledby="h-clock">
+    <h2 id="h-clock">Clock tab · 3:40 PM (the pace chapter)</h2>
+    <div class="lab-row">
+      {
+        clockCrops.map((c) => (
+          <div class="lab-cell">
+            <Phone label={`Clock tab at 3:40 PM, ${c.caption.toLowerCase()}`} height={H}>
+              <div class="screens" data-screens data-crop={c.crop}>
+                <Screen stateId={`lab-clock-${c.id}`} alt="" tone="light" final>
+                  <ClockTab highlight={c.highlight ?? []} />
+                </Screen>
+              </div>
+            </Phone>
+            <p>{c.caption}</p>
+          </div>
+        ))
+      }
     </div>
-    <div class="lab-cell">
-      <Phone label="Team tab" height="760px">
-        <div class="screens" data-screens><Screen stateId="lab-team" alt="" tone="light" final><TeamTab /></Screen></div>
-      </Phone>
-      <p>TeamTab</p>
+  </section>
+
+  <section aria-labelledby="h-week">
+    <h2 id="h-week">Pace segments</h2>
+    <div class="lab-row">
+      {
+        (['week', 'season'] as const).map((r) => (
+          <div class="lab-cell">
+            <Phone label={`Clock tab at 3:40 PM with the ${r} pace selected`} height={H}>
+              <div class="screens" data-screens data-crop="pace">
+                <Screen stateId={`lab-clock-${r}`} alt="" tone="light" final>
+                  <ClockTab range={r} />
+                </Screen>
+              </div>
+            </Phone>
+            <p>{r === 'season' ? 'range="season": the same shifts as the week until the ledger carries earlier ones' : `range="${r}"`}</p>
+          </div>
+        ))
+      }
     </div>
-    <div class="lab-cell">
-      <Phone label="Tree note" height="760px">
-        <div class="screens" data-screens>
-          <Screen stateId="lab-note" alt="" tone="light" final><TreesTab block={2} rows={[30, 40]} /><TreeNoteSheet /></Screen>
-        </div>
-      </Phone>
-      <p>TreeNoteSheet over TreesTab</p>
+  </section>
+
+  <section aria-labelledby="h-moments">
+    <h2 id="h-moments">Clock tab · other moments</h2>
+    <div class="lab-row">
+      {
+        moments.map((s) => (
+          <div class="lab-cell">
+            <Phone label={`Clock tab at ${fmtTime(s.at)}: ${s.caption}`} height={H}>
+              <div class="screens" data-screens>
+                <Screen stateId={`lab-clock-${Math.round(s.at)}`} alt="" tone="light" final>
+                  <ClockTab at={s.at} />
+                </Screen>
+              </div>
+            </Phone>
+            <p>{s.caption}</p>
+          </div>
+        ))
+      }
     </div>
-  </div>
+  </section>
+
+  <section aria-labelledby="h-team">
+    <h2 id="h-team">Team tab and the tree note sheet</h2>
+    <div class="lab-row">
+      <div class="lab-cell">
+        <Phone label="Team tab: this week Alex 38:24 hours and 1,297 trees, Sam 36:50 and 1,214, Rosa 31:15 and 1,046, with Invite someone and Fields & blocks" height={H}>
+          <div class="screens" data-screens>
+            <Screen stateId="lab-team" alt="" tone="light" final><TeamTab /></Screen>
+          </div>
+        </Phone>
+        <p>TeamTab (owner's phone, 3:00 PM)</p>
+      </div>
+      <div class="lab-cell">
+        <Phone label="Tree note sheet for block 2, row 36, tree 7: Needs attention. Leader’s broken. Needs a stake. Alex, today 2:33 PM" height={H}>
+          <div class="screens" data-screens>
+            <Screen stateId="lab-note" alt="" tone="light" final>
+              <TreesTab at={MOMENTS.treeNote} block={2} rows={[30, 40]} zoom="L" notes={[TREE_NOTE, OLD_NOTE]} />
+              <TreeNoteSheet at={MOMENTS.treeNote} />
+            </Screen>
+          </div>
+        </Phone>
+        <p>TreeNoteSheet over TreesTab (55%), both at 2:33 PM</p>
+      </div>
+      <div class="lab-cell">
+        <Phone label="Tree note sheet for block 2, row 31, tree 4: Replant. Lost its top in the wind. Sam, Oct 9" height={H}>
+          <div class="screens" data-screens>
+            <Screen stateId="lab-note-old" alt="" tone="light" final>
+              <TreesTab at={MOMENTS.treeNote} block={2} rows={[28, 40]} zoom="L" notes={[TREE_NOTE, OLD_NOTE]} />
+              <TreeNoteSheet note={OLD_NOTE} at={MOMENTS.treeNote} />
+            </Screen>
+          </div>
+        </Phone>
+        <p>An older note kept across seasons</p>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="h-flags">
+    <h2 id="h-flags">Flag chips</h2>
+    <AppKit />
+    <ul class="sc chips">
+      {
+        FLAGS.map((f) => (
+          <li class="sc-flag" data-tone={flagTone(f)}>
+            <Icon name="flag.fill" />
+            {f}
+          </li>
+        ))
+      }
+    </ul>
+  </section>
 </Lab>
+
+<script>
+  // Crops: scroll a Clock tab statically so the named card sits under the toolbar.
+  const crop = () => {
+    for (const box of document.querySelectorAll<HTMLElement>('[data-crop]')) {
+      const layer = box.querySelector<HTMLElement>('[data-scroll-layer]');
+      const screen = box.closest<HTMLElement>('.screen');
+      if (!layer || !screen) continue;
+      const pt = screen.clientWidth / 393;
+      const kind = box.dataset.crop;
+      let y = 0;
+      if (kind === 'pace') {
+        const card = layer.querySelector<HTMLElement>('[data-pace-card]');
+        if (card) y = card.offsetTop - 110 * pt;
+      } else if (kind === 'bottom') {
+        y = layer.scrollHeight - screen.clientHeight;
+      }
+      layer.style.transform = y > 0 ? 'translateY(' + -y + 'px)' : '';
+    }
+  };
+  crop();
+  addEventListener('resize', crop);
+</script>
+
+<style>
+  .chips {
+    --pt: 1.25px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 0;
+    list-style: none;
+  }
+</style>

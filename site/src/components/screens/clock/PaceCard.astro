@@ -1,0 +1,186 @@
+---
+/**
+ * The pace card: Today | This week | Season (an iOS 26 capsule segmented control), then trees
+ * an hour, time a tree and pay per tree (hidden), the best day and the hours left in the field.
+ *
+ * Hooks: [data-pace-card], [data-segment="today"|"week"|"season"],
+ * [data-pace-row="trees-hour"|"per-tree"|"pay"|"best"|"left"], and in each row a
+ * [data-pace-rule]: a 3 pt gold rule in the card's left margin, transform-origin center. Rules
+ * rest at scaleY(0) so the mock reads as a plain screenshot; scenes tween them to scaleY(1),
+ * and `highlight` draws chosen ones statically (reduced-motion figures).
+ */
+import Icon from '../../app/Icon.astro';
+import type { PaceModel, PaceRange } from './clock';
+
+export type PaceRow = 'trees-hour' | 'per-tree' | 'pay' | 'best' | 'left';
+
+interface Props {
+  pace: PaceModel;
+  highlight?: readonly PaceRow[];
+}
+const { pace, highlight = [] } = Astro.props;
+const segments: Array<{ id: PaceRange; label: string }> = [
+  { id: 'today', label: 'Today' },
+  { id: 'week', label: 'This week' },
+  { id: 'season', label: 'Season' },
+];
+const lit = (row: PaceRow) => (highlight.includes(row) ? '' : undefined);
+---
+
+<div class="sc-card pc-pace" data-pace-card data-range={pace.range}>
+  <div class="sc-head-row">
+    <span class="sc-heading">Pace</span>
+    <span class="sc-foot">Counts shifts with trees marked</span>
+  </div>
+
+  <div class="pc-seg" data-segmented>
+    {
+      segments.map((s) => (
+        <span class:list={['pc-seg-item', s.id === pace.range && 'pc-is-on']} data-segment={s.id}>
+          {s.label}
+        </span>
+      ))
+    }
+  </div>
+
+  <div class="pc-rows">
+    <div class="pc-row pc-stat" data-pace-row="trees-hour">
+      <i class="pc-rule" data-pace-rule data-lit={lit('trees-hour')}></i>
+      <span class="pc-v sc-num">{pace.treesHour.value}</span>
+      <span class="pc-u">{pace.treesHour.unit}</span>
+    </div>
+    <div class="pc-row pc-stat" data-pace-row="per-tree">
+      <i class="pc-rule" data-pace-rule data-lit={lit('per-tree')}></i>
+      <span class="pc-v sc-num">{pace.perTree.value}</span>
+      <span class="pc-u">{pace.perTree.unit}</span>
+    </div>
+    <div class="pc-row pc-pay" data-pace-row="pay">
+      <i class="pc-rule" data-pace-rule data-lit={lit('pay')}></i>
+      <span class="pc-u">{pace.pay.label}</span>
+      <span class="pc-masked">
+        <span class="sc-num">{pace.pay.value}</span>
+        <Icon name="eye.slash" size="calc(17 * var(--pt))" weight={2} />
+      </span>
+    </div>
+    <div class="pc-row pc-note" data-pace-row="best">
+      <i class="pc-rule" data-pace-rule data-lit={lit('best')}></i>
+      <span class="pc-bullet"></span>
+      <span>{pace.best}</span>
+    </div>
+    <div class="pc-row pc-note" data-pace-row="left">
+      <i class="pc-rule" data-pace-rule data-lit={lit('left')}></i>
+      <span class="pc-bullet"></span>
+      <span>{pace.left}</span>
+    </div>
+  </div>
+</div>
+
+<style>
+  /* iOS 26 segmented control: a capsule track with a raised white capsule thumb. */
+  .pc-seg {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin-top: calc(14 * var(--pt));
+    padding: calc(3 * var(--pt));
+    height: calc(38 * var(--pt));
+    border-radius: 999px;
+    background: var(--sc-fill);
+  }
+  .pc-seg-item {
+    display: grid;
+    place-items: center;
+    border-radius: 999px;
+    font-size: calc(14 * var(--pt));
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+    white-space: nowrap;
+  }
+  .pc-seg-item.pc-is-on {
+    background: #fff;
+    font-weight: 600;
+    box-shadow:
+      0 calc(3 * var(--pt)) calc(8 * var(--pt)) rgba(20, 34, 26, 0.12),
+      0 calc(1 * var(--pt)) calc(1.5 * var(--pt)) rgba(20, 34, 26, 0.06),
+      inset 0 0 0 calc(0.5 * var(--pt)) rgba(20, 34, 26, 0.06);
+  }
+
+  .pc-rows {
+    margin-top: calc(6 * var(--pt));
+  }
+  .pc-row {
+    position: relative;
+    display: flex;
+    align-items: baseline;
+    gap: calc(8 * var(--pt));
+    padding: calc(11 * var(--pt)) 0;
+    box-shadow: inset 0 calc(-0.5 * var(--pt)) 0 var(--sc-hairline);
+    color: var(--ink);
+  }
+  .pc-row:last-child {
+    box-shadow: none;
+    padding-bottom: 0;
+  }
+  .pc-rule {
+    position: absolute;
+    left: calc(-11 * var(--pt));
+    top: calc(9 * var(--pt));
+    bottom: calc(9 * var(--pt));
+    width: calc(3 * var(--pt));
+    border-radius: 999px;
+    background: var(--gold);
+    transform: scaleY(0);
+  }
+  .pc-row:last-child .pc-rule {
+    bottom: 0;
+  }
+  .pc-rule[data-lit] {
+    transform: none;
+  }
+  .pc-stat .pc-v {
+    font-size: calc(30 * var(--pt));
+    line-height: 1.1;
+  }
+  .pc-u {
+    font-size: calc(17 * var(--pt));
+    letter-spacing: -0.025em;
+  }
+  .pc-stat .pc-u {
+    color: var(--muted);
+  }
+  .pc-pay {
+    align-items: center;
+    justify-content: space-between;
+    padding: calc(14 * var(--pt)) 0;
+  }
+  .pc-masked {
+    display: inline-flex;
+    align-items: center;
+    gap: calc(8 * var(--pt));
+    color: var(--muted);
+  }
+  .pc-masked .sc-num {
+    font-size: calc(17 * var(--pt));
+    letter-spacing: 0.08em;
+    color: var(--ink);
+  }
+  .pc-note {
+    align-items: flex-start;
+    gap: calc(10 * var(--pt));
+    font-size: calc(16 * var(--pt));
+    line-height: calc(21 * var(--pt));
+    letter-spacing: -0.02em;
+  }
+  /* No lone 'pace' on the second line of 'About 179 hours left in North field at your pace'. */
+  .pc-note > span:not(.pc-bullet) {
+    text-wrap: pretty;
+  }
+  .pc-bullet {
+    flex: none;
+    width: calc(6 * var(--pt));
+    height: calc(6 * var(--pt));
+    margin-top: calc(8 * var(--pt));
+    border-radius: 50%;
+    background: var(--fir);
+  }
+</style>
