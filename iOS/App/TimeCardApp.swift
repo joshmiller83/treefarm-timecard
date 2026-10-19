@@ -16,7 +16,8 @@ struct TimeCardApp: App {
                 .environment(model)
                 .environment(model.session)
                 .tint(Palette.fir)
-                .task {
+                // Again for a model that replaced one that couldn't open its database.
+                .task(id: ObjectIdentifier(model)) {
                     await model.start()
                     // Siri learns the rows, blocks and fields by name, and follows the farm from here on.
                     SiriSuggestions.shared.follow(model)
@@ -24,13 +25,17 @@ struct TimeCardApp: App {
         }
         .onChange(of: scenePhase) { _, phase in
             switch phase {
-            case .active: Task { await model.sceneBecameActive() }
+            case .active:
+                // Woken before the first unlock after a restart, the database was sealed; it opens now.
+                if model.storageError != nil { AppModel.reopenIfSealed() }
+                if model !== AppModel.shared { model = AppModel.shared }
+                Task { await model.sceneBecameActive() }
             case .background: model.sceneEnteredBackground()
             default: break
             }
         }
         .backgroundTask(.appRefresh(AppModel.backgroundRefreshID)) {
-            await model.backgroundRefresh()
+            await AppModel.reopenIfSealed().backgroundRefresh()
         }
     }
 }

@@ -15,7 +15,25 @@ import TimeCardCore
 final class AppModel {
     /// The one model per process. Siri and lock-screen buttons can wake the app in the
     /// background with no window, and must find the same store and session as the UI.
-    static let shared = AppEnvironment.makeModel()
+    /// Replaced only by `reopenIfSealed()`.
+    private(set) static var shared = AppEnvironment.makeModel()
+
+    /// A process woken before the first unlock after a restart (by Siri, a lock-screen button or
+    /// a control) finds the database sealed, and its model keeps that error for good. Once the
+    /// phone has been unlocked, this opens the database again; a model that opens becomes the
+    /// shared one, for the window, Siri and the lock screen alike. Returns the new model (with
+    /// its own `storageError` if it still can't open), or the shared one when it was fine.
+    @discardableResult
+    static func reopenIfSealed(make: () -> AppModel = { AppEnvironment.makeModel() }) -> AppModel {
+        guard let fresh = reopening(shared, make: make) else { return shared }
+        if fresh.storageError == nil { shared = fresh }
+        return fresh
+    }
+
+    /// A freshly made model when `current` couldn't open its database, else nil.
+    static func reopening(_ current: AppModel, make: () -> AppModel) -> AppModel? {
+        current.storageError == nil ? nil : make()
+    }
 
     let session: TimeCardSession
     let mode: LaunchMode

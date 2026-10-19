@@ -89,25 +89,18 @@ enum IntentRunner {
 
     // MARK: The model
 
-    /// The model intents work on: `AppModel.shared`, or, when the app woke before the first
-    /// unlock after a restart (database sealed) and the phone has been unlocked since, the
-    /// model `reopenStorage()` opened then.
-    static var model: AppModel { reopened ?? AppModel.shared }
-
-    private static var reopened: AppModel?
+    /// The model intents work on: the shared one, which `reopenStorage()` replaces when the app
+    /// woke before the first unlock after a restart (database sealed) and the phone has been
+    /// unlocked since.
+    static var model: AppModel { AppModel.shared }
 
     /// Opens the database again for a model that couldn't open it. `VoiceCommands.blocker()`
     /// calls this only once the phone has been unlocked, when the file is readable again.
-    /// Returns the new model, which carries its own `storageError` if it still can't open.
-    ///
-    /// Until `AppModel.shared` can be replaced (it's a constant), the reopened model is kept
-    /// here for Siri and the lock screen; the app's window keeps the one it launched with.
+    /// Returns the new model, which carries its own `storageError` if it still can't open; one
+    /// that opens becomes `AppModel.shared`, so the app's window uses it too.
     static func reopenStorage() -> AppModel {
-        let fresh = AppEnvironment.makeModel()
-        if fresh.storageError == nil {
-            reopened = fresh
-            SiriSuggestions.shared.follow(fresh)
-        }
+        let fresh = AppModel.reopenIfSealed()
+        if fresh.storageError == nil { SiriSuggestions.shared.follow(fresh) }
         return fresh
     }
 }

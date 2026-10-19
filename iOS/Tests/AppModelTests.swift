@@ -86,5 +86,33 @@ struct AppModelTests {
     @Test func settingsOffersTheSwitchNowThatTheAppMakesIt() {
         #expect(ServerAddress.isEditable)
     }
+
+    // MARK: Opening again after the first unlock
+
+    private func sealedModel(_ error: String = "Sealed") -> AppModel {
+        let session = TimeCardSession(store: try! LocalStore.inMemory(), api: StubAPIClient(), tokens: InMemoryTokenStore(), deviceName: "t")
+        return AppModel(session: session, mode: .live, storageError: error)
+    }
+
+    @Test func aSealedModelIsMadeAgain() {
+        let opened = AppEnvironment.makeModel(mode: .uiTest(signedIn: true))
+        #expect(AppModel.reopening(sealedModel(), make: { opened }) === opened)
+    }
+
+    @Test func aModelThatOpenedIsKept() {
+        var made = 0
+        let opened = AppEnvironment.makeModel(mode: .uiTest(signedIn: true))
+        #expect(AppModel.reopening(opened, make: { made += 1; return opened }) == nil)
+        #expect(made == 0)
+    }
+
+    @Test func theSharedModelStaysWhileItsDatabaseIsOpen() {
+        let shared = AppModel.shared
+        guard shared.storageError == nil else { return }
+        var made = 0
+        #expect(AppModel.reopenIfSealed(make: { made += 1; return self.sealedModel() }) === shared)
+        #expect(made == 0)
+        #expect(AppModel.shared === shared)
+    }
 }
 
