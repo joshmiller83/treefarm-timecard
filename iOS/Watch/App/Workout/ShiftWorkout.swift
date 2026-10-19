@@ -114,6 +114,9 @@ final class ShiftWorkout {
     @ObservationIgnored private var recovered = false
     @ObservationIgnored private var loop: Task<Void, Never>?
     @ObservationIgnored private var deadline: (stoppedAt: Date, task: Task<Void, Never>)?
+    /// A stuck clock-out reminder may be waiting with the system. Unknown at launch (one may
+    /// have outlived the app), so the first look with no clock-out waiting takes it back.
+    @ObservationIgnored private var reminderArmed = true
     @ObservationIgnored private var eventsTask: Task<Void, Never>?
     @ObservationIgnored private var actionButtonShifts: [UUID] = []
     /// Observed: the summary screen comes and goes with it.
@@ -281,6 +284,7 @@ final class ShiftWorkout {
             await salvage()
         }
         scheduleDeadline()
+        takeBackReminderIfAnswered()
     }
 
     /// Reconciles until nothing is left to do (a finish can be followed by a start), at most a
@@ -311,6 +315,11 @@ final class ShiftWorkout {
                 driver.resume()
             case .stop(let date):
                 guard (try? await driver.stop(at: date)) != nil else { return false }
+                // Left with the system, so it still comes if the session ends from outside or
+                // the app is gone by then.
+                let stoppedAt = driver.local.stoppedAt ?? date
+                reminderArmed = true
+                await notifier.scheduleStuckClockOut(at: stoppedAt.addingTimeInterval(WorkoutPlan.stoppedLimit))
             case .finish(let date):
                 let summary = try? await driver.finish(at: date, timeZone: timeZone)
                 if let summary = summary ?? nil { deliver(summary) }
@@ -345,10 +354,28 @@ final class ShiftWorkout {
 
     /// The session ended from outside: save what was collected, keep the shift on the clock and
     /// offer "Record again". Never a clock-out. [HK-F11, HK-P11]
+    ///
+    /// A stopped session is different: the person already clocked out on the watch and the
+    /// clock-out only waits for the phone. That's a finished shift, ending at the stop, with its
+    /// summary; the stuck clock-out reminder stays with the system.
     private func salvage() async {
-        guard driver.local.hasSession else { return }
+        let local = driver.local
+        guard local.hasSession else { return }
+        if local.phase == .stopped {
+            let summary = try? await driver.finish(at: local.stoppedAt ?? hooks.now(), timeZone: timeZone)
+            if let summary = summary ?? nil { deliver(summary) }
+            return
+        }
         _ = await driver.salvage(at: hooks.now(), timeZone: timeZone)
         hooks.haptic(.stopped)
+    }
+
+    /// Takes the stuck clock-out reminder back once no watch clock-out waits (the phone answered).
+    /// A clock-out that's still waiting keeps it, session or not.
+    private func takeBackReminderIfAnswered() {
+        guard hasInputs, reminderArmed, driver.local.phase != .stopped, WorkoutPlan.waitingClockOuts(inputs).isEmpty else { return }
+        reminderArmed = false
+        notifier.cancelStuckClockOut()
     }
 
     private func handle(_ event: WorkoutDriverEvent) {
@@ -395,7 +422,10 @@ final class ShiftWorkout {
     private func refreshLive() {
         let local = driver.local
         let state = inputs.confirmed
-        live.waitingClockOut = local.phase == .stopped
+        // The session's clock-out (or the open shift's) still waits for the phone, even after a
+        // stopped session finished: the person is clocking out, never "Recording stopped".
+        let clockingOut = [local.shiftId, state?.shiftId].contains { WorkoutPlan.waitingClockOut(for: $0, inputs) != nil }
+        live.waitingClockOut = local.phase == .stopped || clockingOut
         live.recording = switch local.phase {
         case .running: .recording
         case .paused: .paused
@@ -405,7 +435,7 @@ final class ShiftWorkout {
                 .off
             } else if access != .authorized {
                 .notAuthorized
-            } else if local.stoppedUnexpectedly, let state, state.signedIn, state.isClockedIn,
+            } else if local.stoppedUnexpectedly, !clockingOut, let state, state.signedIn, state.isClockedIn,
                       local.shiftId == nil || local.shiftId == state.shiftId {
                 .stoppedUnexpectedly
             } else {

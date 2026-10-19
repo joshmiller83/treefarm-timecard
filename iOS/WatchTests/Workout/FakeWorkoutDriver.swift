@@ -131,6 +131,8 @@ final class FakeWorkoutDriver: WorkoutDriver {
 final class FakeShiftNotifier: ShiftNotifier {
     private(set) var authorizationRequests = 0
     private(set) var stuckClockOuts = 0
+    /// When the system would post the stuck clock-out reminder; nil when none is waiting.
+    private(set) var reminder: Date?
 
     func requestAuthorization() async -> Bool {
         authorizationRequests += 1
@@ -139,6 +141,14 @@ final class FakeShiftNotifier: ShiftNotifier {
 
     func notifyStuckClockOut() async {
         stuckClockOuts += 1
+    }
+
+    func scheduleStuckClockOut(at date: Date) async {
+        reminder = date
+    }
+
+    func cancelStuckClockOut() {
+        reminder = nil
     }
 }
 

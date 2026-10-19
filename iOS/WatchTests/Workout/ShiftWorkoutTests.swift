@@ -111,10 +111,12 @@ struct ShiftWorkoutTests {
         await workout.settled()
         #expect(driver.calls.last == .stop(at(16, 30)))
         #expect(workout.live.recording == .waitingForClockOut && workout.live.waitingClockOut)
+        #expect(notifier.reminder == at(17, 30))
 
         clock.now = at(16, 32)
         workout.reconcile(WorkoutInputs(confirmed: offClock(closed: closed(minted, start: at(7, 0), end: at(16, 30)))))
         await workout.settled()
+        #expect(notifier.reminder == nil)
         #expect(driver.calls == [.recover, .start(at(7, 0), minted, .watchTap), .pause, .resume, .stop(at(16, 30)),
                                  .finish(at(16, 30), Self.zone)])
         #expect(workout.live.recording == .idle && !workout.live.waitingClockOut)
@@ -280,6 +282,68 @@ struct ShiftWorkoutTests {
         #expect(workout.live.recording == .recording)
     }
 
+    @Test func aStoppedSessionEndedFromOutsideFinishesAtStoppedAtKeepsTheStuckReminderAndOffersNoRecordAgain() async {
+        let workout = make()
+        workout.reconcile(WorkoutInputs(confirmed: working(start: at(7, 0))))
+        await workout.settled()
+        let waiting = WorkoutInputs(confirmed: working(start: at(7, 0)), outbox: [tap(.clockOut, shift: shift, at: at(16, 30))])
+        clock.now = at(16, 30)
+        workout.reconcile(waiting)
+        await workout.settled()
+        #expect(driver.calls.last == .stop(at(16, 30)))
+        #expect(notifier.reminder == at(17, 30))
+
+        // Another workout starts (or an error) while the clock-out waits for the phone. The person
+        // already clocked out: a finished shift, not "Recording stopped".
+        clock.now = at(16, 40)
+        driver.emit(.endedUnexpectedly("Another workout started."))
+        await until { driver.calls.last == .finish(at(16, 30), Self.zone) }
+        await workout.settled()
+        #expect(driver.calls.last == .finish(at(16, 30), Self.zone))
+        #expect(!driver.calls.contains(.salvage(at(16, 40))))
+        #expect(!driver.local.stoppedUnexpectedly)
+        #expect(workout.live.recording == .idle)
+        #expect(workout.live.waitingClockOut)
+        #expect(workout.live.lastSummary?.end == at(16, 30))
+        #expect(!recorder.haptics.contains(.stopped))
+        // With no session to keep the app alive, the system still posts the reminder at 17:30.
+        #expect(notifier.reminder == at(17, 30))
+
+        clock.now = at(16, 45)
+        workout.reconcile(waiting)
+        workout.recordAgain()
+        await workout.settled()
+        #expect(driver.starts.count == 1)
+        #expect(workout.live.recording == .idle)
+
+        // The phone answers the clock-out: the reminder is taken back.
+        clock.now = at(16, 50)
+        workout.reconcile(WorkoutInputs(confirmed: offClock(closed: closed(shift, start: at(7, 0), end: at(16, 30)))))
+        await workout.settled()
+        #expect(notifier.reminder == nil)
+        #expect(!workout.live.waitingClockOut)
+        #expect(driver.calls.filter { if case .finish = $0 { true } else { false } }.count == 1)
+    }
+
+    @Test func aWatchClockOutAfterRecordingStoppedTakesRecordAgainAway() async {
+        let workout = make()
+        workout.reconcile(WorkoutInputs(confirmed: working(start: at(7, 0))))
+        await workout.settled()
+        clock.now = at(10, 0)
+        driver.emit(.endedUnexpectedly("Another workout started."))
+        await until { workout.live.recording == .stoppedUnexpectedly }
+
+        // Clocked out on the watch with the phone away: the state still shows the shift.
+        clock.now = at(16, 30)
+        workout.reconcile(WorkoutInputs(confirmed: working(start: at(7, 0)), inFlight: [tap(.clockOut, shift: shift, at: at(16, 30))]))
+        await workout.settled()
+        #expect(workout.live.recording == .idle)
+        #expect(workout.live.waitingClockOut)
+        workout.recordAgain()
+        await workout.settled()
+        #expect(driver.starts.count == 1)
+    }
+
     @Test func theBannerGoesOnceTheShiftEnds() async {
         let workout = make()
         workout.reconcile(WorkoutInputs(confirmed: working(start: at(7, 0))))
@@ -346,6 +410,7 @@ struct ShiftWorkoutTests {
         await workout.settled()
         #expect(driver.calls.last == .stop(at(16, 30)))
         #expect(notifier.stuckClockOuts == 0)
+        #expect(notifier.reminder == at(17, 30))
 
         // Let the deadline task reach its sleep.
         let wait = ContinuousClock.now + .seconds(3)
@@ -357,7 +422,10 @@ struct ShiftWorkoutTests {
         await workout.settled()
         #expect(notifier.stuckClockOuts == 1)
         #expect(driver.calls.last == .finish(at(16, 30), Self.zone))
-        #expect(!workout.live.waitingClockOut)
+        // The session is done, but the clock-out still waits in the outbox, and so does the reminder.
+        #expect(workout.live.recording == .idle)
+        #expect(workout.live.waitingClockOut)
+        #expect(notifier.reminder == at(17, 30))
     }
 
     // MARK: - Discards and the summary

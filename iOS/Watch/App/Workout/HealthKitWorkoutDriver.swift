@@ -154,6 +154,10 @@ final class HealthKitWorkoutDriver: NSObject, WorkoutDriver {
         attach(recovered, builder)
         var restored = local
         restored.phase = Self.phase(of: recovered.state)
+        if restored.phase == .stopped, restored.stoppedAt == nil {
+            // A stopped session without its stop time would never reach the 60-minute rule.
+            restored.stoppedAt = recovered.endDate ?? Date()
+        }
         restored.startedAt = restored.startedAt ?? recovered.startDate ?? builder.startDate
         restored.syncIdentifier = restored.syncIdentifier ?? UUID()
         restored.origin = restored.origin ?? .recovered
