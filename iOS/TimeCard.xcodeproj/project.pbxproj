@@ -18,6 +18,7 @@
 		3DFDFC60E9F3DEFA8A73D693 /* LiveActivityController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 265B9098E1A69BDACEBA441D /* LiveActivityController.swift */; };
 		4C4F9F482F05AA8C690EADED /* ReportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 165D9CB59A2B73311DD924DB /* ReportView.swift */; };
 		4CE2765501913B4EEF9A13AE /* TimeCardCore in Frameworks */ = {isa = PBXBuildFile; productRef = 1F16EF2DBAA82812E5FCBF05 /* TimeCardCore */; };
+		4F4A9E4954CAAC0B5F4A6699 /* TreeMapModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9889E7910F184D691D439FD /* TreeMapModelTests.swift */; };
 		56E3F456E020D3F26D8FCE9D /* TimeCardCore in Frameworks */ = {isa = PBXBuildFile; productRef = 76760F4A041CFB039DF2E1BF /* TimeCardCore */; };
 		5840091B8188A4BF57AD73A8 /* PlatformTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A441859AAEFA8511A46EA2F /* PlatformTests.swift */; };
 		599CF5E9C4D373F558210B4B /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 6BC6220C858784A309DE828F /* Assets.xcassets */; };
@@ -29,6 +30,7 @@
 		822D64D9A13F48FE7A32851F /* ActivityKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 99943374729E87599B2C037E /* ActivityKit.framework */; };
 		96CED505F7707F4ED3F801B4 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E751EFB1A84C048A71D83B9 /* AppModel.swift */; };
 		9ABF6503163CD2383CE3F4C1 /* ClockView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0661937D9296096B85070F81 /* ClockView.swift */; };
+		9B53FC1A2C3610865B0340C3 /* TreeMapFixture.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B2E026F3FE222DBD13E9164 /* TreeMapFixture.swift */; };
 		A0E91B616D12F7A09D9CB812 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FB3543BFD49BF47889FBEFD /* RootView.swift */; };
 		A11346CECD3BFC51BA365381 /* AppModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1528797F8AD8C65C37F90E4 /* AppModelTests.swift */; };
 		A327B4C2DF3C355FFA9FA1F6 /* TimeCardApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1620ADB0A89E887DA3CBB17E /* TimeCardApp.swift */; };
@@ -41,11 +43,14 @@
 		CF5BB610A45AA574D9D20AFF /* TeamView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27EE1EAFDEEE2B00BC480F2B /* TeamView.swift */; };
 		D13E042FE534FB7568A52475 /* ResetPasswordView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DF2BA924D3E91EFC54A8D18 /* ResetPasswordView.swift */; };
 		D37A27B39B55A8CA3FB8CE65 /* TimeCardWidgetsBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 576C231644ECC8C6932C2E33 /* TimeCardWidgetsBundle.swift */; };
+		D4C134A4032C186E88E972DA /* TreeMapModel+Details.swift in Sources */ = {isa = PBXBuildFile; fileRef = E687D581925CC7F2691A1045 /* TreeMapModel+Details.swift */; };
 		E0B03D5A5C903A53DE4C5503 /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87281864A7B6C79D025F7336 /* MainTabView.swift */; };
+		E74615502C9AB7850BA4377D /* TreeMapData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 770C951EE55399070D8A364A /* TreeMapData.swift */; };
 		E7B1BDB75CDE2C1F66B0B60D /* TimeCardLiveActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BB263D26A2AD84BDE25A0AF /* TimeCardLiveActivity.swift */; };
 		E9F3A70825BDE99356AD28AD /* Typography.swift in Sources */ = {isa = PBXBuildFile; fileRef = 430050FEBA83C41B0D8C1F39 /* Typography.swift */; };
 		EC667902F7B2D991519539B0 /* TimeCardActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24D0A0F8E20930ACEF5AD5CB /* TimeCardActivityAttributes.swift */; };
 		F2DC4499FFD5F66BA1844426 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 268D96072E557AB5DA77E1FA /* WidgetKit.framework */; };
+		F6E34AE9117D159B4344365B /* TreeMapModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED1E5603217835C939822825 /* TreeMapModel.swift */; };
 		FF6FFF5EDAE4581A8CD35E19 /* TimeCardWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 9DE6B97E96723E748D99793B /* TimeCardWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
@@ -108,6 +113,7 @@
 		6BC6220C858784A309DE828F /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		75E425709A1FCF4E60DE4173 /* Palette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Palette.swift; sourceTree = "<group>"; };
 		76F859F4EF55B8D49AECE08D /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
+		770C951EE55399070D8A364A /* TreeMapData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TreeMapData.swift; sourceTree = "<group>"; };
 		7C111B64C0C07020B9DCCDD2 /* TimeCardUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimeCardUITests.swift; sourceTree = "<group>"; };
 		7DF2BA924D3E91EFC54A8D18 /* ResetPasswordView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResetPasswordView.swift; sourceTree = "<group>"; };
 		87281864A7B6C79D025F7336 /* MainTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainTabView.swift; sourceTree = "<group>"; };
@@ -116,6 +122,7 @@
 		97460A95F1CA9E6D45762BFE /* LiveActivityButtons.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityButtons.swift; sourceTree = "<group>"; };
 		98BD916919AFEA594B96FDBB /* JoinView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JoinView.swift; sourceTree = "<group>"; };
 		99943374729E87599B2C037E /* ActivityKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ActivityKit.framework; path = System/Library/Frameworks/ActivityKit.framework; sourceTree = SDKROOT; };
+		9B2E026F3FE222DBD13E9164 /* TreeMapFixture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TreeMapFixture.swift; sourceTree = "<group>"; };
 		9BB263D26A2AD84BDE25A0AF /* TimeCardLiveActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimeCardLiveActivity.swift; sourceTree = "<group>"; };
 		9DE6B97E96723E748D99793B /* TimeCardWidgets.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = TimeCardWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		9FB3543BFD49BF47889FBEFD /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
@@ -133,6 +140,9 @@
 		DC14C784BB8F321617C3E862 /* DesignTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignTests.swift; sourceTree = "<group>"; };
 		DF7548AC9CE7DC4BC309E713 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		E48D61AF82088B1C9CFDD3F2 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		E687D581925CC7F2691A1045 /* TreeMapModel+Details.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TreeMapModel+Details.swift"; sourceTree = "<group>"; };
+		E9889E7910F184D691D439FD /* TreeMapModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TreeMapModelTests.swift; sourceTree = "<group>"; };
+		ED1E5603217835C939822825 /* TreeMapModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TreeMapModel.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -278,6 +288,7 @@
 				B1528797F8AD8C65C37F90E4 /* AppModelTests.swift */,
 				DC14C784BB8F321617C3E862 /* DesignTests.swift */,
 				6A441859AAEFA8511A46EA2F /* PlatformTests.swift */,
+				9F3D12A41C3246F1C077B3E3 /* Trees */,
 			);
 			path = Tests;
 			sourceTree = "<group>";
@@ -304,6 +315,15 @@
 				27EE1EAFDEEE2B00BC480F2B /* TeamView.swift */,
 			);
 			path = Team;
+			sourceTree = "<group>";
+		};
+		9F3D12A41C3246F1C077B3E3 /* Trees */ = {
+			isa = PBXGroup;
+			children = (
+				9B2E026F3FE222DBD13E9164 /* TreeMapFixture.swift */,
+				E9889E7910F184D691D439FD /* TreeMapModelTests.swift */,
+			);
+			path = Trees;
 			sourceTree = "<group>";
 		};
 		A7A77BD1491F3A0F96AD91D2 /* Settings */ = {
@@ -380,6 +400,9 @@
 		F1E0B8ACCE60232D5E481EB9 /* Trees */ = {
 			isa = PBXGroup;
 			children = (
+				770C951EE55399070D8A364A /* TreeMapData.swift */,
+				ED1E5603217835C939822825 /* TreeMapModel.swift */,
+				E687D581925CC7F2691A1045 /* TreeMapModel+Details.swift */,
 				CB142D28E01DD5D7B047B8BA /* TreesView.swift */,
 			);
 			path = Trees;
@@ -538,6 +561,8 @@
 				A11346CECD3BFC51BA365381 /* AppModelTests.swift in Sources */,
 				6E021FFA63E1736E7099AF2B /* DesignTests.swift in Sources */,
 				5840091B8188A4BF57AD73A8 /* PlatformTests.swift in Sources */,
+				9B53FC1A2C3610865B0340C3 /* TreeMapFixture.swift in Sources */,
+				4F4A9E4954CAAC0B5F4A6699 /* TreeMapModelTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -575,6 +600,9 @@
 				CF5BB610A45AA574D9D20AFF /* TeamView.swift in Sources */,
 				EC667902F7B2D991519539B0 /* TimeCardActivityAttributes.swift in Sources */,
 				A327B4C2DF3C355FFA9FA1F6 /* TimeCardApp.swift in Sources */,
+				E74615502C9AB7850BA4377D /* TreeMapData.swift in Sources */,
+				D4C134A4032C186E88E972DA /* TreeMapModel+Details.swift in Sources */,
+				F6E34AE9117D159B4344365B /* TreeMapModel.swift in Sources */,
 				A557B44473F43053CBA86614 /* TreesView.swift in Sources */,
 				E9F3A70825BDE99356AD28AD /* Typography.swift in Sources */,
 			);
