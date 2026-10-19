@@ -87,6 +87,15 @@ html:not(.motion) .sec[data-tint='lights-up'] {
 .beat-head .eyebrow {
   margin-bottom: 18px;
 }
+/* With motion the chapter's time shows in the header chip, which runs with the story. */
+html.motion .eb-time {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
 .beat-head .display-l,
 .beat-head .display-xl {
   color: inherit;
