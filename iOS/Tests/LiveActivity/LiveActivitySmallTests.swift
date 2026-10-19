@@ -76,11 +76,44 @@ struct LiveActivitySmallTests {
         #expect(d.detail == "212 trees")
     }
 
+    // MARK: Going stale
+
+    @Test func staleLineTwoAsksToOpenTimeCardLikeTheLockScreen() {
+        // iOS marks the activity stale 10 minutes before it ends it at 8 hours.
+        let d = LiveActivitySmallDisplay(F.working(), isStale: true, calendar: Self.calendar)
+        #expect(d.detail == "Open Time Card")
+        #expect(d.detailGlyph == "arrow.clockwise")
+        #expect(d.detailAccessibilityLabel == "Open Time Card to keep this timer")
+        // The row can still be marked meanwhile.
+        #expect(d.control == .markRow(F.chip(13)))
+        #expect(d.titles == ["Working · Block 2", "Block 2"])
+        // On a break too.
+        let lunch = LiveActivitySmallDisplay(F.onBreak(.lunch), isStale: true, calendar: Self.calendar)
+        #expect(lunch.detail == "Open Time Card")
+        #expect(lunch.control == .backToWork)
+    }
+
+    @Test func freshLineTwoIsJustWords() {
+        let d = LiveActivitySmallDisplay(F.working(), calendar: Self.calendar)
+        #expect(d.detailGlyph == nil)
+        #expect(d.detailAccessibilityLabel == nil)
+    }
+
+    // MARK: VoiceOver
+
+    @Test func theHeaderIsHeardWholeEvenWhenItsWordsDontFit() {
+        // On a 40 mm card the title can give way to the timer; VoiceOver still hears it.
+        #expect(LiveActivitySmallDisplay(F.working(), calendar: Self.calendar).headerAccessibilityLabel == "Working · Block 2")
+        #expect(LiveActivitySmallDisplay(F.onBreak(.lunch), calendar: Self.calendar).headerAccessibilityLabel == "Lunch · 4:12 worked")
+        #expect(LiveActivitySmallDisplay(F.working(rows: [], shaped: 8_540, total: 8_540), calendar: Self.calendar)
+            .headerAccessibilityLabel == "Working")
+    }
+
     // MARK: Fonts
 
     @Test func itUsesOnlySystemFonts() {
-        // A custom font is reported to break Text(timerInterval:) on the watch, and the
-        // compact island views are the watch's default view too.
+        // A custom font is reported to break Text(timerInterval:) on the watch. Only the
+        // small family is checked here; the compact island views are the lock screen's.
         #expect(LiveActivitySmallView.fonts.timer == LiveActivitySmallView.SystemFont(.title3, design: .rounded, monospacedDigits: true))
         for font in LiveActivitySmallView.fonts.all.map(\.font) {
             for size in stride(from: 8.0, through: 48, by: 0.5) {
@@ -118,20 +151,23 @@ struct LiveActivitySmallTests {
     @Test(arguments: [DynamicTypeSize.large, LiveActivitySmallView.largestText, .accessibility5])
     func everyPhaseFitsEveryCard(textSize: DynamicTypeSize) throws {
         for (name, snapshot) in Self.phases {
-            let display = LiveActivitySmallDisplay(snapshot)
-            let colors = LiveColors.dark(onBreak: display.isOnBreak)
-            for card in Self.cards {
-                func size(showsDetail: Bool) -> CGSize {
-                    LiveActivityRenderTests.size(of: SmallCard(display: display, colors: colors, showsDetail: showsDetail)
-                        .frame(width: card.size.width)
-                        .environment(\.dynamicTypeSize, textSize))
-                }
-                let tightest = size(showsDetail: false)
-                #expect(tightest.height <= card.size.height.rounded(.up), "\(name) on \(card.name) is \(tightest.height) pt tall at \(textSize)")
-                #expect(tightest.width == card.size.width.rounded(.up), "\(name) on \(card.name) is \(tightest.width) pt wide")
-                if textSize == .large {
-                    let full = size(showsDetail: true)
-                    #expect(full.height <= card.size.height.rounded(.up), "\(name) with line 2 on \(card.name) is \(full.height) pt tall")
+            for isStale in [false, true] {
+                let display = LiveActivitySmallDisplay(snapshot, isStale: isStale)
+                let colors = LiveColors.dark(onBreak: display.isOnBreak)
+                let label = isStale ? "\(name) (stale)" : name
+                for card in Self.cards {
+                    func size(showsDetail: Bool) -> CGSize {
+                        LiveActivityRenderTests.size(of: SmallCard(display: display, colors: colors, showsDetail: showsDetail)
+                            .frame(width: card.size.width)
+                            .environment(\.dynamicTypeSize, textSize))
+                    }
+                    let tightest = size(showsDetail: false)
+                    #expect(tightest.height <= card.size.height.rounded(.up), "\(label) on \(card.name) is \(tightest.height) pt tall at \(textSize)")
+                    #expect(tightest.width == card.size.width.rounded(.up), "\(label) on \(card.name) is \(tightest.width) pt wide")
+                    if textSize == .large {
+                        let full = size(showsDetail: true)
+                        #expect(full.height <= card.size.height.rounded(.up), "\(label) with line 2 on \(card.name) is \(full.height) pt tall")
+                    }
                 }
             }
         }
@@ -156,6 +192,10 @@ struct LiveActivitySmallTests {
         }
         try LiveActivityRenderTests.save(SmallCardBackdrop(snapshot: F.working(now: Date()), size: Self.cards[0].size)
             .environment(\.dynamicTypeSize, LiveActivitySmallView.largestText), "small-working-40mm-largest")
+        for card in Self.cards where card.name == "40mm" || card.name == "ultra2" {
+            try LiveActivityRenderTests.save(SmallCardBackdrop(snapshot: F.working(now: Date()), size: card.size, isStale: true),
+                                             "small-working-stale-\(card.name)")
+        }
     }
 }
 
@@ -163,9 +203,10 @@ struct LiveActivitySmallTests {
 private struct SmallCardBackdrop: View {
     var snapshot: LiveSnapshot
     var size: CGSize
+    var isStale = false
 
     var body: some View {
-        LiveActivitySmallView(state: snapshot)
+        LiveActivitySmallView(state: snapshot, isStale: isStale)
             .frame(width: size.width, height: size.height)
             .background(LiveColors.dark(onBreak: snapshot.phase != .working).background,
                         in: RoundedRectangle(cornerRadius: 16, style: .continuous))

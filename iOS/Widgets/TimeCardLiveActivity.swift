@@ -46,7 +46,7 @@ private struct LiveActivityFamilyCard: View {
     var body: some View {
         switch family {
         case .small:
-            LiveActivitySmallView(state: state)
+            LiveActivitySmallView(state: state, isStale: isStale)
                 .activityBackgroundTint(LiveColors.lockScreen(scheme, onBreak: state.phase != .working).background)
                 .activitySystemActionForegroundColor(LiveColors.lockScreen(scheme, onBreak: state.phase != .working).ink)
         default:

@@ -32,8 +32,15 @@ struct LiveActivitySmallDisplay: Equatable {
     var glyph: String
     /// Line 1, then shorter for a narrow card: "Working · Block 2" → "Block 2".
     var titles: [String]
-    /// Line 2: "Next Row 14 · 38 trees", "Since 12:01".
+    /// What VoiceOver hears for line 1, however much of it fits: the whole title.
+    var headerAccessibilityLabel: String
+    /// Line 2: "Next Row 14 · 38 trees", "Since 12:01", or "Open Time Card" once the activity
+    /// goes stale (10 minutes before iOS ends it at 8 hours), as on the lock screen.
     var detail: String
+    /// Beside line 2 when stale: `arrow.clockwise`.
+    var detailGlyph: String?
+    /// Line 2 read aloud when it differs: "Open Time Card to keep this timer".
+    var detailAccessibilityLabel: String?
     /// Worked time while working; the break's own time on a break.
     var timerStart: Date
     /// How many characters the timer may reach before the activity ends ("10:00:00" is 8).
@@ -47,8 +54,13 @@ struct LiveActivitySmallDisplay: Equatable {
     /// Shown instead of a button: "Every row in North Field is shaped."
     var message: String?
 
+    /// The lock screen's words for a stale activity (`LiveHeaderLine`).
+    static let staleLine = "Open Time Card"
+    static let staleGlyph = "arrow.clockwise"
+    static let staleAccessibilityLabel = "Open Time Card to keep this timer"
+
     /// `calendar` reads "Since 12:01": the phone's own zone, as the lock screen's times do.
-    init(_ s: LiveSnapshot, calendar: FarmCalendar = FarmCalendar(timeZone: .current, weekStart: .monday)) {
+    init(_ s: LiveSnapshot, isStale: Bool = false, calendar: FarmCalendar = FarmCalendar(timeZone: .current, weekStart: .monday)) {
         let lockScreen = LiveActivityDisplay(s)
         let phase: WatchPhase = switch s.phase {
         case .working: .working
@@ -60,7 +72,10 @@ struct LiveActivitySmallDisplay: Equatable {
         let short = isOnBreak ? WatchDisplay.phaseTitle(phase) : (s.nextRows.first?.blockName ?? WatchDisplay.phaseTitle(phase))
         let title = WatchDisplay.smallTitle(s)
         titles = title == short ? [title] : [title, short]
-        detail = WatchDisplay.smallDetail(s, calendar: calendar)
+        headerAccessibilityLabel = title
+        detail = isStale ? Self.staleLine : WatchDisplay.smallDetail(s, calendar: calendar)
+        detailGlyph = isStale ? Self.staleGlyph : nil
+        detailAccessibilityLabel = isStale ? Self.staleAccessibilityLabel : nil
         timerStart = lockScreen.timerStart
         timerCharacters = lockScreen.timerCharacters
 
@@ -101,6 +116,8 @@ struct LiveActivitySmallDisplay: Equatable {
 /// ```
 struct LiveActivitySmallView: View {
     var state: LiveSnapshot
+    /// iOS is about to end the activity: line 2 asks to open the app, as the lock screen does.
+    var isStale = false
     @Environment(\.colorScheme) private var scheme
 
     /// The button: a glove-sized target, full width, taking whatever height the card spares.
@@ -141,7 +158,7 @@ struct LiveActivitySmallView: View {
     nonisolated static let fonts = Fonts()
 
     var body: some View {
-        let display = LiveActivitySmallDisplay(state)
+        let display = LiveActivitySmallDisplay(state, isStale: isStale)
         let colors = LiveColors.lockScreen(scheme, onBreak: display.isOnBreak)
         // A tall text size, or the smallest watch, gives up line 2 before the button.
         ViewThatFits(in: .vertical) {
@@ -165,13 +182,20 @@ struct SmallCard: View {
         VStack(alignment: .leading, spacing: 1) {
             SmallHeader(display: display, colors: colors)
             if showsDetail {
-                Text(display.detail)
-                    .font(LiveActivitySmallView.fonts.detail.font)
-                    .foregroundStyle(colors.muted)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
-                    .padding(.horizontal, SmallCard.inset)
-                    .padding(.vertical, -1)
+                HStack(spacing: 4) {
+                    if let glyph = display.detailGlyph {
+                        Image(systemName: glyph)
+                    }
+                    Text(display.detail)
+                }
+                .font(LiveActivitySmallView.fonts.detail.font)
+                .foregroundStyle(colors.muted)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+                .padding(.horizontal, SmallCard.inset)
+                .padding(.vertical, -1)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(display.detailAccessibilityLabel ?? display.detail)
             }
             SmallControl(display: display, colors: colors)
         }
@@ -180,23 +204,25 @@ struct SmallCard: View {
 }
 
 /// The phase glyph and words on the left, the running timer on the right. The words shorten,
-/// then go, before the timer does.
+/// then go, before the timer does; VoiceOver hears the whole title, then the timer.
 struct SmallHeader: View {
     var display: LiveActivitySmallDisplay
     var colors: LiveColors
 
     var body: some View {
         HStack(spacing: 4) {
+            // The glyph always shows, so it carries the title for VoiceOver.
             Image(systemName: display.glyph)
                 .font(LiveActivitySmallView.fonts.title.font)
                 .foregroundStyle(colors.timer)
-                .accessibilityHidden(true)
+                .accessibilityLabel(display.headerAccessibilityLabel)
             // Explicit children: ViewThatFits needs unique ones, and the titles may repeat.
             ViewThatFits(in: .horizontal) {
                 title(0)
                 if display.titles.count > 1 { title(1) }
                 Color.clear.frame(width: 0, height: 0)
             }
+            .accessibilityHidden(true)
             Spacer(minLength: 0)
             SmallTimer(start: display.timerStart, characters: display.timerCharacters, color: colors.timer)
         }
