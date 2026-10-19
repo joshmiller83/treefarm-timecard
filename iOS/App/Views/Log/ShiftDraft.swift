@@ -6,15 +6,22 @@ import TimeCardCore
 /// `pinned` is the exact instant the time was loaded from. It's kept while the person leaves
 /// the time alone, so saving an untouched shift never moves it: its seconds stay, and so does
 /// the second 1:30 on a fall-back night. Setting the time drops it.
+///
+/// `dayOffset` is how many days after the shift's start day the time falls on. A loaded time
+/// keeps the day it was on (a shift left open since yesterday keeps today's break on today,
+/// and a 24-hour shift ends on the next day), and keeps it relative to the start day when the
+/// date changes. A time the person sets has none, and follows `ShiftDraft`'s rule instead.
 struct WallClock: Hashable {
     var hour: Int
     var minute: Int
     var pinned: Date?
+    var dayOffset: Int?
 
-    init(hour: Int, minute: Int, pinned: Date? = nil) {
+    init(hour: Int, minute: Int, pinned: Date? = nil, dayOffset: Int? = nil) {
         self.hour = hour
         self.minute = minute
         self.pinned = pinned
+        self.dayOffset = dayOffset
     }
 
     /// The time `date` shows on the farm's clock, pinned to `date`.
@@ -23,9 +30,15 @@ struct WallClock: Hashable {
         self.init(hour: c.hour ?? 0, minute: c.minute ?? 0, pinned: date)
     }
 
+    /// The same, also remembering how many days after `startDay` it falls on.
+    init(_ date: Date, _ calendar: FarmCalendar, startDay: DayKey) {
+        self.init(date, calendar)
+        dayOffset = ShiftDraft.days(from: startDay, to: calendar.dayKey(date), calendar)
+    }
+
     var minutesIntoDay: Int { hour * 60 + minute }
 
-    /// The same time of day, unpinned (what a picker hands back).
+    /// The same time of day, unpinned and with no day of its own (what a picker hands back).
     var unpinned: WallClock { WallClock(hour: hour, minute: minute) }
 
     /// This time on `day` on the farm's clock.
@@ -62,9 +75,10 @@ struct BreakDraft: Identifiable, Hashable {
 }
 
 /// A shift as the editor holds it: a day, times of day and breaks, the way a person thinks
-/// about a time card. Times earlier in the day than clock-in belong to the next day, so a
-/// shift (or a break) can run past midnight. `shift(...)` turns it back into a `Shift` for
-/// `ShiftRules.validate` and the store.
+/// about a time card. A time the person sets that's earlier in the day than clock-in belongs
+/// to the next day, so a shift (or a break) can run past midnight; a time loaded from the
+/// shift keeps its own day (`WallClock.dayOffset`). `shift(...)` turns it back into a `Shift`
+/// for `ShiftRules.validate` and the store.
 struct ShiftDraft: Hashable {
     var id: UUID
     var userId: UUID
@@ -88,11 +102,13 @@ struct ShiftDraft: Hashable {
         userId = shift.userId
         farmId = shift.farmId
         rateCents = shift.rateCents
-        day = calendar.dayKey(shift.start)
+        let day = calendar.dayKey(shift.start)
+        self.day = day
         start = WallClock(shift.start, calendar)
-        end = shift.end.map { WallClock($0, calendar) }
+        end = shift.end.map { WallClock($0, calendar, startDay: day) }
         breaks = shift.breaks.map { b in
-            BreakDraft(id: b.id, kind: b.kind, start: WallClock(b.start, calendar), end: b.end.map { WallClock($0, calendar) }, reason: b.reason)
+            BreakDraft(id: b.id, kind: b.kind, start: WallClock(b.start, calendar, startDay: day),
+                       end: b.end.map { WallClock($0, calendar, startDay: day) }, reason: b.reason)
         }
         notes = shift.notes
         original = shift
@@ -128,9 +144,23 @@ struct ShiftDraft: Hashable {
 
     // MARK: Turning times into instants
 
-    /// The day a time of day falls on: the start day, or the next day for times before clock-in.
-    func day(for clock: WallClock, _ calendar: FarmCalendar) -> DayKey {
-        clock.minutesIntoDay < start.minutesIntoDay ? Self.nextDay(after: day, calendar) : day
+    /// How many days after the start day a time falls on. A loaded time keeps its own day; a
+    /// time the person set is the next day when it's earlier than clock-in. A break's end set
+    /// by the person goes with its start, so a break taken today on a shift left open since
+    /// yesterday ends today too.
+    func dayOffset(of clock: WallClock, breakStart: WallClock? = nil) -> Int {
+        if let offset = clock.dayOffset { return offset }
+        let rule = clock.minutesIntoDay < start.minutesIntoDay ? 1 : 0
+        if let breakStart, let startOffset = breakStart.dayOffset {
+            let startRule = breakStart.minutesIntoDay < start.minutesIntoDay ? 1 : 0
+            return startOffset + max(0, rule - startRule)
+        }
+        return rule
+    }
+
+    /// The day a time of day falls on.
+    func day(for clock: WallClock, breakStart: WallClock? = nil, _ calendar: FarmCalendar) -> DayKey {
+        Self.day(day, plus: dayOffset(of: clock, breakStart: breakStart), calendar)
     }
 
     func startDate(_ calendar: FarmCalendar) -> Date {
@@ -138,22 +168,33 @@ struct ShiftDraft: Hashable {
     }
 
     func endDate(_ calendar: FarmCalendar) -> Date? {
-        end.map { $0.date(on: day(for: $0, calendar), calendar).roundedToMillisecond }
+        end.map { date($0, calendar) }
     }
 
-    func date(_ clock: WallClock, _ calendar: FarmCalendar) -> Date {
-        clock.date(on: day(for: clock, calendar), calendar).roundedToMillisecond
+    /// The instant a time stands for. Pass a break's start when `clock` is that break's end.
+    func date(_ clock: WallClock, breakStart: WallClock? = nil, _ calendar: FarmCalendar) -> Date {
+        clock.date(on: day(for: clock, breakStart: breakStart, calendar), calendar).roundedToMillisecond
     }
 
-    /// Clock-out lands on the day after clock-in.
+    /// Clock-out lands on a later day than clock-in.
     var endsNextDay: Bool {
         guard let end else { return false }
-        return end.minutesIntoDay < start.minutesIntoDay
+        return dayOffset(of: end) > 0
     }
 
-    /// A time of day lands on the day after clock-in.
-    func isNextDay(_ clock: WallClock) -> Bool {
-        clock.minutesIntoDay < start.minutesIntoDay
+    /// A time of day lands on a later day than clock-in.
+    func isNextDay(_ clock: WallClock, breakStart: WallClock? = nil) -> Bool {
+        dayOffset(of: clock, breakStart: breakStart) > 0
+    }
+
+    /// The small tag beside a time that isn't on the start day: "Next day", or the day itself
+    /// ("Tue, Oct 20") further out.
+    func dayTag(_ clock: WallClock, breakStart: WallClock? = nil, _ calendar: FarmCalendar) -> String? {
+        switch dayOffset(of: clock, breakStart: breakStart) {
+        case 0: nil
+        case 1: "Next day"
+        default: Fmt.day(calendar.date(on: day(for: clock, breakStart: breakStart, calendar), hour: 12, minute: 0), calendar)
+        }
     }
 
     /// The shift to validate and save, stamped `updatedAt = now`. Breaks stay in the editor's
@@ -163,7 +204,7 @@ struct ShiftDraft: Hashable {
         shift.start = startDate(calendar)
         shift.end = endDate(calendar)
         shift.breaks = breaks.map { b in
-            Break(id: b.id, kind: b.kind, start: date(b.start, calendar), end: b.end.map { date($0, calendar) }, reason: b.reason)
+            Break(id: b.id, kind: b.kind, start: date(b.start, calendar), end: b.end.map { date($0, breakStart: b.start, calendar) }, reason: b.reason)
         }
         shift.notes = notes
         shift.updatedAt = now.roundedToMillisecond
@@ -225,7 +266,52 @@ struct ShiftDraft: Hashable {
         return BreakDraft(kind: kind, start: .minutes(startMinute + from), end: .minutes(startMinute + from + len))
     }
 
-    static func nextDay(after day: DayKey, _ calendar: FarmCalendar) -> DayKey {
-        calendar.dayKey(calendar.addDays(calendar.date(on: day, hour: 12, minute: 0), 1))
+    // MARK: Days
+
+    static func day(_ day: DayKey, plus days: Int, _ calendar: FarmCalendar) -> DayKey {
+        days == 0 ? day : calendar.dayKey(calendar.addDays(calendar.date(on: day, hour: 12, minute: 0), days))
+    }
+
+    /// Calendar days from one day to another (negative when `to` is earlier).
+    static func days(from: DayKey, to: DayKey, _ calendar: FarmCalendar) -> Int {
+        calendar.calendar.dateComponents([.day], from: calendar.startOfDay(from), to: calendar.startOfDay(to)).day ?? 0
+    }
+
+    // MARK: Changes made elsewhere
+
+    /// The person's edits (`mine`, which opened as `base`) put on top of the shift as it's
+    /// stored now (`theirs`), part by part: when (date and clock-in), clock-out, breaks and
+    /// notes. A part the person left alone takes the stored value, so a break started from the
+    /// lock screen or a clock-out from Siri survives the save. A part changed on both sides
+    /// takes the stored value and comes back as a conflict, so the person can look again.
+    static func rebase(_ mine: ShiftDraft, base: ShiftDraft, onto theirs: ShiftDraft) -> (draft: ShiftDraft, conflict: Bool) {
+        var merged = theirs
+        var conflict = false
+        func pick<T: Equatable>(_ path: WritableKeyPath<ShiftDraft, T>) {
+            let mineChanged = mine[keyPath: path] != base[keyPath: path]
+            let theirsChanged = theirs[keyPath: path] != base[keyPath: path]
+            guard mineChanged else { return }
+            if !theirsChanged {
+                merged[keyPath: path] = mine[keyPath: path]
+            } else if mine[keyPath: path] != theirs[keyPath: path] {
+                conflict = true
+            }
+        }
+        pick(\.when)
+        pick(\.end)
+        pick(\.breaks)
+        pick(\.notes)
+        return (merged, conflict)
+    }
+
+    /// The date and clock-in together: changing the date moves clock-in.
+    private var when: When {
+        get { When(day: day, start: start) }
+        set { day = newValue.day; start = newValue.start }
+    }
+
+    private struct When: Equatable {
+        var day: DayKey
+        var start: WallClock
     }
 }

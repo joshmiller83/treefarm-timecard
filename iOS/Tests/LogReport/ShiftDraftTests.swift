@@ -82,6 +82,127 @@ struct ShiftDraftTests {
         #expect(back.end == shift.end)
     }
 
+    // MARK: Times on other days than clock-in
+
+    /// Open since Sun Oct 18 at 7:00, with a break this morning (Mon 9:00–9:15), later in the
+    /// day than clock-in.
+    private var staleOpen: Shift {
+        Shift(userId: F.me, farmId: F.farmId, start: F.at(10, 18, 7, 0),
+              breaks: [Break(kind: .break, start: F.at(10, 19, 9, 0), end: F.at(10, 19, 9, 15))], rateCents: 2000)
+    }
+
+    @Test func aShiftLeftOpenSinceYesterdayKeepsTodaysBreak() {
+        let open = staleOpen
+        var draft = ShiftDraft(shift: open, calendar: cal)
+        #expect(draft.shift(calendar: cal, now: now).breaks == open.breaks)
+        #expect(draft.dayTag(draft.breaks[0].start, cal) == "Next day")
+        #expect(draft.dayTag(draft.start, cal) == nil)
+        // Editing only the notes doesn't move it back to yesterday.
+        draft.notes = "Forgot to clock out."
+        let back = draft.shift(calendar: cal, now: now)
+        #expect(back.breaks == open.breaks)
+        #expect(back.start == open.start)
+        #expect(back.end == nil)
+    }
+
+    @Test func aShiftOfExactly24HoursComesBackExactly() {
+        let shift = F.shift(10, 16, from: (7, 0), to: (7, 0), nextDay: true)
+        let draft = ShiftDraft(shift: shift, calendar: cal)
+        #expect(draft.endsNextDay)
+        let back = draft.shift(calendar: cal, now: now)
+        #expect(back.end == shift.end)
+        #expect(ShiftRules.validate(back, others: [], now: now, calendar: cal) == nil)
+    }
+
+    @Test func changingTheDateKeepsEachTimesDay() {
+        var long = ShiftDraft(shift: F.shift(10, 16, from: (7, 0), to: (7, 0), nextDay: true), calendar: cal)
+        long.day = F.day(2026, 10, 14)
+        #expect(long.shift(calendar: cal, now: now).start == F.at(10, 14, 7, 0))
+        #expect(long.shift(calendar: cal, now: now).end == F.at(10, 15, 7, 0))
+
+        var stale = ShiftDraft(shift: staleOpen, calendar: cal)
+        stale.day = F.day(2026, 10, 17)
+        let moved = stale.shift(calendar: cal, now: now)
+        #expect(moved.start == F.at(10, 17, 7, 0))
+        #expect(moved.breaks[0].start == F.at(10, 18, 9, 0))
+        #expect(moved.breaks[0].end == F.at(10, 18, 9, 15))
+    }
+
+    @Test func aBreakEndSetOnTheNextDaysBreakStaysOnThatDay() {
+        // Open since Sunday 7:00, on a break since Monday 9:00. Ending it at 9:20 means Monday.
+        let open = Shift(userId: F.me, farmId: F.farmId, start: F.at(10, 18, 7, 0),
+                         breaks: [Break(kind: .break, start: F.at(10, 19, 9, 0))], rateCents: 2000)
+        var draft = ShiftDraft(shift: open, calendar: cal)
+        draft.breaks[0].end = WallClock(hour: 9, minute: 20)
+        #expect(draft.shift(calendar: cal, now: now).breaks[0].end == F.at(10, 19, 9, 20))
+        #expect(draft.dayTag(draft.breaks[0].end!, breakStart: draft.breaks[0].start, cal) == "Next day")
+    }
+
+    @Test func aTimeTwoDaysOutIsTaggedWithItsDay() {
+        let open = Shift(userId: F.me, farmId: F.farmId, start: F.at(10, 17, 7, 0),
+                         breaks: [Break(kind: .lunch, start: F.at(10, 19, 12, 0), end: F.at(10, 19, 12, 30))], rateCents: 2000)
+        let draft = ShiftDraft(shift: open, calendar: cal)
+        #expect(draft.dayTag(draft.breaks[0].start, cal) == "Mon, Oct 19")
+    }
+
+    @Test func aTimeThePersonSetsFollowsTheClockInRule() {
+        // A loaded clock-out stays on its day; once the person sets it, earlier than clock-in
+        // means the next day again.
+        var draft = ShiftDraft(shift: F.shift(10, 16, from: (7, 0), to: (15, 0)), calendar: cal)
+        draft.start = WallClock(hour: 16, minute: 0)
+        #expect(!draft.endsNextDay)
+        #expect(ShiftRules.validate(draft.shift(calendar: cal, now: now), others: [], now: now, calendar: cal)?.message
+                == "Clock out has to be after clock in.")
+        draft.end = WallClock(hour: 2, minute: 0)
+        #expect(draft.endsNextDay)
+        #expect(draft.shift(calendar: cal, now: now).end == F.at(10, 17, 2, 0))
+    }
+
+    // MARK: Changes made elsewhere
+
+    @Test func rebaseKeepsWhatChangedElsewhereUnderThePersonsEdits() {
+        let open = Shift(userId: F.me, farmId: F.farmId, start: F.at(10, 19, 7, 0), rateCents: 2000)
+        let base = ShiftDraft(shift: open, calendar: cal)
+        var mine = base
+        mine.notes = "Gate fixed."
+        // Siri clocked out, ending a break the lock screen started.
+        var theirs = open
+        theirs.breaks = [Break(kind: .break, start: F.at(10, 19, 14, 0), end: F.at(10, 19, 15, 0))]
+        theirs.end = F.at(10, 19, 15, 0)
+        let merged = ShiftDraft.rebase(mine, base: base, onto: ShiftDraft(shift: theirs, calendar: cal))
+        #expect(!merged.conflict)
+        let saved = merged.draft.shift(calendar: cal, now: now)
+        #expect(saved.end == theirs.end)
+        #expect(saved.breaks == theirs.breaks)
+        #expect(saved.notes == "Gate fixed.")
+        #expect(merged.draft.original == theirs)
+    }
+
+    @Test func rebaseFlagsAPartChangedOnBothSides() {
+        let shift = F.shift(10, 16, from: (7, 0), to: (15, 0))
+        let base = ShiftDraft(shift: shift, calendar: cal)
+        var mine = base
+        mine.notes = "Mine"
+        mine.start = WallClock(hour: 7, minute: 30)
+        var theirs = shift
+        theirs.notes = "Theirs"
+        let merged = ShiftDraft.rebase(mine, base: base, onto: ShiftDraft(shift: theirs, calendar: cal))
+        #expect(merged.conflict)
+        // The stored notes win; the person's other edit stays.
+        #expect(merged.draft.notes == "Theirs")
+        #expect(merged.draft.start == WallClock(hour: 7, minute: 30))
+    }
+
+    @Test func rebaseAcceptsTheSameEditOnBothSides() {
+        let shift = F.shift(10, 16, from: (7, 0), to: (15, 0))
+        let base = ShiftDraft(shift: shift, calendar: cal)
+        var mine = base
+        mine.notes = "Same"
+        var theirs = shift
+        theirs.notes = "Same"
+        #expect(!ShiftDraft.rebase(mine, base: base, onto: ShiftDraft(shift: theirs, calendar: cal)).conflict)
+    }
+
     @Test func aNewShiftCopiesTheLatestHoursOnADayTheyAreOver() {
         let mine = [F.shift(10, 12, from: (6, 45), to: (15, 15)), F.shift(10, 14, from: (7, 5), to: (16, 20)),
                     F.shift(F.sam, 10, 15, from: (5, 0), to: (9, 0))]

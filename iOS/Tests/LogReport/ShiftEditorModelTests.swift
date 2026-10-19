@@ -138,7 +138,8 @@ struct ShiftEditorModelTests {
         #expect(model.draft.end == nil)
         model.setStillOnTheClock(false)
         #expect(model.draft.end == WallClock(hour: 16, minute: 0))
-        #expect(model.draft.breaks[0].end == WallClock(hour: 16, minute: 0))
+        // The running break ends at the same moment, on the shift's end day.
+        #expect(model.draft.breaks[0].end == WallClock(hour: 16, minute: 0, dayOffset: 0))
         #expect(model.save() == "Shift saved.")
         let saved = try #require(session.snapshot.shifts[open.id])
         #expect(saved.end == F.at(10, 19, 16, 0))
@@ -168,7 +169,9 @@ struct ShiftEditorModelTests {
         // Moving it onto Sam's other day clashes with Sam's shift, not the admin's.
         model.draft.day = F.day(2026, 10, 16)
         #expect(model.save() == nil)
-        #expect(model.visibleProblem?.hasPrefix("This overlaps your shift on Fri, Oct 16") == true)
+        // ShiftRules' words (it may name Sam once the Kit says whose shift it is).
+        #expect(model.visibleProblem?.hasPrefix("This overlaps") == true)
+        #expect(model.visibleProblem?.contains("shift on Fri, Oct 16") == true)
         model.draft.day = F.day(2026, 10, 14)
         #expect(model.save() == "Shift saved.")
         let saved = try #require(session.snapshot.shifts[sams.id])
@@ -197,6 +200,118 @@ struct ShiftEditorModelTests {
         #expect(model.save() == nil)
         #expect(model.visibleProblem == LogWording.missing)
         #expect(session.snapshot.shifts[mine.id] == nil)
+    }
+
+    // MARK: Changes made elsewhere while the editor is open
+
+    @Test func aBreakStartedElsewhereSurvivesAnEditorSave() async throws {
+        let open = Shift(userId: F.me, farmId: F.farmId, start: F.at(10, 19, 7, 0), rateCents: 2000)
+        let session = try await F.session(shifts: [open])
+        defer { Task { await session.stop() } }
+        let model = try #require(ShiftEditorModel(session: session, shiftId: open.id, now: { now }))
+        // Lunch from the lock screen, saved the way FieldActions saves it.
+        var withLunch = try #require(session.snapshot.shifts[open.id])
+        withLunch.breaks = [Break(kind: .lunch, start: F.at(10, 19, 12, 0), end: F.at(10, 19, 12, 30))]
+        withLunch.updatedAt = F.at(10, 19, 12, 30)
+        try session.save([.shift(withLunch)])
+
+        model.draft.notes = "Gate fixed."
+        #expect(model.save() == "Shift saved.")
+        let saved = try #require(session.snapshot.shifts[open.id])
+        #expect(saved.breaks == withLunch.breaks)
+        #expect(saved.notes == "Gate fixed.")
+        #expect(saved.isOpen)
+    }
+
+    @Test func aClockOutElsewhereWhileTheEditorIsOpenStaysClosed() async throws {
+        let open = Shift(userId: F.me, farmId: F.farmId, start: F.at(10, 19, 7, 0),
+                         breaks: [Break(kind: .break, start: F.at(10, 19, 14, 40))], rateCents: 2000)
+        let session = try await F.session(shifts: [open])
+        defer { Task { await session.stop() } }
+        let model = try #require(ShiftEditorModel(session: session, shiftId: open.id, now: { now }))
+        #expect(model.canStayOpen)
+        // "Clock out" to Siri: the running break ends too.
+        var out = try #require(session.snapshot.shifts[open.id])
+        out.end = F.at(10, 19, 15, 0)
+        out.breaks[0].end = F.at(10, 19, 15, 0)
+        out.updatedAt = F.at(10, 19, 15, 0)
+        try session.save([.shift(out)])
+
+        model.draft.notes = "Long day."
+        #expect(model.save() == "Shift saved.")
+        let saved = try #require(session.snapshot.shifts[open.id])
+        #expect(saved.end == F.at(10, 19, 15, 0))
+        #expect(saved.breaks[0].end == F.at(10, 19, 15, 0))
+        #expect(saved.notes == "Long day.")
+        #expect(!model.canStayOpen)
+    }
+
+    @Test func aPartChangedOnBothSidesAsksToLookAgain() async throws {
+        let mine = F.shift(10, 16, from: (7, 0), to: (15, 0))
+        let session = try await F.session(shifts: [mine])
+        defer { Task { await session.stop() } }
+        let model = try #require(ShiftEditorModel(session: session, shiftId: mine.id, now: { now }))
+        var noted = mine
+        noted.notes = "Said to Siri."
+        noted.updatedAt = F.at(10, 19, 15, 0)
+        try session.save([.shift(noted)])
+
+        model.draft.notes = "Typed here."
+        model.draft.start = WallClock(hour: 7, minute: 30)
+        #expect(model.save() == nil)
+        #expect(model.visibleProblem == LogWording.changedElsewhere)
+        // Nothing was written; the editor now shows the stored notes and keeps the other edit.
+        #expect(session.snapshot.shifts[mine.id]?.notes == "Said to Siri.")
+        #expect(session.snapshot.shifts[mine.id]?.start == mine.start)
+        #expect(model.draft.notes == "Said to Siri.")
+        #expect(model.draft.start == WallClock(hour: 7, minute: 30))
+
+        // Saving again writes it.
+        #expect(model.save() == "Shift saved.")
+        #expect(model.visibleProblem == nil)
+        let saved = try #require(session.snapshot.shifts[mine.id])
+        #expect(saved.notes == "Said to Siri.")
+        #expect(saved.start == F.at(10, 16, 7, 30))
+    }
+
+    @Test func savingWithoutChangesWritesNothing() async throws {
+        let mine = F.shift(10, 16, from: (7, 0), to: (15, 0))
+        let session = try await F.session(shifts: [mine])
+        defer { Task { await session.stop() } }
+        let model = try #require(ShiftEditorModel(session: session, shiftId: mine.id, now: { now }))
+        let before = try session.store.pendingCount()
+        #expect(model.save() == LogWording.unchanged)
+        #expect(try session.store.pendingCount() == before)
+        #expect(session.snapshot.shifts[mine.id]?.updatedAt == mine.updatedAt)
+    }
+
+    @Test func aStaleOpenShiftKeepsTodaysBreakOnSave() async throws {
+        // Left open since Sunday 7:00; a break this morning at 9:00, later in the day than 7:00.
+        let open = Shift(userId: F.me, farmId: F.farmId, start: F.at(10, 18, 7, 0),
+                         breaks: [Break(kind: .break, start: F.at(10, 19, 9, 0), end: F.at(10, 19, 9, 15))], rateCents: 2000)
+        let session = try await F.session(shifts: [open])
+        defer { Task { await session.stop() } }
+        let model = try #require(ShiftEditorModel(session: session, shiftId: open.id, now: { now }))
+        model.draft.notes = "Forgot to clock out."
+        #expect(model.save() == "Shift saved.")
+        let saved = try #require(session.snapshot.shifts[open.id])
+        #expect(saved.breaks == open.breaks)
+        #expect(saved.start == open.start)
+        #expect(saved.isOpen)
+    }
+
+    @Test func theDeleteCountIncludesRowsMarkedWhileOpen() async throws {
+        let open = Shift(userId: F.me, farmId: F.farmId, start: F.at(10, 19, 7, 0), rateCents: 2000)
+        let session = try await F.session(shifts: [open], marks: F.marks(rows: 0...1, on: open))
+        defer { Task { await session.stop() } }
+        let model = try #require(ShiftEditorModel(session: session, shiftId: open.id, now: { now }))
+        #expect(model.trees == 20)
+        // A row marked from the lock screen while the editor is open.
+        try session.save(F.marks(rows: 2...2, on: open).map(SyncRecord.treeMark))
+        model.askToDelete()
+        #expect(model.deleteButton == "Delete shift and 30 trees")
+        #expect(model.delete() == "Shift deleted. 30 trees unmarked.")
+        #expect(session.snapshot.marks.isEmpty)
     }
 
     @Test func totalsLineReadsWorkedAndBreaks() async throws {
