@@ -61,7 +61,8 @@ registerScene(
       const a = gsap.timeline({ paused: true });
       a.fromTo(bg, { opacity: 0, scale: 0.9, svgOrigin: '512 520' }, { opacity: 1, scale: 1, duration: 0.55, ease: 'power3.out' }, 0)
         .fromTo(shadow, { opacity: 0 }, { opacity: 1, duration: 0.8, ease: 'power1.out' }, 0.05)
-        .fromTo(ring, { strokeDashoffset: 1 }, { strokeDashoffset: 0, duration: 1, ease: 'power2.inOut' }, 0.15)
+        // The ring has pathLength 1, so its offset runs 1 → 0: tween the attribute (CSS px would round).
+        .fromTo(ring, { attr: { 'stroke-dashoffset': 1 } }, { attr: { 'stroke-dashoffset': 0 }, duration: 1, ease: 'power2.inOut' }, 0.15)
         .fromTo(ticks, { scale: 0, transformOrigin: '50% 50%' }, { scale: 1, duration: 0.32, ease: 'back.out(2.2)', stagger: 0.04 }, 0.3)
         .fromTo(hand, { opacity: 0 }, { opacity: 1, duration: 0.18, ease: 'none' }, 0.72)
         .fromTo(
@@ -81,7 +82,8 @@ registerScene(
     if (below(head, AT.head) && document.fonts.status === 'loaded') {
       const split = SplitText.create(head, { type: 'lines', mask: 'lines', linesClass: 'open-line', aria: 'auto' });
       const h = gsap.timeline({ paused: true, onComplete: () => split.revert() });
-      h.fromTo(split.lines, { yPercent: 100 }, { yPercent: 0, duration: 0.7, stagger: 0.08, ease: 'power3.out' });
+      // 115, not 100: each mask leaves .14em below its line for descenders (see Open.astro).
+      h.fromTo(split.lines, { yPercent: 115 }, { yPercent: 0, duration: 0.7, stagger: 0.08, ease: 'power3.out' });
       once(head, AT.head, () => h.play());
       cleanups.push(() => split.revert());
     }
@@ -110,8 +112,17 @@ registerScene(
       const r = gsap.timeline({ paused: true, delay: 0.15 });
       r.fromTo(rail, { '--fill': 0 }, { '--fill': fill, duration: lineDur, ease: 'power2.inOut' }, 0.1);
       dots.forEach((dot, i) => {
-        const at = i <= now && now > 0 ? 0.1 + (lineDur * i) / now - 0.08 : 0.1 + lineDur + 0.1 * (i - now);
-        r.fromTo(dot, { scale: 0 }, { scale: 1, duration: i === now ? 0.5 : 0.35, ease: i === now ? 'back.out(2.6)' : 'back.out(2)' }, Math.max(0, at));
+        const at = Math.max(0, i <= now && now > 0 ? 0.1 + (lineDur * i) / now - 0.08 : 0.1 + lineDur + 0.1 * (i - now));
+        r.fromTo(dot, { scale: 0 }, { scale: 1, duration: i === now ? 0.5 : 0.35, ease: i === now ? 'back.out(2.6)' : 'back.out(2)' }, at);
+        // "You are here": one ring rolls out from the gold stop (motion-only, so the scene makes it).
+        if (i === now) {
+          const ripple = document.createElement('span');
+          ripple.className = 'open-ripple';
+          ripple.dataset.transient = '';
+          dot.appendChild(ripple);
+          cleanups.push(() => ripple.remove());
+          r.fromTo(ripple, { opacity: 0.8, scale: 1 }, { opacity: 0, scale: 2.8, duration: 0.9, ease: 'power2.out', immediateRender: false }, at + 0.25);
+        }
       });
       once(rail, AT.rail, () => r.play());
     }

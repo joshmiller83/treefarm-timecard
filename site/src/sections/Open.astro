@@ -79,8 +79,8 @@ const fill = railFill(STATUS);
                   </g>
                   <path data-glyph-check d="M3.5 8.5l3 3 6-7" />
                 </svg>
-                <span data-copy-label>Copy</span>
-                <span class="sr-only"> the command</span>
+                <span data-copy-label aria-hidden="true">Copy</span>
+                <span class="sr-only">Copy the command</span>
               </button>
             </div>
             <div class="term-line">
@@ -193,6 +193,12 @@ const fill = railFill(STATUS);
     gap: 22px;
   }
 
+  /* SplitText's line masks (motion only): room for descenders while the lines rise. */
+  :global(#open .open-line-mask) {
+    padding-bottom: 0.14em;
+    margin-bottom: -0.14em;
+  }
+
   /* ---------- Copy ---------- */
   .lede,
   .status {
@@ -245,7 +251,7 @@ const fill = railFill(STATUS);
   .icon-sheen {
     position: absolute;
     inset: 0;
-    background: linear-gradient(105deg, transparent 30%, rgba(255, 255, 255, 0.2) 50%, transparent 70%);
+    background: linear-gradient(105deg, transparent 28%, rgba(255, 255, 255, 0.24) 50%, transparent 72%);
     opacity: 0;
   }
   .lockup-name,
@@ -332,6 +338,14 @@ const fill = railFill(STATUS);
     background: var(--gold);
     box-shadow: 0 0 0 5px rgba(226, 166, 68, 0.28);
   }
+  /* One ring rolls out from "now" as the rail arrives (the scene adds it; motion only). */
+  :global(#open .open-ripple) {
+    position: absolute;
+    inset: -1px;
+    border-radius: 50%;
+    border: 2px solid var(--gold-lit);
+    opacity: 0;
+  }
   .step[data-step='next'] .dot {
     background: var(--bg);
     box-shadow: inset 0 0 0 1.5px #6f8f7a;
@@ -351,8 +365,9 @@ const fill = railFill(STATUS);
     color: var(--sap-ink);
     font-weight: 600;
   }
-  @media (min-width: 600px) {
-    /* Across: four stops on one line, like the shift ribbon. */
+  /* Across, like the shift ribbon: wherever the copy column is wide enough for four stops
+     (a wide single column from 600px, and the desktop copy column from 1100px). */
+  @media (min-width: 600px) and (max-width: 899.98px), (min-width: 1100px) {
     .rail-steps {
       grid-template-columns: repeat(var(--steps), minmax(0, 1fr));
       grid-auto-rows: auto;
