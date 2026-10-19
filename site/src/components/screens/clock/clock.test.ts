@@ -30,7 +30,8 @@ describe('clockTab at 3:40 PM (the pace chapter)', () => {
   it('trees this shift and the field line', () => {
     expect(m.trees.label).toBe('Trees this shift');
     expect(m.trees.big).toBe('260');
-    expect(m.trees.line).toBe('2,460 of 8,540 trees shaped in North field · 29%');
+    expect(m.trees.line).toBe('2,460 of 8,540 trees shaped in North field');
+    expect(m.trees.pct).toBe('29%');
     expect(m.trees.fraction).toBeCloseTo(2460 / 8540, 5);
   });
 
@@ -107,6 +108,7 @@ describe('clockTab at other moments', () => {
     // 2,190 earlier + Alex's 290 + Sam's 10 = 2,490 of 8,540.
     expect(m.trees.big).toBe('29%');
     expect(m.trees.line).toBe('2,490 of 8,540 trees shaped in North field');
+    expect(m.trees.pct).toBeNull();
   });
 
   it('before clock-in nothing is counted yet', () => {

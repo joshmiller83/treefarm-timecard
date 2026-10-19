@@ -2,7 +2,8 @@
 /**
  * "Trees this shift" (TreesCardView): the shift's count in Plex Mono, a Mark trees button
  * that opens the map, and the field's share with a fir progress bar. Off the clock it shows
- * the field instead. Hooks: [data-trees] (the count), [data-field-bar] (fill, scaleX).
+ * the field instead. Hooks: [data-trees] (the count), [data-field-bar] (the fill; its width is
+ * the share, so a scene can scaleX it from the left), [data-field-pct].
  */
 import Glyph from '../Glyph.astro';
 import type { TreesModel } from './clock';
@@ -25,7 +26,10 @@ const { trees } = Astro.props;
     </span>
   </div>
   <div class="tr-line sc-sub">{trees.line}</div>
-  <div class="sc-progress"><span data-field-bar style={`width:${(trees.fraction * 100).toFixed(2)}%`}></span></div>
+  <div class="tr-bar">
+    <div class="sc-progress"><span data-field-bar style={`width:${(trees.fraction * 100).toFixed(2)}%`}></span></div>
+    {trees.pct && <span class="tr-pct sc-num" data-field-pct>{trees.pct}</span>}
+  </div>
 </div>
 
 <style>
@@ -51,7 +55,17 @@ const { trees } = Astro.props;
   .tr-line {
     margin-top: calc(8 * var(--pt));
   }
-  .sc-progress {
-    margin-top: calc(10 * var(--pt));
+  .tr-bar {
+    display: flex;
+    align-items: center;
+    gap: calc(10 * var(--pt));
+    margin-top: calc(8 * var(--pt));
+  }
+  .tr-bar .sc-progress {
+    flex: 1 1 auto;
+  }
+  .tr-pct {
+    font-size: calc(13 * var(--pt));
+    color: var(--fir);
   }
 </style>

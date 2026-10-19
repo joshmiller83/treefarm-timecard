@@ -68,7 +68,8 @@ test.describe('Clock tab at 3:40 PM', () => {
     await expect(now.locator('[data-now-break]')).toHaveText('Break');
 
     await expect(s.locator('[data-trees]')).toHaveText('260');
-    await expect(s.locator('[data-trees-card]')).toContainText('2,460 of 8,540 trees shaped in North field · 29%');
+    await expect(s.locator('[data-trees-card]')).toContainText('2,460 of 8,540 trees shaped in North field');
+    await expect(s.locator('[data-field-pct]')).toHaveText('29%');
   });
 
   test('pace rows and the week chart match the brief, pay hidden', async ({ page }) => {
@@ -155,6 +156,18 @@ test.describe('Clock tab at 3:40 PM', () => {
       return out;
     });
     expect(spills).toEqual([]);
+
+    // Lines that must stay on one line at every phone size (text does not scale perfectly).
+    for (const sel of ['[data-trees-card] .sc-sub', '[data-status-card] .st-meta', '[data-pace-row="best"]', '[data-team-total]']) {
+      for (const el of await page.locator(sel).all()) {
+        const lines = await el.evaluate((n) => {
+          const cs = getComputedStyle(n);
+          const content = n.getBoundingClientRect().height - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+          return content / parseFloat(cs.lineHeight);
+        });
+        expect(lines, sel).toBeLessThan(1.5);
+      }
+    }
   });
 
   test('a crop scrolls the layer to the pace card', async ({ page }) => {

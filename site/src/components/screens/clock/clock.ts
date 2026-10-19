@@ -152,8 +152,10 @@ export interface TreesModel {
   /** 'Trees this shift', or 'Field' off the clock. */
   label: string;
   big: string;
-  /** '2,460 of 8,540 trees shaped in North field · 29%' */
+  /** '2,460 of 8,540 trees shaped in North field' */
   line: string;
+  /** '29%', beside the progress bar (null off the clock, where it is the big number). */
+  pct: string | null;
   fraction: number;
   /** 'Mark trees' on a shift, 'See the field' off it. */
   button: string;
@@ -164,8 +166,9 @@ function trees(min: Minute): TreesModel {
   const pct = percentShaped(shaped, FIELD_TREES);
   const of = `${fmtCount(shaped)} of ${fmtCount(FIELD_TREES)} trees shaped in ${FIELD.name}`;
   const fraction = shaped / FIELD_TREES;
-  if (phaseAt(min) === 'off') return { label: 'Field', big: `${pct}%`, line: of, fraction, button: 'See the field' };
-  return { label: 'Trees this shift', big: fmtCount(treesAt(min)), line: `${of} · ${pct}%`, fraction, button: 'Mark trees' };
+  const base = { line: of, pct: `${pct}%`, fraction };
+  if (phaseAt(min) === 'off') return { ...base, pct: null, label: 'Field', big: `${pct}%`, button: 'See the field' };
+  return { ...base, label: 'Trees this shift', big: fmtCount(treesAt(min)), button: 'Mark trees' };
 }
 
 export interface PaceModel {
