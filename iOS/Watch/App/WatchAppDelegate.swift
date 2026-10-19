@@ -1,25 +1,23 @@
 import HealthKit
 import WatchKit
 
-// STUB: slice a replaces
-//
-// The wiring slice 0 fixed (docs/watch.md 8.3):
-// - `applicationDidFinishLaunching`: activate the transport, then `ShiftWorkout.shared.recoverIfNeeded()`.
-// - `handleActiveWorkoutRecovery()`: `ShiftWorkout.shared.recoverIfNeeded()`.
-// - `handle(_ workoutConfiguration:)`: `ShiftWorkout.shared.handleLaunch()`.
+/// The watch app's delegate (docs/watch.md 8.3). WatchKit calls it on the main actor.
+///
+/// - At launch: activate the model (and its transport) first, then let the workout recover a
+///   session a crash left behind, which runs before any other workout input.
+/// - `handleActiveWorkoutRecovery()`: the same recovery.
+/// - `handle(_ workoutConfiguration:)`: the iPhone's `startWatchApp` after a phone clock-in.
 final class WatchAppDelegate: NSObject, WKApplicationDelegate {
     func applicationDidFinishLaunching() {
-        Task { @MainActor in
-            WatchShiftModel.shared.activate()
-            ShiftWorkout.shared.recoverIfNeeded()
-        }
+        WatchShiftModel.shared.activate()
+        ShiftWorkout.shared.recoverIfNeeded()
     }
 
     func handleActiveWorkoutRecovery() {
-        Task { @MainActor in ShiftWorkout.shared.recoverIfNeeded() }
+        ShiftWorkout.shared.recoverIfNeeded()
     }
 
     func handle(_ workoutConfiguration: HKWorkoutConfiguration) {
-        Task { @MainActor in ShiftWorkout.shared.handleLaunch() }
+        ShiftWorkout.shared.handleLaunch()
     }
 }
