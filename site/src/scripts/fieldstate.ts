@@ -142,11 +142,15 @@ export function frameRect(orientation: Orientation): Rect {
     : { x: -7.5, y: -1, w: GRID_H + 15, h: GRID_W + 2 };
 }
 
-/** The close-up's rect: the rows plus a gutter on the left for their numbers (world/portrait). */
+/**
+ * The close-up's rect (world/portrait): the rows, a gutter on the left for their numbers that
+ * shows the neighbouring block's last column whole, and the rows just above and below whole
+ * (both dimmed as context). No dot is cut by the edge.
+ */
 export function targetRect(t: ZoomTarget, orientation: Orientation = 'portrait'): Rect {
   const o = blockRect(t.block, 'portrait');
   const n = t.to - t.from + 1;
-  return rectToFrame({ x: o.x - 3, y: o.y + t.from - 1 - 0.75, w: ACROSS + 3.75, h: n + 1.5 }, orientation);
+  return rectToFrame({ x: o.x - 2.6, y: o.y + t.from - 1 - 0.85, w: ACROSS + 2.6 + 0.75, h: n + 1.7 }, orientation);
 }
 
 // ---------------------------------------------------------------------------
@@ -473,7 +477,8 @@ export function fieldSVG(o: SvgOptions): string {
   out.push(
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${n2(vb.x)} ${n2(vb.y)} ${n2(vb.w)} ${n2(vb.h)}" preserveAspectRatio="xMidYMid meet" aria-hidden="true" focusable="false"${o.class ? ` class="${o.class}"` : ''}>`,
     '<defs>',
-    `<pattern id="${id}-r" width="1" height="1" patternUnits="userSpaceOnUse"><circle cx=".5" cy=".5" r="${n2(DOT_R - 0.07)}" fill="none" stroke="${t.ring}" stroke-width=".14"/></pattern>`,
+    // The ring's stroke is ~1.5px at either scale (the overview's pitch is ~9px, the close-up's ~24px).
+    `<pattern id="${id}-r" width="1" height="1" patternUnits="userSpaceOnUse"><circle cx=".5" cy=".5" r="${n2(DOT_R - (z ? 0.035 : 0.07))}" fill="none" stroke="${t.ring}" stroke-width="${z ? '.07' : '.14'}"/></pattern>`,
     `<pattern id="${id}-e" width="1" height="1" patternUnits="userSpaceOnUse"><circle cx=".5" cy=".5" r="${DOT_R}" fill="${t.earlier}"/></pattern>`,
     `<pattern id="${id}-t" width="1" height="1" patternUnits="userSpaceOnUse"><circle cx=".5" cy=".5" r="${n2(DOT_R * TODAY_SCALE)}" fill="${t.today}"/></pattern>`,
     '</defs>',

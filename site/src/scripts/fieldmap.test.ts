@@ -333,6 +333,8 @@ describe('camera', () => {
     // Snapped to whole device pixels per pitch, and capped.
     expect(fitView({ x: 0, y: 0, w: 30, h: 30 }, 400, 400, {}, Infinity, 2).s).toBe(13);
     expect(fitView({ x: 0, y: 0, w: 10, h: 10 }, 400, 400, {}, 24, 2).s).toBe(24);
+    // …but not when that would shrink a small map by more than 6% (3.9 → 3 at 1×).
+    expect(fitView({ x: 0, y: 0, w: 100, h: 100 }, 390, 390, {}, Infinity, 1).s).toBe(3.9);
   });
 
   it('interpolates zoom geometrically about a fixed anchor', () => {

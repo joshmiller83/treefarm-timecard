@@ -134,7 +134,8 @@ export interface Pad {
 
 /**
  * Fits `r` (in screen-aligned frame units) into W × H minus padding (px), centred in the padded
- * box. `cap` limits the scale; with `dpr` the scale snaps down to whole device pixels per pitch.
+ * box. `cap` limits the scale; with `dpr` the scale snaps down to whole device pixels per pitch
+ * when that costs at most 6%.
  */
 export function fitView(r: Rect, W: number, H: number, pad: Pad = {}, cap = Infinity, dpr = 0): View {
   const l = pad.l ?? 0;
@@ -142,7 +143,11 @@ export function fitView(r: Rect, W: number, H: number, pad: Pad = {}, cap = Infi
   const tp = pad.t ?? 0;
   const b = pad.b ?? 0;
   let s = Math.max(0.0001, Math.min(cap, (W - l - rr) / r.w, (H - tp - b) / r.h));
-  if (dpr > 0) s = Math.max(1, Math.floor(s * dpr + 1e-6)) / dpr;
+  // Snap to whole device pixels per pitch (pixel-exact rest frames) unless that shrinks it by more than 6%.
+  if (dpr > 0) {
+    const snapped = Math.max(1, Math.floor(s * dpr + 1e-6)) / dpr;
+    if (snapped >= s * 0.94) s = snapped;
+  }
   return { cx: r.x + r.w / 2 - (l - rr) / 2 / s, cy: r.y + r.h / 2 - (tp - b) / 2 / s, s, r: 0 };
 }
 
