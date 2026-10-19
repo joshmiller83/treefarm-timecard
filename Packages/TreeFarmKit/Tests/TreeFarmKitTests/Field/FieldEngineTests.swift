@@ -226,6 +226,119 @@ struct FieldEngineTests {
         #expect(undo.isEmpty)
     }
 
+    // MARK: undo across shift boundaries
+
+    @Test mutating func clockingOutForgetsWhatCouldBeUndone() throws {
+        _ = FieldEngine.run(.clockIn(fieldId: nil), &f.state, &undo, at: f.monday9)
+        _ = FieldEngine.run(.startBreak(.lunch, reason: ""), &f.state, &undo, at: f.at(180))
+        _ = FieldEngine.run(.endBreak, &f.state, &undo, at: f.at(210))
+        _ = FieldEngine.run(.clockOut, &f.state, &undo, at: f.at(480))
+        #expect(undo.isEmpty)
+        let r = FieldEngine.run(.undo, &f.state, &undo, at: f.at(481))
+        #expect(r.speech == "There’s nothing to undo.")
+        let shift = try #require(f.state.myShifts.first)
+        #expect(shift.end == f.at(480))
+        #expect(shift.openBreak == nil)
+    }
+
+    @Test mutating func undoTheNextDayCantOpenASecondShift() {
+        _ = FieldEngine.run(.clockIn(fieldId: nil), &f.state, &undo, at: f.monday9)
+        _ = FieldEngine.run(.startBreak(.lunch, reason: ""), &f.state, &undo, at: f.at(180))
+        // The shift is closed in the Log, not by the engine, so the lunch is still on the stack.
+        var closed = f.state.openShift!
+        closed.breaks[0].end = f.at(200)
+        closed.end = f.at(480)
+        closed.updatedAt = f.at(490)
+        f.state = f.state.applying([.shift(closed)])
+        let tomorrow = f.at(24 * 60)
+        _ = FieldEngine.run(.clockIn(fieldId: nil), &f.state, &undo, at: tomorrow)
+        let r = FieldEngine.run(.undo, &f.state, &undo, at: tomorrow.addingTimeInterval(60))
+        #expect(r.speech == "There’s nothing to undo.")
+        #expect(f.state.liveShifts.filter(\.isOpen).count == 1)
+    }
+
+    @Test mutating func undoRefusesAShiftClosedElsewhere() throws {
+        _ = FieldEngine.run(.clockIn(fieldId: nil), &f.state, &undo, at: f.monday9)
+        _ = FieldEngine.run(.startBreak(.lunch, reason: ""), &f.state, &undo, at: f.at(180))
+        var closed = try #require(f.state.openShift)
+        closed.breaks[0].end = f.at(200)
+        closed.end = f.at(480)
+        closed.updatedAt = f.at(490)
+        f.state = f.state.applying([.shift(closed)])
+        let r = FieldEngine.run(.undo, &f.state, &undo, at: f.at(500))
+        #expect(r.speech == "That changed since, so it can’t be undone.")
+        #expect(f.state.myShifts == [closed])
+        #expect(undo.isEmpty)
+    }
+
+    @Test mutating func undoCantReviveAShiftDeletedInTheLog() throws {
+        _ = FieldEngine.run(.clockIn(fieldId: nil), &f.state, &undo, at: f.monday9)
+        _ = FieldEngine.run(.startBreak(.lunch, reason: ""), &f.state, &undo, at: f.at(180))
+        var gone = try #require(f.state.openShift)
+        gone.deletedAt = f.at(190)
+        gone.updatedAt = f.at(190)
+        f.state = f.state.applying([.shift(gone)])
+        let r = FieldEngine.run(.undo, &f.state, &undo, at: f.at(191))
+        #expect(r.speech == "That changed since, so it can’t be undone.")
+        #expect(f.state.liveShifts.isEmpty)
+        if case .success(let o) = r { Issue.record("undo wrote \(o.records)") }
+    }
+
+    @Test mutating func undoKeepsAnAdminFixThatArrivedBySync() throws {
+        _ = FieldEngine.run(.clockIn(fieldId: nil), &f.state, &undo, at: f.monday9)
+        _ = FieldEngine.run(.startBreak(.lunch, reason: ""), &f.state, &undo, at: f.at(180))
+        var fixed = try #require(f.state.openShift)
+        fixed.start = f.at(-30)
+        fixed.updatedAt = f.at(185)
+        f.state = f.state.applying([.shift(fixed)])
+        let r = FieldEngine.run(.undo, &f.state, &undo, at: f.at(186))
+        #expect(r.speech == "That changed since, so it can’t be undone.")
+        #expect(f.state.openShift == fixed)
+    }
+
+    @Test mutating func undoRefusesMarksTheServerTookBack() throws {
+        _ = FieldEngine.run(.clockIn(fieldId: nil), &f.state, &undo, at: f.monday9)
+        _ = FieldEngine.run(.markNextRow, &f.state, &undo, at: f.at(10))
+        // Sam's phone got there first: the server refused one of the four.
+        let lost = try #require(f.state.marks.first)
+        f.state.marks.removeAll { $0.id == lost.id }
+        let r = FieldEngine.run(.undo, &f.state, &undo, at: f.at(11))
+        #expect(r.speech == "That changed since, so it can’t be undone.")
+        #expect(f.state.marks.count == 3)
+    }
+
+    @Test mutating func undoStillWorksWhenNothingChanged() throws {
+        _ = FieldEngine.run(.clockIn(fieldId: nil), &f.state, &undo, at: f.monday9)
+        _ = FieldEngine.run(.markNextRow, &f.state, &undo, at: f.at(10))
+        _ = FieldEngine.run(.startBreak(.lunch, reason: ""), &f.state, &undo, at: f.at(180))
+        #expect(FieldEngine.run(.undo, &f.state, &undo, at: f.at(181)).speech == "Undid lunch.")
+        #expect(FieldEngine.run(.undo, &f.state, &undo, at: f.at(182)).speech == "Undid row 1.")
+        #expect(FieldEngine.run(.moveTo(blockId: f.block2.id, row: nil), &f.state, &undo, at: f.at(183)).speech == "Okay, block 2, row 1 is next.")
+        #expect(FieldEngine.run(.undo, &f.state, &undo, at: f.at(184)).speech == "Undid the move.")
+    }
+
+    @Test mutating func undoingTwoShiftChangesInARow() throws {
+        _ = FieldEngine.run(.clockIn(fieldId: nil), &f.state, &undo, at: f.monday9)
+        _ = FieldEngine.run(.addShiftNote("Wet rows"), &f.state, &undo, at: f.at(5))
+        _ = FieldEngine.run(.startBreak(.lunch, reason: ""), &f.state, &undo, at: f.at(180))
+        #expect(FieldEngine.run(.undo, &f.state, &undo, at: f.at(181)).speech == "Undid lunch.")
+        #expect(FieldEngine.run(.undo, &f.state, &undo, at: f.at(182)).speech == "Undid the note.")
+        let shift = try #require(f.state.openShift)
+        #expect(shift.notes.isEmpty)
+        #expect(shift.breaks.isEmpty)
+    }
+
+    @Test func undoEntriesSavedBeforeTheCheckCantBeUndone() throws {
+        let shift = Shift(userId: f.josh.userId, farmId: f.farm.id, start: f.monday9, rateCents: 0, updatedAt: f.monday9)
+        let old = #"{"label":"lunch","restore":[{"kind":"shift","data":\#(String(decoding: try JSONCoding.encoder().encode(shift), as: UTF8.self))}]}"#
+        let entry = try JSONCoding.decoder().decode(UndoEntry.self, from: Data(old.utf8))
+        var state = f.state
+        state.myShifts = [shift]
+        #expect(!entry.isCurrent(in: state))
+        let move = try JSONCoding.decoder().decode(UndoEntry.self, from: Data(#"{"label":"the move","restore":[]}"#.utf8))
+        #expect(move.isCurrent(in: state))
+    }
+
     // MARK: notes and start time
 
     @Test mutating func shiftNotesAppend() throws {

@@ -19,6 +19,10 @@ struct FieldActionsTests {
     }
 
     func signedInSession() async throws -> TimeCardSession {
+        try await signedInSessionAndServer().0
+    }
+
+    func signedInSessionAndServer() async throws -> (TimeCardSession, StubAPIClient) {
         let stub = StubAPIClient()
         await stub.seed(farmId: f.farmId, f.layout)
         await stub.addAccount(email: "josh@example.com", password: "pw", me: me)
@@ -28,7 +32,7 @@ struct FieldActionsTests {
         try await session.signIn(email: "josh@example.com", password: "pw")
         _ = await session.syncNow()
         #expect(session.snapshot.blocks[f.blockId] != nil)
-        return session
+        return (session, stub)
     }
 
     func spoken(_ date: Date) -> String { Fmt.spokenTime(date, FarmCalendar(farm: f.farm)) }
@@ -104,6 +108,86 @@ struct FieldActionsTests {
         #expect((seen.last ?? nil)?.phase == .lunch)
         actions.perform(.clockOut)
         #expect(seen.last == .some(nil))
+    }
+
+    // MARK: Undo across shift boundaries (each was a probe that went wrong)
+
+    @Test func undoAfterClockOutDoesntReopenTheShift() async throws {
+        let session = try await signedInSession()
+        let actions = FieldActions(session: session, now: clock.read)
+        actions.perform(.clockIn(fieldId: nil))
+        clock.advance(minutes: 180)
+        actions.perform(.startBreak(.lunch, reason: ""))
+        clock.advance(minutes: 30)
+        actions.perform(.endBreak)
+        clock.advance(minutes: 240)
+        actions.perform(.clockOut)
+        #expect(!actions.canUndo)
+        clock.advance(minutes: 1)
+        #expect(actions.perform(.undo).speech == "There’s nothing to undo.")
+        #expect(session.snapshot.openShift(for: f.userId) == nil)
+    }
+
+    @Test func undoTheNextDayDoesntOpenASecondShift() async throws {
+        let session = try await signedInSession()
+        let actions = FieldActions(session: session, now: clock.read)
+        actions.perform(.clockIn(fieldId: nil))
+        clock.advance(minutes: 180)
+        actions.perform(.startBreak(.lunch, reason: ""))
+        // Closed in the Log rather than by the engine.
+        var closed = try #require(session.snapshot.openShift(for: f.userId))
+        closed.breaks[0].end = clock.now.addingTimeInterval(1800).roundedToMillisecond
+        closed.end = clock.now.addingTimeInterval(4 * 3600).roundedToMillisecond
+        closed.updatedAt = clock.now.addingTimeInterval(1).roundedToMillisecond
+        try session.save([.shift(closed)])
+
+        clock.advance(minutes: 24 * 60)
+        #expect(actions.perform(.clockIn(fieldId: nil)).succeeded)
+        clock.advance(minutes: 1)
+        #expect(actions.perform(.undo).speech == "There’s nothing to undo.")
+        #expect(session.snapshot.shifts.values.filter(\.isOpen).count == 1)
+    }
+
+    @Test func undoDoesntReviveAShiftDeletedInTheLog() async throws {
+        let session = try await signedInSession()
+        let actions = FieldActions(session: session, now: clock.read)
+        actions.perform(.clockIn(fieldId: nil))
+        clock.advance(minutes: 60)
+        actions.perform(.startBreak(.lunch, reason: ""))
+        var gone = try #require(session.snapshot.openShift(for: f.userId))
+        gone.deletedAt = clock.now.addingTimeInterval(1).roundedToMillisecond
+        gone.updatedAt = gone.deletedAt!
+        try session.save([.shift(gone)])
+
+        clock.advance(minutes: 1)
+        var seen: [LiveSnapshot?] = []
+        actions.onLiveSnapshot = { seen.append($0) }
+        #expect(actions.perform(.undo).speech == "That changed since, so it can’t be undone.")
+        #expect(session.snapshot.shifts.isEmpty)
+        #expect(!actions.canUndo)
+        #expect(actions.perform(.undo).speech == "There’s nothing to undo.")
+    }
+
+    @Test func undoKeepsAnAdminFixThatArrivedBySync() async throws {
+        let (session, server) = try await signedInSessionAndServer()
+        let actions = FieldActions(session: session, now: clock.read)
+        actions.perform(.clockIn(fieldId: nil))
+        clock.advance(minutes: 60)
+        actions.perform(.startBreak(.lunch, reason: ""))
+        _ = await session.syncNow()
+        #expect(try store.pendingCount(farmId: f.farmId) == 0)
+
+        // An admin moves the start time on another phone; it arrives by sync.
+        var fixed = try #require(session.snapshot.openShift(for: f.userId))
+        fixed.start = fixed.start.addingTimeInterval(-1800)
+        fixed.updatedAt = clock.now.addingTimeInterval(5).roundedToMillisecond
+        _ = try await server.push(farmId: f.farmId, PushRequest(mutations: [Mutation(record: .shift(fixed))]))
+        _ = await session.syncNow()
+        #expect(session.snapshot.openShift(for: f.userId) == fixed)
+
+        clock.advance(minutes: 1)
+        #expect(actions.perform(.undo).speech == "That changed since, so it can’t be undone.")
+        #expect(session.snapshot.openShift(for: f.userId) == fixed)
     }
 
     @Test func failuresChangeNothing() async throws {

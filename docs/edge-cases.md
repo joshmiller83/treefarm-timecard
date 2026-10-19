@@ -50,5 +50,6 @@ Each line here has a test, written before the code it covers. The test name is i
 - A spoken row far from where you are ("forty" heard for "fourteen") asks before marking.
 - "Next row" when the next open row is in another block says the block out loud.
 - Answering "no" to the clock-out question changes nothing.
+- Undo never crosses a shift: clocking in or out clears it, and it refuses anything changed since (deleted in the Log, fixed by an admin, refused by the server) [clockingOutForgetsWhatCouldBeUndone, undoCantReviveAShiftDeletedInTheLog, undoKeepsAnAdminFixThatArrivedBySync].
 - A dictated note over the length limit is trimmed, and Siri says so.
 - Pay is spoken on a locked phone only if you turned that on.

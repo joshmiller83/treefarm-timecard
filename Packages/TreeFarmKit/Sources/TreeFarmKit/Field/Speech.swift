@@ -8,6 +8,8 @@ public enum Speech {
     public static let blockGone = "That block isn’t on the map anymore."
     public static let emptyNote = "The note was empty, so nothing was saved."
     public static let nothingToUndo = "There’s nothing to undo."
+    /// What the undo would put back was changed since (in the Log, by an admin, or by sync).
+    public static let undoChanged = "That changed since, so it can’t be undone."
     /// The phone couldn't write the change (the app, Siri and the lock screen say the same).
     public static let saveFailed = "Couldn’t save that on this phone. Try again."
 

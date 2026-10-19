@@ -67,6 +67,11 @@ public final class FieldActions {
 
         switch FieldEngine.perform(command, state: state, undo: &undo, now: at) {
         case .failure(let failure):
+            // An undo that couldn't be used is dropped, so the next one isn't stuck on it.
+            if undo.entries != before.entries {
+                save(undo, "undo", farm: farmId, user: userId)
+                publishLiveSnapshot()
+            }
             return FieldReply(speech: failure.speech, succeeded: false)
         case .success(let outcome):
             do {
