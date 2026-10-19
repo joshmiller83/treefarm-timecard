@@ -588,14 +588,8 @@ struct GloveToggleStyle: ToggleStyle {
     }
 }
 
-/// The one button that can't be undone: white on rust, with a deeper rust in dark mode so the
-/// text keeps at least 4.5:1 contrast there too (the light-mode rust is already 6.7:1).
+/// The one button that can't be undone: white on `rustFill` (5.5:1 or more in both modes).
 private struct ConfirmDeleteStyle: ButtonStyle {
-    @Environment(\.colorScheme) private var scheme
-
-    /// #B4452B: white on it is 5.5:1.
-    private static let darkFill = Color(red: 0xB4 / 255, green: 0x45 / 255, blue: 0x2B / 255)
-
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.headline)
@@ -604,7 +598,7 @@ private struct ConfirmDeleteStyle: ButtonStyle {
             .padding(.horizontal, 18)
             .padding(.vertical, 12)
             .frame(maxWidth: .infinity, minHeight: GloveButtonStyle.minHeight)
-            .background(scheme == .dark ? Self.darkFill : Palette.rust, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .background(Palette.rustFill, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
             .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             .opacity(configuration.isPressed ? 0.82 : 1)
             .scaleEffect(configuration.isPressed ? 0.98 : 1)

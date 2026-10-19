@@ -49,7 +49,7 @@ struct GloveButtonStyle: ButtonStyle {
         switch kind {
         case .primary: Palette.fir
         case .secondary: Palette.surface
-        case .destructive: Palette.rust
+        case .destructive: Palette.rustFill
         }
     }
 }
