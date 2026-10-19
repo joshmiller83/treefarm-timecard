@@ -42,6 +42,7 @@ struct PushApplier {
         case .season(let season): return try await applySeason(season)
         case .field(let field): return try await applyField(field)
         case .block(let block): return try await applyBlock(block)
+        case .treeNote(let note): return try await applyNote(note)
         default: return .rejected(.invalid, "That kind of record can’t be pushed yet.")
         }
     }
@@ -183,6 +184,37 @@ struct PushApplier {
             if case .treeNote(let n) = $0.record { return n }
             return nil
         }
+    }
+
+    // MARK: Tree notes
+
+    /// Anyone writes notes, in their own name. The author edits or deletes their
+    /// own; admins any. Who wrote it and when stay as the server first stored them.
+    func applyNote(_ incoming: TreeNote) async throws -> Outcome {
+        guard incoming.farmId == farmId else { return .rejected(.forbidden, "That note belongs to another farm.") }
+        var note = incoming
+        note.body = Limits.clampNotes(note.body)
+        let stored = try await store.find(.treeNote, note.id, farm: farmId)
+        if case .treeNote(let old)? = stored?.record {
+            guard isAdmin || old.authorId == caller.userId else {
+                return .rejected(.forbidden, "Only the person who wrote a note or an admin can change it.")
+            }
+            guard old.tree == note.tree else { return .rejected(.invalid, "A note can’t move to another tree.") }
+            note.authorId = old.authorId
+            note.authorName = old.authorName
+            note.createdAt = old.createdAt
+        } else {
+            guard note.authorId == caller.userId else { return .rejected(.forbidden, "Notes are written in your own name.") }
+            note.authorName = caller.displayName
+        }
+        guard let block = try await store.block(note.blockId, farm: farmId) else {
+            return .rejected(.notFound, "That block isn’t on this farm.")
+        }
+        if note.isLive, block.deletedAt != nil || !block.contains(note.tree) {
+            return .rejected(.invalid, "That tree isn’t in \(block.displayName).")
+        }
+        if let settled = try settle(.treeNote(note), against: stored, noun: "note") { return settled }
+        return try await save(.treeNote(note))
     }
 
     // MARK: Tree marks
