@@ -83,8 +83,8 @@ struct WatchLinkTests {
 
     @Test func envelopesCarryTheVersion() throws {
         let data = try WatchEnvelope(.request(WatchRequest(body: .refresh, issuedAt: t0))).data()
-        let json = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
-        #expect(json["v"] as? Int == WatchWire.version)
+        struct VersionOnly: Decodable { var v: Int }
+        #expect(try JSONDecoder().decode(VersionOnly.self, from: data).v == WatchWire.version)
         #expect(WatchWire.version == 1)
     }
 
