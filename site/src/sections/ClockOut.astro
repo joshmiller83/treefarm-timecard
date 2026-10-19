@@ -181,6 +181,8 @@ const alt = {
 
   <div slot="after" class="co-after" data-co-after>
     <div class="co-copy" data-co-copy>
+      <!-- The payoff, the first words on the paper once the lights come up. -->
+      <p class="co-close">{COPY.close}</p>
       <h3 class="display-m co-h3">{COPY.reportHeading}</h3>
       <p class="co-body">{COPY.report}</p>
       <ul class="co-points">
@@ -355,6 +357,17 @@ const alt = {
   .co-reply {
     color: var(--co-muted);
     border-left-color: var(--co-rule);
+  }
+  /* The payoff, after Siri's last word: the shift, done without taking a glove off. */
+  .co-close {
+    margin-bottom: 28px;
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: clamp(1.75rem, 1.3rem + 1.6vw, 2.5rem);
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+    color: var(--co-text);
+    text-wrap: balance;
   }
 
   /* ---------- Forgot to clock out: the safety net ---------- */
@@ -581,9 +594,13 @@ const alt = {
       row-gap: 18px;
       align-items: start;
     }
+    .co-after > .co-copy > .co-close {
+      grid-column: 1 / -1;
+      grid-row: 1;
+    }
     .co-after > .co-copy > .co-h3 {
       grid-column: 1 / span 5;
-      grid-row: 1 / span 2;
+      grid-row: 2 / span 2;
     }
     .co-after > .co-copy > .co-body,
     .co-after > .co-copy > .co-points {

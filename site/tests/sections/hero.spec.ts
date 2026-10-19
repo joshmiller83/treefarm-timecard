@@ -73,7 +73,7 @@ test.describe('the hero', () => {
     await expect(hero.locator('.hero-body')).toContainText('with your phone locked in your pocket');
     // The sentences are separate spans (blocks on phones): their spaces must survive.
     await expect(hero.locator('.hero-body')).toContainText('Christmas trees. Clock in');
-    await expect(hero.locator('.hero-body')).toContainText('in your pocket. The lock screen does the rest.');
+    await expect(hero.locator('.hero-body')).toContainText('in your pocket. The lock screen does the rest, and the whole crew shares one map of the field.');
     await expect(hero.locator('.pill-status')).toHaveText(STATUS);
     const gh = hero.getByRole('link', { name: 'Follow along on GitHub' });
     await expect(gh).toHaveAttribute('href', REPO);
@@ -136,6 +136,8 @@ test.describe('the hero', () => {
   });
 
   test('starts the Live Activity timer at 0:00:00 as the card lands', async ({ page }) => {
+    // Phones: a short screen, so the phone's half waits below the fold until it scrolls in.
+    if (isMobile(page)) await page.setViewportSize({ width: 375, height: 640 });
     await page.goto('/');
     await booted(page);
     test.skip((await page.locator('#hero').getAttribute('data-intro-clock')) !== 'on', 'needs the DayClock runtime in the scene context (ctx.clock, foundation)');
@@ -264,6 +266,9 @@ test.describe('the hero on a phone', () => {
   });
 
   test('waits to play the phone’s half until the phone is on screen', async ({ page }) => {
+    // A short phone, where the hero's phone starts below the fold (on taller ones its Dynamic
+    // Island and lock-screen clock peek over it, and its half plays at once).
+    await page.setViewportSize({ width: 375, height: 640 });
     await page.goto('/');
     await booted(page);
     await page.waitForTimeout(1200);

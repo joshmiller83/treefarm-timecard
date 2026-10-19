@@ -206,6 +206,8 @@ export const COPY = {
   exportsLead: 'Exports as',
   exports: ['PDF', 'CSV'],
   lockCaption: `At ${fmtTime(AT)} Siri confirms, the Live Activity ends and the lock screen goes quiet.`,
+  /** The payoff under Siri's last reply (no numbers of its own: the reply has them). */
+  close: 'That’s the shift. Gloves on all day.',
   reportCaption: 'The Report tab: pick a range, then share it as a PDF or a CSV.',
 } as const;
 

@@ -34,7 +34,11 @@ const label = heroPhoneLabel();
     <p class="hero-body" data-intro>
       <span class="hero-s">Time Card is an iPhone time card for people who shape Christmas trees.</span>{' '}
       <span class="hero-s">Clock in, mark your rows and take lunch by voice, with your phone locked in your pocket.</span>{' '}
-      <span class="hero-s">The lock screen does the rest.</span>
+      <span class="hero-s">The lock screen does the rest, and the whole crew shares one map of the field.</span>
+      {/* Phones get the same promise in four short lines, so the phone below peeks over the fold.
+          Two blocks, so neither outweighs the H1 (the LCP). */}
+      <span class="hero-short">An iPhone time card for Christmas tree trimmers.</span>{' '}
+      <span class="hero-short">Clock in, mark rows and take lunch by voice, phone locked in your pocket.</span>
     </p>
     <p class="hero-status" data-intro><span class="pill-status">In development · TestFlight beta coming</span></p>
     <div class="hero-cta" data-intro>
@@ -299,15 +303,45 @@ const label = heroPhoneLabel();
       top: var(--my);
     }
   }
+  #hero .hero-short {
+    display: none;
+  }
   @media (max-width: 599.98px) {
+    /* Phones: the short body (one display: none or the other, so a screen reader hears one). */
+    #hero .hero-body .hero-s {
+      display: none !important;
+    }
+    #hero .hero-short {
+      display: block;
+      text-wrap: pretty;
+    }
+    /* The fine print's points are in the status pill and the closing chapter; the room goes
+       to the phone, whose Dynamic Island and lock screen now peek over the fold. */
+    #hero .hero-fine {
+      display: none;
+    }
+    #hero .hero-cta {
+      margin-top: 24px;
+    }
+    #hero .hero-status {
+      margin-top: 18px;
+    }
+    #hero .beat-intro {
+      margin-top: 20px;
+    }
+    #hero.sec .track {
+      row-gap: 20px;
+      padding-top: 56px;
+    }
+    #hero .hero-shot {
+      gap: 16px;
+    }
+    #hero .hero-said {
+      gap: 8px;
+    }
     /* A bigger headline on phones: it reads first and stays the largest block (the LCP). */
     #hero .beat-head h1 {
       font-size: clamp(3.3rem, 2.7rem + 3.4vw, 3.5rem);
-    }
-    /* Each sentence fills the measure (pretty only avoids a lone last word). */
-    #hero .hero-s {
-      display: block;
-      text-wrap: pretty;
     }
     /* One line on phones from 360px: a touch smaller and tighter than the desktop eyebrow. */
     #hero .beat-head .eyebrow {
