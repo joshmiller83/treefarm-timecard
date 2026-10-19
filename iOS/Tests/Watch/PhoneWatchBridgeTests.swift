@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 import Testing
 import TimeCardCore
 import TreeFarmKitTestSupport
@@ -336,6 +337,52 @@ struct PhoneWatchBridgeTests {
         #expect(!WatchComplicationPusher.shouldLaunchWorkout(before: .offClock, state: working, openedByWatch: false, watchAppInstalled: false))
         working.recordWorkouts = false
         #expect(!WatchComplicationPusher.shouldLaunchWorkout(before: .offClock, state: working, openedByWatch: false, watchAppInstalled: true))
+    }
+
+    // MARK: Settings renders
+
+    /// Renders Settings › Apple Watch in each state, light and dark, default and accessibility
+    /// text, into iOS/build/WatchSettingsRenders (git-ignored) for a person to look at.
+    @Test func theSettingsSectionRenders() async throws {
+        let cases: [(String, FakeWatchTransport, Bool)] = [
+            ("in-reach", FakeWatchTransport(), true),
+            ("recording-off", FakeWatchTransport(), false),
+            ("out-of-reach", FakeWatchTransport(reachable: false), true),
+            ("not-installed", FakeWatchTransport(installed: false), true),
+        ]
+        for (name, fake, record) in cases {
+            let h = await harness(fake, recordWorkouts: record)
+            await eventually { h.bridge.status != .noWatch }
+            for scheme in [ColorScheme.light, .dark] {
+                for size in [DynamicTypeSize.large, .accessibility3] {
+                    let page = VStack { WatchSettingsSection() }
+                        .padding(16)
+                        .frame(width: 390)
+                        .screenBackground()
+                        .environment(h.model)
+                        .environment(h.model.session)
+                        .environment(\.colorScheme, scheme)
+                        .dynamicTypeSize(size)
+                    let label = "\(name)-\(scheme == .dark ? "dark" : "light")\(size == .large ? "" : "-ax3")"
+                    try Self.save(page, label)
+                }
+            }
+        }
+    }
+
+    static var renderFolder: URL {
+        URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("build/WatchSettingsRenders")
+    }
+
+    static func save(_ view: some View, _ name: String) throws {
+        let renderer = ImageRenderer(content: view)
+        renderer.scale = 2
+        let image = try #require(renderer.uiImage, "\(name) didn't render")
+        let data = try #require(image.pngData())
+        try FileManager.default.createDirectory(at: renderFolder, withIntermediateDirectories: true)
+        try data.write(to: renderFolder.appendingPathComponent("\(name).png"))
     }
 
     // MARK: Settings wording

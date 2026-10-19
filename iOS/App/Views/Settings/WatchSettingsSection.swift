@@ -7,48 +7,60 @@ import TimeCardCore
 struct WatchSettingsSection: View {
     @Environment(AppModel.self) private var model
     @Environment(TimeCardSession.self) private var session
-    @State private var settings = WatchSettings()
+    @Environment(\.dynamicTypeSize) private var typeSize
+    /// The status dot, sized and lifted with the text so it sits mid-line at every size.
+    @ScaledMetric(relativeTo: .subheadline) private var dotSize: CGFloat = 8
+    @ScaledMetric(relativeTo: .subheadline) private var dotLift: CGFloat = 2
+    /// What was set here, until the person changes; before that, what's saved for them.
+    @State private var chosen: (userId: UUID?, settings: WatchSettings)?
 
     private var userId: UUID? { session.me?.user.id }
+
+    private var settings: WatchSettings {
+        if let chosen, chosen.userId == userId { return chosen.settings }
+        return WatchSettings.load(from: session.store, userId: userId)
+    }
 
     var body: some View {
         let status = model.watch.status
         if WatchSettingsWording.isShown(status) {
             card(status)
-                // Per person: a sign-in on this phone brings that person's choice.
-                .task(id: userId) { settings = WatchSettings.load(from: session.store, userId: userId) }
         }
     }
 
     private func card(_ status: WatchLinkStatus) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 10) {
-                Image(systemName: "applewatch")
-                    .font(.title3.weight(.semibold))
-                    .foregroundStyle(Palette.firText)
-                    .frame(width: 40, height: 40)
-                    .background(Palette.firSoft, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                    .accessibilityHidden(true)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Apple Watch").headingStyle(.tcTitle2).accessibilityAddTraits(.isHeader)
+            if typeSize.isAccessibilitySize {
+                // The watch glyph is decoration; at the largest sizes the words get the room.
+                VStack(alignment: .leading, spacing: 4) {
+                    title
                     statusLine(status)
                 }
+            } else {
+                HStack(spacing: 10) {
+                    Image(systemName: "applewatch")
+                        .font(.title3.weight(.semibold))
+                        .foregroundStyle(Palette.firText)
+                        .frame(width: 40, height: 40)
+                        .background(Palette.firSoft, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        .accessibilityHidden(true)
+                    title
+                }
+                statusLine(status)
             }
             Toggle(isOn: recordBinding) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(WatchSettingsWording.recordTitle)
                         .font(.body.weight(.semibold))
                         .foregroundStyle(Palette.ink)
-                    Text(WatchSettingsWording.recordDetail)
-                        .font(.subheadline)
-                        .foregroundStyle(Palette.muted)
                         .fixedSize(horizontal: false, vertical: true)
+                    if !typeSize.isAccessibilitySize { detail }
                 }
             }
-            .tint(Palette.fir)
-            .frame(minHeight: GloveButtonStyle.minHeight)
-            .contentShape(Rectangle())
+            // The whole row is the switch: a gloved thumb doesn't have to find the knob.
+            .toggleStyle(GloveToggleStyle())
             .accessibilityIdentifier("watch-record-workouts")
+            if typeSize.isAccessibilitySize { detail }
             Text(WatchSettingsWording.footnote(recordWorkouts: settings.recordWorkouts))
                 .font(.footnote)
                 .foregroundStyle(Palette.muted)
@@ -59,27 +71,41 @@ struct WatchSettingsSection: View {
         .accessibilityIdentifier("watch-settings")
     }
 
+    private var title: some View {
+        Text("Apple Watch").headingStyle(.tcTitle2).accessibilityAddTraits(.isHeader)
+    }
+
+    private var detail: some View {
+        Text(WatchSettingsWording.recordDetail)
+            .font(.subheadline)
+            .foregroundStyle(Palette.muted)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
+    /// "● Time Card on your watch · in reach": the dot sits in the text, so it stays on the
+    /// first line's baseline at every size.
     private func statusLine(_ status: WatchLinkStatus) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 6) {
-            Circle()
-                .fill(WatchSettingsWording.tone(status).dot)
-                .frame(width: 8, height: 8)
-                .accessibilityHidden(true)
-            Text(WatchSettingsWording.status(status))
-                .font(.subheadline)
-                .foregroundStyle(Palette.muted)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .accessibilityElement(children: .combine)
-        .accessibilityIdentifier("watch-status")
+        (Text(Image(systemName: "circle.fill"))
+            .font(.system(size: dotSize))
+            .baselineOffset(dotLift)
+            .foregroundStyle(WatchSettingsWording.tone(status).dot)
+            + Text("  " + WatchSettingsWording.status(status))
+            .font(.subheadline)
+            .foregroundStyle(Palette.muted))
+            .fixedSize(horizontal: false, vertical: true)
+            .accessibilityLabel(WatchSettingsWording.status(status))
+            .accessibilityIdentifier("watch-status")
     }
 
     private var recordBinding: Binding<Bool> {
         Binding {
             settings.recordWorkouts
         } set: { value in
-            settings.recordWorkouts = value
-            WatchSettings.save(settings, to: session.store, userId: userId)
+            var next = settings
+            next.recordWorkouts = value
+            // Per person: a sign-in on this phone brings that person's own choice.
+            chosen = (userId, next)
+            WatchSettings.save(next, to: session.store, userId: userId)
             // The watch hears at once: the desk reads the setting on every state it makes.
             model.watch.publish(reason: .settingsChanged)
         }
