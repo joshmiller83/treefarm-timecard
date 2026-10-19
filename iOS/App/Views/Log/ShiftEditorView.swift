@@ -46,7 +46,6 @@ private struct EditorHost: View {
             }
             .screenBackground()
         }
-        .accessibilityIdentifier("shift-editor")
     }
 }
 
