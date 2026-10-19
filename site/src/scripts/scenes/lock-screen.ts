@@ -337,13 +337,17 @@ registerScene(
     const compact = inHome('[data-island-compact]');
     const expanded = inHome('[data-island-expanded]');
     if (island) {
-      // The morph tweens three numbers (pt) that drive width, height and radius, so it holds
-      // at any phone size; it is one absolutely positioned element with contain: layout.
-      island.style.width = 'calc(var(--isl-w) * var(--isl-pt))';
-      island.style.height = 'calc(var(--isl-h) * var(--isl-pt))';
-      island.style.borderRadius = 'calc(var(--isl-r) * var(--isl-pt))';
+      // The morph tweens three numbers (pt) that shape a clip-path on a box fixed at the
+      // expanded size, so nothing relayouts while it plays (no layout shift: only transform,
+      // opacity and clip-path animate), and it holds at any phone size.
+      const [W, H] = ISLAND.expanded;
+      island.style.width = `calc(${W} * var(--isl-pt))`;
+      island.style.height = `calc(${H} * var(--isl-pt))`;
+      island.style.borderRadius = '0';
+      const side = `calc((${W} - var(--isl-w)) / 2 * var(--isl-pt))`;
+      island.style.clipPath = `inset(0 ${side} calc((${H} - var(--isl-h)) * var(--isl-pt)) ${side} round calc(var(--isl-r) * var(--isl-pt)))`;
       cleanups.push(() => {
-        for (const p of ['width', 'height', 'border-radius', '--isl-w', '--isl-h', '--isl-r']) island.style.removeProperty(p);
+        for (const p of ['width', 'height', 'border-radius', 'clip-path', '--isl-w', '--isl-h', '--isl-r']) island.style.removeProperty(p);
       });
     }
     const size = (k: keyof typeof ISLAND) => ({ '--isl-w': ISLAND[k][0], '--isl-h': ISLAND[k][1], '--isl-r': ISLAND[k][2] });

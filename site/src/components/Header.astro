@@ -225,6 +225,9 @@ const n = CHAPTERS.length - 1;
   .shift {
     position: relative;
     height: var(--ribbon-h);
+    /* The riding tag and chip move by transform along the ribbon's width (100cqw): DayClock
+       writes --p every frame, and a transform never relayouts the header. */
+    container-type: inline-size;
   }
   /* The band: a solid strip under the ribbon that carries the riding chip or tag, with a
      hairline at its foot, so the chip never floats over copy. */
@@ -259,8 +262,8 @@ const n = CHAPTERS.length - 1;
     position: absolute;
     top: 8px;
     z-index: 1;
-    left: calc(var(--ribbon-pad) + (100% - 2 * var(--ribbon-pad)) * var(--p));
-    transform: translateX(calc(var(--p) * -100%));
+    left: var(--ribbon-pad);
+    transform: translateX(calc((100cqw - 2 * var(--ribbon-pad)) * var(--p) - 100% * var(--p)));
     padding: 3px 9px;
     border-radius: 999px;
     background: rgba(8, 20, 13, 0.97);
@@ -310,8 +313,8 @@ const n = CHAPTERS.length - 1;
       z-index: 1;
       /* Centred in the 44px band under the ribbon. */
       top: calc(var(--ribbon-h) + (var(--band-h) - 32px) / 2);
-      left: calc(var(--ribbon-pad) + (100% - 2 * var(--ribbon-pad)) * var(--p));
-      transform: translateX(calc(var(--p) * -100%));
+      left: var(--ribbon-pad);
+      transform: translateX(calc((100cqw - 2 * var(--ribbon-pad)) * var(--p) - 100% * var(--p)));
       display: inline-flex;
       align-items: center;
       gap: 6px;

@@ -10,11 +10,8 @@ import { settle } from './helpers';
 /** Controls whose centre is on screen, visible, and not the element a tap there would hit. */
 async function blocked(page: Page) {
   return page.evaluate(() => {
-    const header = document.querySelector<HTMLElement>('[data-header]');
-    const nav = header?.querySelector<HTMLElement>('nav.shift');
-    // The header bar plus whatever band rides under it (the chapter chip).
-    const toggle = nav?.querySelector<HTMLElement>('.shift-toggle');
-    const band = Math.max(header?.getBoundingClientRect().bottom ?? 0, toggle && getComputedStyle(toggle).display !== 'none' ? toggle.getBoundingClientRect().bottom : 0);
+    // Everything the header covers: the bar, the ribbon and the band with the chapter chip.
+    const band = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--chrome-h')) || 59;
     const visible = (el: Element) => {
       if (el.closest('[aria-hidden="true"], [inert]')) return false;
       for (let n: Element | null = el; n && n !== document.documentElement; n = n.parentElement) {
