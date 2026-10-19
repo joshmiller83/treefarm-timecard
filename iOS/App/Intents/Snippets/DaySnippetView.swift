@@ -37,9 +37,10 @@ struct SnippetStat: Equatable, Identifiable {
     /// The three numbers for a topic, the asked-about one first.
     static func stats(for card: DayCard) -> [SnippetStat] {
         let span = card.span.words
-        let worked = SnippetStat(value: Fmt.hm(card.worked), label: "worked \(span)",
+        // Rounded like the spoken answer, so the card and Siri never disagree by a minute.
+        let worked = SnippetStat(value: Fmt.hmRounded(card.worked), label: "worked \(span)",
                                  spoken: "\(Fmt.spokenDuration(card.worked)) worked \(span)", focus: false)
-        let week = SnippetStat(value: Fmt.hm(card.workedWeek), label: "this week",
+        let week = SnippetStat(value: Fmt.hmRounded(card.workedWeek), label: "this week",
                                spoken: "\(Fmt.spokenDuration(card.workedWeek)) this week", focus: false)
         let trees = SnippetStat(value: Fmt.count(card.trees), label: (card.trees == 1 ? "tree " : "trees ") + span,
                                 spoken: "\(Fmt.plural(card.trees, "tree")) \(span)", focus: false)
