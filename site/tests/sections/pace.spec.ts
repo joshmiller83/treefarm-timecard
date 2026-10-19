@@ -146,13 +146,20 @@ test.describe('pace', () => {
   test('axe: nothing serious in the section with motion, mid-scene', async ({ page }) => {
     await page.goto('/');
     await settle(page);
-    await page.evaluate(() => {
-      const t = document.querySelector<HTMLElement>('#pace .track')!;
-      window.scrollTo(0, t.getBoundingClientRect().top + scrollY + 0.5 * (t.offsetHeight - innerHeight));
-    });
-    await page.waitForTimeout(1500);
-    const r = await new AxeBuilder({ page }).include('#pace').withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'best-practice']).analyze();
-    expect(r.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical').map((v) => v.id)).toEqual([]);
+    // .33: one tile lit, two waiting (hidden on desktop, ghost numbers below 900px); .5: all lit.
+    for (const p of [0.33, 0.5]) {
+      await page.evaluate((p) => {
+        const t = document.querySelector<HTMLElement>('#pace .track')!;
+        window.scrollTo(0, t.getBoundingClientRect().top + scrollY + p * (t.offsetHeight - innerHeight));
+      }, p);
+      // The scrub catches up (.6 s), then the tiles' lights (under 1 s) finish.
+      await page.waitForTimeout(2600);
+      const r = await new AxeBuilder({ page }).include('#pace').withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'best-practice']).analyze();
+      const bad = r.violations
+        .filter((v) => v.impact === 'serious' || v.impact === 'critical')
+        .map((v) => `${v.id}: ${v.nodes.map((n) => `${n.target.join(' ')} ${n.failureSummary ?? ''}`).join(' | ')}`);
+      expect(bad, `at ${p}`).toEqual([]);
+    }
   });
 
   test('with motion: the time-lapse, the tiles and the bars land on the ledger’s values, both ways', async ({ page }) => {
@@ -188,8 +195,13 @@ test.describe('pace', () => {
 
     // Back before the first tile, then forward again: still exact.
     await scrubTo(page, 0.2);
-    const hidden = await page.locator('#pace [data-tile] .pace-tile-face').evaluateAll((els) => els.map((e) => Number(getComputedStyle(e).opacity)));
-    expect(Math.max(...hidden)).toBeLessThan(0.35);
+    // Unlit: hidden on desktop, a 40% ghost number below 900px.
+    const unlit = await page
+      .locator('#pace [data-tile]')
+      .evaluateAll((els) =>
+        els.map((e) => Number(getComputedStyle(e.querySelector('.pace-tile-face')!).opacity) * Number(getComputedStyle(e.querySelector('.pace-num')!).opacity)),
+      );
+    expect(Math.max(...unlit)).toBeLessThan(0.45);
     await scrubTo(page, 0.95);
     expect(await rolledTiles(page)).toEqual(TILES);
     expect(problems).toEqual([]);

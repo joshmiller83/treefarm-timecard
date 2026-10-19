@@ -19,7 +19,8 @@
  * sticky frame holds the phone.
  */
 import { registerScene } from '../scene.ts';
-import { FIELD_TREES, fieldShapedAt } from '../../data/ledger.ts';
+import { FIELD_TREES, fieldShapedAt, fmtCount, treesAt } from '../../data/ledger.ts';
+import { setOdometer } from '../odometer.ts';
 import { stripStep, stripWidth } from '../../components/system/lockscreen/activity.ts';
 import { PACE_AT, PACE_FROM, beatsFor, crossed, lapseEvents, leadRows, rollStops, scrollStops } from '../../sections/pace/pace.ts';
 
@@ -77,7 +78,14 @@ registerScene(
       });
     }
     const laTrees = $(`${LOCK} [data-trees]`);
-    for (const e of events) util.odometer(tl, laTrees, e.before, e.after, e.p, 0.01);
+    if (laTrees && events.length) {
+      // Start the count at 3:00 (util.odometer only does that the first time it sees the
+      // element, and a breakpoint change rebuilds the scene); put 3:40 back on revert.
+      const final = laTrees.dataset.odoText ?? fmtCount(treesAt(PACE_AT));
+      setOdometer(laTrees, fmtCount(events[0]!.before));
+      undo.push(() => setOdometer(laTrees, final));
+      for (const e of events) util.odometer(tl, laTrees, e.before, e.after, e.p, 0.01);
+    }
     const fill = $(`${LOCK} [data-fieldbar]`);
     if (fill && events.length) {
       const pct = (min: number) => fieldShapedAt(min) / FIELD_TREES;
@@ -129,9 +137,12 @@ registerScene(
       const stops = rollStops(roll?.dataset.rollText ?? '');
       const t = gsap.timeline({ paused: true, defaults: { ease: 'power3.out' } });
       if (line) t.fromTo(line, { scaleX: 0 }, { scaleX: 1, duration: 0.5, ease: 'power2.inOut' }, 0);
-      // Desktop: the tile rises in. Below 900px its card is already on screen, so the tile
-      // waits as a ghost (zeros at 30%) and lights up as its digits roll.
-      if (face) t.fromTo(face, isDesk ? { opacity: 0, y: 16 } : { opacity: 0.3, y: 0 }, { opacity: 1, y: 0, duration: 0.5 }, 0.06);
+      // Desktop: the tile rises in. Below 900px its card is already on screen, so the unit
+      // stays and the number waits as a ghost (zeros at 40%, still 3:1 as large text), then
+      // lights up as its digits roll.
+      const num = tile.querySelector('.pace-num');
+      if (isDesk && face) t.fromTo(face, { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.5 }, 0.06);
+      else if (num) t.fromTo(num, { opacity: 0.4 }, { opacity: 1, duration: 0.5 }, 0.06);
       // Every column spins from 0 to its digit in the second cycle: no counting, no drift.
       if (cols.length) t.fromTo(cols, { y: 0, yPercent: 0 }, { y: 0, yPercent: (k: number) => stops[k] ?? 0, duration: 0.8, stagger: 0.07 }, 0.06);
       if (rules.length) t.fromTo(rules, { scaleY: 0 }, { scaleY: 1, duration: 0.4, ease: 'power2.out' }, 0.16);
