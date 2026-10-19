@@ -17,6 +17,7 @@ struct GloveButtonStyle: ButtonStyle {
 
     var kind: Kind = .primary
     @Environment(\.isEnabled) private var isEnabled
+    @Environment(\.colorSchemeContrast) private var contrast
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
@@ -29,7 +30,8 @@ struct GloveButtonStyle: ButtonStyle {
             .background(background, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
             .overlay {
                 if kind == .secondary {
-                    RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Palette.line, lineWidth: 1)
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .strokeBorder(Palette.line, lineWidth: contrast == .increased ? 1.5 : 1)
                 }
             }
             .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
@@ -69,13 +71,16 @@ extension ButtonStyle where Self == GloveButtonStyle {
 /// A surface card: 1 pt line border, 14 pt corners.
 struct CardModifier: ViewModifier {
     var padding: CGFloat = 16
+    @Environment(\.colorSchemeContrast) private var contrast
 
     func body(content: Content) -> some View {
         content
             .padding(padding)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(Palette.surface, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Palette.line, lineWidth: 1))
+            // With Increase Contrast the edge is heavier, and Line itself is stronger (asset catalog).
+            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .strokeBorder(Palette.line, lineWidth: contrast == .increased ? 1.5 : 1))
     }
 }
 

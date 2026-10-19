@@ -82,4 +82,25 @@ struct DesignTests {
         let (x, y) = (luminance(a), luminance(b))
         return (max(x, y) + 0.05) / (min(x, y) + 0.05)
     }
+
+    /// With Increase Contrast, hairlines and card edges reach 3:1 against the surfaces they sit on.
+    @Test(arguments: [UIUserInterfaceStyle.light, .dark])
+    func increaseContrastStrengthensHairlines(style: UIUserInterfaceStyle) throws {
+        let high = UITraitCollection(traitsFrom: [UITraitCollection(userInterfaceStyle: style), UITraitCollection(accessibilityContrast: .high)])
+        let normal = UITraitCollection(traitsFrom: [UITraitCollection(userInterfaceStyle: style), UITraitCollection(accessibilityContrast: .normal)])
+        for fill in ["Surface", "Bg"] {
+            let f = try #require(UIColor(named: fill)).resolvedColor(with: high)
+            #expect(Self.contrast(try #require(UIColor(named: "Line")).resolvedColor(with: high), f) >= 3, "Line on \(fill)")
+        }
+        for name in ["Line", "Muted", "Stripe", "FirSoft", "TreeEmpty", "BlockLine"] {
+            let color = try #require(UIColor(named: name))
+            #expect(color.resolvedColor(with: high) != color.resolvedColor(with: normal), "\(name) has no High Contrast look")
+        }
+    }
+
+    @Test func boldTextGoesOneWeightUp() {
+        #expect(Font.tcHeadline.bolder == .tcHeadlineBold)
+        #expect(Font.tcNumber.bolder == .tcNumberBold)
+        #expect(Font.tcTimer.bolder == .tcTimer, "no heavier Plex Mono is bundled")
+    }
 }
