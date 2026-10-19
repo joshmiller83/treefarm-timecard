@@ -9,16 +9,23 @@
  *
  * Rules that keep scrubbing (and jumping) exact
  *   - Each element property has exactly one writer: an exchange animates only its own screen
- *     layer and its own words. Layers stack bottom to top and are opaque, so the next
- *     exchange's layer simply covers the last one (its snippet and glow fade out with it).
+ *     layer and its own words. Layers stack bottom to top and are opaque.
+ *   - Siri lets go inside the outgoing exchange's own timeline, before the next layer starts
+ *     to come in: the card lifts away, the glow fades and the big clock returns. The handover
+ *     is then clock face to clock face, so it reads as one screen. On desktop the timelines
+ *     overlap, so the handoff is measured from the articles at build; mobile cards never
+ *     overlap, so Siri lets go near each card's end.
  *   - The DayClock minute is not tweened: every timeline's onUpdate recomputes it from all of
- *     their progress values with voiceMinute() (model.ts, unit-tested).
+ *     their progress values with voiceMinute() (clock.ts, unit-tested). The Live Activity's
+ *     lunch flips sit on the same BEATS, so the card and the clock change together.
+ *   - On mobile each card slides over the Live Activity at about .45, so everything the card
+ *     shows changes before then (BEATS.mob and the mobile windows below).
  *   - From-states are set once at build (gsap.set, reverted with the matchMedia context);
  *     every tween is a fromTo with immediateRender off, so invalidation never re-records them.
  */
 import { registerScene } from '../scene.ts';
 import { MOMENTS, treesAt } from '../../data/ledger.ts';
-import { place, voiceMinute, type PartId, type Source } from '../../sections/voice/clock.ts';
+import { BEATS, place, voiceMinute, type PartId, type Source } from '../../sections/voice/clock.ts';
 
 type Win = readonly [number, number];
 type Els = Element[];
@@ -29,6 +36,9 @@ registerScene(
     const { tl, gsap, isDesk, util, section, day, screens, SplitText } = ctx;
     if (!screens) return;
     const cleanups: Array<() => void> = [];
+    /** Desktop value or mobile value. */
+    const dm = <T>(desk: T, mob: T): T => (isDesk ? desk : mob);
+    const B = isDesk ? BEATS.desk : BEATS.mob;
 
     const all = <T extends Element = HTMLElement>(root: ParentNode | null | undefined, sel: string): T[] =>
       root ? Array.from(root.querySelectorAll<T>(sel)) : [];
@@ -63,19 +73,37 @@ registerScene(
       for (const id of ['misheard', 'next', 'lunchA', 'lunchB', 'status'] as const) mini(id, partEl(id), 'top 80%', 'top 35%');
     }
 
-    /** A part's local window [a, b] on its timeline. */
+    /**
+     * Desktop: the progress of `cur`'s timeline at which `next`'s starts ('top 65%' →
+     * 'bottom 35%' on both, so the next article starts while this one is still running).
+     * Mobile cards end before the next one starts.
+     */
+    const handoff = (cur: string, next: string) => {
+      if (!isDesk) return 0.96;
+      const a = article(cur)?.getBoundingClientRect();
+      const b = article(next)?.getBoundingClientRect();
+      if (!a || !b || !a.height) return 0.72;
+      return Math.min(0.96, Math.max(0.3, (b.top - a.top) / (a.height + 0.3 * window.innerHeight)));
+    };
+
+    /** A part's local progress u on its timeline. */
     const at = (part: PartId, u: number) => place(part, u, isDesk).p;
     const tlOf = (part: PartId) => tls[place(part, 0, isDesk).src]!;
     const T = (part: PartId) => {
       const m = tlOf(part);
       const pos = (u: number) => at(part, u);
+      /** fromTo over a window of the timeline's own progress, never rendered at build. */
+      const ftp = (el: Element | Els | null, from: gsap.TweenVars, to: gsap.TweenVars, w: Win, ease = 'none') => {
+        if (!el || (Array.isArray(el) && !el.length)) return;
+        m.fromTo(el, from, { ...to, duration: Math.max(w[1] - w[0], 1e-4), ease, immediateRender: false }, w[0]);
+      };
       return {
         m,
         pos,
-        /** fromTo over a local window, never rendered at build. */
+        ftp,
+        /** fromTo over a window of the part's local progress. */
         ft(el: Element | Els | null, from: gsap.TweenVars, to: gsap.TweenVars, w: Win, ease = 'none') {
-          if (!el || (Array.isArray(el) && !el.length)) return;
-          m.fromTo(el, from, { ...to, duration: Math.max(pos(w[1]) - pos(w[0]), 1e-4), ease, immediateRender: false }, pos(w[0]));
+          ftp(el, from, to, [pos(w[0]), pos(w[1])], ease);
         },
         /** A discrete flip (attributes): begin before u, end from u on. */
         flip(el: Element | null, from: gsap.TweenVars, to: gsap.TweenVars, u: number) {
@@ -84,6 +112,7 @@ registerScene(
         },
       };
     };
+    type TT = ReturnType<typeof T>;
 
     // ---- Screen layers ----
     const layerEls = (id: string) => {
@@ -106,6 +135,7 @@ registerScene(
         pillBreakText: one(la, '[data-pill-text="break"]'),
         worked: one(la, '[data-worked-line]'),
         trees: one(la, '[data-trees]'),
+        strip: one(la, '[data-strip-track]'),
         rows: all(la, '[data-row]'),
         breakBtn: one(la, '[data-break-btn]'),
         backBtn: one(la, '[data-back-btn]'),
@@ -139,12 +169,14 @@ registerScene(
     const words = (root: Element | null, sel: string) => all(root, `${sel} .w`);
     const glyphBars = (root: Element | null) => all(root, '.x-wave [data-bar]');
 
+    /** The next layer comes in over the last (a window of its timeline's own progress). */
+    const enter = (t: TT, L: L, w: Win) => t.ftp(L.el, { opacity: 0 }, { opacity: 1 }, w);
     /** Listening, thinking, then Siri's card drops in and its words stream. */
-    const listen = (t: ReturnType<typeof T>, L: L, w: Win) => t.ft(L.glow, { opacity: 0 }, { opacity: 1 }, w, 'power1.out');
-    const think = (t: ReturnType<typeof T>, L: L, w: Win) => t.ft(L.ring, { rotation: 0 }, { rotation: 60 }, w);
-    const answer = (t: ReturnType<typeof T>, L: L, drop: Win, type: Win) => {
+    const listen = (t: TT, L: L, w: Win) => t.ft(L.glow, { opacity: 0 }, { opacity: 1 }, w, 'power1.out');
+    const think = (t: TT, L: L, w: Win) => t.ft(L.ring, { rotation: 0 }, { rotation: 60 }, w);
+    const answer = (t: TT, L: L, drop: Win, type: Win) => {
       t.ft(L.snippet, { opacity: 0, yPercent: -14, scale: 0.97 }, { opacity: 1, yPercent: 0, scale: 1 }, drop, 'power2.out');
-      t.ft(L.chrome, { opacity: 1 }, { opacity: 0 }, [drop[0], drop[0] + (drop[1] - drop[0]) * 0.6]);
+      t.ft(L.chrome, { opacity: 1 }, { opacity: 0 }, [drop[0], drop[0] + (drop[1] - drop[0]) * 0.45]);
       t.ft(L.sbTime, { opacity: 0 }, { opacity: 1 }, drop);
       if (L.sWords.length) {
         const each = (t.pos(type[1]) - t.pos(type[0])) / L.sWords.length;
@@ -152,6 +184,23 @@ registerScene(
       }
       // The ring keeps turning slowly while Siri speaks.
       t.ft(L.ring, { rotation: 60 }, { rotation: 110 }, [drop[0], type[1]]);
+      return t.pos(type[1]);
+    };
+    /**
+     * Siri lets go: the card lifts away, the glow fades, the big clock comes back and the status
+     * bar time leaves. `end` is where the next layer starts to come in (timeline progress);
+     * `after` is where this layer's last Siri tween ends.
+     */
+    const letGo = (t: TT, L: L, end: number, after: number) => {
+      const a = Math.max(end - dm(0.06, 0.1), after + 0.004);
+      const w: Win = [a, Math.max(end, a + 0.02)];
+      // The card leaves first; the clock comes back as it goes, so they barely overlap.
+      const out: Win = [w[0], w[0] + (w[1] - w[0]) * 0.65];
+      const late: Win = [w[0] + (w[1] - w[0]) * 0.45, w[1]];
+      t.ftp(L.snippet, { opacity: 1, yPercent: 0, scale: 1 }, { opacity: 0, yPercent: -14, scale: 0.97 }, out, 'power1.in');
+      t.ftp(L.glow, { opacity: 1 }, { opacity: 0 }, w);
+      t.ftp(L.chrome, { opacity: 0 }, { opacity: 1 }, late);
+      t.ftp(L.sbTime, { opacity: 1 }, { opacity: 0 }, late);
     };
     /**
      * Your line: karaoke, words .25 → 1. The dim state is a class (.x-near) that is on only
@@ -160,7 +209,7 @@ registerScene(
      * timeline rewinds to its start, the inline styles are cleared again.
      */
     const rewound = new Map<GSAPTimeline, Element[]>();
-    const karaoke = (t: ReturnType<typeof T>, els: Els, w: Win) => {
+    const karaoke = (t: TT, els: Els, w: Win) => {
       if (!els.length) return;
       const each = (t.pos(w[1]) - t.pos(w[0])) / els.length;
       t.m.fromTo(els, { opacity: 0.25 }, { opacity: 1, duration: each, stagger: each, immediateRender: false }, t.pos(w[0]));
@@ -169,7 +218,7 @@ registerScene(
     const near = (el: Element | null) =>
       el && ctx.trigger({ trigger: el, start: 'top bottom', end: 'bottom top', toggleClass: { targets: el, className: 'x-near' } });
     /** Siri's reply on the page: word by word, and the gold bars speak. */
-    const reveal = (t: ReturnType<typeof T>, root: Element | null, w: Win) => {
+    const reveal = (t: TT, root: Element | null, w: Win) => {
       const turn = one(root, '.x-siri');
       if (turn) {
         gsap.set(turn, { opacity: 0 });
@@ -197,10 +246,19 @@ registerScene(
         );
       }
     };
-    const fadeUp = (t: ReturnType<typeof T>, el: Element | null, w: Win) => {
+    const fadeUp = (t: TT, el: Element | null, w: Win) => {
       if (!el) return;
       gsap.set(el, { opacity: 0, y: 8 });
       t.ft(el, { opacity: 0, y: 8 }, { opacity: 1, y: 0 }, w, 'power2.out');
+    };
+    /** The caption explains what just happened, so it comes in after the reply. */
+    const caption = (t: TT, p: Element | null, w: Win) => fadeUp(t, one(p, '.x-caption'), w);
+
+    // Where each exchange hands over to the next (outgoing timeline's progress).
+    const H = {
+      misheard: handoff('misheard', 'next'),
+      next: handoff('next', 'lunch'),
+      lunch: handoff('lunch', 'status'),
     };
 
     // ---- 7:18 · the misheard check ----
@@ -212,15 +270,16 @@ registerScene(
       think(t, L1, [0.28, 0.36]);
       // Siri heard 'forty': rust waves draw under 'fourteen' and under the 40 it heard.
       const [heard, as] = all(p, '[data-squiggle]');
+      const hidden = 'inset(-80% 100% -80% 0%)';
+      const shown = 'inset(-80% 0% -80% 0%)';
       for (const [sq, w] of [[heard, [0.42, 0.5]], [as, [0.46, 0.54]]] as const) {
         if (!sq) continue;
-        gsap.set(sq, { clipPath: 'inset(0% 100% 0% 0%)' });
-        t.ft(sq, { clipPath: 'inset(0% 100% 0% 0%)' }, { clipPath: 'inset(0% 0% 0% 0%)' }, w);
+        gsap.set(sq, { clipPath: hidden });
+        t.ft(sq, { clipPath: hidden }, { clipPath: shown }, w);
       }
       answer(t, L1, [0.36, 0.44], [0.38, 0.5]);
       reveal(t, p, [0.36, 0.54]);
-      // Then the card offers Yes and No, and you say no. (A little earlier than the brief's
-      // .6/.7/.8: the next exchange's layer starts covering this one at about .79.)
+      // Then the card offers Yes and No, and you say no.
       gsap.set(L1.chips, { opacity: 0, y: 6 });
       t.ft(L1.chips, { opacity: 0, y: 6 }, { opacity: 1, y: 0, stagger: 0.004 }, [0.5, 0.55], 'power2.out');
       const answerTurn = one(p, '[data-turn="answer"]');
@@ -234,34 +293,58 @@ registerScene(
       gsap.set(ring, { opacity: 0 });
       util.tap(t.m, no, t.pos(0.62), { dur: t.pos(0.66) - t.pos(0.62) });
       t.ft(ring, { opacity: 0 }, { opacity: 1 }, [0.63, 0.66]);
-      // Nothing changes: the Live Activity is never touched here.
-      fadeUp(t, one(p, '[data-note]'), [0.68, 0.74]);
+      // Nothing changes: the Live Activity is never touched here. Siri lets go after the No.
+      caption(t, p, [0.64, 0.7]);
+      fadeUp(t, one(p, '[data-note]'), [0.7, 0.76]);
+      letGo(t, L1, H.misheard, t.pos(0.66));
     }
 
     // ---- 7:19 · next row ----
     {
       const t = T('next');
       const p = partEl('next');
-      t.ft(L2.el, { opacity: 0 }, { opacity: 1 }, [0.06, 0.1]);
-      karaoke(t, words(p, '[data-turn="said"] .x-said'), [0.08, 0.28]);
-      listen(t, L2, [0.1, 0.28]);
-      think(t, L2, [0.3, 0.4]);
-      answer(t, L2, [0.4, 0.48], [0.42, 0.6]);
-      reveal(t, p, [0.4, 0.66]);
-      util.odometer(t.m, L2.trees, treesAt(MOMENTS.misheard), treesAt(MOMENTS.firstRow), t.pos(0.44), t.pos(0.52) - t.pos(0.44));
+      enter(t, L2, [0, 0.04]);
+      karaoke(t, words(p, '[data-turn="said"] .x-said'), dm([0.08, 0.28], [0.06, 0.22]));
+      listen(t, L2, dm([0.1, 0.28], [0.06, 0.22]));
+      think(t, L2, dm([0.3, 0.4], [0.22, 0.28]));
+      const typed = answer(t, L2, dm([0.4, 0.48], [0.28, 0.34]), dm([0.42, 0.6], [0.3, 0.44]));
+      const said: Win = dm([0.4, 0.6], [0.28, 0.48]);
+      reveal(t, p, said);
+      caption(t, p, [said[1], said[1] + 0.06]);
+      // Row 14 is marked: ten trees, and the strip moves on one row. The layer starts where the
+      // 7:18 one is ([Row 14][Row 15][Row 16]): its first row button joins the strip's front.
+      const mark: Win = dm([0.44, 0.52], [0.32, 0.4]);
+      util.odometer(t.m, L2.trees, treesAt(MOMENTS.misheard), treesAt(MOMENTS.firstRow), t.pos(mark[0]), t.pos(mark[1]) - t.pos(mark[0]));
+      const first = L2.rows[0];
+      const lead = L1.rows[0]?.cloneNode(true) as HTMLElement | undefined;
+      if (L2.strip && first && lead && Number(lead.dataset.row) === Number(first.dataset.row) - 1) {
+        L2.strip.prepend(lead);
+        cleanups.push(() => lead.remove());
+        const step = first.offsetLeft - lead.offsetLeft;
+        const pct = L2.strip.offsetWidth ? (step / L2.strip.offsetWidth) * 100 : 0;
+        if (pct > 0) {
+          gsap.set(L2.strip, { xPercent: 0 });
+          t.ft(L2.strip, { xPercent: 0 }, { xPercent: -pct }, mark, 'power2.inOut');
+        } else lead.remove();
+      }
+      letGo(t, L2, H.next, typed);
     }
 
     // ---- 12:01 · take lunch ----
-    // (Timed early in its window: on mobile the card covers the Live Activity after ~.6.)
     {
       const t = T('lunchA');
       const p = partEl('lunchA');
-      t.ft(L3.el, { opacity: 0 }, { opacity: 1 }, [0.04, 0.1]);
+      const f = B.lunchAt;
+      // Desktop offsets after the flip; mobile plays them faster, before the page card slides
+      // over the Live Activity (about .41 on a 320 × 640 phone).
+      const k = dm(1, 0.55);
+      const after = (a: number, b: number): Win => [f + a * k, f + b * k];
+      enter(t, L3, [0, 0.04]);
       // The morning passes with the clock: trees roll up with it.
-      util.odometer(t.m, L3.trees, treesAt(MOMENTS.firstRow), treesAt(MOMENTS.lunch), t.pos(0.06), t.pos(0.24) - t.pos(0.06));
-      karaoke(t, words(p, '[data-turn="said"] .x-said'), [0.22, 0.44]);
-      listen(t, L3, [0.22, 0.42]);
-      think(t, L3, [0.42, 0.48]);
+      util.odometer(t.m, L3.trees, treesAt(MOMENTS.firstRow), treesAt(MOMENTS.lunch), t.pos(B.morning[0]), t.pos(B.morning[1]) - t.pos(B.morning[0]));
+      karaoke(t, words(p, '[data-turn="said"] .x-said'), dm([0.24, 0.44], [0.12, 0.27]));
+      listen(t, L3, dm([0.24, 0.42], [0.12, 0.26]));
+      think(t, L3, [f - 0.05, f]);
       // From-state: still on the clock.
       gsap.set(L3.la, { attr: { 'data-state': 'working' } });
       gsap.set(L3.laBreak, { opacity: 0 });
@@ -272,30 +355,33 @@ registerScene(
       gsap.set(L3.breakBtn, { opacity: 1 });
       gsap.set(L3.backBtn, { clipPath: 'inset(0% 100% 0% 0%)' });
       // Lunch starts on the word: gold tint, 'On lunch', the timer rolls to 0:00:00.
-      t.flip(L3.la, { attr: { 'data-state': 'working' } }, { attr: { 'data-state': 'lunch' } }, 0.48);
-      t.ft(L3.laBreak, { opacity: 0 }, { opacity: 1 }, [0.48, 0.56]);
-      t.ft(L3.faceClock, { opacity: 1 }, { opacity: 0 }, [0.48, 0.52]);
-      t.ft(L3.faceBreak, { opacity: 0 }, { opacity: 1 }, [0.48, 0.54]);
-      t.ft(L3.worked, { opacity: 0 }, { opacity: 1 }, [0.52, 0.6]);
+      t.flip(L3.la, { attr: { 'data-state': 'working' } }, { attr: { 'data-state': 'lunch' } }, f);
+      t.ft(L3.laBreak, { opacity: 0 }, { opacity: 1 }, after(0, 0.08));
+      t.ft(L3.faceClock, { opacity: 1 }, { opacity: 0 }, after(0, 0.04));
+      t.ft(L3.faceBreak, { opacity: 0 }, { opacity: 1 }, after(0, 0.06));
+      t.ft(L3.worked, { opacity: 0 }, { opacity: 1 }, after(0.04, 0.12));
       if (L3.rows.length) {
-        const span = t.pos(0.6) - t.pos(0.5);
+        const [a, b] = after(0.02, 0.12);
+        const span = t.pos(b) - t.pos(a);
         const each = span * 0.12;
         t.m.fromTo(
           [...L3.rows].reverse(),
           { scaleX: 1 },
           { scaleX: 0, duration: span - each * (L3.rows.length - 1), stagger: each, ease: 'power2.in', immediateRender: false },
-          t.pos(0.5),
+          t.pos(a),
         );
       }
-      t.ft(L3.breakBtn, { opacity: 1 }, { opacity: 0 }, [0.5, 0.55]);
-      t.ft(L3.backBtn, { clipPath: 'inset(0% 100% 0% 0%)' }, { clipPath: 'inset(0% 0% 0% 0%)' }, [0.56, 0.68], 'power2.out');
+      t.ft(L3.breakBtn, { opacity: 1 }, { opacity: 0 }, after(0.02, 0.07));
+      t.ft(L3.backBtn, { clipPath: 'inset(0% 100% 0% 0%)' }, { clipPath: 'inset(0% 0% 0% 0%)' }, after(0.08, 0.2), 'power2.out');
       // No reply: the gold lock screen is the answer. Siri lets go.
-      t.ft(L3.glow, { opacity: 1 }, { opacity: 0 }, [0.62, 0.76]);
+      t.ft(L3.glow, { opacity: 1 }, { opacity: 0 }, after(0.14, 0.28));
+      // The caption lands with the gold card.
+      caption(t, p, after(0.02, 0.1));
       // Desktop: the 'On lunch · 30 min' marker between the halves appears as lunch starts.
       const between = one(article('lunch'), '[data-between]');
       if (between && isDesk) {
         gsap.set(between, { opacity: 0 });
-        t.ft(between, { opacity: 0 }, { opacity: 1 }, [0.5, 0.62]);
+        t.ft(between, { opacity: 0 }, { opacity: 1 }, after(0.02, 0.14));
       }
     }
 
@@ -303,9 +389,14 @@ registerScene(
     {
       const t = T('lunchB');
       const p = partEl('lunchB');
-      // From-state: the lunch look (this layer's own static state is back at work).
-      const lunchPill = L4.pillBreakText?.textContent ?? null;
-      if (L4.pillBreakText) L4.pillBreakText.textContent = 'On lunch';
+      const b = B.backAt;
+      // From-state: the lunch look (this layer's own static state is back at work), with the
+      // gold face's words taken from the 12:01 layer, which the Live Activity model rendered.
+      const backPill = L4.pillBreakText?.textContent ?? null;
+      if (L4.pillBreakText) L4.pillBreakText.textContent = L3.pillBreakText?.textContent ?? backPill;
+      cleanups.push(() => {
+        if (L4.pillBreakText && backPill !== null) L4.pillBreakText.textContent = backPill;
+      });
       gsap.set(L4.la, { attr: { 'data-state': 'lunch' } });
       gsap.set(L4.laBreak, { opacity: 1 });
       gsap.set(L4.faceClock, { opacity: 0 });
@@ -314,51 +405,55 @@ registerScene(
       gsap.set(L4.rows, { scaleX: 0, transformOrigin: '0% 50%' });
       gsap.set(L4.breakBtn, { opacity: 0 });
       gsap.set(L4.backBtn, { clipPath: 'inset(0% 0% 0% 0%)', opacity: 1 });
-      t.ft(L4.el, { opacity: 0 }, { opacity: 1 }, [0, 0.04]);
+      t.ft(L4.el, { opacity: 0 }, { opacity: 1 }, dm([0, 0.04], [0, 0.03]));
       // Desktop: thirty minutes of lunch fill the dotted line between the halves.
-      const fill = one(article('lunch'), '[data-lunch-fill]');
-      gsap.set(fill, { scaleY: 0 });
-      t.ft(fill, { scaleY: 0 }, { scaleY: 1 }, [0, 0.18]);
-      karaoke(t, words(p, '[data-turn="said"] .x-said'), [0.18, 0.34]);
-      listen(t, L4, [0.18, 0.32]);
-      think(t, L4, [0.32, 0.36]);
-      util.tap(t.m, L4.backBtn, t.pos(0.35), { dur: t.pos(0.39) - t.pos(0.35) });
-      t.flip(L4.la, { attr: { 'data-state': 'lunch' } }, { attr: { 'data-state': 'working' } }, 0.38);
-      t.ft(L4.laBreak, { opacity: 1 }, { opacity: 0 }, [0.38, 0.46]);
-      t.ft(L4.faceBreak, { opacity: 1 }, { opacity: 0 }, [0.38, 0.42]);
-      t.ft(L4.faceClock, { opacity: 0 }, { opacity: 1 }, [0.38, 0.44]);
-      t.ft(L4.worked, { opacity: 1 }, { opacity: 0 }, [0.38, 0.43]);
-      t.ft(L4.backBtn, { opacity: 1 }, { opacity: 0 }, [0.4, 0.45]);
+      if (isDesk) {
+        const fill = one(article('lunch'), '[data-lunch-fill]');
+        gsap.set(fill, { scaleY: 0 });
+        t.ft(fill, { scaleY: 0 }, { scaleY: 1 }, B.spin);
+      }
+      karaoke(t, words(p, '[data-turn="said"] .x-said'), [B.spin[1], b - 0.04]);
+      listen(t, L4, [B.spin[1], b - 0.05]);
+      think(t, L4, [b - 0.05, b - 0.01]);
+      util.tap(t.m, L4.backBtn, t.pos(b - 0.03), { dur: t.pos(b) - t.pos(b - 0.03) });
+      t.flip(L4.la, { attr: { 'data-state': 'lunch' } }, { attr: { 'data-state': 'working' } }, b);
+      t.ft(L4.laBreak, { opacity: 1 }, { opacity: 0 }, [b, b + 0.06]);
+      t.ft(L4.faceBreak, { opacity: 1 }, { opacity: 0 }, [b, b + 0.04]);
+      t.ft(L4.faceClock, { opacity: 0 }, { opacity: 1 }, [b, b + 0.05]);
+      t.ft(L4.worked, { opacity: 1 }, { opacity: 0 }, [b, b + 0.04]);
+      t.ft(L4.backBtn, { opacity: 1 }, { opacity: 0 }, [b, b + 0.025]);
       if (L4.rows.length) {
-        const span = t.pos(0.52) - t.pos(0.42);
+        const [a, z] = [b + 0.02, b + dm(0.1, 0.11)];
+        const span = t.pos(z) - t.pos(a);
         const each = span * 0.12;
         t.m.fromTo(
           L4.rows,
           { scaleX: 0 },
           { scaleX: 1, duration: span - each * (L4.rows.length - 1), stagger: each, ease: 'power2.out', immediateRender: false },
-          t.pos(0.42),
+          t.pos(a),
         );
       }
-      t.ft(L4.breakBtn, { opacity: 0 }, { opacity: 1 }, [0.46, 0.52]);
-      answer(t, L4, [0.42, 0.5], [0.44, 0.6]);
-      reveal(t, p, [0.42, 0.7]);
-      // Restore the static text if the scene is ever reverted.
-      cleanups.push(() => {
-        if (L4.pillBreakText && lunchPill !== null) L4.pillBreakText.textContent = lunchPill;
-      });
+      t.ft(L4.breakBtn, { opacity: 0 }, { opacity: 1 }, [b + dm(0.05, 0.05), b + dm(0.1, 0.11)]);
+      const typed = answer(t, L4, [b + 0.01, b + dm(0.06, 0.07)], [b + 0.03, b + dm(0.12, 0.17)]);
+      reveal(t, p, [b + 0.01, b + dm(0.16, 0.21)]);
+      // Desktop: the lunch article's timeline hands over to the 2:01 one (H.lunch is that
+      // timeline's progress, not this half's).
+      letGo(t, L4, H.lunch, typed);
     }
 
     // ---- 2:01 · how many trees ----
     {
       const t = T('status');
       const p = partEl('status');
-      t.ft(L5.el, { opacity: 0 }, { opacity: 1 }, [0.04, 0.08]);
-      util.odometer(t.m, L5.trees, treesAt(MOMENTS.back), treesAt(MOMENTS.status), t.pos(0.06), t.pos(0.18) - t.pos(0.06));
-      karaoke(t, words(p, '[data-turn="said"] .x-said'), [0.14, 0.3]);
-      listen(t, L5, [0.12, 0.3]);
-      think(t, L5, [0.3, 0.4]);
-      answer(t, L5, [0.4, 0.48], [0.42, 0.6]);
-      reveal(t, p, [0.4, 0.68]);
+      enter(t, L5, [0, 0.04]);
+      util.odometer(t.m, L5.trees, treesAt(MOMENTS.back), treesAt(MOMENTS.status), t.pos(B.afternoon[0]), t.pos(B.afternoon[1]) - t.pos(B.afternoon[0]));
+      karaoke(t, words(p, '[data-turn="said"] .x-said'), dm([0.14, 0.3], [0.12, 0.28]));
+      listen(t, L5, dm([0.12, 0.3], [0.1, 0.28]));
+      think(t, L5, dm([0.3, 0.4], [0.28, 0.36]));
+      answer(t, L5, dm([0.4, 0.48], [0.36, 0.44]), dm([0.42, 0.6], [0.38, 0.56]));
+      const said: Win = dm([0.4, 0.66], [0.36, 0.6]);
+      reveal(t, p, said);
+      caption(t, p, [said[1], said[1] + 0.06]);
     }
 
     for (const [m, els] of rewound) m.eventCallback('onReverseComplete', () => gsap.set(els, { clearProps: 'opacity' }));

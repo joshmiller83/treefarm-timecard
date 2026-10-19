@@ -6,7 +6,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 import { SIRI } from '../../src/data/siri';
 import { breakAt, fmtClock, fmtHMS, workedAt } from '../../src/data/ledger';
-import { place, type PartId } from '../../src/sections/voice/model';
+import { BEATS, place, type PartId } from '../../src/sections/voice/model';
 
 const SAID = [SIRI.misheard.said, SIRI.nextRow.said, SIRI.takeLunch.said, SIRI.backToWork.said, SIRI.howMany.said];
 const REPLIES = [SIRI.misheard.reply, SIRI.nextRow.reply, SIRI.backToWork.reply, SIRI.howMany.reply];
@@ -90,6 +90,20 @@ test.describe('reduced motion: a static transcript', () => {
     await expect(voice.getByRole('list', { name: 'More to say:' }).getByRole('listitem')).toHaveCount(4);
   });
 
+  test('desktop: the 2:01 phone stays in view beside the whole transcript', async ({ page }) => {
+    test.skip((page.viewportSize()?.width ?? 0) < 900, 'two columns from 900px');
+    const voice = page.locator('#voice');
+    for (const sel of ['[data-part="lunchA"]', '[data-part="lunchB"]', '[data-part="status"]']) {
+      await voice.locator(sel).scrollIntoViewIfNeeded();
+      await page.waitForTimeout(100);
+      const shown = await page.evaluate(() => {
+        const r = document.querySelector('#voice .x-device [data-phone]')!.getBoundingClientRect();
+        return r.top >= 0 && r.bottom <= innerHeight;
+      });
+      expect(shown, sel).toBe(true);
+    }
+  });
+
   test('axe: no serious or critical violations', async ({ page }) => {
     expect(await serious(page)).toEqual([]);
   });
@@ -136,6 +150,8 @@ test.describe('with motion', () => {
         { src, p, desk },
       );
       await page.evaluate((top) => window.scrollTo(0, top), Math.round(y));
+    // Let ScrollTrigger see the scroll (it updates on the next frames) before waiting on the scrub.
+    await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(r, 50)))));
       // Scrub .6 s: wait until every timeline has caught up with its trigger.
       await page.waitForFunction(
         () => {
@@ -265,6 +281,122 @@ test.describe('with motion', () => {
     await scrubTo(page, 'status', 0.9);
     for (const loc of [said.last(), reply.last()]) expect(Number(await loc.evaluate((e) => getComputedStyle(e).opacity))).toBe(1);
     await expect(page.locator('#voice').getByText(PAY)).toBeAttached();
+  });
+
+  /** Every Voice lock layer, bottom to top, with what shows on it. */
+  const layers = (page: Page) =>
+    page.evaluate(() =>
+      Array.from(document.querySelectorAll<HTMLElement>('[data-screen^="lock-"]'))
+        .filter((l) => /^lock-(0718|0719|1201|1231|1401)/.test(l.dataset.screen ?? ''))
+        .map((l) => {
+          const op = (e: Element | null) => (e ? Number(getComputedStyle(e).opacity) : 0);
+          return { id: l.dataset.screen!, layer: op(l), snippet: op(l.querySelector('[data-snippet]')), glow: op(l.querySelector('[data-glow]')) };
+        }),
+    );
+
+  test('handovers between exchanges never show Siri through the next lock screen', async ({ page }) => {
+    test.setTimeout(180_000);
+    await boot(page);
+    for (const part of ['next', 'lunchA', 'status'] as const) {
+      for (const u of [0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.07, 0.1, 0.15, 0.2]) {
+        await scrubTo(page, part, u);
+        const shown = (await layers(page)).filter((l) => l.layer > 0.05);
+        const top = shown[shown.length - 1]!;
+        // While the top layer is still coming in, everything under it shows the clock face.
+        if (top.layer < 0.95) {
+          for (const l of shown) {
+            expect(l.snippet, `${part} ${u}: ${l.id} snippet under ${top.id} at ${top.layer.toFixed(2)}`).toBeLessThanOrEqual(0.05);
+            expect(l.glow, `${part} ${u}: ${l.id} glow under ${top.id} at ${top.layer.toFixed(2)}`).toBeLessThanOrEqual(0.05);
+          }
+        }
+      }
+    }
+  });
+
+  test('the pocket leaves every Live Activity change in view', async ({ page }) => {
+    await boot(page);
+    const desk = (page.viewportSize()?.width ?? 0) >= 900;
+    const below = (layer: string, sels: string[]) =>
+      page.evaluate(
+        ({ layer, sels, desk }) => {
+          const pocket = document.querySelector(desk ? '#voice .x-stage-pocket [data-pocket]' : '#voice .x-device [data-pocket]')!;
+          const seam = pocket.getBoundingClientRect().top;
+          return sels.map((sel) => {
+            const r = document.querySelector(`[data-screen="${layer}"] ${sel}`)!.getBoundingClientRect();
+            return { sel, bottom: Math.round(r.bottom), seam: Math.round(seam), clear: r.bottom <= seam + 0.5 };
+          });
+        },
+        { layer, sels, desk },
+      );
+    await scrubTo(page, 'lunchA', 0.7);
+    for (const r of await below('lock-1201-lunch', ['[data-timer]', '[data-worked-line]', '[data-trees]', '[data-back-btn]'])) expect(r.clear, JSON.stringify(r)).toBe(true);
+    await scrubTo(page, 'next', 0.7);
+    for (const r of await below('lock-0719-next', ['[data-trees]', '[data-strip]', '[data-break-btn]'])) expect(r.clear, JSON.stringify(r)).toBe(true);
+  });
+
+  test('the next row: ten trees, and the strip moves on from row 14 to row 15', async ({ page }) => {
+    await boot(page);
+    const strip = () =>
+      page.evaluate(() => {
+        const la = document.querySelector('[data-screen="lock-0719-next"] [data-la]')!;
+        const box = la.querySelector('[data-strip]')!.getBoundingClientRect();
+        return {
+          trees: la.querySelector('[data-trees]')!.getAttribute('data-odo-text'),
+          rows: Array.from(la.querySelectorAll('[data-row]'))
+            .filter((r) => {
+              const b = r.getBoundingClientRect();
+              return b.left >= box.left - 1 && b.right <= box.right + 1;
+            })
+            .map((r) => r.textContent!.trim()),
+        };
+      });
+    await scrubTo(page, 'next', 0.05);
+    expect(await strip()).toEqual({ trees: '0', rows: ['Row 14', 'Row 15', 'Row 16'] });
+    await scrubTo(page, 'next', 0.7);
+    expect(await strip()).toEqual({ trees: '10', rows: ['Row 15', 'Row 16', 'Row 17'] });
+  });
+
+  test('mobile: each lunch flip plays above the card that scrolls over the phone', async ({ page }) => {
+    test.skip((page.viewportSize()?.width ?? 0) >= 900, 'mobile cards only');
+    await boot(page);
+    const b = BEATS.mob;
+    // [part, progress, layer, the card's state there]: just after each flip, and once it has played.
+    const spots: Array<[PartId, number, string, string]> = [
+      ['lunchA', b.lunchAt - 0.01, 'lock-1201-lunch', 'working'],
+      ['lunchA', b.lunchAt + 0.005, 'lock-1201-lunch', 'lunch'],
+      ['lunchA', b.lunchAt + 0.11, 'lock-1201-lunch', 'lunch'],
+      ['lunchB', b.backAt - 0.01, 'lock-1231-back', 'lunch'],
+      ['lunchB', b.backAt + 0.005, 'lock-1231-back', 'working'],
+      ['lunchB', b.backAt + 0.11, 'lock-1231-back', 'working'],
+    ];
+    for (const [part, u, layer, state] of spots) {
+      await scrubTo(page, part, u);
+      const r = await page.evaluate(
+        ({ part, layer }) => {
+          const la = document.querySelector(`[data-screen="${layer}"] [data-la]`)!;
+          return {
+            card: document.querySelector(`[data-part="${part}"]`)!.getBoundingClientRect().top,
+            la: la.getBoundingClientRect().bottom,
+            state: la.getAttribute('data-state'),
+            back: Number(getComputedStyle(la.querySelector('[data-back-btn]')!).opacity),
+          };
+        },
+        { part, layer },
+      );
+      expect(r.state, `${part} ${u}`).toBe(state);
+      expect(r.card, `${part} ${u}`).toBeGreaterThan(r.la);
+    }
+  });
+
+  test('each caption comes in after the reply it explains', async ({ page }) => {
+    await boot(page);
+    const cap = page.locator('[data-part="status"] .x-caption');
+    const opacity = () => cap.evaluate((e) => Number(getComputedStyle(e).opacity));
+    await scrubTo(page, 'status', 0.3);
+    expect(await opacity()).toBe(0);
+    await scrubTo(page, 'status', 0.95);
+    expect(await opacity()).toBe(1);
+    await expect(cap).toContainText(PAY.split(' ').slice(3).join(' '));
   });
 
   test('the section starts and ends with the phone at rest, and nothing overflows', async ({ page }) => {

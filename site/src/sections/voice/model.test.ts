@@ -4,6 +4,8 @@ import { SIRI } from '../../data/siri.ts';
 import { timerAt } from '../../scripts/dayclock.ts';
 import {
   BACK,
+  BEATS,
+  daySteps,
   keepTogether,
   BEFORE_BACK,
   BEFORE_LUNCH,
@@ -174,8 +176,45 @@ describe('voiceMinute: the day as a function of every exchange’s progress', ()
     expect(place(spin.part, spin.at[1], true).p).toBeCloseTo(0.55, 2);
   });
 
-  it('chains every step from where the last one ended', () => {
-    for (let i = 1; i < DAY_STEPS.length; i += 1) expect(DAY_STEPS[i]!.from).toBe(DAY_STEPS[i - 1]!.to);
+  it('chains every step from where the last one ended (desktop and mobile)', () => {
+    for (const steps of [DAY_STEPS, daySteps(false)]) {
+      for (let i = 1; i < steps.length; i += 1) expect(steps[i]!.from).toBe(steps[i - 1]!.to);
+    }
+  });
+
+  it('puts the lunch edges on the beats the scene flips the Live Activity at', () => {
+    for (const desk of [true, false]) {
+      const b = desk ? BEATS.desk : BEATS.mob;
+      const steps = daySteps(desk);
+      expect(steps.find((s) => s.to === LUNCH_STARTED)).toMatchObject({ part: 'lunchA', at: [b.lunchAt, expect.any(Number)] });
+      expect(steps.find((s) => s.to === BACK)).toMatchObject({ part: 'lunchB', at: [b.backAt, expect.any(Number)] });
+      // Just before the flip the clock already reads the spoken time; just after, lunch has begun (or ended).
+      const p = (part: 'lunchA' | 'lunchB', u: number) => {
+        const { src, p: v } = place(part, u, desk);
+        const before: Partial<Record<Source, number>> = { main: 1, misheard: 1, next: 1, ...(part === 'lunchB' && !desk ? { lunchA: 1 } : {}) };
+        return { ...before, [src]: v };
+      };
+      expect(timerAt(voiceMinute(p('lunchA', b.lunchAt - 0.01), desk))).toMatchObject({ kind: 'worked', text: '4:44:00' });
+      expect(timerAt(voiceMinute(p('lunchA', b.lunchAt + 0.03), desk))).toMatchObject({ kind: 'lunch', text: '0:00:00' });
+      expect(timerAt(voiceMinute(p('lunchB', b.backAt - 0.01), desk))).toMatchObject({ kind: 'lunch', text: '0:30:00' });
+      expect(timerAt(voiceMinute(p('lunchB', b.backAt + 0.03), desk))).toMatchObject({ kind: 'worked', text: '4:44:00' });
+    }
+  });
+
+  it('on mobile, changes everything on the Live Activity before its card slides over it (~.45)', () => {
+    const b = BEATS.mob;
+    for (const end of [b.nextDay[1], b.morning[1], b.lunchAt, b.spin[1], b.backAt, b.afternoon[1]]) expect(end).toBeLessThanOrEqual(0.36);
+    // Each time-lapse finishes before the spoken line it leads to is lit (the clock reads the line's time).
+    expect(b.morning[1]).toBeLessThan(b.lunchAt);
+    expect(b.spin[1]).toBeLessThan(b.backAt);
+  });
+
+  it('reads each exchange’s time while its line is spoken on mobile', () => {
+    const m = (p: Partial<Record<Source, number>>) => fmtTime(voiceMinute({ main: 1, ...p }, false));
+    expect(m({ misheard: 1, next: 0.2 })).toBe('7:19 AM');
+    expect(m({ misheard: 1, next: 1, lunchA: 0.2 })).toBe('12:01 PM');
+    expect(m({ misheard: 1, next: 1, lunchA: 1, lunchB: 0.2 })).toBe('12:31 PM');
+    expect(m({ misheard: 1, next: 1, lunchA: 1, lunchB: 1, status: 0.2 })).toBe('2:01 PM');
   });
 });
 
