@@ -95,7 +95,15 @@ registerScene(
       tl.to(chars, { opacity: 1, duration: Math.min(each, 0.002), stagger: each, ease: 'none' }, at);
     };
     // The page's lines are pre-split into word spans (.co-w) on the server.
-    const lightWords = (el: El, at: number, dur: number, from: number) => reveal(all(el, '.co-w'), { opacity: from }, { opacity: 1 }, at, dur);
+    const lightWords = (el: El, at: number, dur: number, from: number) => {
+      const words = all(el, '.co-w');
+      // Siri's lines (from 0) type on a word at a time, each whole at its moment: never half
+      // faded in the reading area. Your lines light from .4 (3:1 for their large type).
+      if (from === 0 && words.length) {
+        gsap.set(words, { opacity: 0 });
+        tl.to(words, { opacity: 1, duration: 0.0005, stagger: dur / words.length, ease: 'none' }, at);
+      } else reveal(words, { opacity: from }, { opacity: 1 }, at, dur);
+    };
 
     // ---- The section starts at dusk and turns light at the lights-up ----
     const theme = section.dataset.theme;

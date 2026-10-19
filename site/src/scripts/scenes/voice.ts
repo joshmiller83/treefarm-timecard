@@ -276,7 +276,9 @@ registerScene(
       if (els.length) {
         gsap.set(els, { opacity: 0 });
         const each = (t.pos(w[1]) - t.pos(w[0])) / els.length;
-        t.m.fromTo(els, { opacity: 0 }, { opacity: 1, duration: each, stagger: each, immediateRender: false }, t.pos(w[0]));
+        // Each word appears whole at its moment (as Siri's text does), never resting half
+        // faded and unreadable in the reading area.
+        t.m.fromTo(els, { opacity: 0 }, { opacity: 1, duration: Math.min(each, 0.0005), stagger: each, immediateRender: false }, t.pos(w[0]));
       }
       const bars = glyphBars(root);
       if (bars.length) {

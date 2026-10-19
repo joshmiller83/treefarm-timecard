@@ -161,7 +161,8 @@ registerScene(
       const words = util.split(text, 'words');
       set(line, { opacity: 0 });
       to(line, { opacity: 1, duration: 0.004, ease: 'none' }, s[0]);
-      tl.fromTo(words, { opacity: 0 }, { opacity: 1, duration: dur(s) / Math.max(words.length, 1), stagger: dur(s) / Math.max(words.length, 1), ease: 'none' }, s[0]);
+      // Each word appears whole at its moment (never resting half faded in the reading area).
+      tl.fromTo(words, { opacity: 0 }, { opacity: 1, duration: 0.0005, stagger: dur(s) / Math.max(words.length, 1), ease: 'none' }, s[0]);
     };
     const karaoke = (el: El | null, s: Span) => {
       if (el && fx) util.karaoke(tl, el, s[0], dur(s));
@@ -419,7 +420,7 @@ registerScene(
       const said = fx ? page('[data-nb-reply="shift"]') : null;
       if (said) {
         const words = util.split(said, 'words');
-        tl.fromTo(words, { opacity: 0 }, { opacity: 1, duration: dur(P.shift.replyType) / words.length, stagger: dur(P.shift.replyType) / words.length, ease: 'none' }, P.shift.replyType[0]);
+        tl.fromTo(words, { opacity: 0 }, { opacity: 1, duration: 0.0005, stagger: dur(P.shift.replyType) / words.length, ease: 'none' }, P.shift.replyType[0]);
       }
       // The note prints onto the time card strip.
       const strip = fx ? page('[data-nb-strip]') : null;
