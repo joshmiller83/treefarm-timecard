@@ -27,8 +27,9 @@ npm run dev            # http://localhost:4321 (use your team's port: npm run de
 | `npm run build` | Static build into `dist/` (prints any unverified Siri lines) |
 | `npm run preview` | Serves `dist/` on 4321 |
 | `npm run check` | `astro check` (TypeScript strict) |
+| `npm run budgets` | Size budgets of the built page, gzipped (after a build; CI runs it): HTML and first-load JS fail when over, motion JS and CSS are reported |
 | `npm test` | Vitest: ledger arithmetic, Siri wording, DayClock math, odometer, and the shared components' models (Live Activity, wallpapers, captures, wave, Clock/notes/team views, field map, report) |
-| `npm run test:e2e` | Playwright against the built site: the page (`tests/e2e`: smoke, reduced motion, axe, overflow, nav; `tests/sections`: one spec per chapter) and the component labs (`tests/lab`, one spec per team, projects `lab-desktop` and `lab-mobile`). Build first. `PW_PORT=4330` to change the port, `PW_ALL=1` to add WebKit and Firefox (page and labs). Just the page: `-- --project=desktop --project=mobile` |
+| `npm run test:e2e` | Playwright against the built site: the page (`tests/e2e`: smoke, reduced motion, axe at load and at 24 scroll positions, pixel-sampled contrast, overflow, nav (with motion and without), hit testing, overlap at seams and laptop heights, long frames and scroll layout shift; `tests/sections`: one spec per chapter) and the component labs (`tests/lab`, one spec per team, projects `lab-desktop` and `lab-mobile`). Build first. `PW_PORT=4330` to change the port, `PW_ALL=1` to add WebKit and Firefox (page and labs). Just the page: `-- --project=desktop --project=mobile` |
 | `npm run test:all` | check + unit + build + e2e |
 | `npm run shoot -- …` | Screenshots (below) |
 | `npm run og` | Rebuilds `public/og.png` from the hidden `/og/` route (commit the PNG) |
@@ -155,3 +156,21 @@ HTML ≤ 75 KB gz, CSS ≤ 35 KB gz, first-load JS ≤ 6 KB gz, motion bundle �
 ≤ 120 KB (Zilla Slab 700 and Public Sans 400 preloaded; prefer Public Sans 400/600 and Plex Mono
 500/600, every extra weight costs about 15 KB), images: og.png and one blurred WebP only.
 Animate only transform, opacity, clip-path and stroke-dashoffset.
+
+`npm run budgets` checks the built page. On 2026-10-19: HTML 59 KB gz, first-load JS 3.5 KB gz,
+motion JS ~101 KB gz across a full scroll (core 53 KB: GSAP, ScrollTrigger, SplitText; scenes
+and their shared modules ~48 KB) and CSS ~44 KB gz in 8 files: the last two are over and are
+reported, not failed, until they are trimmed (the CSS by folding per-section duplicates into
+global.css, the scenes by sharing more helpers).
+
+## Known differences from the app
+
+- **Status wording.** The page says 'On the clock' and 'On lunch' (the brief's words); the
+  app's StatusPill and Live Activity say 'Working'. Either the app adopts the page's words
+  (preferred) or a real capture swapped in later will read differently from the copy.
+- **Field map orientation.** Phones and the close-ups draw the field as the ledger does
+  (blocks 1–7 on top, rows running down). The wide desktop overview turns it a quarter turn
+  so its dots stay readable; in the ledger's orientation it would be a narrow column of
+  ~5px dots in a 1180px frame.
+- **The conflict message** is the server's per-tree rejection (PushApplier.taken), for the
+  row's first tree.
