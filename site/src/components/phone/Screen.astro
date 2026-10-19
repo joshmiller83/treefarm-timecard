@@ -5,6 +5,10 @@
  * Renders <div class="layer" data-state data-screen data-final?>. Without motion only the
  * [data-final] layer shows; with motion every layer stacks and scenes set opacity (shell.css).
  *
+ * A non-final layer ships inside <template data-layer>: only the scene that animates it needs
+ * it, so the static page never parses it and the first layout skips it. The motion core puts
+ * a section's templates in place just before it builds the section's scene (motion.ts).
+ *
  * Real captures: when public/screens/<stateId>.{avif,webp} exists (1179 × 2556, ≤ 200 KB;
  * capture.test.ts enforces both), the layer renders that image instead of the HTML
  * recreation in the slot, with the same alt. The folder comes from Astro's publicDir, so a
@@ -30,29 +34,27 @@ const { stateId, alt, final = false, tone = 'dark', class: cls } = Astro.props;
 const capture = findCapture(stateId, captureDir(publicDir));
 ---
 
-<div
-  class:list={['layer', `layer--${tone}`, cls]}
-  data-state={stateId}
-  data-screen={stateId}
-  data-final={final ? '' : undefined}
-  data-capture={capture ? '' : undefined}
->
-  {
-    capture ? (
-      <img
-        class="capture"
-        src={capture}
-        width={CAPTURE_SIZE.width}
-        height={CAPTURE_SIZE.height}
-        alt={alt}
-        loading="lazy"
-        decoding="async"
-      />
-    ) : (
-      <slot />
-    )
-  }
-</div>
+{
+  final ? (
+    <div class:list={['layer', `layer--${tone}`, cls]} data-state={stateId} data-screen={stateId} data-final data-capture={capture ? '' : undefined}>
+      {capture ? (
+        <img class="capture" src={capture} width={CAPTURE_SIZE.width} height={CAPTURE_SIZE.height} alt={alt} loading="lazy" decoding="async" />
+      ) : (
+        <slot />
+      )}
+    </div>
+  ) : (
+    <template data-layer={stateId}>
+      <div class:list={['layer', `layer--${tone}`, cls]} data-state={stateId} data-screen={stateId} data-capture={capture ? '' : undefined}>
+        {capture ? (
+          <img class="capture" src={capture} width={CAPTURE_SIZE.width} height={CAPTURE_SIZE.height} alt={alt} loading="lazy" decoding="async" />
+        ) : (
+          <slot />
+        )}
+      </div>
+    </template>
+  )
+}
 
 <style>
   .layer--dark {

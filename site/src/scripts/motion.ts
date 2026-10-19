@@ -2,7 +2,7 @@
  * MOTION CORE. Loaded on demand by main.ts only when html.motion is set, so visitors who
  * prefer reduced motion never download GSAP.
  *
- * - Registers ScrollTrigger, SplitText and Flip; one gsap.matchMedia with 'desk' and 'mob'.
+ * - Registers ScrollTrigger and SplitText; one gsap.matchMedia with 'desk' and 'mob'.
  * - Per section: a chapter trigger (tint crossfade, DayClock chapter, stage claim) and a
  *   lazily built scene (imported and built when the section is within 1.5 viewports).
  * - DayClock ticker, scroll idle tick, Pause motion, focus-follows-beat, refresh on fonts and resize.
@@ -10,20 +10,24 @@
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { SplitText } from 'gsap/SplitText';
-import { Flip } from 'gsap/Flip';
 import { CHAPTERS, chapter, type ChapterId, type TintKey } from '../data/chapters.ts';
 import { day, startDayClock, type DayTrack } from './dayclock.ts';
-import { PAUSE_EVENT } from './header.ts';
 import { getScene, type SceneContext } from './scene.ts';
 import { createStage, type Stage } from './stage.ts';
 import { createUtil } from './util.ts';
 
-gsap.registerPlugin(ScrollTrigger, SplitText, Flip);
+gsap.registerPlugin(ScrollTrigger, SplitText);
 ScrollTrigger.config({ ignoreMobileResize: true });
 
 const DESK = '(min-width: 900px) and (min-height: 560px) and (prefers-reduced-motion: no-preference)';
 const MOB = '(max-width: 899.98px) and (prefers-reduced-motion: no-preference)';
 const IDLE_LOOPS_MS = 5000;
+/**
+ * The Pause motion toggle's event (header.ts dispatches it). Written here rather than imported:
+ * importing header.ts made the dynamic import of this core preload the header's chunk again,
+ * which Safari fetched twice. motion.test.ts keeps the two strings equal.
+ */
+const PAUSE_EVENT = 'tf:pause';
 
 // Scene modules, one chunk each, loaded when their section comes near.
 const sceneLoaders = import.meta.glob<unknown>('./scenes/*.ts');
@@ -160,6 +164,21 @@ export function boot(): void {
       const buildScene = (section: HTMLElement, sceneBuild: NonNullable<ReturnType<typeof getScene>>['build'], options: NonNullable<ReturnType<typeof getScene>>['options']) => {
         const id = section.id as ChapterId;
         const track = section.querySelector<HTMLElement>('.track') ?? section;
+        // The section's non-final screen layers ship as <template data-layer> (Screen.astro):
+        // put them in place now, wherever its screens are (the stage may hold them).
+        const own = section.querySelector<HTMLElement>('[data-screens]') ?? document.querySelector<HTMLElement>(`[data-screens][data-section="${id}"]`);
+        let placed = 0;
+        for (const root of [section, own]) {
+          for (const t of Array.from(root?.querySelectorAll<HTMLTemplateElement>('template[data-layer]') ?? [])) {
+            t.replaceWith(t.content);
+            placed += 1;
+          }
+        }
+        // The clocks and timers in those layers join the DayClock if this chapter is in charge.
+        if (placed && active === section) {
+          clock.scope(stage && isDesk ? [stage.el, section] : [section]);
+          clock.render(true);
+        }
         const natural = (desk ? section.dataset.desk : section.dataset.mob) === 'auto';
         const tl = gsap.timeline({
           defaults: { ease: 'none' },
@@ -198,7 +217,6 @@ export function boot(): void {
           gsap,
           ScrollTrigger,
           SplitText,
-          Flip,
           stage: desk ? stage : null,
           trigger: (vars) => ScrollTrigger.create(vars),
           tint: setTint,

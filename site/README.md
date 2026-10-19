@@ -2,7 +2,7 @@
 
 The marketing page for Tree Farm Time Card at **https://treefarm.joshnliz.com**: one
 scrollytelling page that carries one trimmer through one Friday shift. Astro 7.4 (static),
-GSAP 3.15 (ScrollTrigger, SplitText, Flip), vanilla TypeScript, deployed to GitHub Pages
+GSAP 3.15 (ScrollTrigger, SplitText), vanilla TypeScript, deployed to GitHub Pages
 by `.github/workflows/site.yml`.
 
 - The spec: `../docs/landing/brief.json` (read parts with `jq`, e.g.

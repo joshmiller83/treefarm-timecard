@@ -394,29 +394,31 @@ q::after {
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
+/* A drum, not a window: a 1em cell on the glyph, and the digits fade at its edges while
+   they roll, so a still caught mid-tick never shows a hard-clipped half digit. */
 .odo-d {
   display: inline-block;
-  height: 1.15em;
-  line-height: 1.15em;
+  height: 1em;
+  line-height: 1em;
   overflow: hidden;
   vertical-align: bottom;
+  -webkit-mask-image: linear-gradient(transparent, #000 14%, #000 86%, transparent);
+  mask-image: linear-gradient(transparent, #000 14%, #000 86%, transparent);
 }
+/* Ten digits in one text node, a line each. */
 .odo-col {
-  display: flex;
-  flex-direction: column;
-}
-.odo-col > span {
-  height: 1.15em;
-  line-height: 1.15em;
+  display: block;
+  white-space: pre;
+  line-height: 1em;
   text-align: center;
 }
 .odo-s {
   display: inline-block;
-  height: 1.15em;
-  line-height: 1.15em;
+  height: 1em;
+  line-height: 1em;
 }
 html.motion .odo-col {
-  transition: transform 0.18s var(--ease-out);
+  transition: transform 0.12s var(--ease-out);
 }
 html.scrubbing .odo-col,
 html.paused .odo-col {

@@ -12,6 +12,7 @@
     "build": "astro build",
     "preview": "astro preview --port 4321",
     "check": "astro check",
+    "budgets": "node scripts/budgets.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",

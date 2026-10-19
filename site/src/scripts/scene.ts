@@ -10,7 +10,6 @@
 import type { gsap as GSAPObject } from 'gsap';
 import type { ScrollTrigger as ST } from 'gsap/ScrollTrigger';
 import type { SplitText as Split } from 'gsap/SplitText';
-import type { Flip as FlipPlugin } from 'gsap/Flip';
 import type { ChapterId, TintKey } from '../data/chapters.ts';
 import type { Minute } from '../data/ledger.ts';
 import type { Day, DayClockRuntime } from './dayclock.ts';
@@ -48,7 +47,6 @@ export interface SceneContext {
   gsap: typeof GSAPObject;
   ScrollTrigger: typeof ST;
   SplitText: typeof Split;
-  Flip: typeof FlipPlugin;
   /** The stage (desktop only). */
   stage: Stage | null;
   /** Make another ScrollTrigger owned by this scene (reverted with it). */

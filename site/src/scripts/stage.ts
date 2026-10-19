@@ -62,6 +62,8 @@ export function createStage(gsap: typeof GSAPObject, doc: Document = document): 
     claim(section) {
       const screens = section.querySelector<HTMLElement>('[data-screens]');
       if (!screens) return;
+      // Whose screens these are, once they have left their section for the stage.
+      screens.dataset.section = section.id;
       owner = section;
       if (screens === current) return;
       if (!homes.has(screens)) homes.set(screens, { parent: screens.parentNode!, next: screens.nextSibling });

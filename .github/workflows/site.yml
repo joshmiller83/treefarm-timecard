@@ -51,6 +51,9 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Size budgets (HTML, first-load JS; motion JS and CSS reported)
+        run: npm run budgets
+
       - name: Install Playwright (Chromium)
         run: npx playwright install --with-deps chromium
 
@@ -71,6 +74,11 @@ jobs:
           name: playwright-results
           path: site/test-results
           retention-days: 7
+
+      # The component workbenches and the OG template are build tools, not pages: they stay
+      # out of the deploy (Playwright and Lighthouse above still use them from dist).
+      - name: Leave the tool routes out of the deploy
+        run: rm -rf dist/lab dist/og
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

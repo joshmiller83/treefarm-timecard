@@ -10,10 +10,11 @@
 const DIGITS = '0123456789';
 const isDigit = (ch: string) => ch >= '0' && ch <= '9';
 
-const col = (d: number) =>
-  `<span class="odo-d"><span class="odo-col" style="transform:translateY(${-d * 10}%)">` +
-  Array.from(DIGITS, (n) => `<span>${n}</span>`).join('') +
-  `</span></span>`;
+/** The column's ten digits, one per line, as a single text node (white-space: pre in CSS):
+ * one element per digit instead of eleven keeps the page's DOM small. */
+const COLUMN = Array.from(DIGITS).join('\n');
+
+const col = (d: number) => `<span class="odo-d"><span class="odo-col" style="transform:translateY(${-d * 10}%)">${COLUMN}</span></span>`;
 
 const escape = (s: string) => s.replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`);
 

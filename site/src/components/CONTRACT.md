@@ -686,7 +686,7 @@ registerScene('voice', (ctx) => {
 ```
 
 `ctx`: `{ id, section, tl, phone, screens, extras, frame, beats, q, q1, day, clock, isDesk, util,
-gsap, ScrollTrigger, SplitText, Flip, stage, trigger, tint }`. `tl` is scrubbed (`start 'top top'`,
+gsap, ScrollTrigger, SplitText, stage, trigger, tint }`. `tl` is scrubbed (`start 'top top'`,
 `end 'bottom bottom'`, `scrub 0.6`) and normalized: place everything between 0 and 1.
 `clock` is the DayClock's real-time tick (`wake()` drops it, `idle()` starts the 5 s tick).
 `util`: `tap, odometer, karaoke, typeIn, drawLine, crossfade, sheen, callout, ambient`

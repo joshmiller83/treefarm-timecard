@@ -46,9 +46,14 @@ export default defineConfig({
   output: 'static',
   trailingSlash: 'ignore',
   devToolbar: { enabled: false },
+  // Scoped styles by class (astro-xxxx) rather than data-astro-cid-xxxx attributes: the same
+  // specificity, and shorter in both the HTML and the CSS (the page has ~6k elements).
+  scopedStyleStrategy: 'class',
   build: {
-    // The page's CSS is ~9 KB gzipped: inlining it saves a render-blocking round trip (LCP).
-    inlineStylesheets: 'always',
+    // 'auto' (the brief's "inlined where small"): small stylesheets inline, the page's main
+    // CSS is a cached file. Inlining all of it put ~40 KB gz into every HTML response and
+    // pushed the HTML past its 75 KB gz budget (and LCP up under load).
+    inlineStylesheets: 'auto',
     format: 'directory',
   },
   integrations: [sitemap({ filter: (page) => !isToolRoute(page) }), siriLinesCheck()],
@@ -96,7 +101,7 @@ export default defineConfig({
   ],
   vite: {
     build: {
-      // The motion chunk (GSAP + plugins + core) is ~160 KB raw, ~60 KB gzipped (budget: 80 KB gz).
+      // The motion chunk (GSAP + plugins + core) is ~140 KB raw, ~53 KB gzipped.
       chunkSizeWarningLimit: 180,
     },
   },
