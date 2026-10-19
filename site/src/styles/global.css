@@ -433,6 +433,21 @@ html:not(.motion) .motion-only {
 html.motion .static-only {
   display: none !important;
 }
+/* Static figures the moving page tells visually (a crop, a second phone): with motion they
+   stay for screen readers (their image labels and captions), visually hidden, instead of
+   leaving the accessibility tree. */
+html.motion .static-only.sr-moving {
+  display: block !important;
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  margin: -1px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  overflow: hidden !important;
+  clip-path: inset(50%) !important;
+  white-space: nowrap !important;
+}
 /* The Pause toggle is pointless when nothing moves. */
 html:not(.motion) [data-pause-toggle] {
   display: none !important;

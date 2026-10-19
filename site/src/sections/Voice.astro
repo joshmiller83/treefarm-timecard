@@ -144,7 +144,7 @@ const pieces = (w: string) => w.split(/(\d+(?:,\d{3})*)/).filter(Boolean);
                   </p>
                 )}
                 {p.id === 'lunchA' && (
-                  <figure class="x-lunch-fig static-only">
+                  <figure class="x-lunch-fig static-only sr-moving">
                     <div class="x-lunch-crop" role="img" aria-label={lunchLabel}>
                       <div aria-hidden="true">
                         <LiveActivity at={MOMENTS.lunch} fixed placement="solo" />

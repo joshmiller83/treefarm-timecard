@@ -43,3 +43,17 @@ test('landmarks, skip link and one H1', async ({ page, browserName }) => {
   expect(n).toBeGreaterThan(0);
   for (let i = 0; i < n; i += 1) expect((await phones.nth(i).getAttribute('aria-label'))?.length ?? 0).toBeGreaterThan(20);
 });
+
+test('with motion, the static figures stay for screen readers (labels and captions)', async ({ page }) => {
+  await page.goto('/');
+  await settle(page);
+  for (const sel of ['.x-lunch-fig', '.ls-island-fig', '.fm-zoomfig', '.nb-crop', '.crew-cell--off', '.crew-cell--owner', '.pace-phone--bottom']) {
+    const el = page.locator(sel).first();
+    await expect(el, sel).toBeAttached();
+    // In the accessibility tree (not display: none), visually hidden.
+    expect(await el.evaluate((e) => getComputedStyle(e).display), sel).not.toBe('none');
+    const box = (await el.boundingBox())!;
+    expect(box.width * box.height, sel).toBeLessThanOrEqual(1);
+  }
+  await expect(page.getByRole('img', { name: /no signal/i })).toHaveCount(1);
+});
