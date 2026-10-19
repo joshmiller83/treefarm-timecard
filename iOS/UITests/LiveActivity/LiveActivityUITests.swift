@@ -9,6 +9,9 @@ import XCTest
 @MainActor
 final class LiveActivityUITests: XCTestCase {
     private let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+    /// How long the lock screen may take to show an update. A phone takes well under a
+    /// second; a busy simulator on an Intel Mac has taken more than ten.
+    private static let redraw: TimeInterval = 30
 
     override func setUp() {
         continueAfterFailure = false
@@ -18,7 +21,7 @@ final class LiveActivityUITests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = ["-UITestInMemory", "-LiveActivityDemo", "rows"]
         app.launch()
-        XCTAssertTrue(app.tabBars.buttons["Clock"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.tabBars.buttons["Clock"].waitForExistence(timeout: Self.redraw))
 
         // The island while using another app.
         XCUIDevice.shared.press(.home)
@@ -36,12 +39,16 @@ final class LiveActivityUITests: XCTestCase {
             springboard.buttons[title].tap()
             sleep(1)
         }
-        XCTAssertTrue(row7.waitForExistence(timeout: 10), "No row 7 button on the lock screen.\n\(springboard.debugDescription)")
+        // A cold widget extension can take a while to draw the first time on a busy simulator.
+        if !row7.waitForExistence(timeout: 20) {
+            lockAndWake()
+        }
+        XCTAssertTrue(row7.waitForExistence(timeout: 20), "No row 7 button on the lock screen.\n\(springboard.debugDescription)")
         shot("lock-rows")
 
         // Tap Row 7: it's marked, Undo appears, and the buttons move on to 8, 9 and 10.
         row7.tap()
-        XCTAssertTrue(springboard.buttons["Mark row 10 shaped"].waitForExistence(timeout: 10), "The rows didn't move on.\n\(springboard.debugDescription)")
+        XCTAssertTrue(springboard.buttons["Mark row 10 shaped"].waitForExistence(timeout: Self.redraw), "The rows didn't move on.\n\(springboard.debugDescription)")
         XCTAssertTrue(springboard.staticTexts["Row 7 marked"].exists)
         shot("lock-row7-marked")
 
@@ -49,17 +56,20 @@ final class LiveActivityUITests: XCTestCase {
         let undo = springboard.buttons["Undo: Row 7 marked"]
         XCTAssertTrue(undo.exists)
         undo.tap()
-        XCTAssertTrue(row7.waitForExistence(timeout: 10), "Undo didn't bring row 7 back.\n\(springboard.debugDescription)")
+        XCTAssertTrue(row7.waitForExistence(timeout: Self.redraw), "Undo didn't bring row 7 back.\n\(springboard.debugDescription)")
         XCTAssertTrue(springboard.staticTexts["Undid row 7"].exists)
 
         // Break: one big Back to work, and no row buttons.
         springboard.buttons["Start a break"].tap()
         let back = springboard.buttons["Back to work"]
-        XCTAssertTrue(back.waitForExistence(timeout: 10), "No Back to work.\n\(springboard.debugDescription)")
+        XCTAssertTrue(back.waitForExistence(timeout: Self.redraw), "No Back to work.\n\(springboard.debugDescription)")
         XCTAssertFalse(row7.exists)
         shot("lock-break")
         back.tap()
-        XCTAssertTrue(row7.waitForExistence(timeout: 10))
+        if !row7.waitForExistence(timeout: Self.redraw) {
+            shot("lock-back-to-work-missing")
+            XCTFail("Back to work didn't bring the rows back.\n\(springboard.debugDescription)")
+        }
 
         // No way to clock out from the lock screen.
         XCTAssertFalse(springboard.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'clock out'")).firstMatch.exists)
