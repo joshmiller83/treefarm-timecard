@@ -244,13 +244,11 @@ const label = heroPhoneLabel();
     /* The rows stand behind the phone, smaller, and fade into the next chapter. */
     #hero .hero-sky {
       --band-scale: 0.62;
+      --zone-h: calc(min(60svh, 520px) * 0.62 + 96px);
+      --far-top: 0;
     }
     #hero .hero-bands {
-      height: calc(min(60svh, 520px) * 0.62 + 96px);
       --band-fade: 72px;
-    }
-    #hero .hero-band--far {
-      top: 0;
     }
     #hero .hero-band--mid {
       top: 16%;
@@ -310,7 +308,7 @@ const label = heroPhoneLabel();
     opacity: 1;
     transition: none;
   }
-  html.motion.intro-wait #hero :is(.eyebrow, [data-said-word], .hero-device, [data-band-art]) {
+  html.motion.intro-wait #hero :is(.eyebrow, [data-said-word], .hero-device, [data-band-art], [data-dawn]) {
     opacity: 0;
   }
   /* The header's ribbon fill and riding tag arrive with the scroll scene on desktop (the

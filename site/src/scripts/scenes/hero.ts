@@ -21,6 +21,7 @@
  *   copy items ([data-intro], eyebrow) ← load       .beat-head (--hero-lift, opacity) ← scroll
  *   spoken words                       ← load       the spoken line ← scroll
  *   [data-band-art]                    ← load       [data-band] (y), [data-band-fade] (opacity) ← scroll
+ *   [data-dawn] opacity                ← load       [data-dawn] --dawn-y (the sun climbs) ← scroll
  *   [data-phone]                       ← load       [data-hero-float] ← mobile parallax
  *
  * The section ends at rest (lock screen, clock and Live Activity) for the voice section.
@@ -97,6 +98,12 @@ registerScene(
       gsap.set(dark, { transition: 'none' });
       const c = k(INTRO.tint);
       pageTl.fromTo(dark, { opacity: 1 }, { opacity: 0, duration: c.dur, ease: 'power1.inOut' }, c.at);
+    }
+    const dawn = section.querySelector<HTMLElement>('[data-dawn]');
+    if (dawn) {
+      // The sun comes up behind the far rows with the light.
+      const c = k(INTRO.bands);
+      pageTl.fromTo(dawn, { opacity: 0 }, { opacity: 1, duration: c.dur * 1.2, ease: 'power1.inOut' }, c.at);
     }
     if (arts.length) {
       const c = k(INTRO.bands);
@@ -249,6 +256,9 @@ registerScene(
       const far = bands.find((x) => x.spec.id === 'far')?.fade;
       if (far) tl.fromTo(far, { opacity: 0.6 }, { opacity: 0.3, duration: b - a }, a);
       if (stars.length) tl.fromTo(stars, { opacity: 0.35 }, { opacity: 0.1, duration: 0.8 }, 0);
+      // The sun climbs behind the far rows as the stars go (a custom property: the glow is
+      // centred with the CSS translate property, which a GSAP y tween would fold away).
+      if (dawn) tl.fromTo(dawn, { '--dawn-y': '0px' }, { '--dawn-y': () => `${Math.round(-innerHeight * 0.06)}px`, duration: b - a }, a);
       // The shift ribbon starts with the shift: its fill and riding tag fade in.
       const [ra, rb] = SCROLL.ribbon;
       const ribbon = Array.from(document.querySelectorAll<HTMLElement>('nav.shift :is(.ribbon-fill, .tag-ride)'));

@@ -6,6 +6,7 @@
  *
  *   [data-hero-sky]                      the layer (absolute, clipped)
  *     [data-star]                        2px dots
+ *     [data-dawn]                        the low sunrise glow behind the far rows
  *     [data-band="far|mid|near"]         scroll parallax (y)
  *       [data-band-fade]                 scroll opacity (the far band thins .6 → .3)
  *         [data-band-art]                load sequence (rises y 24 → 0)
@@ -17,7 +18,7 @@ import { BANDS, STARS, bandGround, bandHeight, bandTrees, groundBase } from './h
 const bands = BANDS.map((b) => ({ ...b, h: bandHeight(b), trees: bandTrees(b), ground: bandGround(b) }));
 ---
 
-<div class="hero-sky" data-hero-sky aria-hidden="true">
+<div class="hero-sky" data-hero-sky aria-hidden="true" style={`--far-ground:${groundBase(BANDS[0]!)}px`}>
   <svg class="hero-defs" width="0" height="0" focusable="false">
     <defs>
       {
@@ -41,6 +42,9 @@ const bands = BANDS.map((b) => ({ ...b, h: bandHeight(b), trees: bandTrees(b), g
     ))
   }
 
+  {/* The sun is just under the far rows: a low glow behind them (outside the bands' mask). */}
+  <i class="hero-dawn" data-dawn></i>
+
   <div class="hero-bands">
     {
       bands.map((b) => (
@@ -62,6 +66,10 @@ const bands = BANDS.map((b) => ({ ...b, h: bandHeight(b), trees: bandTrees(b), g
 
 <style>
   .hero-sky {
+    /* The bands' zone (from the bottom) and where the far rows start in it; Hero.astro
+       changes them for phones. */
+    --zone-h: 38%;
+    --far-top: 0.02;
     position: absolute;
     inset: 0;
     overflow: clip;
@@ -91,7 +99,7 @@ const bands = BANDS.map((b) => ({ ...b, h: bandHeight(b), trees: bandTrees(b), g
     left: 0;
     right: 0;
     bottom: 0;
-    height: 38%;
+    height: var(--zone-h);
   }
   /* With motion the next chapter scrolls up over the fixed stage tints: the nearest rows melt
      into ground mist at the bottom, so the hero never ends on a hard edge. (Static sections
@@ -108,7 +116,7 @@ const bands = BANDS.map((b) => ({ ...b, h: bandHeight(b), trees: bandTrees(b), g
     bottom: -14vh;
   }
   .hero-band--far {
-    top: 2%;
+    top: calc(var(--far-top) * 100%);
   }
   .hero-band--mid {
     top: 24%;
@@ -133,6 +141,19 @@ const bands = BANDS.map((b) => ({ ...b, h: bandHeight(b), trees: bandTrees(b), g
     /* The individual scale property (not transform), so nothing the scene animates collides. */
     scale: var(--band-scale, 1);
     transform-origin: 0 0;
+  }
+  /* The sun is just under the far rows: a low glow behind them, where the phone's own
+     wallpaper has its sunrise (x 62%, as the stage tint's horizon). */
+  .hero-dawn {
+    position: absolute;
+    left: 62%;
+    top: calc(100% - var(--zone-h) + var(--far-top) * var(--zone-h) + var(--far-ground) * var(--band-scale, 1));
+    width: min(118vw, 1500px);
+    height: 300px;
+    /* --dawn-y: the scroll scene lifts the sun a little as the morning goes on. */
+    translate: -50% calc(-58% + var(--dawn-y, 0px));
+    background: radial-gradient(closest-side, rgba(226, 166, 68, 0.16), rgba(226, 166, 68, 0.06) 55%, transparent);
+    pointer-events: none;
   }
   /* A strip of morning mist along the far rows' ground (.06 once the band's .6 applies). */
   .hero-mist {
