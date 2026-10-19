@@ -86,3 +86,89 @@ struct BlockEditCheckTests {
         #expect(BlockEdit.checkRemove(block, marks: [F.mark(block, 50, 0)], notes: []) != nil)
     }
 }
+
+@Suite("BlockEdit: placement")
+struct BlockEditPlacementTests {
+    typealias F = TreeFixtures
+
+    func spot(_ b: Block) -> [Int] { [b.gridRow, b.gridColumn] }
+    func new(_ n: Int = 99) -> Block { F.block(n, name: "New", gridRow: 42, gridColumn: 42) }
+
+    @Test func firstBlockInAnEmptyField() {
+        let placed = BlockEdit.place(new: new(), .first, among: [])
+        #expect(placed.map(spot) == [[0, 0]])
+        #expect(placed.first?.id == F.id(99))
+        #expect(placed.first?.name == "New")
+    }
+
+    @Test func rightOfABlockShiftsLaterBlocksRight() {
+        let a = F.block(1, gridRow: 0, gridColumn: 0)
+        let b = F.block(2, gridRow: 0, gridColumn: 1)
+        let c = F.block(3, gridRow: 0, gridColumn: 2)
+        let d = F.block(4, gridRow: 1, gridColumn: 0)
+        let placed = BlockEdit.place(new: new(), .rightOf(a.id), among: [d, c, b, a])
+        #expect(placed.map(\.id) == [F.id(99), b.id, c.id])
+        #expect(placed.map(spot) == [[0, 1], [0, 2], [0, 3]])
+    }
+
+    @Test func aGapInColumnsStopsTheShift() {
+        let a = F.block(1, gridRow: 0, gridColumn: 0)
+        let b = F.block(2, gridRow: 0, gridColumn: 1)
+        let c = F.block(3, gridRow: 0, gridColumn: 5)
+        let placed = BlockEdit.place(new: new(), .rightOf(a.id), among: [a, b, c])
+        #expect(placed.map(\.id) == [F.id(99), b.id])
+        #expect(placed.map(spot) == [[0, 1], [0, 2]])
+    }
+
+    @Test func rightOfTheLastBlockMovesNothingElse() {
+        let a = F.block(1, gridRow: 0, gridColumn: 0)
+        let b = F.block(2, gridRow: 0, gridColumn: 3)
+        let placed = BlockEdit.place(new: new(), .rightOf(b.id), among: [a, b])
+        #expect(placed.map(spot) == [[0, 4]])
+    }
+
+    @Test func rightOfABlockInALowerStrip() {
+        let a = F.block(1, gridRow: 0, gridColumn: 0)
+        let d = F.block(4, gridRow: 2, gridColumn: 0)
+        let e = F.block(5, gridRow: 2, gridColumn: 1)
+        let placed = BlockEdit.place(new: new(), .rightOf(d.id), among: [a, d, e])
+        #expect(placed.map(spot) == [[2, 1], [2, 2]])
+        #expect(placed.last?.id == e.id)
+    }
+
+    @Test func newRowBelowGoesUnderTheLastStrip() {
+        let a = F.block(1, gridRow: 0, gridColumn: 0)
+        let d = F.block(4, gridRow: 3, gridColumn: 2)
+        #expect(BlockEdit.place(new: new(), .newRowBelow, among: [a, d]).map(spot) == [[4, 0]])
+        #expect(BlockEdit.place(new: new(), .newRowBelow, among: []).map(spot) == [[0, 0]])
+    }
+
+    @Test func firstWhenBlocksExistGoesTopLeft() {
+        let a = F.block(1, gridRow: 1, gridColumn: 0)
+        let b = F.block(2, gridRow: 1, gridColumn: 1)
+        let placed = BlockEdit.place(new: new(), .first, among: [b, a])
+        #expect(placed.map(\.id) == [F.id(99), a.id, b.id])
+        #expect(placed.map(spot) == [[1, 0], [1, 1], [1, 2]])
+    }
+
+    @Test func deletedBlocksAreNotMovedOrCounted() {
+        let a = F.block(1, gridRow: 0, gridColumn: 0)
+        let gone = F.block(2, gridRow: 0, gridColumn: 1, deleted: true)
+        let low = F.block(3, gridRow: 9, gridColumn: 0, deleted: true)
+        #expect(BlockEdit.place(new: new(), .rightOf(a.id), among: [a, gone, low]).map(spot) == [[0, 1]])
+        #expect(BlockEdit.place(new: new(), .newRowBelow, among: [a, gone, low]).map(spot) == [[1, 0]])
+    }
+
+    @Test func unknownNeighborFallsBackToANewRow() {
+        let a = F.block(1, gridRow: 0, gridColumn: 0)
+        #expect(BlockEdit.place(new: new(), .rightOf(UUID()), among: [a]).map(spot) == [[1, 0]])
+    }
+
+    @Test func theNewBlockIsNeverItsOwnNeighbor() {
+        let a = F.block(1, gridRow: 0, gridColumn: 0)
+        let moving = F.block(2, gridRow: 0, gridColumn: 1)
+        let placed = BlockEdit.place(new: moving, .rightOf(a.id), among: [a, moving])
+        #expect(placed.map(\.id) == [moving.id])
+        #expect(placed.map(spot) == [[0, 1]])
+    }
+}

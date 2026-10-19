@@ -32,6 +32,53 @@ public enum BlockEdit {
         return "This block has \(things(markCount, noteCount)), so it can’t be removed. \(fix(markCount, noteCount)) first."
     }
 
+    /// Where a new block goes: `.rightOf` a block (same strip, the next column),
+    /// `.newRowBelow` the last strip, or `.first` (top left).
+    public enum Placement: Equatable, Sendable {
+        case rightOf(UUID)
+        case newRowBelow
+        case first
+    }
+
+    /// Gives `new` its grid spot and moves later blocks in its strip right only as far
+    /// as needed (a gap in the column numbers absorbs the shift). Returns the new block
+    /// first, then every other block whose spot changed. Deleted blocks never move.
+    /// An unknown neighbor falls back to a new row below. Callers set `updatedAt`.
+    public static func place(new: Block, _ placement: Placement, among blocks: [Block]) -> [Block] {
+        let live = blocks.filter { $0.deletedAt == nil && $0.id != new.id }
+        func strip(_ row: Int) -> [Block] {
+            live.filter { $0.gridRow == row }.sorted(by: FieldWalker.walksBefore)
+        }
+        switch placement {
+        case .rightOf(let id):
+            guard let left = live.first(where: { $0.id == id }) else { return place(new: new, .newRowBelow, among: blocks) }
+            let later = strip(left.gridRow).drop { $0.id != left.id }.dropFirst()
+            return insert(new, row: left.gridRow, column: left.gridColumn + 1, before: Array(later))
+        case .newRowBelow:
+            return insert(new, row: (live.map(\.gridRow).max() ?? -1) + 1, column: 0, before: [])
+        case .first:
+            let top = live.map(\.gridRow).min() ?? 0
+            let blocks = strip(top)
+            return insert(new, row: top, column: min(0, blocks.first?.gridColumn ?? 0), before: blocks)
+        }
+    }
+
+    private static func insert(_ new: Block, row: Int, column: Int, before later: [Block]) -> [Block] {
+        var placed = new
+        placed.gridRow = row
+        placed.gridColumn = column
+        var changed = [placed]
+        var taken = column
+        for var block in later {
+            if block.gridColumn <= taken {
+                block.gridColumn = taken + 1
+                changed.append(block)
+            }
+            taken = block.gridColumn
+        }
+        return changed
+    }
+
     // MARK: - Wording
 
     private static func checkSize(rows: Int, treesPerRow: Int) -> String? {
