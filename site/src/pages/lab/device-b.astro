@@ -23,13 +23,27 @@ import { SIRI } from '../../data/siri';
 /** Real device size: the phone whose screen is 393 px wide, shrunk to fit narrow windows. */
 const REAL = 'min(910px, calc((100vw - 32px) * 852 / 393))';
 
-const snippets = [
-  { key: 'clock-in', note: '7:02 · clock in (hero)', at: MOMENTS.clockIn, line: SIRI.clockIn, glow: true, la: true },
-  { key: 'misheard', note: '7:18 · misheard check, chips', at: MOMENTS.misheard, line: SIRI.misheard, glow: true },
-  { key: 'misheard-no', note: '7:18 · “No” tapped (gold ring)', at: MOMENTS.misheard, line: SIRI.misheard, chosen: 'No', glow: true },
-  { key: 'status', note: '2:01 · status (voice final)', at: MOMENTS.status, line: SIRI.howMany, la: true },
-  { key: 'clock-out-ask', note: '4:31 · clock-out question, “Yes” tapped', at: MOMENTS.clockOut, line: SIRI.clockOutAsk, chosen: 'Yes', glow: true },
-  { key: 'clock-out', note: '4:31 · clocked out', at: MOMENTS.clockOut, line: SIRI.clockOut },
+/** Every snippet the page shows, in story order: one line, two lines, chips, asks. */
+const snippets: Array<{
+  key: string;
+  note: string;
+  at: number;
+  text: string;
+  choices?: readonly string[];
+  chosen?: string;
+  glow?: boolean;
+  la?: boolean;
+}> = [
+  { key: 'clock-in', note: '7:02 · clock in (hero)', at: MOMENTS.clockIn, text: SIRI.clockIn.reply, glow: true, la: true },
+  { key: 'misheard', note: '7:18 · misheard check, chips', at: MOMENTS.misheard, text: SIRI.misheard.reply, choices: SIRI.misheard.choices, glow: true },
+  { key: 'misheard-no', note: '7:18 · “No” tapped (gold ring)', at: MOMENTS.misheard, text: SIRI.misheard.reply, choices: SIRI.misheard.choices, chosen: 'No', glow: true },
+  { key: 'next-row', note: '7:19 · next row (one line)', at: MOMENTS.firstRow, text: SIRI.nextRow.reply, la: true },
+  { key: 'back', note: '12:31 · back to work (one line)', at: MOMENTS.back, text: SIRI.backToWork.reply, la: true },
+  { key: 'status', note: '2:01 · status (voice final)', at: MOMENTS.status, text: SIRI.howMany.reply, la: true },
+  { key: 'break-ask', note: '2:30 · break reason, the ask', at: MOMENTS.break, text: SIRI.breakReason.ask, glow: true },
+  { key: 'tree-note', note: '2:33 · tree note (one line)', at: MOMENTS.treeNote, text: SIRI.treeNote.reply, la: true },
+  { key: 'clock-out-ask', note: '4:31 · clock-out question, “Yes” tapped', at: MOMENTS.clockOut, text: SIRI.clockOutAsk.reply, choices: SIRI.clockOutAsk.choices, chosen: 'Yes', glow: true },
+  { key: 'clock-out', note: '4:31 · clocked out', at: MOMENTS.clockOut, text: SIRI.clockOut.reply },
 ];
 
 /** An abstract home screen behind the island: wallpaper, icon grid, dock (lab context only). */
@@ -50,16 +64,11 @@ const islandAt = fmtClock(MOMENTS.island);
       {
         snippets.map((s) => (
           <div class="lab-cell" data-lab-cell={`snippet-${s.key}`}>
-            <Phone label={`Lock screen at ${fmtClock(s.at)}. Siri says: ${s.line.reply}`} height={REAL}>
+            <Phone label={`Lock screen at ${fmtClock(s.at)}. Siri says: ${s.text}`} height={REAL}>
               <div class="screens" data-screens>
                 <Screen stateId={`lab-snippet-${s.key}`} alt="" final>
                   <LockScreen time={fmtClock(s.at)} live={false}>
-                    <SiriSnippet
-                      slot="top"
-                      text={s.line.reply ?? ''}
-                      choices={'choices' in s.line ? s.line.choices : undefined}
-                      chosen={s.chosen}
-                    />
+                    <SiriSnippet slot="top" text={s.text} choices={s.choices} chosen={s.chosen} />
                     {s.la && <LiveActivity at={s.at} fixed />}
                   </LockScreen>
                   {s.glow && <SiriGlow still={false} />}
@@ -136,6 +145,7 @@ const islandAt = fmtClock(MOMENTS.island);
             <Screen stateId="lab-wave-listen" alt="" final>
               <LockScreen time="2:36" live={false}>
                 <DictationWave slot="top" progress={0.02} />
+                <LiveActivity at={MOMENTS.shiftNote} fixed />
               </LockScreen>
               <SiriGlow still={false} />
             </Screen>
@@ -149,6 +159,7 @@ const islandAt = fmtClock(MOMENTS.island);
             <Screen stateId="lab-wave-speaking" alt="" final>
               <LockScreen time="2:36" live={false}>
                 <DictationWave slot="top" progress={0.55} transcript={SIRI.shiftNote.answer} />
+                <LiveActivity at={MOMENTS.shiftNote} fixed />
               </LockScreen>
               <SiriGlow still={false} />
             </Screen>
@@ -157,19 +168,17 @@ const islandAt = fmtClock(MOMENTS.island);
         <p>progress .55 · transcript</p>
       </div>
       <div class="lab-cell" data-lab-cell="wave-reply">
-        <Phone label={`Siri says: ${SIRI.shiftNote.reply}`} height={REAL}>
+        <Phone label={`Lock screen at 2:36. Siri says: ${SIRI.shiftNote.reply}`} height={REAL}>
           <div class="screens" data-screens>
             <Screen stateId="lab-wave-reply" alt="" final>
               <LockScreen time="2:36" live={false}>
-                <Fragment slot="top">
-                  <DictationWave progress={1} transcript={SIRI.shiftNote.answer} />
-                  <SiriSnippet text={SIRI.shiftNote.reply} top={174} />
-                </Fragment>
+                <SiriSnippet slot="top" text={SIRI.shiftNote.reply} />
+                <LiveActivity at={MOMENTS.shiftNote} fixed />
               </LockScreen>
             </Screen>
           </div>
         </Phone>
-        <p>progress 1 · reply below (SiriSnippet top=174)</p>
+        <p>2:36 · the reply replaces the wave (same slot)</p>
       </div>
     </div>
   </section>
@@ -234,6 +243,12 @@ const islandAt = fmtClock(MOMENTS.island);
         </div>
         <p>compact · inline (fits its container, max 1 px/pt)</p>
       </div>
+      <div class="lab-cell" data-lab-cell="crop-compact-live">
+        <div class="crop" role="img" aria-label="Dynamic Island, compact, live: Row 37, 6:29">
+          <div aria-hidden="true"><DynamicIsland size="compact" inline live /></div>
+        </div>
+        <p>compact · live (DayClock writes 6:29:10; H:MM shows)</p>
+      </div>
       <div class="lab-cell" data-lab-cell="crop-expanded">
         <div class="crop" role="img" aria-label="Dynamic Island, expanded: North field, Block 2, 6:29:10, Row 37, Row 38, Break">
           <div aria-hidden="true"><DynamicIsland size="expanded" inline /></div>
@@ -246,14 +261,43 @@ const islandAt = fmtClock(MOMENTS.island);
   <section aria-labelledby="h-scrub">
     <h2 id="h-scrub">Scrub: the morph and the wave as a scene drives them</h2>
     <div class="lab-row scrub">
-      <div class="lab-cell">
-        <Phone label="Dynamic Island morph and dictation wave demo" height={REAL}>
+      <div class="lab-cell" data-lab-cell="scrub-island">
+        <Phone label="Dynamic Island morph demo" height={REAL}>
           <div class="screens" data-screens>
-            <Screen stateId="lab-scrub" alt="" final>
+            <Screen stateId="lab-scrub-island" alt="" final>
+              <div class="home">
+                <StatusBar time={islandAt} live={false} tone="light" />
+                <div class="home-grid">
+                  {homeIcons.map((i) => (
+                    <span class="home-app" style={`--h:${(i * 47) % 360}`}>
+                      <i />
+                      <b />
+                    </span>
+                  ))}
+                </div>
+                <div class="home-search" />
+                <div class="home-dock">
+                  {dockIcons.map((i) => (
+                    <span class="home-app" style={`--h:${(i * 83 + 120) % 360}`}>
+                      <i />
+                    </span>
+                  ))}
+                </div>
+              </div>
+              <DynamicIsland size="expanded" />
+            </Screen>
+          </div>
+        </Phone>
+      </div>
+      <div class="lab-cell" data-lab-cell="scrub-wave">
+        <Phone label="Dictation wave demo" height={REAL}>
+          <div class="screens" data-screens>
+            <Screen stateId="lab-scrub-wave" alt="" final>
               <LockScreen time="2:36" live={false}>
-                <Fragment slot="top"><DictationWave progress={0} transcript={SIRI.shiftNote.answer} top={210} /></Fragment>
+                <DictationWave slot="top" progress={0} transcript={SIRI.shiftNote.answer} />
+                <LiveActivity at={MOMENTS.shiftNote} fixed />
               </LockScreen>
-              <DynamicIsland size="rest" />
+              <SiriGlow still={false} />
             </Screen>
           </div>
         </Phone>
@@ -262,8 +306,10 @@ const islandAt = fmtClock(MOMENTS.island);
         <label for="scrub">Progress <output id="scrub-out" for="scrub">0.00</output></label>
         <input id="scrub" type="range" min="0" max="1" step="0.001" value="0" data-scrub />
         <p>
-          0–.5: rest → compact, .5–1: compact → expanded. Width, height and radius tween on <code>[data-island]</code>;
-          content fades in over the last 30% of each morph. The wave runs <code>setWave(el, progress)</code>.
+          The island's static state is expanded; the slider writes the from-states a scene would. 0–.5: rest →
+          compact, .5–1: compact → expanded. Width, height and radius tween on <code>[data-island]</code>; content
+          fades in over the last 30% of each morph; <code>--island-yield</code> on the layer (0, 1, 2) moves the
+          status-bar time and fades the signal and Wi-Fi with the first morph, then fades the bar under the second. The wave runs <code>setWave(el, progress)</code>.
         </p>
       </div>
     </div>
@@ -293,17 +339,18 @@ const islandAt = fmtClock(MOMENTS.island);
 
   const input = document.querySelector<HTMLInputElement>('[data-scrub]');
   const out = document.getElementById('scrub-out');
-  const cell = input?.closest('.scrub');
-  const island = cell?.querySelector<HTMLElement>('[data-island]');
+  const row = input?.closest('.scrub');
+  const layer = row?.querySelector<HTMLElement>('[data-lab-cell="scrub-island"] [data-screen]');
+  const island = layer?.querySelector<HTMLElement>('[data-island]');
   const compact = island?.querySelector<HTMLElement>('[data-island-compact]');
   const expanded = island?.querySelector<HTMLElement>('[data-island-expanded]');
-  const wave = cell?.querySelector<HTMLElement>('[data-wave]');
+  const wave = row?.querySelector<HTMLElement>('[data-wave]');
   const SIZES = { rest: [126, 37, 18.5], compact: [250, 37, 18.5], expanded: [371, 160, 44] } as const;
   const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
   const ease = (t: number) => 1 - Math.pow(1 - t, 3);
 
   function render(p: number) {
-    if (!island || !compact || !expanded) return;
+    if (!layer || !island || !compact || !expanded) return;
     const first = p < 0.5;
     const t = ease(first ? p / 0.5 : (p - 0.5) / 0.5);
     const [a, b] = first ? [SIZES.rest, SIZES.compact] : [SIZES.compact, SIZES.expanded];
@@ -313,6 +360,8 @@ const islandAt = fmtClock(MOMENTS.island);
     const fadeIn = Math.max(0, (t - 0.7) / 0.3);
     compact.style.opacity = String(first ? fadeIn : 1 - Math.min(1, t / 0.3));
     expanded.style.opacity = String(first ? 0 : fadeIn);
+    // The status bar yields as the island widens (0 rest, 1 compact, 2 expanded).
+    layer.style.setProperty('--island-yield', (first ? t : 1 + t).toFixed(3));
     if (wave) setWave(wave, p);
     if (out) out.textContent = p.toFixed(2);
   }
@@ -344,13 +393,6 @@ const islandAt = fmtClock(MOMENTS.island);
   /* 'Thinking': the conic ring turned 60deg, as voice.ts does at [.3, .4]. */
   .rot60 :global([data-glow-ring]) {
     transform: rotate(60deg);
-  }
-
-  /* Until device-a's Phone lands, the stub's rest island sits lower than y 11 pt; hide it
-     where the DynamicIsland itself is the island, so the lab shows one island. */
-  [data-lab-cell^='island-'] :global([data-island-rest]),
-  .scrub :global([data-island-rest]) {
-    visibility: hidden;
   }
 
   /* ---------- Abstract home screen (lab context) ---------- */
@@ -441,6 +483,9 @@ const islandAt = fmtClock(MOMENTS.island);
   /* ---------- Scrub ---------- */
   .scrub {
     align-items: center;
+  }
+  .scrub-panel {
+    flex: 1 1 18rem;
   }
   .scrub-panel {
     display: grid;
