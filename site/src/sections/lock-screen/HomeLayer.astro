@@ -1,0 +1,137 @@
+---
+/**
+ * HOME LAYER: a neutral iPhone home screen behind the Dynamic Island beat (brief: "a blurred
+ * fir-green abstract wallpaper with 20 blank rounded icon tiles at 12% white, and no real
+ * apps"). Sixteen tiles in a 4 × 4 grid and four in the dock, iOS 26's glass "clear" look,
+ * in the phone's 393 × 852 pt space. Presentational: it sits inside an aria-hidden mock.
+ *
+ * The wallpaper is pre-blurred by construction (soft radial gradients), so nothing filters.
+ */
+const grid = Array.from({ length: 16 }, (_, i) => i);
+const dock = Array.from({ length: 4 }, (_, i) => i);
+---
+
+<div class="home" data-home>
+  <div class="home-wp"></div>
+  <div class="home-grid">
+    {
+      grid.map(() => (
+        <span class="home-app">
+          <i />
+          <b />
+        </span>
+      ))
+    }
+  </div>
+  <div class="home-search"><i></i><b></b></div>
+  <div class="home-dock">
+    {
+      dock.map(() => (
+        <span class="home-app">
+          <i />
+        </span>
+      ))
+    }
+  </div>
+</div>
+
+<style>
+  .home {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    background: #0a1d13;
+  }
+  /* A soft, out-of-focus fir-green field: deep at the top for the status bar, a lit
+     clearing in the middle, a little warm afternoon light low on the right. */
+  .home-wp {
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(60% 34% at 78% 88%, rgba(214, 160, 82, 0.42), transparent 70%),
+      radial-gradient(70% 40% at 18% 70%, rgba(46, 122, 78, 0.55), transparent 72%),
+      radial-gradient(90% 46% at 62% 38%, rgba(64, 140, 96, 0.5), transparent 70%),
+      radial-gradient(80% 36% at 10% 12%, rgba(29, 91, 58, 0.55), transparent 70%),
+      linear-gradient(180deg, #08170f 0%, #0f2a1c 34%, #1b4630 62%, #23432c 82%, #2c3a22 100%);
+  }
+
+  .home-grid {
+    position: absolute;
+    left: calc(27 * var(--pt));
+    right: calc(27 * var(--pt));
+    top: calc(72 * var(--pt));
+    display: grid;
+    grid-template-columns: repeat(4, calc(62 * var(--pt)));
+    justify-content: space-between;
+    row-gap: calc(26 * var(--pt));
+  }
+  .home-app {
+    display: grid;
+    justify-items: center;
+    gap: calc(7 * var(--pt));
+  }
+  /* Blank tiles at 12% white with the glass rim iOS 26 draws on "clear" icons. */
+  .home-app i {
+    display: block;
+    width: calc(62 * var(--pt));
+    height: calc(62 * var(--pt));
+    border-radius: calc(15 * var(--pt));
+    background: linear-gradient(160deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.09));
+    box-shadow:
+      inset 0 calc(0.8 * var(--pt)) 0 rgba(255, 255, 255, 0.22),
+      inset 0 0 0 calc(0.6 * var(--pt)) rgba(255, 255, 255, 0.1);
+  }
+  /* Blank labels. */
+  .home-app b {
+    display: block;
+    width: calc(38 * var(--pt));
+    height: calc(5 * var(--pt));
+    border-radius: 99px;
+    background: rgba(255, 255, 255, 0.16);
+  }
+
+  .home-search {
+    position: absolute;
+    left: 50%;
+    bottom: calc(126 * var(--pt));
+    width: calc(92 * var(--pt));
+    height: calc(30 * var(--pt));
+    margin-left: calc(-46 * var(--pt));
+    border-radius: 99px;
+    background: rgba(255, 255, 255, 0.14);
+    box-shadow: inset 0 calc(0.6 * var(--pt)) 0 rgba(255, 255, 255, 0.16);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: calc(6 * var(--pt));
+  }
+  .home-search i {
+    width: calc(10 * var(--pt));
+    height: calc(10 * var(--pt));
+    border-radius: 50%;
+    box-shadow: inset 0 0 0 calc(1.6 * var(--pt)) rgba(255, 255, 255, 0.55);
+  }
+  .home-search b {
+    width: calc(40 * var(--pt));
+    height: calc(5 * var(--pt));
+    border-radius: 99px;
+    background: rgba(255, 255, 255, 0.4);
+  }
+
+  .home-dock {
+    position: absolute;
+    left: calc(10 * var(--pt));
+    right: calc(10 * var(--pt));
+    bottom: calc(10 * var(--pt));
+    height: calc(94 * var(--pt));
+    border-radius: calc(38 * var(--pt));
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.1));
+    box-shadow:
+      inset 0 calc(0.8 * var(--pt)) 0 rgba(255, 255, 255, 0.2),
+      inset 0 0 0 calc(0.6 * var(--pt)) rgba(255, 255, 255, 0.08);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 calc(17 * var(--pt));
+  }
+</style>

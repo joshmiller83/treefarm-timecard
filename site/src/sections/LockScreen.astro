@@ -1,18 +1,44 @@
 ---
 /**
- * LOCK SCREEN · 2:14 PM. PLACEHOLDER from the foundation: the section team owns this file
- * and src/scripts/scenes/lock-screen.ts. Spec: jq '.sections[] | select(.id=="lock-screen")' docs/landing/brief.json
+ * LOCK SCREEN · 2:14 PM: the Live Activity is the hero feature.
+ * Spec: jq '.sections[] | select(.id=="lock-screen")' docs/landing/brief.json
+ * Scene: src/scripts/scenes/lock-screen.ts. Story and geometry: ./lock-screen/model.ts.
+ *
+ * Screen layers (bottom to top, one [data-screens]):
+ *   home-1416-island-compact   the home screen and Time Card in the Dynamic Island (morphs to expanded)
+ *   lock-1414-activity         2:01 → 2:14: the timer runs, the buttons step from Row 35 to Row 36
+ *   lock-1414-tapped (final)   after one tap on Row 36: 230 trees, 'Row 36 marked · Undo', pins 1–6
+ *
+ * Page level: the six callouts and the ghost Clock out (desktop, ./lock-screen/Callouts.astro),
+ * the numbered notes (mobile card 1 and the static list), the island crops (static), ControlsCard.
  */
 import SectionShell from '../components/SectionShell.astro';
 import Phone from '../components/phone/Phone.astro';
 import Screen from '../components/phone/Screen.astro';
 import LockScreenMock from '../components/phone/LockScreen.astro';
 import LiveActivity from '../components/phone/LiveActivity.astro';
+import StatusBar from '../components/phone/StatusBar.astro';
+import DynamicIsland from '../components/phone/DynamicIsland.astro';
 import ControlsCard from '../components/ControlsCard.astro';
-import { MOMENTS, fmtClock } from '../data/ledger';
+import HomeLayer from './lock-screen/HomeLayer.astro';
+import Pins from './lock-screen/Pins.astro';
+import Ghost from './lock-screen/Ghost.astro';
+import Callouts from './lock-screen/Callouts.astro';
+import IslandCrop from './lock-screen/IslandCrop.astro';
+import { BEFORE, CALLOUTS, ISLAND_AT, phoneLabel, TAPPED, WORKING } from './lock-screen/model';
+import { FIELD, MOMENTS, fmtClock, fmtHMS, fmtTime, positionAt, workedAt } from '../data/ledger';
 
-const label =
-  'iPhone lock screen at 2:14 PM. The Time Card Live Activity shows On the clock, 6 hours 27 minutes worked, North field, Block 2, 230 trees this shift, Row 36 marked with Undo, and buttons for row 37, row 38, row 39 and Break. There is no clock-out button.';
+const label = phoneLabel();
+const lockTime = fmtClock(MOMENTS.lockScreen);
+const islandTime = fmtClock(MOMENTS.island);
+const islandPos = positionAt(MOMENTS.island);
+const compactTime = fmtHMS(workedAt(MOMENTS.island)).replace(/:\d\d$/, '');
+const expandedTimer = fmtHMS(workedAt(ISLAND_AT));
+const place = `${FIELD.name}, Block ${islandPos.block}`;
+const compactLabel = `Dynamic Island, compact, over the home screen: Row ${islandPos.row} on the left, Time Card’s fir and ${compactTime} worked on the right.`;
+const expandedLabel = `Dynamic Island, expanded: On the clock, ${place}, Row ${islandPos.row}, ${expandedTimer} worked, and buttons for row ${islandPos.row}, row ${islandPos.row + 1} and Break.`;
+// The 2:01 → 2:14 layer: Row 35 waits off the left edge so the buttons can step to Row 36.
+const preUndo = BEFORE.rows[0];
 ---
 
 <SectionShell id="lock-screen">
@@ -22,31 +48,329 @@ const label =
       it. The whole row is marked, and the buttons move on to the next rows.
     </p>
   </Fragment>
-  <div class="beat" data-beat="1" style="--at:.7">
-    <p>Using another app? Your timer and your row stay up top in the Dynamic Island.</p>
+
+  <!-- Mobile card 1, and the static numbered list beside the phone. -->
+  <div class="beat ls-cap ls-notes-beat" data-beat="1" style="--at:.36">
+    <p class="ls-kicker">On the card</p>
+    <ol class="ls-notes" data-ls-notes>
+      {
+        CALLOUTS.map((c) => (
+          <li data-note={c.n}>
+            <span class="ls-rule" data-note-rule aria-hidden="true" />
+            <span class="ls-num" aria-hidden="true">
+              {c.n}
+            </span>
+            <span class="ls-note-text">
+              <span class="ls-note-main">{c.label}</span>
+              {c.sub && <span class="ls-note-sub"> {c.sub}</span>}
+              {c.n === 6 && (
+                <span class="ls-note-ghost">
+                  <Ghost variant="inline" />
+                </span>
+              )}
+            </span>
+          </li>
+        ))
+      }
+    </ol>
   </div>
-  <div class="beat" data-beat="2" style="--at:.9">
+
+  <!-- Mobile card 2 (motion only): the tap, and the button that isn't there. -->
+  <div class="beat ls-cap ls-tap-beat motion-only" data-beat="2" style="--at:.6" data-ls-tap-card>
     <p>
-      Rather press than talk? Put Next row on the Action button, or use Time Card’s controls in Control Center. They run
-      the same commands as Siri.
+      <strong>Tap Row {TAPPED.undoRow}.</strong> The whole row is marked, and Row {TAPPED.rows[2]} moves in. Still no
+      clock-out button, on purpose.
+    </p>
+    <Ghost variant="inline" />
+  </div>
+
+  <div class="beat ls-cap ls-island-beat" data-beat="3" style="--at:.7">
+    <p><strong>Using another app?</strong> Your timer and your row stay up top in the Dynamic Island.</p>
+    <figure class="ls-island-fig static-only" data-ls-island-fig>
+      <div class="ls-crops">
+        <div class="ls-crop-item">
+          <IslandCrop size="compact" label={compactLabel} time={islandTime} />
+          <span class="ls-crop-cap" aria-hidden="true">Compact</span>
+        </div>
+        <div class="ls-crop-item">
+          <IslandCrop size="expanded" label={expandedLabel} time={islandTime} />
+          <span class="ls-crop-cap" aria-hidden="true">Expanded</span>
+        </div>
+      </div>
+      <figcaption class="sr-only">Time Card in the Dynamic Island at {fmtTime(MOMENTS.island)}, compact and expanded.</figcaption>
+    </figure>
+  </div>
+
+  <div class="beat ls-controls-beat" data-beat="4" style="--at:.86">
+    <p>
+      <strong>Rather press than talk?</strong> Put Next row on the Action button, or use Time Card’s controls in Control
+      Center. They run the same commands as Siri.
     </p>
     <ControlsCard />
-    <p class="small muted">
+    <p class="small muted ls-foot" data-ls-footnote>
       A Live Activity can stay up for 8 hours. Time Card reminds you before it runs out. The Action button is on iPhones
       that have one. Control Center controls need iOS 18 or later.
     </p>
   </div>
 
-  <figure class="shot" data-stage-shot slot="figure">
+  <figure class="shot ls-shot" data-stage-shot slot="figure">
     <Phone label={label}>
       <div class="screens" data-screens>
+        <Screen stateId="home-1416-island-compact" alt={compactLabel}>
+          <HomeLayer />
+          <StatusBar time={islandTime} tone="light" />
+          <DynamicIsland size="compact" live />
+        </Screen>
+        <Screen stateId="lock-1414-activity" alt={label} class="ls-pre">
+          <LockScreenMock time={fmtClock(BEFORE.at)}>
+            <LiveActivity at={MOMENTS.lockScreen} state="tapped" undoRow={preUndo} rows={WORKING.rows} />
+          </LockScreenMock>
+        </Screen>
         <Screen stateId="lock-1414-tapped" alt={label} final>
-          <LockScreenMock time={fmtClock(MOMENTS.lockScreen)}>
+          <LockScreenMock time={lockTime}>
             <LiveActivity at={MOMENTS.tapped} />
+            <Pins slot="overlay" />
           </LockScreenMock>
         </Screen>
       </div>
     </Phone>
-    <figcaption>One tap marks the whole row. Wrong row? Undo is right there. No clock-out button, on purpose.</figcaption>
+    <figcaption>
+      The lock screen at {fmtTime(MOMENTS.lockScreen)}: one tap marked Row {TAPPED.undoRow}, with Undo right there. There
+      is no clock-out button.
+    </figcaption>
   </figure>
+
+  <Callouts slot="extras" />
 </SectionShell>
+
+<style is:global>
+  /* Every rule is prefixed by the section (or, for screen layers that move into the stage,
+     by a class only this section uses). */
+
+  /* ---------- Copy ---------- */
+  .sec-lock-screen .beat > p strong {
+    color: var(--on-stage);
+    font-weight: 600;
+  }
+  .sec-lock-screen .ls-kicker {
+    font-family: var(--font-mono);
+    font-weight: 500;
+    font-size: var(--text-eyebrow);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--on-stage-muted);
+    margin-bottom: 16px;
+  }
+  .sec-lock-screen .ls-notes {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    gap: 14px;
+    max-width: 34rem;
+  }
+  .sec-lock-screen .ls-notes li {
+    position: relative;
+    display: grid;
+    grid-template-columns: 22px minmax(0, 1fr);
+    column-gap: 14px;
+    align-items: start;
+    font-size: 1.0625rem;
+    line-height: 1.45;
+  }
+  .sec-lock-screen .ls-num {
+    display: grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    margin-top: 1px;
+    border-radius: 50%;
+    background: var(--gold-lit);
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-weight: 700;
+    font-size: 0.75rem;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+  .sec-lock-screen .ls-note-main {
+    font-weight: 600;
+    color: var(--on-stage);
+  }
+  .sec-lock-screen .ls-note-sub {
+    color: var(--on-stage-muted);
+  }
+  .sec-lock-screen .ls-note-ghost {
+    display: block;
+    margin-top: 10px;
+  }
+  /* The active note's gold left rule (mobile scene); it rests hidden. */
+  .sec-lock-screen .ls-rule {
+    position: absolute;
+    left: -12px;
+    top: -2px;
+    bottom: -2px;
+    width: 3px;
+    border-radius: 2px;
+    background: var(--gold-lit);
+    transform: scaleY(0);
+  }
+  .sec-lock-screen .ls-tap-beat {
+    display: grid;
+    gap: 14px;
+    justify-items: start;
+  }
+  .sec-lock-screen .ls-island-beat,
+  .sec-lock-screen .ls-controls-beat {
+    display: grid;
+    gap: 20px;
+  }
+  .sec-lock-screen .ls-foot {
+    max-width: 46ch;
+  }
+
+  /* The 2:01 → 2:14 layer never shows an Undo (row 35 was finished in the app). */
+  .ls-pre [data-undo] {
+    visibility: hidden;
+  }
+
+  /* ---------- Static figure 2: the island crops ---------- */
+  .sec-lock-screen .ls-island-fig {
+    margin: 0;
+  }
+  .sec-lock-screen .ls-crops {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr));
+    gap: 20px;
+  }
+  .sec-lock-screen .ls-crop-item {
+    display: grid;
+    gap: 4px;
+    justify-items: center;
+  }
+  .sec-lock-screen .ls-crop-cap {
+    font-family: var(--font-mono);
+    font-size: var(--text-eyebrow);
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--on-stage-muted);
+  }
+
+  /* ---------- Static page (no motion): three figures ---------- */
+  @media (max-width: 899.98px) {
+    /* One column: the copy, the phone with its pins, the notes, the island, the controls. */
+    html:not(.motion) .sec-lock-screen .beats {
+      display: contents;
+    }
+    html:not(.motion) .sec-lock-screen .beat-head {
+      order: 1;
+    }
+    html:not(.motion) .sec-lock-screen .frame {
+      order: 2;
+    }
+    html:not(.motion) .sec-lock-screen .ls-notes-beat {
+      order: 3;
+    }
+    html:not(.motion) .sec-lock-screen .ls-island-beat {
+      order: 4;
+    }
+    html:not(.motion) .sec-lock-screen .ls-controls-beat {
+      order: 5;
+    }
+    /* The static phone is large enough for the 22px pins to sit clear of each other. */
+    html:not(.motion) .sec-lock-screen .ls-shot {
+      --phone-h: min(calc((100vw - 2 * var(--gutter)) * 879 / 420), 600px);
+    }
+  }
+  @media (min-width: 900px) {
+    /* Row 1: the copy and the notes | the phone. Row 2: the island | the controls. */
+    html:not(.motion) .sec-lock-screen .beats {
+      display: contents;
+    }
+    html:not(.motion) .sec-lock-screen .beat-head {
+      grid-column: 1 / span 6;
+      grid-row: 1;
+      align-self: end;
+    }
+    html:not(.motion) .sec-lock-screen .ls-notes-beat {
+      grid-column: 1 / span 6;
+      grid-row: 2;
+      align-self: start;
+    }
+    html:not(.motion) .sec-lock-screen .frame {
+      grid-column: 7 / -1;
+      grid-row: 1 / span 2;
+    }
+    html:not(.motion) .sec-lock-screen .ls-island-beat {
+      grid-column: 1 / span 6;
+      grid-row: 3;
+      align-self: start;
+      max-width: 34rem;
+    }
+    html:not(.motion) .sec-lock-screen .ls-controls-beat {
+      grid-column: 7 / -1;
+      grid-row: 3;
+      align-self: start;
+      max-width: 34rem;
+    }
+  }
+
+  /* ---------- Motion, desktop: the stage tells it with callouts ---------- */
+  @media (min-width: 900px) {
+    html.motion .sec-lock-screen .ls-notes-beat,
+    html.motion .sec-lock-screen .ls-tap-beat {
+      display: none;
+    }
+    /* The controls beat is tall: hang it from a point above its centre, so it clears the
+       island beat above it all the way to the end of the track. */
+    html.motion .sec-lock-screen[data-desk='sticky'][data-layout='beats'] .beat.ls-controls-beat {
+      translate: 0 -24%;
+    }
+    /* The callouts and the ghost paint above the stage phone (z 5); nothing in the frame takes clicks. */
+    html.stage-on .sec-lock-screen .frame {
+      z-index: 7;
+      pointer-events: none;
+    }
+  }
+
+  /* ---------- Motion, mobile: a caption slot under the zoomed card ----------
+     The notes, the tap and the island cards wait in one slot just under the zoomed Live
+     Activity while the phone is stuck, and the scene crossfades them on cue (scrolling cards
+     could not stay up through the pins' [.2, .5]). ControlsCard is the last card and scrolls
+     up over the phone as usual. */
+  @media (max-width: 899.98px) {
+    html.motion .sec-lock-screen[data-mob='sticky'][data-layout='beats'] .beat.ls-cap:not(.beat-head) {
+      position: fixed;
+      top: calc(var(--sticky-top-mob) + var(--phone-h-mob) * 0.545);
+      left: var(--gutter);
+      right: var(--gutter);
+      max-width: 34rem;
+      margin-inline: auto;
+      translate: none;
+      opacity: 0;
+      z-index: 6;
+    }
+    html.motion .sec-lock-screen[data-mob='sticky'][data-layout='beats'] .beat.ls-controls-beat {
+      --at: 0.95 !important;
+    }
+    /* In card 1 the ghost waits for card 2. */
+    html.motion .sec-lock-screen .ls-note-ghost {
+      display: none;
+    }
+    html.motion .sec-lock-screen .ls-kicker {
+      margin-bottom: 12px;
+    }
+    html.motion .sec-lock-screen .ls-notes {
+      gap: 8px;
+    }
+    html.motion .sec-lock-screen .ls-notes li {
+      font-size: 0.9375rem;
+      line-height: 1.4;
+      column-gap: 12px;
+    }
+    html.motion .sec-lock-screen .ls-notes .ls-num {
+      margin-top: 0;
+    }
+  }
+</style>

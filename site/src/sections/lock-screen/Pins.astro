@@ -1,0 +1,60 @@
+---
+/**
+ * PINS: the six numbered gold pins on the Live Activity (mobile and the static figure).
+ * Each sits beside the feature its note names, clear of the card's text, in the phone's pt
+ * space; the matching numbers are in the notes list (real text). Presentational:
+ * they sit in LockScreen's overlay slot, inside the aria-hidden mock.
+ *
+ * Size: 22px circles (at most 33 pt, so they never crowd on small phones). In the mobile
+ * scene the phone zooms 1.4×, so under motion they are drawn at 22 / 1.4 px and land at
+ * 22px on screen. The desktop stage uses callouts instead.
+ * Hooks: [data-pins], [data-pin="1".."6"].
+ */
+import { CALLOUTS, PIN_PT, ZOOM } from './model.ts';
+---
+
+<div class="pins" data-pins style={`--pin-zoom:${ZOOM.mob};--pin-pt:${PIN_PT}`}>
+  {
+    CALLOUTS.map((c) => (
+      <span class="pin" data-pin={c.n} style={`--x:${c.pin.x};--y:${c.pin.y}`}>
+        {c.n}
+      </span>
+    ))
+  }
+</div>
+
+<style>
+  .pins {
+    position: absolute;
+    inset: 0;
+    --pin: min(22px, var(--pin-pt) * var(--pt));
+  }
+  :global(html.motion) .pins {
+    --pin: min(22px / var(--pin-zoom), var(--pin-pt) * var(--pt));
+  }
+  /* The desktop stage tells it with callouts instead. */
+  :global(html.stage-on) .pins {
+    display: none;
+  }
+  .pin {
+    position: absolute;
+    left: calc(var(--x) * var(--pt));
+    top: calc(var(--y) * var(--pt));
+    width: var(--pin);
+    height: var(--pin);
+    margin: calc(var(--pin) / -2) 0 0 calc(var(--pin) / -2);
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: #e2a644;
+    color: #14221a;
+    font-family: var(--font-body);
+    font-weight: 700;
+    font-size: calc(var(--pin) * 0.56);
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+    box-shadow:
+      0 0 0 calc(var(--pin) * 0.09) rgba(8, 20, 13, 0.55),
+      0 calc(var(--pin) * 0.08) calc(var(--pin) * 0.3) rgba(0, 0, 0, 0.35);
+  }
+</style>

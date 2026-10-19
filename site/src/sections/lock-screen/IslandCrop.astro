@@ -1,0 +1,65 @@
+---
+/**
+ * ISLAND CROP: the top of a phone on the home screen with Time Card in the Dynamic Island,
+ * for the static figures (reduced motion and no JS). A titanium band and black glass around
+ * the screen's top corners, fading out downward, so it reads as a crop of the real thing.
+ * Frozen values (no DayClock): the island at 2:16 PM, compact or expanded.
+ *
+ * The crop is one image with a label; the mock inside is aria-hidden.
+ */
+import StatusBar from '../../components/phone/StatusBar.astro';
+import DynamicIsland from '../../components/phone/DynamicIsland.astro';
+import HomeLayer from './HomeLayer.astro';
+
+interface Props {
+  size: 'compact' | 'expanded';
+  label: string;
+  time: string;
+}
+const { size, label, time } = Astro.props;
+---
+
+<div class:list={['crop', `crop--${size}`]} role="img" aria-label={label}>
+  <div class="crop-band" aria-hidden="true">
+    <div class="crop-glass">
+      <div class="crop-screen" data-screen={`ls-crop-${size}`}>
+        <HomeLayer />
+        <StatusBar time={time} live={false} tone="light" />
+        <DynamicIsland size={size} />
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  /* Frame proportions follow Phone: a 4.5 u titanium band and a 9 u glass border, u = 1/420
+     of the crop's width (.crop is the container; its children size against it). */
+  .crop {
+    container-type: inline-size;
+    width: 100%;
+  }
+  .crop-band {
+    position: relative;
+    padding: calc(100cqw * 4.5 / 420) calc(100cqw * 4.5 / 420) 0;
+    border-radius: calc(100cqw * 68.5 / 420) calc(100cqw * 68.5 / 420) 0 0;
+    background:
+      linear-gradient(90deg, rgba(255, 255, 255, 0.2), transparent 2.2%, transparent 97.8%, rgba(255, 255, 255, 0.16)),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.18), transparent 2%),
+      linear-gradient(135deg, #3a3f3c, #8c928e 34%, #3a3f3c 52%, #8c928e 74%, #2a2e2c);
+    -webkit-mask-image: linear-gradient(180deg, #000 62%, transparent 100%);
+    mask-image: linear-gradient(180deg, #000 62%, transparent 100%);
+  }
+  .crop-glass {
+    padding: calc(100cqw * 9 / 420) calc(100cqw * 9 / 420) 0;
+    border-radius: calc(100cqw * 64 / 420) calc(100cqw * 64 / 420) 0 0;
+    background: #040505;
+  }
+  .crop-screen {
+    container-type: inline-size;
+    position: relative;
+    aspect-ratio: 393 / 196;
+    overflow: hidden;
+    border-radius: calc(100cqw * 55 / 420) calc(100cqw * 55 / 420) 0 0;
+    --pt: calc(100cqw / 393);
+  }
+</style>

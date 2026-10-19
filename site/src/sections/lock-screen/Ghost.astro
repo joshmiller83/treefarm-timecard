@@ -1,0 +1,70 @@
+---
+/**
+ * GHOST 'Clock out': the button the Live Activity deliberately does not have. A dashed cream
+ * outline, the label struck through by a rust line. Page level (never inside the mock).
+ *
+ *   variant 'desk'    46px tall, beside the zoomed phone, level with the button row
+ *   variant 'inline'  a small inline element in the notes list and the mobile tap card
+ *
+ * Hooks: [data-ls-ghost] (the outline; scenes draw it in), [data-ls-strike] (the strike line:
+ * scaleX 0 → 1 from the left, drawn last).
+ */
+interface Props {
+  variant?: 'desk' | 'inline';
+  class?: string;
+}
+const { variant = 'inline', class: cls } = Astro.props;
+---
+
+<span
+  class:list={['ghost', `ghost--${variant}`, cls]}
+  data-ls-ghost={variant}
+  role="img"
+  aria-label="No clock-out button: a Clock out button, crossed out"
+>
+  <span class="ghost-text" aria-hidden="true">Clock out<span class="ghost-strike" data-ls-strike></span></span>
+</span>
+
+<style>
+  .ghost {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    border: 1.5px dashed rgba(242, 245, 239, 0.62);
+    color: rgba(242, 245, 239, 0.8);
+    font-family: var(--font-body);
+    font-weight: 600;
+    white-space: nowrap;
+    line-height: 1;
+  }
+  .ghost--desk {
+    height: 46px;
+    padding: 0 22px;
+    border-radius: var(--radius-btn);
+    font-size: 1rem;
+  }
+  .ghost--inline {
+    height: 30px;
+    padding: 0 12px;
+    border-radius: 10px;
+    font-size: 0.8125rem;
+    vertical-align: middle;
+  }
+  .ghost-text {
+    position: relative;
+  }
+  /* The strike: 2px rust (the page's stage rust, legible on the dark stage), past the
+     letters a little on both sides. */
+  .ghost-strike {
+    position: absolute;
+    left: -4px;
+    right: -4px;
+    top: 50%;
+    height: 2px;
+    margin-top: -1px;
+    border-radius: 1px;
+    background: #d4502f;
+    transform-origin: 0 50%;
+  }
+</style>
