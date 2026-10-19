@@ -116,6 +116,7 @@ struct TreesView: View {
                 .padding(.bottom, 12)
             }
             .scrollBounceBehavior(.basedOnSize)
+            .accessibilityIdentifier("trees-page")
         }
     }
 

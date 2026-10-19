@@ -1,9 +1,14 @@
 import XCTest
 
 /// The Trees tab, offline on the demo farm (North Field: blocks 1–4 of 20 rows × 12 trees;
-/// Sam shaped rows 1–4 of block 1). The map runs at size M in UI tests, so a tree sits
-/// 26 points apart, its row's number 32 points to the left of the first tree's edge.
+/// Sam shaped rows 1–4 of block 1). The map runs at size M in UI tests (it doesn't scale
+/// with text size), so trees in a row sit 26 points apart, the first one starting 6 points
+/// past the right edge of its row's number.
 final class TreesUITests: XCTestCase {
+    /// Tree spacing at size M (`MapMetrics.m`).
+    static let treeSpacing: CGFloat = 26
+    static let largestText = ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"]
+
     override func setUp() {
         continueAfterFailure = false
     }
@@ -34,10 +39,31 @@ final class TreesUITests: XCTestCase {
         XCTAssertTrue(message(app).label.hasPrefix("Clocked in at"), message(app).label)
     }
 
-    /// A tree on the map, found from its row's number.
-    private func tree(_ position: Int, inRow rowNumber: XCUIElement) -> XCUICoordinate {
-        rowNumber.coordinate(withNormalizedOffset: CGVector(dx: 0, dy: 0.5))
-            .withOffset(CGVector(dx: 26 + 6 + (CGFloat(position) - 0.5) * 26, dy: 0))
+    /// A tree on the map, found from its row's number (scrolled into reach first).
+    private func tree(_ position: Int, inRow rowNumber: XCUIElement, file: StaticString = #filePath, line: UInt = #line) -> XCUICoordinate {
+        reveal(rowNumber, file: file, line: line)
+        return rowNumber.coordinate(withNormalizedOffset: CGVector(dx: 1, dy: 0.5))
+            .withOffset(CGVector(dx: 6 + (CGFloat(position) - 0.5) * Self.treeSpacing, dy: 0))
+    }
+
+    /// Scrolls the page (the header above the map, not the map) until `element` can be
+    /// tapped: at large text sizes the map starts below the tab bar.
+    private func reveal(_ element: XCUIElement, file: StaticString = #filePath, line: UInt = #line) {
+        let app = XCUIApplication()
+        let page = app.scrollViews["trees-page"]
+        for _ in 0..<6 where !element.isHittable {
+            // Drag from the top of the page, which is header, never map, until the map is in reach.
+            let top = page.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.08))
+            top.press(forDuration: 0.05, thenDragTo: top.withOffset(CGVector(dx: 0, dy: -260)))
+        }
+        XCTAssertTrue(element.isHittable, "\(element) is out of reach", file: file, line: line)
+    }
+
+    private func assertGloveSized(_ element: XCUIElement, file: StaticString = #filePath, line: UInt = #line) {
+        XCTAssertTrue(element.waitForExistence(timeout: 5), "\(element) is missing", file: file, line: line)
+        // Half a point of slack: frames come back as 53.99999.
+        XCTAssertGreaterThanOrEqual(element.frame.width, 53.5, "\(element.identifier) is too narrow", file: file, line: line)
+        XCTAssertGreaterThanOrEqual(element.frame.height, 53.5, "\(element.identifier) is too short", file: file, line: line)
     }
 
     // MARK: Marking
@@ -51,6 +77,7 @@ final class TreesUITests: XCTestCase {
         XCTAssertEqual(row7.label, "Block 1, row 7")
         XCTAssertEqual(row7.value as? String, "Not shaped")
 
+        reveal(row7)
         row7.tap()
         waitForMessage(app, "Marked 12 trees in Block 1, row 7. Tap the row number again to clear it.")
         XCTAssertEqual(app.buttons["map-row-1-7"].value as? String, "12 of 12 shaped, 12 on this shift")
@@ -187,11 +214,80 @@ final class TreesUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["This is an earlier shift, not the one you’re clocked in on."].exists)
 
         // Row 5 was marked on today's shift, so it's someone else's day now.
+        reveal(app.buttons["map-row-1-5"])
         app.buttons["map-row-1-5"].tap()
         waitForMessage(app, "Every tree in Block 1, row 5 was shaped on another day.")
 
         back.tap()
         XCTAssertFalse(app.buttons["use-open-shift"].waitForExistence(timeout: 1))
+    }
+
+    func testSwitchingBackFollowsTheClock() {
+        let app = launch(["-UITestTreesSeed"])
+        let picker = app.buttons["marking-for"]
+        XCTAssertTrue(picker.waitForExistence(timeout: 10))
+        let seeded = expectation(for: NSPredicate(format: "value CONTAINS %@", "24 trees"), evaluatedWith: picker)
+        XCTAssertEqual(XCTWaiter().wait(for: [seeded], timeout: 10), .completed)
+        let row9 = app.buttons["map-row-1-9"]
+        reveal(row9)
+        row9.tap()
+        waitForMessage(app, "Marked 12 trees in Block 1, row 9. Tap the row number again to clear it.")
+        picker.tap()
+        let yesterday = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "120 trees")).firstMatch
+        XCTAssertTrue(yesterday.waitForExistence(timeout: 5))
+        yesterday.tap()
+        XCTAssertTrue(app.buttons["use-open-shift"].waitForExistence(timeout: 5))
+        // “Marked 12 trees…” was about today's shift, so it goes.
+        waitForMessage(app, "Tap a tree to mark it, or a row number to mark the whole row.")
+        app.buttons["use-open-shift"].tap()
+        XCTAssertTrue((picker.value as? String)?.hasPrefix("Today") ?? false, "\(String(describing: picker.value))")
+    }
+
+    // MARK: A shift left open
+
+    func testAShiftLeftOpenSinceYesterdayIsFlagged() {
+        let app = launch(["-UITestTreesStaleShift"])
+        let picker = app.buttons["marking-for"]
+        XCTAssertTrue(picker.waitForExistence(timeout: 10))
+        let seeded = expectation(for: NSPredicate(format: "value ENDSWITH %@", "12 trees"), evaluatedWith: picker)
+        XCTAssertEqual(XCTWaiter().wait(for: [seeded], timeout: 10), .completed)
+        XCTAssertFalse((picker.value as? String)?.hasPrefix("Today") ?? true, "the shift began yesterday")
+
+        let warning = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "You’ve been clocked in since ")).firstMatch
+        XCTAssertTrue(warning.waitForExistence(timeout: 5))
+        XCTAssertTrue(warning.label.hasSuffix(" at 7:00 AM. If you forgot to clock out, fix the times."), warning.label)
+        let fix = app.buttons["trees-fix-times"]
+        assertGloveSized(fix)
+        fix.tap()
+        XCTAssertTrue(app.navigationBars["Edit Shift"].waitForExistence(timeout: 5))
+    }
+
+    // MARK: Large text and gloves
+
+    func testControlsAreGloveSized() {
+        let app = launch(["-UITestTreesSeed"])
+        XCTAssertTrue(app.buttons["map-row-1-7"].waitForExistence(timeout: 10))
+        for id in ["marking-for", "trees-list-toggle", "trees-undo", "type-numbers"] + ["one", "fill", "erase", "notes"].map({ "mode-\($0)" })
+            + ["all", "xs", "s", "m", "l"].map({ "zoom-\($0)" }) {
+            assertGloveSized(app.buttons[id])
+        }
+    }
+
+    func testTheMapStaysReachableAtTheLargestTextSize() {
+        let app = launch(["-UITestTreesSeed"] + Self.largestText)
+        let picker = app.buttons["marking-for"]
+        XCTAssertTrue(picker.waitForExistence(timeout: 10))
+        let seeded = expectation(for: NSPredicate(format: "value CONTAINS %@", "24 trees"), evaluatedWith: picker)
+        XCTAssertEqual(XCTWaiter().wait(for: [seeded], timeout: 10), .completed)
+        for id in ["trees-list-toggle", "trees-undo"] { assertGloveSized(app.buttons[id]) }
+
+        let row7 = app.buttons["map-row-1-7"]
+        XCTAssertTrue(row7.waitForExistence(timeout: 10))
+        reveal(row7)
+        row7.tap()
+        waitForMessage(app, "Marked 12 trees in Block 1, row 7. Tap the row number again to clear it.")
+        tree(3, inRow: app.buttons["map-row-1-8"]).tap()
+        waitForMessage(app, "Marked Block 1, row 8, tree 3.")
     }
 
     // MARK: Pictures for review

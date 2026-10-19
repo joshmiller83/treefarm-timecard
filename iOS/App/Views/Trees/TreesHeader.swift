@@ -52,6 +52,7 @@ struct FieldHeader: View {
                     Image(systemName: "chevron.down")
                         .font(.headline.weight(.semibold))
                         .foregroundStyle(Palette.firText)
+                        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
                 }
                 .frame(minHeight: GloveButtonStyle.minHeight)
                 .contentShape(Rectangle())
@@ -275,7 +276,7 @@ struct MarkingForBar: View {
             }
         }
         .padding(.horizontal, 4)
-        .dynamicTypeSize(...DynamicTypeSize.accessibility2)
+        .dynamicTypeSize(...DynamicTypeSize.accessibility1)
         .accessibilityElement(children: .contain)
     }
 

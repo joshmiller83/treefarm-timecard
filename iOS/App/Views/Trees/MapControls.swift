@@ -54,9 +54,10 @@ struct MessageBar: View {
     }
 
     var body: some View {
-        // At the largest sizes the buttons go under the words, so the words keep the width.
+        // At the largest sizes a follow-up button goes under the words with Undo, so the words
+        // keep the width. Otherwise Undo sits beside them.
         Group {
-            if typeSize.isAccessibilitySize {
+            if typeSize.isAccessibilitySize && message.action != nil {
                 VStack(alignment: .leading, spacing: 8) {
                     text
                     HStack(spacing: 10) {
