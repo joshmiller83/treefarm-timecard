@@ -31,11 +31,12 @@ struct WatchShiftModelTests {
     }
 
     /// A model that has heard `state` from a phone that answers with `phone`.
-    func connected(_ state: WatchState, reachable: Bool = true) async -> (WatchShiftModel, FakeWatchTransport, WatchTestPhone) {
+    func connected(_ state: WatchState, reachable: Bool = true,
+                   replyTimeout: Duration = .seconds(2)) async -> (WatchShiftModel, FakeWatchTransport, WatchTestPhone) {
         let phone = WatchTestPhone(state)
         let fake = FakeWatchTransport(reachable: reachable)
         fake.defaultAnswer = .respond { phone.answer($0) }
-        let model = makeModel(fake)
+        let model = makeModel(fake, replyTimeout: replyTimeout)
         // The context WatchConnectivity replays at activation, already waiting.
         fake.deliverContext(F.envelope(state))
         model.activate()
@@ -135,6 +136,38 @@ struct WatchShiftModelTests {
         try? await Task.sleep(for: .seconds(1))
 
         #expect(model.toast?.text == "Second", "the first toast's 2.5 s are up, the second's aren't")
+    }
+
+    @Test func whileThePhoneCantRunTapsEveryTapSaysWhy() async {
+        let (model, fake, _) = await connected(F.working())
+        // A newer iPhone app: the watch can't read its replies.
+        fake.defaultAnswer = .reply(Data("not an envelope".utf8))
+
+        let first = await model.perform(.markRow(F.row(14)), source: .button)
+        #expect(first == .queued(WatchDisplay.updateWatch))
+
+        let second = await model.perform(.markRow(F.row(15)), source: .button)
+
+        #expect(second == .queued(WatchDisplay.updateWatch), "not “Saved on watch · 2 waiting”")
+        #expect(model.toast == WatchToast(text: WatchDisplay.updateWatch, kind: .info))
+        #expect(model.waitingCount == 2)
+        #expect(recorder.haptics == [.queued, .queued])
+    }
+
+    @Test func onceThePhoneRunsTapsAgainTheSavedLineIsBack() async {
+        let (model, fake, phone) = await connected(F.working(), replyTimeout: .milliseconds(300))
+        let answer = fake.defaultAnswer!
+        fake.defaultAnswer = .reply(Data("not an envelope".utf8))
+        _ = await model.perform(.markRow(F.row(14)), source: .button)
+
+        // Both apps updated: the next answers are read, and both taps apply.
+        fake.defaultAnswer = answer
+        _ = await model.perform(.markRow(F.row(15)), source: .button)
+        #expect(phone.commands.count == 2)
+
+        // A lost reply, with the phone still in reach: the ordinary line.
+        fake.enqueue(.lost)
+        #expect(await model.perform(.markRow(F.row(16)), source: .button) == .queued("Saved on watch · 1 waiting"))
     }
 
     @Test func siriHearsTheLongerSavedLine() async {

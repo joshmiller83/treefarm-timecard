@@ -141,6 +141,9 @@ final class WatchShiftModel {
     @ObservationIgnored private var toastGeneration = 0
     @ObservationIgnored private var lastFirstChip: RowChip?
     @ObservationIgnored private var refreshing = false
+    /// The phone's last "couldn't run this now" (`keepQueued`): the sentence each later tap
+    /// says while the phone is in reach, until a reply without it.
+    @ObservationIgnored private var blockedReason: String?
 
     init(transport: any WatchTransport, store: any WatchOutboxStore, directory: URL?,
          replyTimeout: Duration = .seconds(4),
@@ -465,6 +468,7 @@ final class WatchShiftModel {
     private func handle(_ event: CourierEvent) async {
         if case .replied(let request, let reply) = event {
             let direct = directIds.remove(request.id) != nil
+            noteBlocked(reply)
             if let state = reply.state { await accept(state) }
             noteRefusedClockIn(request, reply)
             if !direct, request.isCommand, !reply.succeeded, !reply.keepQueued {
@@ -502,6 +506,7 @@ final class WatchShiftModel {
     private func settle(_ request: WatchRequest, _ result: CourierResult, source: WatchSource) async -> WatchOutcome {
         switch result {
         case .replied(let reply):
+            noteBlocked(reply)
             if let state = reply.state { await accept(state) }
             noteRefusedClockIn(request, reply)
             if reply.keepQueued {
@@ -519,6 +524,13 @@ final class WatchShiftModel {
             return .refused(reply)
         case .queued(let count):
             directIds.remove(request.id)
+            // The phone is in reach but can't run taps (an app to update, signed out): say why
+            // each time, not "Saved on watch".
+            if let reason = blockedReason, reach == .reachable {
+                show(WatchToast(text: reason, kind: .info))
+                haptics(.queued)
+                return .queued(reason)
+            }
             // A phone restarted and not yet unlocked can't be reached until it is: say so.
             let text = reach == .needsUnlock ? WatchDisplay.unlockPhone : WatchDisplay.savedOnWatch(waiting: count)
             show(WatchToast(text: text, kind: .saved))
@@ -544,6 +556,10 @@ final class WatchShiftModel {
         show(WatchToast(text: text, kind: .refusal))
         haptics(.refused)
         return .notSent(text)
+    }
+
+    private func noteBlocked(_ reply: WatchReply) {
+        blockedReason = reply.keepQueued ? reply.speech : nil
     }
 
     private func noteRefusedClockIn(_ request: WatchRequest, _ reply: WatchReply) {
