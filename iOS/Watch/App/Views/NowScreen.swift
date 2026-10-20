@@ -77,19 +77,20 @@ struct NowScreen: View {
 
     /// The phase, the timer and the place. The toast takes the place line's spot for a moment,
     /// so it never covers the timer or the button. With Undo clock-in on a small watch, the
-    /// timer moves up beside the phase to leave the buttons their full size.
+    /// timer moves up right after the phase glyph to leave the buttons their full size: at the
+    /// leading edge, so it can't be read as the system clock above the right corner.
     @ViewBuilder
     private func info(phase: WatchPhase, compact: Bool) -> some View {
         let snapshot = state.snapshot
         let tight = compact && metrics.isSmall
         VStack(alignment: .leading, spacing: metrics.isSmall ? 0 : 2) {
-            HStack(alignment: .center, spacing: 4) {
-                PhaseTag(phase: phase, title: WatchDisplay.breakLine(state))
-                Spacer(minLength: 2)
+            HStack(alignment: .center, spacing: 6) {
+                PhaseTag(phase: phase, title: WatchDisplay.breakLine(state), glyphOnly: tight && snapshot != nil)
                 if tight, let snapshot {
                     timer(snapshot, phase: phase, size: 20)
                         .fixedSize()
                 }
+                Spacer(minLength: 2)
                 if model.waitingCount > 0 {
                     QueueBadge(count: model.waitingCount, action: showQueue)
                 } else {
@@ -119,8 +120,12 @@ struct NowScreen: View {
         let font = Font.system(size: size, weight: .semibold, design: .rounded).monospacedDigit()
         Group {
             if phase == .working {
-                Text(timerInterval: snapshot.timerStart...Date.distantFuture, countsDown: false)
-                    .accessibilityLabel(WatchDisplay.timerAccessibility(snapshot.workedSoFar))
+                // VoiceOver reads the time worked now, not when the state was made.
+                TimelineView(.everyMinute) { context in
+                    Text(timerInterval: snapshot.timerStart...Date.distantFuture, countsDown: false)
+                        .accessibilityLabel(WatchDisplay.timerAccessibility(context.date.timeIntervalSince(snapshot.timerStart)))
+                        .accessibilityIdentifier("shiftTimer")
+                }
             } else if let start = snapshot.breakStart {
                 Text(timerInterval: start...Date.distantFuture, countsDown: false)
                     .accessibilityLabel(WatchDisplay.breakLine(state) ?? WatchDisplay.phaseTitle(phase))

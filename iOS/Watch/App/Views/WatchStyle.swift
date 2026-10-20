@@ -138,17 +138,26 @@ struct PhaseTag: View {
     let phase: WatchPhase
     /// The whole line when it says more than the phase ("Lunch · since 12:01").
     var title: String?
+    /// Only the glyph (VoiceOver still reads the phase): the small watch's tight top row,
+    /// where the timer sits right after it.
+    var glyphOnly = false
 
     var body: some View {
         HStack(spacing: 5) {
-            Image(systemName: WatchDisplay.phaseGlyph(phase))
-                .font(.system(.footnote, design: .rounded).weight(.bold))
-            Text(title ?? WatchDisplay.phaseTitle(phase))
-                .font(.system(.footnote, design: .rounded).weight(.bold))
-                .textCase(.uppercase)
-                .tracking(0.6)
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
+            if glyphOnly {
+                Image(systemName: WatchDisplay.phaseGlyph(phase))
+                    .font(.system(.footnote, design: .rounded).weight(.bold))
+                    .accessibilityLabel(title ?? WatchDisplay.phaseTitle(phase))
+            } else {
+                Image(systemName: WatchDisplay.phaseGlyph(phase))
+                    .font(.system(.footnote, design: .rounded).weight(.bold))
+                Text(title ?? WatchDisplay.phaseTitle(phase))
+                    .font(.system(.footnote, design: .rounded).weight(.bold))
+                    .textCase(.uppercase)
+                    .tracking(0.6)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+            }
         }
         .foregroundStyle(WatchPalette.accent(phase))
         .accessibilityElement(children: .combine)
@@ -257,8 +266,13 @@ struct QueueBadge: View {
             .padding(.horizontal, 7)
             .padding(.vertical, 3)
             .background(WatchPalette.sap, in: Capsule())
+            // A glove-sized target around the small capsule.
+            .frame(minWidth: 44, minHeight: 44)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        // The target overhangs the row instead of making it taller, so the screens keep their fit.
+        .padding(.vertical, -11)
         .accessibilityLabel(WatchDisplay.waitingLine(count: count))
         .accessibilityIdentifier("queueBadge")
     }

@@ -175,6 +175,33 @@ final class WatchFlowUITests: WatchUITestCase {
         snapshot("summary-after-phone-back")
     }
 
+    @MainActor
+    func testOffTheClockWithAClockOutWaitingStillFits() {
+        launch("-watchDemoWorking", "-watchPhoneAway")
+        XCTAssertTrue(primary.waitForExistence(timeout: 30))
+        app.swipeRight()
+        let clockOut = app.buttons["clockOut"]
+        XCTAssertTrue(clockOut.waitForExistence(timeout: 5))
+        clockOut.tap()
+        let yes = app.buttons["Yes, clock out"]
+        XCTAssertTrue(yes.waitForExistence(timeout: 5))
+        yes.tap()
+        let done = app.buttons["summaryDone"]
+        XCTAssertTrue(done.waitForExistence(timeout: 10))
+        done.tap()
+
+        waitFor(primary, label: "Clock in")
+        XCTAssertTrue(app.descendants(matching: .any)["clockOutWaiting"].exists)
+        let badge = app.buttons["queueBadge"]
+        XCTAssertTrue(badge.exists)
+        // A glove-sized target, and everything on one page.
+        XCTAssertGreaterThanOrEqual(badge.frame.height, 44)
+        XCTAssertTrue(primary.isHittable)
+        XCTAssertLessThanOrEqual(primary.frame.maxY, app.windows.firstMatch.frame.maxY)
+        XCTAssertEqual(app.scrollViews.count, 0)
+        snapshot("off-clock-clock-out-waiting")
+    }
+
     // MARK: Fit
 
     @MainActor
