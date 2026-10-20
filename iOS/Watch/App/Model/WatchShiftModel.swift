@@ -248,6 +248,11 @@ final class WatchShiftModel {
             memory.watchClockIn = request.shiftId
             memory.undoClockInUntil = request.issuedAt.addingTimeInterval(Self.undoClockInWindow)
             saveMemory()
+        } else if Self.isWork(command), request.shiftId != nil, request.shiftId == memory.watchClockIn,
+                  memory.undoClockInUntil != nil {
+            // The phone won't cancel a shift with a mark or a break on it.
+            memory.undoClockInUntil = nil
+            saveMemory()
         }
         submitting.append(request)
         directIds.insert(request.id)
@@ -300,10 +305,20 @@ final class WatchShiftModel {
     }
 
     /// Undo clock-in shows: the shift on screen is the one this watch just clocked in, less
-    /// than 2 minutes ago.
+    /// than 2 minutes ago, with no work on it yet (`FieldEngine.cancelShift` refuses a shift
+    /// with marks or breaks, and a mark or break from the watch ends the window).
     var canUndoClockIn: Bool {
-        guard let until = memory.undoClockInUntil, let minted = memory.watchClockIn, now() < until else { return false }
-        return displayed?.shiftId == minted && displayed?.isClockedIn == true
+        guard let until = memory.undoClockInUntil, let minted = memory.watchClockIn, now() < until,
+              let shown = displayed, shown.shiftId == minted, let snapshot = shown.snapshot else { return false }
+        return snapshot.phase == .working && snapshot.shiftTrees == 0
+    }
+
+    /// Commands that put work on a shift, so it can no longer be cancelled.
+    private static func isWork(_ command: FieldCommand) -> Bool {
+        switch command {
+        case .markRow, .markNextRow, .markTrees, .startBreak, .endBreak: true
+        default: false
+        }
     }
 
     /// When Undo clock-in stops showing.

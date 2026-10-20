@@ -385,6 +385,39 @@ struct WatchShiftModelTests {
         #expect(!model.canUndoClockIn)
     }
 
+    @Test func undoClockInGoesAwayOnceTheWatchMarksARow() async {
+        let (model, _, _) = await connected(F.offClock())
+        _ = await model.perform(.clockIn(fieldId: nil), source: .doubleTap)
+        #expect(model.canUndoClockIn)
+
+        _ = await model.perform(.markRow(F.row(14)), source: .doubleTap)
+
+        // The phone refuses to cancel a shift with work on it.
+        #expect(!model.canUndoClockIn)
+        #expect(model.undoClockInUntil == nil)
+    }
+
+    @Test func undoClockInGoesAwayWhenThePhoneShowsWorkOnTheShift() async {
+        let (model, fake, phone) = await connected(F.offClock())
+        _ = await model.perform(.clockIn(fieldId: nil), source: .doubleTap)
+        #expect(model.canUndoClockIn)
+
+        // A row marked on the lock screen.
+        let marked = phone.change { $0.snapshot?.shiftTrees = 12 }
+        fake.deliverContext(F.envelope(marked))
+        #expect(await F.eventually { model.confirmed?.revision == marked.revision })
+        #expect(!model.canUndoClockIn)
+
+        // Lunch started on the phone.
+        let lunch = phone.change {
+            $0.snapshot?.shiftTrees = 0
+            $0.snapshot?.phase = .lunch
+        }
+        fake.deliverContext(F.envelope(lunch))
+        #expect(await F.eventually { model.confirmed?.revision == lunch.revision })
+        #expect(!model.canUndoClockIn)
+    }
+
     @Test func undoClockInWorksWhileQueued() async {
         let (model, _, _) = await connected(F.offClock(), reachable: false)
         _ = await model.perform(.clockIn(fieldId: nil), source: .button)

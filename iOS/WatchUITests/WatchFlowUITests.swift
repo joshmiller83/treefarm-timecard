@@ -14,12 +14,15 @@ final class WatchFlowUITests: WatchUITestCase {
 
         waitFor(primary, label: "Mark row 14 in block 2 shaped")
         XCTAssertTrue(app.staticTexts["shiftTimer"].exists)
+        XCTAssertTrue(app.buttons["undoClockIn"].exists)
         snapshot("now-after-clock-in")
 
         primary.tap()
 
         toast("Row 14 marked")
         waitFor(primary, label: "Mark row 15 in block 2 shaped")
+        // The phone won't cancel a shift with a row on it, so Undo clock-in goes.
+        waitUntilGone(app.buttons["undoClockIn"], timeout: 3)
         snapshot("now-after-mark")
     }
 
