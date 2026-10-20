@@ -105,4 +105,6 @@ The watch app ships its own ten App Shortcuts (the iPhone's don't run on the wat
 | W9 | Status | How long have I worked · How many trees · What row am I on · What's my pace | One answer covering all four, from the phone | The same from the watch, with "as of <time>" |
 | W10 | A note | Add a note | Asks: What's the note? Then: Added to today's notes. | Asks the same; then Saved on your watch… |
 
+**W7 by voice, two ways (record which works on the Ultra 2):** say "Mark row 40 in Time Card" directly, and also "Mark a row in Time Card", then "forty" when Siri asks "Which row?". Watch phrases need an exact match, and a parameterized phrase is filled only from the rows the watch suggests (`suggestedEntities()`, the first 10 rows it shows), so the direct phrase may match only when row 40 is one of them. The second path reads the spoken number (`entities(matching:)`), which the watch tests cover.
+
 Watch checks: with no state yet, every command says "Open Time Card on your iPhone once." Signed out on the phone: "Open Time Card on your iPhone to sign in." Pay, moving blocks, tree notes and the start time are phone-only (raise the phone or use AirPods).

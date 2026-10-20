@@ -146,6 +146,7 @@ The watch sends **requests** and shows **state**, and nothing else. Every rule, 
 - **When the outbox flushes:** after activation, on `sessionReachabilityDidChange(true)`, on `scenePhase == .active`, after every reply, and once a minute while a workout session exists, including a **stopped** one (the session keeps the app running and reachable with the wrist down). [WC-F4, WC-R7, WC-R9]
 - **Waiting.** After 3 s with no reply, the button shows "Waiting for phone…" and the request stays in the outbox until it's answered. Nobody knows the real reply timeout. [WC-F7] When `iOSDeviceNeedsUnlockAfterRebootForReachability` is true, the watch says "Unlock your phone once."
 - **Lost replies.** Each `WatchState` carries `appliedRequestIds`, and `WatchCourier.acknowledge(state)` clears those from the outbox. [WC-R2]
+- **A reply's state arrives with its answer.** `CourierSnapshot.replyState` is the newest state any reply carried, set in the same step that drops the answered request. The model takes it whenever it reads the snapshot, so no change ever shows a flushed clock-in answered while the state held still says off the clock (rule 6 in 2.2 would finish the new shift's workout).
 - **Background wakes.** `.backgroundTask(.watchConnectivity)` activates the session and completes only once activation is done, `hasContentPending` is false **and** `await transport.drained()` returns, meaning the model has handled every context and user-info event the transport delivered. Handling saves `displayed` to `WatchStateFile` and reloads the complications when `ComplicationReload.needsReload` says so. [WC-F11, WC-P14]
 
 ### 1.5 Swift 6 threading (both sides)
@@ -188,7 +189,7 @@ WatchConnectivity and HealthKit have no `Sendable` annotations and call back on 
 | **Undo clock-in** | Watch (3.4) | Applies `.cancelShift(shiftId)` | **Discard** at once |
 | **Lunch / break** | Any | Applies `.startBreak` | `pause()` as soon as the watch knows: immediately for a watch tap, otherwise when the state arrives. `pause()` takes no date, so Health's active time can differ from paid time by seconds. **The time card is the truth.** [HK-F2, HK-P5] |
 | **Back to work** | Any | Applies `.endBreak` | `resume()`, with the same timing as pause |
-| **Clock out** | Watch (after the `WatchConfirm` dialog), live or queued | Applies `.clockOut` at `issuedAt` | **Stop now, finish on acknowledgement:** `session.stopActivity(with: issuedAt)` at once, so the end date is exact. The session then **stays in `.stopped`**, which still counts as an active session, so the app keeps running and reachable and the outbox keeps flushing. When the clock-out is answered (a reply, or its id in `appliedRequestIds`, refused or not), run the finish sequence at `stoppedAt`. **After 60 minutes** without an answer, finish anyway and post the local notification "Open Time Card near your iPhone to finish clocking out." Meanwhile a full-width banner reads **"Clock-out waiting for iPhone"** |
+| **Clock out** | Watch (after the `WatchConfirm` dialog), live or queued | Applies `.clockOut` at `issuedAt` | **Stop now, finish on acknowledgement:** `session.stopActivity(with: issuedAt)` at once, so the end date is exact. The session then **stays in `.stopped`**, which still counts as an active session, so the app keeps running and reachable and the outbox keeps flushing. When the clock-out is answered (a reply, or its id in `appliedRequestIds`, refused or not), run the finish sequence at `stoppedAt`. **After 60 minutes** without an answer, finish anyway and post the local notification "Open Time Card near your iPhone to finish clocking out." That reminder is **scheduled with the system at the stop** (so it comes even if the session ends from outside or the app is gone by then) and taken back once the clock-out is answered. Meanwhile a full-width banner reads **"Clock-out waiting for iPhone"** |
 | **Clock out** | Phone, Siri on the phone, or a sync | Applies `.clockOut` | Finish at `lastClosedShift.end` (rule 6 below) |
 | **Shift edited on the phone** (start time changed) | Phone | Saves | Nothing. The workout isn't stretched to match. [HK-P6] |
 
@@ -236,7 +237,7 @@ WatchConnectivity and HealthKit have no `Sendable` annotations and call back on 
 - **Watch:** `requestAuthorization(toShare: [.workoutType()], read: [heartRate, activeEnergyBurned])`. Nothing more. [HK-F16]
   - **When:** on the watch's first launch, if `recordWorkouts` is on. A full-screen card says "Record shifts as workouts" with an **Allow Health** button. The prompt has to happen early, because the Action button only launches the app until authorization has been requested once. [UI-F10, HK-F7]
   - **If denied:** shifts work normally with no workout. The Today page shows "Workouts off · Allow Time Card in the Health app on your iPhone."
-  - **Notifications:** the same card then asks `UNUserNotificationCenter` for `[.alert, .sound]`, worded "Remind me if a clock-out gets stuck." Only the 60-minute stuck clock-out (2.2) uses it.
+  - **Notifications:** the same card then asks `UNUserNotificationCenter` for `[.alert, .sound]`, worded "Remind me if a clock-out gets stuck." Only the 60-minute stuck clock-out (2.2) uses it. The reminder is scheduled with the system at the stop, for 60 minutes later, and taken back once the clock-out is answered.
 - **iPhone:** gets the HealthKit entitlement and both usage strings, because it calls `startWatchApp`. It **doesn't ask for authorization**, unless the device test shows that `startWatchApp` fails without it. In that case it asks for share `[workoutType]` only, from the Settings toggle. [HK-R10]
 - **Usage strings** (the same in both apps):
   - `NSHealthShareUsageDescription`: "Time Card shows your heart rate and calories during a shift. They stay on your iPhone and Apple Watch and are never sent to the farm."
@@ -248,7 +249,9 @@ WatchConnectivity and HealthKit have no `Sendable` annotations and call back on 
 
 - **Recovery:** `@WKApplicationDelegateAdaptor(WatchAppDelegate.self)` implements `handleActiveWorkoutRecovery()`, which yields `.recover`. `ShiftWorkout` calls `HKHealthStore.recoverActiveWorkoutSession`, makes a **new** `HKLiveWorkoutDataSource`, reattaches both delegates, restores `WorkoutLocal` (saved to the App Group on every change, including `stoppedAt`), and reconciles. A recovered `.stopped` session goes straight back to rule 2. [HK-F10, HK-R8]
 - **At every launch, recovery runs before any start.** The input queue enforces it (1.5). Starting a fresh session over an orphaned one has been reported to break WatchConnectivity reachability. [HK-P10]
-- **Ended from outside:** watchOS has no system button that ends another app's workout session. It ends when another workout starts (`errorAnotherWorkoutSessionStarted`), on a force-quit or a crash, on a battery shutdown, or on an error. [HK-F11] In all these cases:
+- **Ended from outside:** watchOS has no system button that ends another app's workout session. It ends when another workout starts (`errorAnotherWorkoutSessionStarted`), on a force-quit or a crash, on a battery shutdown, or on an error. [HK-F11]
+- **A stopped session ended from outside** (a watch clock-out still waiting for the phone) is a finished shift, not a lost recording: it finishes at `stoppedAt` with its summary, offers **no** Record again, and keeps the stuck-clock-out reminder already scheduled with the system. `live.recording` goes to `.idle` while `live.waitingClockOut` stays true until the phone answers.
+- **A running or paused session ended from outside:**
   - Save what was collected (finish at now if the builder is still usable).
   - **Keep the shift on the clock.** It is never a clock-out. [HK-P11]
   - Set `stoppedUnexpectedly` and show the banner "Recording stopped" with a full-width **Record again** button. That yields `.recordAgain`, which starts a new session with a new sync identifier and the same shift id.
@@ -477,6 +480,10 @@ There's no pay, ever, because bystanders can see a wrist. `WatchState` doesn't c
 ╰──────────────────────────╯
 ```
 
+- One screen, `ShiftDoneScreen`, worded by `WorkoutSummaryContent` (which also gives VoiceOver "Average heart rate 104, maximum 151" and "1,120 calories, 7 hours 41 minutes active"). It never scrolls, because Double Tap is Done: on a small watch or at large text it drops the energy line, then the heart line.
+- While the clock-out still waits for the phone, the banner "Clock-out waiting for iPhone" takes the title's place and the trees line reads "412 trees · waiting for iPhone".
+- Done dismisses it on the model and in the workout's summary slot.
+
 ### 3.10 Toasts
 
 - **Position and size:** they sit over the bottom of the timer area and never over the primary button. Two lines at most.
@@ -571,9 +578,9 @@ All of these intents live in the **watch app target**, not an extension, and kee
 **How the extension gets its data:**
 - One `StaticConfiguration`, kind `"timecard.watch.shift"`, supporting all four accessory families.
 - Its data is the **displayed** `WatchState` and the waiting count that the watch app writes to the App Group (`WatchStateFile`). **The extension never touches WCSession.** [SYS-P9]
-- The timeline is a single entry with policy `.never`. The timers tick by themselves.
+- The timeline is one entry with policy `.never`; the timers tick by themselves. While off-the-clock hours show ("6.5 h today"), a **second entry at the farm's next midnight** reads them as 0 ("IN"), so yesterday's hours never greet the morning. It is still `.never`, so midnight spends no reload. `ComplicationDay` decides the day the hours belong to (the phone's `updatedAt`, or the end of a clock-out the watch made itself).
 
-**When it reloads:** the watch app's observer calls `reloadTimelines(ofKind:)` only when the pure `ComplicationReload.needsReload(old:new:)` says something shown changed: `signedIn`, the phase, the first chip, the field, the waiting count going between 0 and more than 0, `lastClosedShift`, or `usualStart`. Most reloads happen with the app in the foreground, where they aren't counted. [SYS-F8, SYS-P8]
+**When it reloads:** the watch app's observer calls `ComplicationReload.reload()` (`reloadTimelines` + `invalidateRelevance`; a timeline reload alone never asks for relevance again) only when the pure `ComplicationReload.needsReload(old:new:)` says something shown changed: `signedIn`, the phase, the first chip, the field, the waiting count going between 0 and more than 0, a clock-out waiting, `lastClosedShift`, `usualStart`, the farm's zone, the trees this shift, the moments the timers count from, and off the clock the hours today **and the day they belong to** (the same hours on a later day redraw). Most reloads happen with the app in the foreground, where they aren't counted. [SYS-F8, SYS-P8]
 
 **Rendering rules:**
 - Timers and glyphs use `.widgetAccentable()`.
@@ -590,10 +597,10 @@ All of these intents live in the **watch app target**, not an extension, and kee
 | `.accessoryCorner` | Centre `leaf.fill`; curved `.widgetLabel` timer **"3:41"** + **"R14"** (`.widgetCurvesContent()`) | Centre `cup.and.saucer.fill`; label **"Lunch 12:40"** | Centre `leaf`; label **"6.5 h today"** | Centre `iphone`; label **"Time Card"** |
 | `.accessoryInline` | `leaf.fill` **"3:41:07 · Row 14"** | `cup.and.saucer.fill` **"Lunch 12:40 · 3:41 worked"** | `leaf` **"6.5 h today"** | **"Time Card"** |
 
-- **Waiting taps:** while taps are waiting, rectangular L3 becomes **"2 taps waiting for iPhone"**, and with a clock-out waiting, **"Clock-out waiting for iPhone"**.
+- **Waiting taps:** while taps are waiting, rectangular L3 becomes **"Taps waiting for iPhone"** (no count: the complication reloads only when taps start or stop waiting, so a count would go stale as the queue drains in the background), and with a clock-out waiting, **"Clock-out waiting for iPhone"**.
 - **Relevance** (watchOS 11 `relevance()`; watchOS ignores `TimelineEntryRelevance`) [SYS-F7, SYS-R8]:
   - While clocked in: `WidgetRelevanceAttribute(context: .date(from: shiftStart, to: shiftStart + 10h))`.
-  - Off the clock, when `usualStart` is known: a `.date(interval:kind:)` window from 30 min before to 60 min after today's `usualStart` in `farmTimeZone`, so "Clock in" rises in the Smart Stack in the morning. With no `usualStart` (fewer than 3 shifts), no off-clock relevance.
+  - Off the clock, when `usualStart` is known: `.date(interval:kind:)` windows from 30 min before to 60 min after `usualStart` in `farmTimeZone`, **for today (unless it's over) and each of the next 7 days**, so "Clock in" rises in the Smart Stack in the morning. Relevance is only asked for again after `invalidateRelevance`, so a Friday clock-out has to carry Monday's window. With no `usualStart` (fewer than 3 shifts), no off-clock relevance.
   - Test with WidgetKit Developer Mode on.
 
 ### 4.4 The iPhone Live Activity on the watch (`.small` family) [SYS-F1–F5, SYS-R5]
@@ -610,8 +617,8 @@ All of these intents live in the **watch app target**, not an extension, and kee
 ```
 Working                                      Lunch / break
 ┌───────────────────────────────────┐        ┌───────────────────────────────────┐
-│ 🍃 Working · Block 2     3:41:07  │ 18 pt  │ ☕ Lunch · 3:41 worked     0:12:40 │
-│ Next Row 14 · 38 trees            │ 14 pt  │ Since 12:01                        │
+│ 🍃 Working · Block 2     3:41:07  │ 18 pt  │ ☕ Lunch                   0:12:40 │
+│ Next Row 14 · 38 trees            │ 14 pt  │ Since 12:01 · 3:41 worked          │
 │ ╭───────────────────────────────╮ │        │ ╭───────────────────────────────╮ │
 │ │       ✓  Row 14 done          │ │ 36 pt  │ │       ▶  Back to work         │ │
 │ ╰───────────────────────────────╯ │        │ ╰───────────────────────────────╯ │
@@ -620,7 +627,9 @@ Working                                      Lunch / break
 
 - **One control only,** as the HIG asks: `Button(intent: MarkRowIntent(blockId:row:))` for the first chip while working, `BackToWorkButtonIntent` on a break (both from `iOS/Shared/Intents/LiveActivityButtons.swift`). Undo and Break stay off the card.
 - **Double Tap** fires the button from the Smart Stack through `.handGestureShortcut(.primaryAction)` on Series 9+ and Ultra 2+. [UI-F14, SYS-F3]
-- **Fonts:** timers use the system font (`.system(.title3, design: .rounded).monospacedDigit()`), not Plex Mono. `compactLeading` and `compactTrailing` use system fonts too, since they are the default watch view. [SYS-F5, SYS-P4]
+- **On a break, line 1 is just the phase** ("Lunch", "Break") and line 2 carries the worked total ("Since 12:01 · 3:41 worked"): on a 40 mm card the title gives way to the timer, and nothing redraws the card when a break passes an hour, so the total must live on line 2.
+- **Fonts:** timers use the system font (`.system(.title3, design: .rounded).monospacedDigit()`), not Plex Mono. The `.small` family replaces the compact Dynamic Island views on the watch, so those keep the iPhone's fonts. [SYS-F5, SYS-P4]
+- **Stale:** ten minutes before iOS ends the activity at 8 hours, line 2 says the lock screen's "Open Time Card" (the button stays).
 - **Ending:** the controller must end with `dismissalPolicy: .immediate` at clock-out and at the 8-hour restart. Otherwise an ended card stays up to 4 hours and two cards stack. Updates use no `alertConfiguration`. [SYS-P14]
 - **Opening the watch app:** the watch app's Info.plist has `WKSupportsLiveActivityLaunchAttributeTypes = ["TimeCardActivityAttributes"]`. It works on **watchOS 11.1+**: tapping the card opens the watch app. On 11.0 the tap shows "Open on iPhone", which is acceptable, so there is no gate. Name the type explicitly, because an empty array is reported not to work. [SYS-F4, SYS-P6]
 - **Limit:** a Live Activity button runs `LiveActivityIntent` **on the iPhone**, with no outbox and no `issuedAt`. It's a phone-in-reach convenience. The watch app is the reliable path. [SYS-F3, SYS-P5]
@@ -838,7 +847,7 @@ Each line gets a test first where a test is possible. The test column says where
 | **Signed out on the phone** | `WatchState.signedIn == false` → "Open Time Card on your iPhone to sign in." Queued taps stay (with `userId`). If the same person signs in, they apply. A different person: "These taps were for Josh, so they weren't applied," and they're dropped | `WatchDeskTests` |
 | **Older or newer app on one side** (TestFlight updates them separately) | Envelope `v` mismatch → `WatchReply.unreadable("Update Time Card on your iPhone")` (or watch), `keepQueued: true` | `WatchLinkTests`, `WatchDeskTests` |
 | **Live Activity ended** (8 h, swiped, or turned off) | The watch app doesn't depend on it. The Smart Stack card goes away. Once the Live Activity work lands, its controller restarts the activity on foreground with `.immediate` dismissal, so cards don't stack | `LiveActivitySmallTests` (after the prerequisite) |
-| **Workout ended from outside** (Apple's Workout app started, crash, battery) | Collected data is saved, the **shift stays on the clock**, and the banner "Recording stopped [Record again]" appears. Never a clock-out | `ShiftWorkoutTests` |
+| **Workout ended from outside** (Apple's Workout app started, crash, battery) | Collected data is saved, the **shift stays on the clock**, and the banner "Recording stopped [Record again]" appears. Never a clock-out. A **stopped** session (a watch clock-out waiting) ended from outside finishes at `stoppedAt` with its summary, offers no Record again, and keeps the stuck reminder | `ShiftWorkoutTests` |
 | **Phone clock-out with an untagged session** (launch before the context, recovery with no saved id) | Finishes at `lastClosedShift.end` when it falls inside the session, else at now. Never runs forever | `WorkoutPlanTests` "untagged session + phone clock-out → finish" |
 | **HealthKit denied, never asked, or recording off** | No workout. The Today page explains. The Action button clocks in on the first press and only opens the app after that; Settings says "Action button needs workouts on" | `ShiftWorkoutTests`, `ActionButtonDonorTests` |
 | **`recordWorkouts` turned off mid-shift** | The desk reads settings per call, so the next state says off; finish the running workout now (normal save). No new sessions | `WatchDeskTests`, `WorkoutPlanTests` |
@@ -1032,18 +1041,20 @@ Run everything **detached from Xcode**, because the debugger stops suspension. [
 **Hands-free input:**
 - [ ] **Double Tap through Josh's real work gloves** and with shears in hand. Note any false fires, including on the off-clock screen (then Undo clock-in).
 - [ ] Crown row selection through gloves. A cuff bumping the crown is visible and undoable.
-- [ ] Action button: the first press clocks in and records; later presses mark the next row; on lunch a press resumes; Action + side pauses and resumes.
+- [ ] Action button: the first press clocks in and records; **the second press marks the next row once the session is running** (the donation follows the session); on lunch a press resumes; Action + side pauses and resumes.
 - [ ] Water Lock appears on the Ultra 2 (`.wr100`), and whether Double Tap and the crown selector still work under it.
 
 **Siri, Smart Stack and complications:**
 - [ ] Siri on the watch: every phrase in 4.1, out loud, with the phone in a pocket and with the phone away. Accept the App Shortcuts opt-in the first time (it may not come back if declined).
-- [ ] "Mark row 40 in Time Card" on the watch resolves and asks to confirm.
+- [ ] "Mark row 40 in Time Card" on the watch resolves and asks to confirm. Try it said directly, and as "Mark a row" → "Which row?" → "forty", and record which path works: watch phrases need an exact match, and a parameterized phrase is filled only from `suggestedEntities()` (the first 10 chips), so the direct phrase may match only when row 40 is a chip. The second path goes through `entities(matching:)`, which is tested.
 - [ ] Smart Stack Live Activity (once the prerequisite lands): the layout at 49 mm. Double Tap marks the row. **Tap the card's button with the phone out of reach and record what happens.** Tapping the card opens the watch app.
 - [ ] Complications on Josh's face: all four families. Always On timer format and width. Tinted face legibility. "Clock in" rises in the Smart Stack around the usual start.
 
 **Failure and recovery:**
 - [ ] Kill the watch app from Xcode mid-shift: the workout recovers with no duplicate.
+- [ ] Crash relaunch: record whether `recoverActiveWorkoutSession()` succeeds when called from `applicationDidFinishLaunching`, or only from `handleActiveWorkoutRecovery()`.
 - [ ] Start Apple's Workout app mid-shift: "Recording stopped", the shift is still on the clock, Record again works.
+- [ ] Start Apple's Workout app while a watch clock-out waits (phone away): the shift summary shows, no "Recording stopped", and the reminder still arrives at 60 min.
 
 **Endurance:**
 - [ ] **A full 8–9 h shift:** battery at clock-out, how much of the shift the app stayed on screen, and the Exercise minutes and calories credited for **Other**. Decide whether they look honest. [HK-P7]
@@ -1276,7 +1287,7 @@ The intents (names in 4.1 and 4.2) call only `WatchShiftModel.shared` and `Shift
   - In `applicationDidFinishLaunching`: activate the transport, then `ShiftWorkout.shared.recoverIfNeeded()`.
   - In `handleActiveWorkoutRecovery()`: `ShiftWorkout.shared.recoverIfNeeded()`.
   - In `handle(_ workoutConfiguration:)`: `ShiftWorkout.shared.handleLaunch()`.
-- `WatchShiftModel` registers these observers at launch: `ShiftWorkout.shared.reconcile(change.workout)`, `ActionButtonDonor.shared.update(change.displayed)`, the shortcut-parameter refresh, and `WatchStateFile.write` followed by `WidgetCenter.reloadTimelines` when `ComplicationReload.needsReload` is true.
+- `WatchShiftModel` registers these observers at launch: `ShiftWorkout.shared.reconcile(change.workout)`, `ActionButtonDonor.shared.update(change.displayed)`, `ShortcutParameterRefresher.shared.update(change.displayed)` (refreshes the App Shortcut parameters only when the first chip changes), and `WatchStateFile.write` followed by `ComplicationReload.reload()` (`reloadTimelines` + `invalidateRelevance`) when `ComplicationReload.needsReload` is true. It also sets `ShiftWorkout.shared.sendSummary` (a `.workoutSummary` post; false when out of reach), calls `ShiftWorkout.shared.sendPendingSummary()` after every flush, and names an Action button clock-in's minted shift to `ShiftWorkout.shared.noteActionButtonClockIn(shiftId:)` before it is sent.
 - `AppModel.liveSnapshotChanged` calls `watch.publish(reason: .fieldAction)`.
 
 ### 8.4 What slice 0 landed (read this before starting a slice)
@@ -1314,6 +1325,20 @@ Everything in 8.3 compiles on the `watch` branch, the TreeFarmKit and TimeCardCo
 - No `// STUB` left in its own files.
 - Its PR description lists its edge-case lines with test names, for the lead to merge into `docs/edge-cases.md`.
 - It has small commits.
+
+### 8.6 Integration (the lead, after slices a–d)
+
+Slices a, b, c and d merged into `watch` without conflicts (no slice touched another's files, and every new folder is synced, so `TimeCard.xcodeproj` didn't change). What the merge settled:
+
+- **Names that clashed:** slice b's `GloveButtonStyle` is now `WorkoutButtonStyle`; slice a's keeps the name.
+- **One summary screen:** `ShiftDoneScreen` (slice a's layout, matching the other screens) worded by slice b's `WorkoutSummaryContent`, with its VoiceOver lines. Slice b's own summary view is gone; its screenshot test renders `ShiftDoneScreen` at every size.
+- **One battery warning:** the workout's, when the session starts (2.8). **The Health card** (slice b) shows from `WatchRootView` before anything else while Health was never asked and recording is on; after a request that leaves Health undetermined (no entitlement, an error), it doesn't show again that launch.
+- **Today's workout lines** are slice b's `WorkoutStatusLine` and `WorkoutHeartLine` ("Workout paused" on a break).
+- **Words:** slice b's VoiceOver lines and "Workout paused" moved into `WatchDisplay`; the rectangular complication's waiting line is the count-free "Taps waiting for iPhone" (4.3); the small card's break title is just the phase (4.4).
+- **Model wiring** (8.3): the observers, `ComplicationReload.reload()`, the summary sent after every flush, and the Action button origin. The courier's snapshot carries the newest reply state, so a flushed tap's answer and its state land in one change (1.4).
+- **Queued marks count trees:** `RowChip.openTrees` (set by `WatchStateBuilder`) feeds `WatchOptimism`, so "Block 2 · N trees" moves with each waiting mark.
+- **Paired simulators:** `-UITestInMemory -UITestWatchLink` runs the iPhone app on the demo farm with the real watch link, and `WatchPairedUITests` (skipped unless `TEST_RUNNER_WATCH_PAIRED_PHONE=1`) drives it from the watch (7.4).
+- **Largest text on the watch simulator:** `-UIPreferredContentSizeCategoryName` does nothing on watchOS, and `simctl ui content_size` is unsupported there. `xcrun simctl spawn <watch> defaults write com.apple.UIKit UIPreferredContentSizeCategoryName UICTContentSizeCategoryAccessibilityXXXL`, then relaunching the app, does change it.
 
 ---
 
