@@ -1,8 +1,9 @@
+import Foundation
 import WatchKit
 
-// STUB: slice a replaces
-//
-// Haptics mapped to meaning (docs/watch.md 3.11): one per reply, never one per second.
+// Haptics mapped to meaning (docs/watch.md 3.11): one per reply, never one per second. Calls
+// less than 100 ms apart cancel each other on the watch, so the second is skipped here, and a
+// haptic pauses heart-rate sampling, which is one more reason to stay sparse.
 
 enum WatchHapticEvent: Sendable {
     /// Clock-in sent or workout started: `.start`.
@@ -21,6 +22,36 @@ enum WatchHapticEvent: Sendable {
     case backToWork
 }
 
+/// Skips a haptic that would land within 100 ms of the last one.
+struct HapticThrottle {
+    static let gap: TimeInterval = 0.1
+    private var last: Date?
+
+    mutating func shouldPlay(at now: Date) -> Bool {
+        if let last, now.timeIntervalSince(last) < Self.gap { return false }
+        last = now
+        return true
+    }
+}
+
+@MainActor
 enum WatchHaptics {
-    static func play(_ event: WatchHapticEvent) {}
+    private static var throttle = HapticThrottle()
+
+    static func play(_ event: WatchHapticEvent) {
+        guard throttle.shouldPlay(at: Date()) else { return }
+        WKInterfaceDevice.current().play(type(for: event))
+    }
+
+    nonisolated static func type(for event: WatchHapticEvent) -> WKHapticType {
+        switch event {
+        case .started: .start
+        case .stopped: .stop
+        case .confirmed: .success
+        case .refused: .failure
+        case .queued: .retry
+        case .breakStarted: .directionDown
+        case .backToWork: .directionUp
+        }
+    }
 }
