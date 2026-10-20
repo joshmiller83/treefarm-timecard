@@ -52,9 +52,9 @@ struct OffClockScreen: View {
                         .lineLimit(1)
                         .minimumScaleFactor(0.75)
                 }
-                // On a small watch the clock-out banner takes this line's room (the summary
-                // just showed that shift).
-                if let last = lastLine, !(metrics.isSmall && model.clockOutWaiting) {
+                // The clock-out banner takes this line's room (the summary just showed that
+                // shift), so the page still fits under the title.
+                if let last = lastLine, !model.clockOutWaiting {
                     ViewThatFits(in: .horizontal) {
                         ForEach(last, id: \.self) { step in
                             Text(step).lineLimit(1).fixedSize()
