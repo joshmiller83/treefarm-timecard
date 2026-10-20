@@ -42,25 +42,21 @@ struct WorkoutScreenshotTests {
         return FileManager.default.temporaryDirectory.appending(path: "WorkoutSnapshots")
     }
 
+    /// The app's one summary screen (`ShiftDoneScreen`), with the workout's numbers.
+    private func summaryScreen(_ screen: Screen, waiting: Bool = false) -> ShiftDoneScreen {
+        ShiftDoneScreen(closed: closed, waiting: waiting, workout: summary,
+                        metrics: ButtonMetrics(screenHeight: screen.size.height)) {}
+    }
+
     @Test func theShiftSummary() throws {
         for screen in Self.screens {
-            try shoot("summary", screen) {
-                WorkoutSummaryView(closed: closed, summary: summary, waitingForPhone: false) {}
-            }
+            try shoot("summary", screen) { summaryScreen(screen) }
         }
         let small = Self.screens[0]
-        try shoot("summary-waiting", small) {
-            WorkoutSummaryView(closed: closed, summary: summary, waitingForPhone: true) {}
-        }
-        try shoot("summary-ax", small, type: .accessibility3) {
-            WorkoutSummaryView(closed: closed, summary: summary, waitingForPhone: false) {}
-        }
-        try shoot("summary-ax", Self.screens[3], type: .accessibility3) {
-            WorkoutSummaryView(closed: closed, summary: summary, waitingForPhone: false) {}
-        }
-        try shoot("summary-aod", Self.screens[2], dimmed: true) {
-            WorkoutSummaryView(closed: closed, summary: summary, waitingForPhone: false) {}
-        }
+        try shoot("summary-waiting", small) { summaryScreen(small, waiting: true) }
+        try shoot("summary-ax", small, type: .accessibility3) { summaryScreen(small) }
+        try shoot("summary-ax", Self.screens[3], type: .accessibility3) { summaryScreen(Self.screens[3]) }
+        try shoot("summary-aod", Self.screens[2], dimmed: true) { summaryScreen(Self.screens[2]) }
     }
 
     @Test func theHealthCard() throws {

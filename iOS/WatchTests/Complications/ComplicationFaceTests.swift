@@ -139,12 +139,14 @@ struct ComplicationFaceTests {
     // MARK: Waiting for the phone
 
     @Test func tapsWaitingTakeLineThree() {
+        // No count: the complication redraws only when taps start or stop waiting, so a number
+        // would go stale as the queue drains (ComplicationReloadTests.moreTapsWaiting…).
         let f = face(F.working(), waiting: 2)
-        #expect(f.detail == "2 taps waiting for iPhone")
+        #expect(f.detail == "Taps waiting for iPhone")
         #expect(f.detailIsWaiting)
         #expect(f.detailAccessibility == nil)
         // On a break too: the frozen total gives way.
-        #expect(face(F.onBreak(.lunch), waiting: 1).detail == "1 tap waiting for iPhone")
+        #expect(face(F.onBreak(.lunch), waiting: 1).detail == "Taps waiting for iPhone")
         #expect(face(F.onBreak(.lunch), waiting: 1).detailAccessibility == nil)
     }
 

@@ -121,6 +121,10 @@ final class WatchModelRecorder {
     var haptics: [WatchHapticEvent] = []
     var reloads = 0
     var changes: [WatchModelChange] = []
+    /// Minted shift ids the model named as Action button clock-ins.
+    var actionButtonShifts: [UUID] = []
+    /// Outbox flushes the model finished.
+    var flushes = 0
 }
 
 extension WatchFixture {

@@ -25,7 +25,44 @@ struct WatchCourierTests {
         WatchCourier(transport: transport, store: store, replyTimeout: timeout, now: { [t0] in t0 })
     }
 
+    /// A phone that answers with a state of the given revision, listing the request as applied.
+    func answer(_ data: Data, revision: Int) -> Data {
+        let r = ScriptedPhone.request(data)!
+        let state = WatchState(signedIn: true, farmName: "", fieldName: "", snapshot: nil, nextRows: [], todayWorked: 0, todayTrees: 0,
+                               canUndo: false, recordWorkouts: true, updatedAt: t0, epoch: shift, revision: revision,
+                               appliedRequestIds: [r.id])
+        return FakeWatchTransport.envelope(.reply(WatchReply(requestId: r.id, speech: "Done.", succeeded: true, state: state)))
+    }
+
     // MARK: Sending
+
+    @Test func theSnapshotThatDropsATapCarriesItsReplysState() async {
+        // The model reads both at once, so the workout never sees a flushed clock-in gone while the
+        // state it holds is still the old one (docs/watch.md 2.2, rule 6).
+        let fake = FakeWatchTransport(reachable: false)
+        let c = courier(fake)
+        _ = await c.submit(mark(14, at: 0), durable: true)
+        _ = await c.submit(mark(15, at: 1), durable: true)
+        #expect(await c.snapshot.replyState == nil)
+        fake.enqueue(.respond { [self] in answer($0, revision: 7) }, .respond { [self] in answer($0, revision: 6) })
+
+        fake.setReachable(true)
+        await c.flush()
+
+        let snapshot = await c.snapshot
+        #expect(snapshot.outbox.isEmpty)
+        #expect(snapshot.replyState?.revision == 7, "the newest state, never an older one that came after it")
+    }
+
+    @Test func aLiveReplysStateTravelsWithTheSnapshotToo() async {
+        let fake = FakeWatchTransport()
+        fake.defaultAnswer = .respond { [self] in answer($0, revision: 9) }
+        let c = courier(fake)
+
+        _ = await c.submit(WatchRequest(body: .refresh, issuedAt: t0), durable: false)
+
+        #expect(await c.snapshot.replyState?.revision == 9)
+    }
 
     @Test func aReachablePhoneAnswersADurableTap() async {
         let phone = ScriptedPhone()

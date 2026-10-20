@@ -46,10 +46,15 @@ public struct CourierSnapshot: Equatable, Sendable {
     public var outbox: WatchOutbox
     /// Sent and not yet answered.
     public var inFlight: [WatchRequest]
+    /// The newest state any reply carried (by `supersedes`). It changes in the same step that
+    /// drops the answered request, so a reader that takes it with the outbox never sees a tap
+    /// gone while still holding the state from before it.
+    public var replyState: WatchState?
 
-    public init(outbox: WatchOutbox = WatchOutbox(), inFlight: [WatchRequest] = []) {
+    public init(outbox: WatchOutbox = WatchOutbox(), inFlight: [WatchRequest] = [], replyState: WatchState? = nil) {
         self.outbox = outbox
         self.inFlight = inFlight
+        self.replyState = replyState
     }
 
     /// Outbox items not in flight: what the badge and "2 waiting" count.
@@ -66,6 +71,7 @@ public actor WatchCourier {
     private let now: @Sendable () -> Date
     private var box: WatchOutbox
     private var sending: [WatchRequest] = []
+    private var replyState: WatchState?
     private let continuation: AsyncStream<CourierEvent>.Continuation
     public nonisolated let updates: AsyncStream<CourierEvent>
 
@@ -88,7 +94,7 @@ public actor WatchCourier {
 
     public var outbox: WatchOutbox { box }
     public var inFlight: [WatchRequest] { sending }
-    public var snapshot: CourierSnapshot { CourierSnapshot(outbox: box, inFlight: sending) }
+    public var snapshot: CourierSnapshot { CourierSnapshot(outbox: box, inFlight: sending, replyState: replyState) }
 
     private var waitingCount: Int { snapshot.waiting.count }
 
@@ -156,6 +162,7 @@ public actor WatchCourier {
             continuation.yield(.sending(current.id))
             let answer = await exchange(current)
             sending = []
+            if case .reply(let reply) = answer { keep(reply.state) }
             releaseLane()
 
             switch answer {
@@ -199,6 +206,7 @@ public actor WatchCourier {
         releaseLane()
         switch answer {
         case .reply(let reply):
+            keep(reply.state)
             if let state = reply.state { clear(state.appliedRequestIds) }
             continuation.yield(.replied(request, reply))
             return .replied(reply)
@@ -240,6 +248,12 @@ public actor WatchCourier {
         } catch {
             return .failed(.failed("\(error)"))
         }
+    }
+
+    /// Keeps a reply's state when it's newer than the one kept.
+    private func keep(_ state: WatchState?) {
+        guard let state, state.supersedes(replyState) else { return }
+        replyState = state
     }
 
     private func clear(_ ids: [UUID]) {

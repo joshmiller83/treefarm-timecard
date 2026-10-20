@@ -33,13 +33,9 @@ struct TodayScreen: View {
                     .accessibilityElement(children: .combine)
                 }
 
-                if let heart = WatchDisplay.heartLine(bpm: live.heartRate, kcal: live.kcal) {
-                    Label(heart, systemImage: WatchDisplay.Glyph.heart)
-                        .font(.system(.footnote, design: .rounded))
-                        .foregroundStyle(WatchPalette.rustBright)
-                }
+                WorkoutHeartLine(live: live)
 
-                recording(live)
+                WorkoutStatusLine(live: live)
 
                 Divider()
 
@@ -84,39 +80,6 @@ struct TodayScreen: View {
     private var worked: TimeInterval {
         guard let snapshot = state.snapshot, snapshot.phase == .working else { return state.todayWorked }
         return max(snapshot.workedSoFar, Date().timeIntervalSince(snapshot.timerStart))
-    }
-
-    @ViewBuilder
-    private func recording(_ live: WorkoutLive) -> some View {
-        switch live.recording {
-        case .recording, .paused:
-            Label(WatchDisplay.recording, systemImage: WatchDisplay.Glyph.recording)
-                .font(.system(.footnote, design: .rounded))
-                .foregroundStyle(WatchPalette.firBright)
-        case .notAuthorized:
-            Text(WatchDisplay.workoutsOff)
-                .font(.system(.footnote, design: .rounded))
-                .foregroundStyle(.secondary)
-        case .off:
-            Text(WatchDisplay.actionButtonNeedsWorkouts)
-                .font(.system(.footnote, design: .rounded))
-                .foregroundStyle(.secondary)
-        case .stoppedUnexpectedly:
-            VStack(alignment: .leading, spacing: 6) {
-                Banner(text: WatchDisplay.recordingStopped, glyph: "exclamationmark.triangle.fill", tint: WatchPalette.rustBright)
-                Button {
-                    ShiftWorkout.shared.recordAgain()
-                } label: {
-                    GloveLabel(steps: [WatchDisplay.recordAgain], glyph: WatchDisplay.Glyph.recording,
-                               font: .system(.headline, design: .rounded))
-                }
-                .buttonStyle(GloveButtonStyle(tone: .fir, height: ButtonMetrics.current.secondary))
-            }
-        case .waitingForClockOut:
-            Banner(text: WatchDisplay.clockOutWaiting)
-        case .idle:
-            EmptyView()
-        }
     }
 }
 

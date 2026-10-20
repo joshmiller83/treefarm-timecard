@@ -15,7 +15,7 @@ struct WorkoutStatus: Equatable {
     init?(_ live: WorkoutLive) {
         switch live.recording {
         case .recording: (glyph, text, tone) = (WatchDisplay.Glyph.recording, WatchDisplay.recording, .fir)
-        case .paused: (glyph, text, tone) = (WatchDisplay.Glyph.takeBreak, WorkoutWords.paused, .sap)
+        case .paused: (glyph, text, tone) = (WatchDisplay.Glyph.takeBreak, WatchDisplay.workoutPaused, .sap)
         case .waitingForClockOut: (glyph, text, tone) = (WatchDisplay.Glyph.phoneAway, WatchDisplay.clockOutWaiting, .sap)
         case .stoppedUnexpectedly:
             (glyph, text, tone) = (WatchDisplay.Glyph.recording, WatchDisplay.recordingStopped, .rust)
@@ -33,7 +33,7 @@ struct WorkoutStatus: Equatable {
 
     /// "Heart rate 104, 612 calories": what VoiceOver says for the heart line.
     static func heartLineAccessibility(_ live: WorkoutLive) -> String? {
-        WorkoutWords.heartLineAccessibility(bpm: live.heartRate, kcal: live.kcal)
+        WatchDisplay.heartLineAccessibility(bpm: live.heartRate, kcal: live.kcal)
     }
 
     var color: Color {

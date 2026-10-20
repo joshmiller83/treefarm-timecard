@@ -567,6 +567,85 @@ struct WatchShiftModelTests {
         #expect(!model.isSlow)
     }
 
+    // MARK: What the workout hears
+
+    @Test func aFlushedClockInsStateArrivesWithItsAnswer() async {
+        // Rule 6 (docs/watch.md 2.2) would finish the new shift's workout if it saw the clock-in
+        // answered while the state it holds still says off the clock.
+        for _ in 0..<5 {
+            let (model, fake, _) = await connected(F.offClock(at: F.at(9, 59)), reachable: false)
+            _ = await model.perform(.clockIn(fieldId: nil), source: .button)
+            _ = await model.perform(.markRow(F.row(14)), source: .button)
+            recorder.changes.removeAll()
+
+            fake.setReachable(true)
+            #expect(await F.eventually { model.waitingCount == 0 && model.confirmed?.isClockedIn == true })
+            try? await Task.sleep(for: .milliseconds(50))
+
+            for change in recorder.changes {
+                let pending = change.workout.outbox + change.workout.inFlight
+                let clockInPending = pending.contains { if case .clockIn? = $0.command { true } else { false } }
+                #expect(clockInPending || change.workout.confirmed?.isClockedIn == true,
+                        "a change dropped the clock-in before taking the phone's state")
+            }
+        }
+    }
+
+    @Test func anActionButtonClockInIsNamedForTheWorkoutBeforeItIsSent() async {
+        let (model, _, phone) = await connected(F.offClock())
+        let recorder = recorder
+        model.actionButtonClockIn = { minted in
+            // Named before the workout hears the clock-in, so its session starts as the Action button's.
+            #expect(!recorder.changes.contains { change in change.workout.outbox.contains { $0.shiftId == minted } })
+            recorder.actionButtonShifts.append(minted)
+        }
+
+        _ = await model.perform(.clockIn(fieldId: nil), source: .actionButton)
+
+        #expect(recorder.actionButtonShifts == [phone.commands[0].shiftId!])
+    }
+
+    @Test func aClockInFromAnyOtherDoorIsntNamed() async {
+        let (model, _, _) = await connected(F.offClock())
+        let recorder = recorder
+        model.actionButtonClockIn = { recorder.actionButtonShifts.append($0) }
+        _ = await model.perform(.clockIn(fieldId: nil), source: .button)
+        _ = await model.perform(.markRow(F.row(14)), source: .actionButton)
+        #expect(recorder.actionButtonShifts.isEmpty)
+    }
+
+    @Test func aWorkoutSummaryGoesToThePhoneWithoutAReply() async {
+        let (model, fake, _) = await connected(F.offClock())
+        let summary = WorkoutSummary(shiftId: F.shift, start: F.at(7, 0), end: F.at(15, 12), activeDuration: 7 * 3600 + 41 * 60,
+                                     activeKcal: 1_120, avgHeartRate: 104, maxHeartRate: 151)
+
+        #expect(await model.sendSummary(summary))
+        let posted = fake.posted.compactMap { try? WatchEnvelope.decode($0).message }
+        guard case .workoutSummary(let sent)? = posted.last else { Issue.record("expected a summary, got \(posted)"); return }
+        #expect(sent == summary)
+        #expect(fake.sent.isEmpty, "posted, not sent for a reply")
+
+        fake.setReachable(false)
+        #expect(await F.eventually { model.reach == .outOfReach })
+        #expect(await model.sendSummary(summary) == false, "it waits in its slot for the next flush")
+    }
+
+    @Test func everyFlushEndsByOfferingTheWaitingSummary() async {
+        let (model, fake, _) = await connected(F.working(), reachable: false)
+        let recorder = recorder
+        model.afterFlush = { recorder.flushes += 1 }
+        _ = await model.perform(.markRow(F.row(14)), source: .button)
+        #expect(recorder.flushes == 0)
+
+        fake.setReachable(true)
+
+        #expect(await F.eventually { model.waitingCount == 0 && recorder.flushes > 0 })
+        // Also with nothing waiting: the summary may be all there is to send.
+        let before = recorder.flushes
+        await model.flush()
+        #expect(recorder.flushes == before + 1)
+    }
+
     // MARK: The minute flush during a workout session
 
     /// A model whose first send is lost (so a tap stays queued with the phone in reach) and

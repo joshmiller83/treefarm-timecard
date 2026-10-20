@@ -2,7 +2,6 @@ import AppIntents
 import Foundation
 import Observation
 import TreeFarmKit
-import WidgetKit
 
 // The only thing the views, intents and workout code talk to (docs/watch.md 1.4).
 //
@@ -65,8 +64,6 @@ struct WatchModelChange {
 final class WatchShiftModel {
     static let shared = WatchShiftModel.makeShared()
 
-    /// The complications' widget kind.
-    static let complicationKind = "timecard.watch.shift"
     /// How long Undo clock-in shows after a watch clock-in.
     static let undoClockInWindow: TimeInterval = 120
     /// The shift summary shows after a clock-out for this long.
@@ -124,6 +121,11 @@ final class WatchShiftModel {
     @ObservationIgnored var slowAfter: Duration = .seconds(3)
     /// How often the outbox is tried while a workout session exists. Set before `activate()`.
     @ObservationIgnored var flushEvery: Duration = .seconds(60)
+    /// Told the minted shift id of an Action button clock-in before it is sent, so the workout
+    /// that starts for it records the Action button as its origin.
+    @ObservationIgnored var actionButtonClockIn: @MainActor (UUID) -> Void = { _ in }
+    /// Runs after every outbox flush: the workout's summary waiting in its slot goes next.
+    @ObservationIgnored var afterFlush: @MainActor () async -> Void = {}
 
     // MARK: Bookkeeping
 
@@ -141,7 +143,6 @@ final class WatchShiftModel {
     @ObservationIgnored private var lastFile: WatchStateFile.Contents?
     @ObservationIgnored private var tasks: [Task<Void, Never>] = []
     @ObservationIgnored private var toastGeneration = 0
-    @ObservationIgnored private var lastFirstChip: RowChip?
     @ObservationIgnored private var refreshing = false
     /// The phone's last "couldn't run this now" (`keepQueued`): the sentence each later tap
     /// says while the phone is in reach, until a reply without it.
@@ -151,9 +152,7 @@ final class WatchShiftModel {
          replyTimeout: Duration = .seconds(4),
          now: @escaping @Sendable () -> Date = { Date() },
          haptics: @escaping @MainActor (WatchHapticEvent) -> Void = { WatchHaptics.play($0) },
-         reloadComplications: @escaping @MainActor () -> Void = {
-             WidgetCenter.shared.reloadTimelines(ofKind: WatchShiftModel.complicationKind)
-         },
+         reloadComplications: @escaping @MainActor () -> Void = { ComplicationReload.reload() },
          sessionActive: @escaping @MainActor () -> Bool = { WatchShiftModel.sessionExists(ShiftWorkout.shared.live) },
          demo: DemoWatchTransport? = nil) {
         self.transport = transport
@@ -212,17 +211,16 @@ final class WatchShiftModel {
         publishComplications()
     }
 
-    /// The observers the app needs at launch (docs/watch.md 8.3).
+    /// The observers and hooks the app needs at launch (docs/watch.md 8.3): the workout, the
+    /// Action button's donation, the App Shortcut parameters, and the workout's summary, which
+    /// goes to the phone after every flush.
     func registerAppObservers() {
         addObserver { change in ShiftWorkout.shared.reconcile(change.workout) }
         addObserver { change in ActionButtonDonor.shared.update(change.displayed) }
-        addObserver { [weak self] change in
-            guard let self else { return }
-            let chip = change.displayed?.nextRows.first
-            guard chip != self.lastFirstChip else { return }
-            self.lastFirstChip = chip
-            WatchShortcuts.updateAppShortcutParameters()
-        }
+        addObserver { change in ShortcutParameterRefresher.shared.update(change.displayed) }
+        actionButtonClockIn = { ShiftWorkout.shared.noteActionButtonClockIn(shiftId: $0) }
+        afterFlush = { await ShiftWorkout.shared.sendPendingSummary() }
+        ShiftWorkout.shared.sendSummary = { [weak self] summary in await self?.sendSummary(summary) ?? false }
     }
 
     func addObserver(_ observer: @escaping @MainActor (WatchModelChange) -> Void) {
@@ -250,6 +248,9 @@ final class WatchShiftModel {
         }
 
         let request = makeRequest(command, state: state)
+        if case .clockIn = command, source == .actionButton, let minted = request.shiftId {
+            actionButtonClockIn(minted)
+        }
         if case .clockIn = command {
             memory.watchClockIn = request.shiftId
             memory.undoClockInUntil = request.issuedAt.addingTimeInterval(Self.undoClockInWindow)
@@ -374,11 +375,24 @@ final class WatchShiftModel {
         show(WatchToast(text: text, kind: .info))
     }
 
-    /// Sends what waits, oldest first.
+    /// Sends what waits, oldest first, then anything else waiting for the phone (the summary).
     func flush() async {
         await courier.flush()
         await syncCourier()
         publishComplications()
+        await afterFlush()
+    }
+
+    /// Sends a finished shift's summary to the phone (`.workoutSummary`, no reply). False when
+    /// the phone is out of reach or the send failed: it waits for the next flush.
+    func sendSummary(_ summary: WorkoutSummary) async -> Bool {
+        guard transport.isReachable, let data = try? WatchEnvelope(.workoutSummary(summary)).data() else { return false }
+        do {
+            try await transport.post(data)
+            return true
+        } catch {
+            return false
+        }
     }
 
     // MARK: Scenes and background wakes
@@ -489,17 +503,29 @@ final class WatchShiftModel {
 
     /// Takes a state from the phone when it supersedes the one held.
     private func accept(_ state: WatchState) async {
-        guard state.supersedes(confirmed) else { return }
-        confirmed = state
-        memory.confirmed = state
-        saveMemory()
+        guard take(state) else { return }
         recompute()
         await courier.acknowledge(state)
         await syncCourier()
     }
 
+    /// Holds `state` as the confirmed one when it supersedes it. No recompute.
+    @discardableResult
+    private func take(_ state: WatchState) -> Bool {
+        guard state.supersedes(confirmed) else { return false }
+        confirmed = state
+        memory.confirmed = state
+        saveMemory()
+        return true
+    }
+
+    /// Reads the outbox and what's in flight, and the newest reply's state with them: a request
+    /// the phone answered leaves in the same change that brings its state, so the workout never
+    /// sees a clock-in answered while the state held still says off the clock (docs/watch.md 2.2).
     private func syncCourier() async {
-        snapshot = await courier.snapshot
+        let latest = await courier.snapshot
+        if let state = latest.replyState { take(state) }
+        snapshot = latest
         recompute()
     }
 
