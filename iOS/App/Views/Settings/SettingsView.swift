@@ -22,6 +22,7 @@ struct SettingsView: View {
                     FarmCard()
                     VoiceCard().id("voice")
                     LockScreenCard().id("lock")
+                    WatchSettingsSection().id("watch")
                     SyncCard().id("sync")
                     AdvancedCard().id("advanced")
                     Button(role: .destructive) {
