@@ -225,6 +225,7 @@ final class WatchFlowUITests: WatchUITestCase {
         snapshot("now-largest-text")
     }
 
+    @MainActor
     private func dismissSheet() {
         let close = app.buttons["Close"].firstMatch
         if close.waitForExistence(timeout: 2) {

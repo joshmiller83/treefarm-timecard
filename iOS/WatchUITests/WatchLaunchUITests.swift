@@ -10,7 +10,7 @@ class WatchUITestCase: XCTestCase {
         continueAfterFailure = false
     }
 
-    @discardableResult
+    @MainActor @discardableResult
     func launch(_ arguments: String...) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = ["-watchDemo"] + arguments
@@ -19,8 +19,9 @@ class WatchUITestCase: XCTestCase {
         return app
     }
 
-    var primary: XCUIElement { app.buttons["primaryAction"] }
+    @MainActor var primary: XCUIElement { app.buttons["primaryAction"] }
 
+    @MainActor
     func waitFor(_ element: XCUIElement, label: String, timeout: TimeInterval = 10, file: StaticString = #filePath, line: UInt = #line) {
         let expectation = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label == %@", label), object: element)
         let result = XCTWaiter().wait(for: [expectation], timeout: timeout)
@@ -28,6 +29,7 @@ class WatchUITestCase: XCTestCase {
                        file: file, line: line)
     }
 
+    @MainActor
     func waitFor(_ element: XCUIElement, labelBeginningWith prefix: String, timeout: TimeInterval = 10,
                  file: StaticString = #filePath, line: UInt = #line) {
         let expectation = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label BEGINSWITH %@", prefix), object: element)
@@ -35,6 +37,7 @@ class WatchUITestCase: XCTestCase {
                        "\(element) never began with “\(prefix)”", file: file, line: line)
     }
 
+    @MainActor
     func waitUntilGone(_ element: XCUIElement, timeout: TimeInterval = 10, file: StaticString = #filePath, line: UInt = #line) {
         let expectation = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: element)
         XCTAssertEqual(XCTWaiter().wait(for: [expectation], timeout: timeout), .completed, "\(element) never went away",
@@ -42,6 +45,7 @@ class WatchUITestCase: XCTestCase {
     }
 
     /// A screenshot kept in the result bundle.
+    @MainActor
     func snapshot(_ name: String) {
         let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         attachment.name = name
@@ -50,6 +54,7 @@ class WatchUITestCase: XCTestCase {
     }
 
     /// The toast's sentence, once one shows.
+    @MainActor
     func toast(_ text: String, timeout: TimeInterval = 5, file: StaticString = #filePath, line: UInt = #line) {
         let toast = app.descendants(matching: .any)["toast"]
         XCTAssertTrue(toast.waitForExistence(timeout: timeout), "no toast", file: file, line: line)
