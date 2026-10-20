@@ -259,7 +259,11 @@ public enum WatchDisplay {
     /// What Siri on the watch says when it queued a command.
     public static let savedForSiri = "Saved on your watch. It’ll reach your phone when it’s back in range."
 
-    /// "2 taps waiting for iPhone"
+    /// The rectangular complication's line 3 while taps wait. No count: the complication reloads
+    /// only when taps start or stop waiting, not once per tap as the queue drains.
+    public static let tapsWaiting = "Taps waiting for iPhone"
+
+    /// "2 taps waiting for iPhone" (the Queue sheet, the badge's VoiceOver label).
     public static func waitingLine(count: Int) -> String {
         "\(count) \(count == 1 ? "tap" : "taps") waiting for iPhone"
     }
@@ -368,6 +372,8 @@ public enum WatchDisplay {
     public static let actionButtonNeedsWorkouts = "Action button needs workouts on."
     public static let lowPower = "Low Power: Double Tap is off"
     public static let recordingYourShift = "Recording your shift."
+    /// The Today page's workout line while lunch or a break pauses the workout.
+    public static let workoutPaused = "Workout paused"
 
     /// "Recording from 7:14" (a workout that started later than the shift).
     public static func recordingFrom(_ date: Date, state: WatchState?) -> String {
@@ -446,6 +452,35 @@ public enum WatchDisplay {
         "Worked \(Fmt.spokenDuration(worked))"
     }
 
+    /// VoiceOver for the summary's "avg 104 · max 151": "Average heart rate 104, maximum 151".
+    public static func summaryHeartAccessibility(avg: Double?, max: Double?) -> String? {
+        switch (avg.map(bpm), max.map(bpm)) {
+        case let (avg?, max?): "Average heart rate \(avg), maximum \(max)"
+        case let (avg?, nil): "Average heart rate \(avg)"
+        case let (nil, max?): "Maximum heart rate \(max)"
+        case (nil, nil): nil
+        }
+    }
+
+    /// VoiceOver for the summary's "1,120 kcal · 7:41 act.": "1,120 calories, 7 hours 41 minutes
+    /// active", with the minutes the screen shows (cut, not rounded).
+    public static func summaryEnergyAccessibility(kcal: Double?, active: TimeInterval) -> String {
+        let minutes = TimeInterval(Int(Swift.max(0, active)) / 60 * 60)
+        let time = "\(Fmt.spokenDuration(minutes)) active"
+        guard let kcal else { return time }
+        return "\(calories(kcal)), \(time)"
+    }
+
+    /// VoiceOver for the live "104 bpm · 612 kcal": "Heart rate 104, 612 calories".
+    public static func heartLineAccessibility(bpm: Double?, kcal: Double?) -> String? {
+        let parts = [bpm.map { "Heart rate \(Self.bpm($0))" }, kcal.map(calories)].compactMap { $0 }
+        return parts.isEmpty ? nil : parts.joined(separator: ", ")
+    }
+
+    private static func bpm(_ value: Double) -> Int { Int(value.rounded()) }
+
+    private static func calories(_ kcal: Double) -> String { Fmt.plural(Int(kcal.rounded()), "calorie") }
+
     // MARK: Complications
 
     /// The circular complication's number: the next row, "14".
@@ -481,10 +516,10 @@ public enum WatchDisplay {
     }
 
     /// Line 3: "Row 14 next · 38 trees", "3:41 worked today", "6.5 h today · Row 14 next", or the
-    /// waiting taps ("2 taps waiting for iPhone", "Clock-out waiting for iPhone").
+    /// waiting taps ("Taps waiting for iPhone", "Clock-out waiting for iPhone").
     public static func rectangularDetail(_ state: WatchState?, waitingCount: Int = 0, clockOutWaiting: Bool = false) -> String? {
         if clockOutWaiting { return self.clockOutWaiting }
-        if waitingCount > 0 { return waitingLine(count: waitingCount) }
+        if waitingCount > 0 { return tapsWaiting }
         guard let state else { return nil }
         switch phase(state) {
         case .working:
@@ -517,24 +552,26 @@ public enum WatchDisplay {
 
     // MARK: The Live Activity's small (Smart Stack) layout
 
-    /// Line 1: "Working · Block 2", "Lunch · 3:41 worked".
+    /// Line 1: "Working · Block 2", "Lunch", "Break". On a break the title is just the phase, so
+    /// the worked total (line 2) survives the 40 mm card, where the title gives way to the timer.
     public static func smallTitle(_ snapshot: LiveSnapshot) -> String {
         switch snapshot.phase {
         case .working:
             return [phaseTitle(.working), snapshot.nextRows.first?.blockName].compactMap { $0 }.joined(separator: " · ")
         case .lunch, .onBreak:
-            return "\(snapshot.phase == .lunch ? "Lunch" : "Break") · \(Fmt.hm(snapshot.workedSoFar)) worked"
+            return snapshot.phase == .lunch ? "Lunch" : "Break"
         }
     }
 
-    /// Line 2: "Next Row 14 · 38 trees", "Since 12:01".
+    /// Line 2: "Next Row 14 · 38 trees", "Since 12:01 · 3:41 worked".
     public static func smallDetail(_ snapshot: LiveSnapshot, calendar: FarmCalendar) -> String {
         switch snapshot.phase {
         case .working:
             let next = snapshot.nextRows.first.map { "Next \($0.title)" }
             return [next, Fmt.plural(snapshot.shiftTrees, "tree")].compactMap { $0 }.joined(separator: " · ")
         case .lunch, .onBreak:
-            return snapshot.breakStart.map { "Since \(Fmt.spokenTime($0, calendar))" } ?? ""
+            let since = snapshot.breakStart.map { "Since \(Fmt.spokenTime($0, calendar))" }
+            return [since, "\(Fmt.hm(snapshot.workedSoFar)) worked"].compactMap { $0 }.joined(separator: " · ")
         }
     }
 

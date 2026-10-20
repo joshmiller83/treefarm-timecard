@@ -9,12 +9,16 @@ public struct RowChip: Codable, Hashable, Sendable, Identifiable {
     public var title: String
     /// "Block 2"
     public var blockName: String
+    /// The trees marking this row would shape (its unshaped ones), when the sender counted them.
+    /// The watch adds them to "Block 2 · 38 trees" while a mark waits for the phone.
+    public var openTrees: Int?
 
-    public init(blockId: UUID, row: Int, title: String, blockName: String) {
+    public init(blockId: UUID, row: Int, title: String, blockName: String, openTrees: Int? = nil) {
         self.blockId = blockId
         self.row = row
         self.title = title
         self.blockName = blockName
+        self.openTrees = openTrees
     }
 
     public var id: String { "\(blockId.uuidString)-\(row)" }

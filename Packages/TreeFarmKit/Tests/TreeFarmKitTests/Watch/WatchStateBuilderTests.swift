@@ -34,7 +34,9 @@ struct WatchStateBuilderTests {
         #expect(s.updatedAt == f.at(60))
         #expect(s.canUndo)
         #expect(s.recordWorkouts)
-        #expect(s.snapshot == LiveSnapshot.build(state: f.state, now: f.at(60), lastAction: "Row 1 marked", canUndo: true))
+        var lockScreen = LiveSnapshot.build(state: f.state, now: f.at(60), lastAction: "Row 1 marked", canUndo: true)
+        lockScreen?.nextRows = Array(s.nextRows.prefix(3))
+        #expect(s.snapshot == lockScreen)
         #expect(s.snapshot?.phase == .working)
         #expect(s.todayWorked == 3600)
         #expect(s.todayTrees == 4)
@@ -50,6 +52,17 @@ struct WatchStateBuilderTests {
         #expect(!s.isClockedIn)
         #expect(s.nextRows.map(\.title) == ["Row 1", "Row 2", "Row 3", "Row 4", "Row 5", "Row 1", "Row 2", "Row 3"])
         #expect(s.nextRows.map(\.blockName) == Array(repeating: "Block 1", count: 5) + Array(repeating: "Block 2", count: 3))
+    }
+
+    @Test mutating func eachChipCarriesTheTreesItsMarkWouldShape() {
+        // Sam shaped 3 trees of row 2 in block 1 (4 trees a row): marking it shapes the other 1.
+        f.state.marks = Array(f.samShaped(f.block1, rows: [2], on: f.at(-60)).prefix(3))
+        let s = build(f.state, at: f.monday9)
+        #expect(s.nextRows.prefix(3).map(\.openTrees) == [4, 1, 4])
+        _ = FieldEngine.run(.clockIn(fieldId: nil), &f.state, &undo, at: f.monday9)
+        let on = build(f.state, at: f.at(1))
+        #expect(on.snapshot?.nextRows == Array(on.nextRows.prefix(3)))
+        #expect(on.snapshot?.nextRows.first?.openTrees == 4)
     }
 
     @Test mutating func itCarriesUpTo40Chips() {

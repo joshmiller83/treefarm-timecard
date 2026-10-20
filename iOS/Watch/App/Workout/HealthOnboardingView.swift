@@ -55,7 +55,7 @@ struct HealthOnboardingCard: View {
             Button(action: onAllow) {
                 Label(step.button, systemImage: WatchDisplay.Glyph.heart)
             }
-            .buttonStyle(GloveButtonStyle(fill: WorkoutPalette.fir, height: size.primaryHeight))
+            .buttonStyle(WorkoutButtonStyle(fill: WorkoutPalette.fir, height: size.primaryHeight))
             .handGestureShortcut(.primaryAction)
             .disabled(step == .reminder)
             .accessibilityIdentifier("onboarding.allowHealth")

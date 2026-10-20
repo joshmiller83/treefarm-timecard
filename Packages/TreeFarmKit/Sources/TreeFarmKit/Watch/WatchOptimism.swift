@@ -68,14 +68,18 @@ public enum WatchOptimism {
 
         case .markRow(let row):
             guard onThisShift, let snapshot = state.snapshot else { return state }
+            let trees = state.nextRows.first { $0.rowRef == row }?.openTrees ?? 0
             s.nextRows.removeAll { $0.rowRef == row }
-            s.snapshot = done(snapshot, "Row \(row.row + 1) marked", rows: s.nextRows)
+            s.snapshot = counted(done(snapshot, "Row \(row.row + 1) marked", rows: s.nextRows), trees)
+            s.todayTrees += trees
             s.canUndo = true
 
         case .markNextRow:
             guard onThisShift, let snapshot = state.snapshot, let first = state.nextRows.first else { return state }
+            let trees = first.openTrees ?? 0
             s.nextRows.removeFirst()
-            s.snapshot = done(snapshot, "Row \(first.row + 1) marked", rows: s.nextRows)
+            s.snapshot = counted(done(snapshot, "Row \(first.row + 1) marked", rows: s.nextRows), trees)
+            s.todayTrees += trees
             s.canUndo = true
 
         case .markTrees(_, let positions):
@@ -127,6 +131,15 @@ public enum WatchOptimism {
     /// Worked time at `time` by the snapshot's own clock (frozen during a break).
     private static func worked(_ snapshot: LiveSnapshot, at time: Date) -> TimeInterval {
         snapshot.phase == .working ? max(0, time.timeIntervalSince(snapshot.timerStart)) : snapshot.workedSoFar
+    }
+
+    /// A marked row's trees, counted on the shift and in the field (never past its total).
+    private static func counted(_ snapshot: LiveSnapshot, _ trees: Int) -> LiveSnapshot {
+        guard trees > 0 else { return snapshot }
+        var s = snapshot
+        s.shiftTrees += trees
+        s.fieldShaped = s.fieldTotal > 0 ? min(s.fieldTotal, s.fieldShaped + trees) : s.fieldShaped + trees
+        return s
     }
 
     private static func done(_ snapshot: LiveSnapshot, _ lastAction: String, rows: [RowChip]? = nil) -> LiveSnapshot {

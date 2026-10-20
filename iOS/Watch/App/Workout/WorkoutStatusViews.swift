@@ -150,7 +150,7 @@ struct RecordAgainButton: View {
         Button(action: action) {
             Label(WatchDisplay.recordAgain, systemImage: WatchDisplay.Glyph.recording)
         }
-        .buttonStyle(GloveButtonStyle(fill: WorkoutPalette.fir, height: size.secondaryHeight))
+        .buttonStyle(WorkoutButtonStyle(fill: WorkoutPalette.fir, height: size.secondaryHeight))
         .accessibilityIdentifier("workout.recordAgain")
     }
 }

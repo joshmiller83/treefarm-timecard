@@ -55,7 +55,7 @@ enum WorkoutPalette {
 
 /// A full-width button sized for gloves. In Always On it turns into an outline, so the screen
 /// stays dark and the label stays readable. [UI-R5]
-struct GloveButtonStyle: ButtonStyle {
+struct WorkoutButtonStyle: ButtonStyle {
     var fill: Color
     var ink: Color = .white
     var height: CGFloat

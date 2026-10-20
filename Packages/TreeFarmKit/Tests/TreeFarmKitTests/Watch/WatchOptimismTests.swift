@@ -14,13 +14,13 @@ struct WatchOptimismTests {
     let user = UUID()
     func at(_ h: Int, _ m: Int) -> Date { cal.date(on: DayKey(year: 2026, month: 10, day: 19), hour: h, minute: m) }
 
-    func chips(_ rows: ClosedRange<Int>) -> [RowChip] {
-        rows.map { RowChip(blockId: block, row: $0 - 1, title: "Row \($0)", blockName: "Block 2") }
+    func chips(_ rows: ClosedRange<Int>, openTrees: Int? = nil) -> [RowChip] {
+        rows.map { RowChip(blockId: block, row: $0 - 1, title: "Row \($0)", blockName: "Block 2", openTrees: openTrees) }
     }
 
-    func working(rows: ClosedRange<Int> = 14...53, worked: TimeInterval = 3 * 3600, at now: Date? = nil) -> WatchState {
+    func working(rows: ClosedRange<Int> = 14...53, openTrees: Int? = nil, worked: TimeInterval = 3 * 3600, at now: Date? = nil) -> WatchState {
         let now = now ?? at(10, 0)
-        let next = chips(rows)
+        let next = chips(rows, openTrees: openTrees)
         let snapshot = LiveSnapshot(phase: .working, timerStart: now.addingTimeInterval(-worked), workedSoFar: worked, workedLabel: "worked today",
                                     breakStart: nil, breakReason: "", fieldName: "North", nextRows: Array(next.prefix(3)),
                                     shiftTrees: 38, fieldShaped: 120, fieldTotal: 400, lastAction: nil, canUndo: false)
@@ -50,6 +50,27 @@ struct WatchOptimismTests {
         #expect(s.snapshot?.lastAction == "Row 14 marked")
         #expect(s.canUndo && s.snapshot?.canUndo == true)
         #expect(s.epoch == epoch && s.revision == 7)
+    }
+
+    @Test func aMarkCountsTheTreesItsRowWouldShape() {
+        // "Block 2 · 38 trees" moves with each queued mark: the chip carries the row's open trees.
+        var s = WatchOptimism.apply(mark(14), shiftId: shift, to: working(openTrees: 10), at: at(10, 1))
+        #expect(s.snapshot?.shiftTrees == 48)
+        #expect(s.todayTrees == 48)
+        #expect(s.snapshot?.fieldShaped == 130)
+        #expect(WatchDisplay.placeLine(s) == "Block 2 · 48 trees")
+        s = WatchOptimism.apply(mark(15), shiftId: shift, to: s, at: at(10, 2))
+        #expect(s.snapshot?.shiftTrees == 58 && s.todayTrees == 58)
+        // A row that isn't a chip any more (marked already), or a chip with no count, adds nothing.
+        #expect(WatchOptimism.apply(mark(14), shiftId: shift, to: s, at: at(10, 3)).snapshot?.shiftTrees == 58)
+        #expect(WatchOptimism.apply(mark(14), shiftId: shift, to: working(), at: at(10, 1)).snapshot?.shiftTrees == 38)
+    }
+
+    @Test func aMarkNeverCountsTheFieldPastItsTotal() {
+        var state = working(openTrees: 10)
+        state.snapshot?.fieldShaped = 395
+        let s = WatchOptimism.apply(mark(14), shiftId: shift, to: state, at: at(10, 1))
+        #expect(s.snapshot?.fieldShaped == 400)
     }
 
     @Test func twoMarksInARowMoveTwoChips() {

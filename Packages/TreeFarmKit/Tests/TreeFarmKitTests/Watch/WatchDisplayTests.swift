@@ -247,8 +247,11 @@ struct WatchDisplayTests {
         #expect(WatchDisplay.rectangularTitle(nil) == "Time Card")
         #expect(WatchDisplay.rectangularDetail(nil) == nil)
         #expect(WatchDisplay.openOnPhone == "Open on iPhone")
-        // Waiting taps take over line 3.
-        #expect(WatchDisplay.rectangularDetail(working, waitingCount: 2) == "2 taps waiting for iPhone")
+        // Waiting taps take over line 3, with no count: the complication reloads only when taps
+        // start or stop waiting, never once per tap draining in the background.
+        #expect(WatchDisplay.rectangularDetail(working, waitingCount: 2) == "Taps waiting for iPhone")
+        #expect(WatchDisplay.rectangularDetail(lunch, waitingCount: 1) == "Taps waiting for iPhone")
+        #expect(WatchDisplay.tapsWaiting == "Taps waiting for iPhone")
         #expect(WatchDisplay.rectangularDetail(working, waitingCount: 2, clockOutWaiting: true) == "Clock-out waiting for iPhone")
     }
 
@@ -262,8 +265,30 @@ struct WatchDisplayTests {
     @Test func liveActivitySmallLayout() {
         #expect(WatchDisplay.smallTitle(snapshot(.working)) == "Working · Block 2")
         #expect(WatchDisplay.smallDetail(snapshot(.working), calendar: cal) == "Next Row 14 · 38 trees")
-        #expect(WatchDisplay.smallTitle(snapshot(.lunch)) == "Lunch · 3:41 worked")
-        #expect(WatchDisplay.smallDetail(snapshot(.lunch), calendar: cal) == "Since 12:01")
+        // On a break the title is just the phase, so the worked total (line 2) survives a
+        // 40 mm card, where the title gives way to the timer.
+        #expect(WatchDisplay.smallTitle(snapshot(.lunch)) == "Lunch")
+        #expect(WatchDisplay.smallDetail(snapshot(.lunch), calendar: cal) == "Since 12:01 · 3:41 worked")
+        #expect(WatchDisplay.smallTitle(snapshot(.onBreak)) == "Break")
+        #expect(WatchDisplay.smallDetail(snapshot(.onBreak), calendar: cal) == "Since 12:01 · 3:41 worked")
+    }
+
+    // MARK: Workout words
+
+    @Test func workoutWordsForTheScreenAndVoiceOver() {
+        #expect(WatchDisplay.workoutPaused == "Workout paused")
+        #expect(WatchDisplay.summaryHeartAccessibility(avg: 104.2, max: 151) == "Average heart rate 104, maximum 151")
+        #expect(WatchDisplay.summaryHeartAccessibility(avg: 104, max: nil) == "Average heart rate 104")
+        #expect(WatchDisplay.summaryHeartAccessibility(avg: nil, max: 151) == "Maximum heart rate 151")
+        #expect(WatchDisplay.summaryHeartAccessibility(avg: nil, max: nil) == nil)
+        // The minutes the screen shows ("7:41 act."), cut, not rounded.
+        #expect(WatchDisplay.summaryEnergyAccessibility(kcal: 1120.4, active: 7 * 3600 + 41 * 60 + 59)
+                == "1,120 calories, 7 hours 41 minutes active")
+        #expect(WatchDisplay.summaryEnergyAccessibility(kcal: nil, active: 600) == "10 minutes active")
+        #expect(WatchDisplay.heartLineAccessibility(bpm: 104.4, kcal: 612) == "Heart rate 104, 612 calories")
+        #expect(WatchDisplay.heartLineAccessibility(bpm: 98, kcal: nil) == "Heart rate 98")
+        #expect(WatchDisplay.heartLineAccessibility(bpm: nil, kcal: 1) == "1 calorie")
+        #expect(WatchDisplay.heartLineAccessibility(bpm: nil, kcal: nil) == nil)
     }
 
     @Test func blockPhrasesMatchSpeech() {

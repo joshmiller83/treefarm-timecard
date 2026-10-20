@@ -18,15 +18,19 @@ public enum WatchStateBuilder {
 
         let chips = state.nextRows(WatchState.maxRows, index: index).compactMap { row -> RowChip? in
             guard let block = state.block(row.blockId) else { return nil }
-            return RowChip(blockId: row.blockId, row: row.row, title: "Row \(row.row + 1)", blockName: Speech.blockTitle(block))
+            return RowChip(blockId: row.blockId, row: row.row, title: "Row \(row.row + 1)", blockName: Speech.blockTitle(block),
+                           openTrees: index.freePositions(in: row, block: block).count)
         }
         let pace = Pace.stats(today, now: now, treeCount: count)
+        // The lock screen's snapshot, with the same chips (and their tree counts) as `nextRows`.
+        var snapshot = LiveSnapshot.build(state: state, now: now, lastAction: lastAction, canUndo: canUndo)
+        snapshot?.nextRows = Array(chips.prefix(3))
 
         return WatchState(
             signedIn: true,
             farmName: state.farm.name,
             fieldName: state.currentField?.name ?? "",
-            snapshot: LiveSnapshot.build(state: state, now: now, lastAction: lastAction, canUndo: canUndo),
+            snapshot: snapshot,
             nextRows: chips,
             todayWorked: Hours.summary(shifts: shifts, now: now, calendar: cal).today,
             todayTrees: today.reduce(0) { $0 + count($1) },

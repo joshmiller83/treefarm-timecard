@@ -64,7 +64,7 @@ struct WorkoutSummaryView: View {
             Button(action: onDone) {
                 Text(WatchDisplay.done)
             }
-            .buttonStyle(GloveButtonStyle(fill: WorkoutPalette.fir, height: size.primaryHeight))
+            .buttonStyle(WorkoutButtonStyle(fill: WorkoutPalette.fir, height: size.primaryHeight))
             .handGestureShortcut(.primaryAction)
             .accessibilityIdentifier("summary.done")
         }
