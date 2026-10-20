@@ -9,9 +9,13 @@ let package = Package(
     platforms: [.macOS(.v14), .iOS(.v17), .watchOS(.v10)],
     products: [
         .library(name: "TreeFarmKit", targets: ["TreeFarmKit"]),
+        // Fakes for the watch link (a scripted WatchConnectivity, an in-memory outbox store).
+        // Test targets link it (TreeFarmKit's, the iPhone app's and the watch app's); apps never do.
+        .library(name: "TreeFarmKitTestSupport", targets: ["TreeFarmKitTestSupport"]),
     ],
     targets: [
         .target(name: "TreeFarmKit"),
-        .testTarget(name: "TreeFarmKitTests", dependencies: ["TreeFarmKit"]),
+        .target(name: "TreeFarmKitTestSupport", dependencies: ["TreeFarmKit"]),
+        .testTarget(name: "TreeFarmKitTests", dependencies: ["TreeFarmKit", "TreeFarmKitTestSupport"]),
     ]
 )

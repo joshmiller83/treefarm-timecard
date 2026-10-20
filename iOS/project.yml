@@ -3,7 +3,9 @@
 name: TimeCard
 options:
   deploymentTarget:
-    iOS: "17.0"
+    # 18.0 for the Live Activity's watch (small) layout; the same iPhones as iOS 17.
+    iOS: "18.0"
+    watchOS: "11.0"
   createIntermediateGroups: true
   developmentLanguage: en
 configFiles:
@@ -26,6 +28,10 @@ settings:
 packages:
   TimeCardCore:
     path: TimeCardCore
+  # The same path TimeCardCore uses, so SwiftPM sees one package. The watch targets link
+  # only TreeFarmKit (TimeCardCore needs GRDB and doesn't build for watchOS).
+  TreeFarmKit:
+    path: ../Packages/TreeFarmKit
 targets:
   TimeCard:
     type: application
@@ -34,11 +40,20 @@ targets:
       - path: App
         excludes:
           - "Resources/Fonts/**"
+          - "Watch/**"
       # A folder reference keeps each font next to its OFL.txt inside the app bundle.
       - path: App/Resources/Fonts
         type: folder
         buildPhase: resources
+      # Synced folders: files added here build without regenerating the project.
+      - path: App/Watch
+        type: syncedFolder
       - Shared
+      # The WatchConnectivity transport, compiled into the iPhone and watch apps.
+      - path: WatchLink
+        type: syncedFolder
+      # The Live Activity's small (Smart Stack) layout, also built into the app so its tests can render it.
+      - Widgets/LiveActivitySmall.swift
     info:
       path: App/Info.plist
       properties:
@@ -50,6 +65,8 @@ targets:
           - INAlternativeAppName: Tree Card
           - INAlternativeAppName: Tree Farm
         NSSupportsLiveActivities: true
+        NSHealthShareUsageDescription: Time Card shows your heart rate and calories during a shift. They stay on your iPhone and Apple Watch and are never sent to the farm.
+        NSHealthUpdateUsageDescription: Time Card saves each shift as an Other workout in Health, paused during lunch and breaks.
         ITSAppUsesNonExemptEncryption: false
         LSRequiresIPhoneOS: true
         TimeCardAppGroup: group.$(BUNDLE_ID_PREFIX).timecard
@@ -76,6 +93,9 @@ targets:
       properties:
         com.apple.security.application-groups:
           - group.$(BUNDLE_ID_PREFIX).timecard
+        # The phone starts the watch's shift workout (HKHealthStore.startWatchApp).
+        com.apple.developer.healthkit: true
+        com.apple.developer.healthkit.access: []
     settings:
       base:
         PRODUCT_NAME: TimeCard
@@ -83,7 +103,11 @@ targets:
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
     dependencies:
       - target: TimeCardWidgets
+      # Embed Watch Content: TimeCard.app/Watch/TimeCardWatch.app
+      - target: TimeCardWatch
       - package: TimeCardCore
+      - sdk: WatchConnectivity.framework
+      - sdk: HealthKit.framework
   TimeCardWidgets:
     type: app-extension
     platform: iOS
@@ -120,9 +144,15 @@ targets:
     type: bundle.unit-test
     platform: iOS
     sources:
-      - Tests
+      - path: Tests
+        excludes:
+          - "Watch/**"
+      - path: Tests/Watch
+        type: syncedFolder
     dependencies:
       - target: TimeCard
+      - package: TreeFarmKit
+        product: TreeFarmKitTestSupport
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: $(BUNDLE_ID_PREFIX).timecard.tests
@@ -139,6 +169,134 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: $(BUNDLE_ID_PREFIX).timecard.uitests
         GENERATE_INFOPLIST_FILE: YES
         TEST_TARGET_NAME: TimeCard
+  TimeCardWatch:
+    type: application
+    platform: watchOS
+    sources:
+      # Synced folders: files added here build without regenerating the project.
+      - path: Watch/App
+        type: syncedFolder
+      - path: Watch/Shared
+        type: syncedFolder
+      - path: WatchLink
+        type: syncedFolder
+    info:
+      path: Watch/App/Info.plist
+      properties:
+        CFBundleDisplayName: Time Card
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        INAlternativeAppNames:
+          - INAlternativeAppName: Tree Card
+          - INAlternativeAppName: Tree Farm
+        WKApplication: true
+        WKCompanionAppBundleIdentifier: $(BUNDLE_ID_PREFIX).timecard
+        WKRunsIndependentlyOfCompanionApp: false
+        # Without it a shift's workout session dies when the app goes to the background.
+        WKBackgroundModes:
+          - workout-processing
+        # Apple asks for it when an app plays haptics during a workout.
+        UIBackgroundModes:
+          - audio
+        # Tapping the iPhone's Live Activity in the Smart Stack opens this app (watchOS 11.1+).
+        WKSupportsLiveActivityLaunchAttributeTypes:
+          - TimeCardActivityAttributes
+        NSHealthShareUsageDescription: Time Card shows your heart rate and calories during a shift. They stay on your iPhone and Apple Watch and are never sent to the farm.
+        NSHealthUpdateUsageDescription: Time Card saves each shift as an Other workout in Health, paused during lunch and breaks.
+        TimeCardAppGroup: group.$(BUNDLE_ID_PREFIX).timecard
+    entitlements:
+      path: Watch/App/TimeCardWatch.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.$(BUNDLE_ID_PREFIX).timecard
+        com.apple.developer.healthkit: true
+        com.apple.developer.healthkit.access: []
+    settings:
+      base:
+        # Watch values live at target level: XcodeGen's platform presets override project ones.
+        PRODUCT_NAME: TimeCardWatch
+        PRODUCT_BUNDLE_IDENTIFIER: $(BUNDLE_ID_PREFIX).timecard.watchkitapp
+        TARGETED_DEVICE_FAMILY: "4"
+        SWIFT_VERSION: "6.0"
+        SWIFT_DEFAULT_ACTOR_ISOLATION: nonisolated
+        # A single-size 1024 watchOS icon in Watch/App/Resources/Assets.xcassets.
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+    dependencies:
+      # Embed Foundation Extensions: TimeCardWatch.app/PlugIns/TimeCardWatchWidgets.appex
+      - target: TimeCardWatchWidgets
+      - package: TreeFarmKit
+        product: TreeFarmKit
+      - sdk: HealthKit.framework
+      - sdk: WatchConnectivity.framework
+      - sdk: UserNotifications.framework
+  TimeCardWatchWidgets:
+    type: app-extension
+    platform: watchOS
+    sources:
+      - path: Watch/Widgets
+        type: syncedFolder
+      - path: Watch/Shared
+        type: syncedFolder
+    info:
+      path: Watch/Widgets/Info.plist
+      properties:
+        CFBundleDisplayName: Time Card
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        TimeCardAppGroup: group.$(BUNDLE_ID_PREFIX).timecard
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    entitlements:
+      path: Watch/Widgets/TimeCardWatchWidgets.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.$(BUNDLE_ID_PREFIX).timecard
+    settings:
+      base:
+        PRODUCT_NAME: TimeCardWatchWidgets
+        PRODUCT_BUNDLE_IDENTIFIER: $(BUNDLE_ID_PREFIX).timecard.watchkitapp.widgets
+        TARGETED_DEVICE_FAMILY: "4"
+        SKIP_INSTALL: YES
+        SWIFT_VERSION: "6.0"
+        SWIFT_DEFAULT_ACTOR_ISOLATION: nonisolated
+    dependencies:
+      - package: TreeFarmKit
+        product: TreeFarmKit
+      - sdk: WidgetKit.framework
+      - sdk: SwiftUI.framework
+  TimeCardWatchTests:
+    type: bundle.unit-test
+    platform: watchOS
+    sources:
+      - path: WatchTests
+        type: syncedFolder
+    dependencies:
+      - target: TimeCardWatch
+      - package: TreeFarmKit
+        product: TreeFarmKitTestSupport
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(BUNDLE_ID_PREFIX).timecard.watchkitapp.tests
+        GENERATE_INFOPLIST_FILE: YES
+        TARGETED_DEVICE_FAMILY: "4"
+        SWIFT_VERSION: "6.0"
+        SWIFT_DEFAULT_ACTOR_ISOLATION: nonisolated
+  TimeCardWatchUITests:
+    type: bundle.ui-testing
+    platform: watchOS
+    sources:
+      - path: WatchUITests
+        type: syncedFolder
+    dependencies:
+      - target: TimeCardWatch
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(BUNDLE_ID_PREFIX).timecard.watchkitapp.uitests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: TimeCardWatch
+        TARGETED_DEVICE_FAMILY: "4"
+        SWIFT_VERSION: "6.0"
+        SWIFT_DEFAULT_ACTOR_ISOLATION: nonisolated
 schemes:
   TimeCard:
     build:
@@ -152,5 +310,18 @@ schemes:
       targets:
         - TimeCardTests
         - TimeCardUITests
+    archive:
+      config: Release
+  TimeCardWatch:
+    build:
+      targets:
+        TimeCardWatch: all
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - TimeCardWatchTests
+        - TimeCardWatchUITests
     archive:
       config: Release

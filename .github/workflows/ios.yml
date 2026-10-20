@@ -50,10 +50,40 @@ jobs:
           sudo xcode-select -s "$XCODE/Contents/Developer"
           xcodebuild -version
           xcodebuild -showsdks | grep -i iphonesimulator
+      # The iPhone app embeds the watch app, so its build needs the watchOS SDK too.
+      - name: Make sure the watchOS SDK is installed
+        run: |
+          xcodebuild -showsdks | grep -qi watchsimulator || xcodebuild -downloadPlatform watchOS
+          xcodebuild -showsdks | grep -i watchsimulator
       - name: Build for the simulator
         run: |
           xcodebuild build \
             -project iOS/TimeCard.xcodeproj \
             -scheme TimeCard \
             -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO
+
+  watch:
+    name: Watch app (watchOS simulator build)
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Pick the newest Xcode
+        run: |
+          XCODE=$(ls -d /Applications/Xcode_*.app | grep -vi beta | sort -V | tail -1)
+          echo "Using $XCODE"
+          sudo xcode-select -s "$XCODE/Contents/Developer"
+          xcodebuild -version
+      - name: Make sure the watchOS SDK is installed
+        run: |
+          xcodebuild -showsdks | grep -qi watchsimulator || xcodebuild -downloadPlatform watchOS
+          xcodebuild -showsdks | grep -i watchsimulator
+      # The watch app, its complications and both watch test bundles, without running them
+      # (no watch simulator runtime is needed for a build).
+      - name: Build the watch app and its tests for the simulator
+        run: |
+          xcodebuild build-for-testing \
+            -project iOS/TimeCard.xcodeproj \
+            -scheme TimeCardWatch \
+            -destination 'generic/platform=watchOS Simulator' \
             CODE_SIGNING_ALLOWED=NO

@@ -8,6 +8,9 @@ struct TimeCardApp: App {
 
     init() {
         Appearance.configure()
+        // The shared model is made at launch, scene or not: a message from the Apple Watch can
+        // launch the app in the background, and the model's init activates the watch link.
+        _ = AppModel.shared
     }
 
     var body: some Scene {

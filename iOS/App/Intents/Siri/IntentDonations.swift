@@ -32,7 +32,7 @@ enum IntentDonations {
         case .moveTo(let blockId, _):
             guard let state, let block = state.block(blockId), let field = state.field(block.fieldId) else { return nil }
             return MoveToBlockIntent(block: VoiceCatalog.block(for: block, field: field))
-        case .markTrees, .addShiftNote, .addTreeNote, .changeStart, .undo:
+        case .markTrees, .addShiftNote, .addTreeNote, .changeStart, .undo, .cancelShift:
             return nil
         }
     }

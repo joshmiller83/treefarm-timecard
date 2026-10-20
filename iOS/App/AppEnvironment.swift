@@ -19,6 +19,17 @@ enum LaunchMode: Equatable {
             || NSClassFromString("XCTestCase") != nil
     }
     static let signedOutArgument = "-UITestSignedOut"
+    /// With `-UITestInMemory`: the demo farm, but the real WatchConnectivity link and HealthKit
+    /// launcher, for the paired-simulator integration (docs/watch.md 7.4).
+    static let watchLinkArgument = "-UITestWatchLink"
+
+    /// The real watch link: a live launch, or a UI-test launch that asks for it. Never in a
+    /// process hosting unit tests.
+    static func usesRealWatch(_ mode: LaunchMode, arguments: [String] = ProcessInfo.processInfo.arguments,
+                              isTestHost: Bool = LaunchMode.isTestHost) -> Bool {
+        guard !isTestHost else { return false }
+        return mode == .live || arguments.contains(watchLinkArgument)
+    }
 
     static func current(arguments: [String] = ProcessInfo.processInfo.arguments,
                         environment: [String: String] = ProcessInfo.processInfo.environment) -> LaunchMode {
@@ -30,7 +41,8 @@ enum LaunchMode: Equatable {
 /// Builds the app's object graph for a launch mode.
 @MainActor
 enum AppEnvironment {
-    static func makeModel(mode: LaunchMode = .current()) -> AppModel {
+    /// `watchTransport` replaces the watch link's transport (tests use a `FakeWatchTransport`).
+    static func makeModel(mode: LaunchMode = .current(), watchTransport: (any WatchTransport)? = nil) -> AppModel {
         switch mode {
         case .live:
             return makeLive()
@@ -43,7 +55,7 @@ enum AppEnvironment {
                 try? store.setValue(me, forKey: AuthService.meKey)
             }
             let session = TimeCardSession(store: store, api: demo.server, tokens: tokens, deviceName: "UI Test iPhone")
-            return AppModel(session: session, mode: mode)
+            return AppModel(session: session, mode: mode, watchTransport: watchTransport)
         }
     }
 

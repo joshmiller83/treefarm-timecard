@@ -39,6 +39,10 @@
 	<false/>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSHealthShareUsageDescription</key>
+	<string>Time Card shows your heart rate and calories during a shift. They stay on your iPhone and Apple Watch and are never sent to the farm.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>Time Card saves each shift as an Other workout in Health, paused during lunch and breaks.</string>
 	<key>NSSupportsLiveActivities</key>
 	<true/>
 	<key>TimeCardAppGroup</key>

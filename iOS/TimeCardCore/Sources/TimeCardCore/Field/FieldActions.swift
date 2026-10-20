@@ -84,13 +84,30 @@ public final class FieldActions {
     /// Runs one command. Failures change nothing and say why.
     @discardableResult
     public func perform(_ command: FieldCommand) -> FieldReply {
+        let at = now()
+        return run(command, at: at, receivedAt: at, newShiftId: nil)
+    }
+
+    /// Runs a command from the Apple Watch as if it happened at `eventTime` (when the person
+    /// tapped, clamped by `WatchTiming`): shift starts, break times and `markedAt` are that
+    /// time. Every record it writes is stamped with now, when the phone got the tap, so the sync
+    /// rule "the newest `updatedAt` wins" isn't fooled by a tap that waited out of reach.
+    /// `newShiftId` is the id a `.clockIn` gives the new shift (the one the watch minted).
+    /// It never asks `confirmation(for:)`: the watch already asked.
+    @discardableResult
+    public func perform(_ command: FieldCommand, at eventTime: Date, newShiftId: UUID? = nil) -> FieldReply {
+        run(command, at: eventTime, receivedAt: now(), newShiftId: newShiftId)
+    }
+
+    private func run(_ command: FieldCommand, at eventTime: Date, receivedAt: Date, newShiftId: UUID?) -> FieldReply {
         guard let state = state() else { return FieldReply(speech: Self.signedOut, succeeded: false) }
         let farmId = state.farm.id, userId = state.me.userId
-        let at = now().roundedToMillisecond
+        let at = eventTime.roundedToMillisecond
+        let received = receivedAt.roundedToMillisecond
         var undo = undoStack(farm: farmId, user: userId)
         let before = undo
 
-        switch FieldEngine.perform(command, state: state, undo: &undo, now: at) {
+        switch FieldEngine.perform(command, state: state, undo: &undo, now: at, newShiftId: newShiftId) {
         case .failure(let failure):
             // An undo that couldn't be used is dropped, so the next one isn't stuck on it.
             if undo.entries != before.entries {
@@ -98,7 +115,8 @@ public final class FieldActions {
                 publishLiveSnapshot()
             }
             return FieldReply(speech: failure.speech, succeeded: false)
-        case .success(let outcome):
+        case .success(var outcome):
+            if received > at { Self.stamp(&outcome, undo: &undo, receivedAt: received) }
             do {
                 if !outcome.records.isEmpty { try session.save(outcome.records) }
             } catch {
@@ -113,6 +131,20 @@ public final class FieldActions {
             save(outcome.lastAction, "lastAction", farm: farmId, user: userId)
             publishLiveSnapshot()
             return FieldReply(speech: outcome.speech, succeeded: true, lastAction: outcome.lastAction)
+        }
+    }
+
+    /// Stamps what a backdated command wrote with the time it was received, and keeps the undo
+    /// entries that expect those records pointing at the new stamps.
+    private static func stamp(_ outcome: inout FieldOutcome, undo: inout UndoStack<UndoEntry>, receivedAt: Date) {
+        var restamped: [RecordKey: (was: Date, now: Date)] = [:]
+        outcome.records = outcome.records.map { record in
+            let stamped = record.stamped(updatedAt: max(receivedAt, record.updatedAt))
+            restamped[record.key] = (record.updatedAt, stamped.updatedAt)
+            return stamped
+        }
+        undo.updateEach { entry in
+            for (key, stamps) in restamped where entry.written[key] == stamps.was { entry.written[key] = stamps.now }
         }
     }
 

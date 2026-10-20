@@ -22,26 +22,32 @@
 		0A0CF0700206A6ABB115235F /* LiveActivityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFD4C0E1F3E26A6CA1F42145 /* LiveActivityUITests.swift */; };
 		0A721124F0E36CE63C67453B /* LogReportFixture.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8E1BE571647BE20FD5982C9 /* LogReportFixture.swift */; };
 		0A8A92FC9D15AB24F3D7DC7F /* TeamModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E864DB04DC3F59AB6209228 /* TeamModels.swift */; };
+		0D29AF4DBA4408F1764D22C3 /* WatchLinkUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 500CB07AA8578CE4DA2BB692 /* WatchLinkUITests.swift */; };
 		0EC762F09BF83156A11A134F /* LiveActivityButtons.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97460A95F1CA9E6D45762BFE /* LiveActivityButtons.swift */; };
 		104D492C8C3A51F286665FD8 /* IntentRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91519E30548CFC57A34F19EE /* IntentRunner.swift */; };
 		1057CD956DD8FB081911436A /* FieldIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD3F8FD907AD1AD114626275 /* FieldIntents.swift */; };
 		109DC636A3B978D839A4FB06 /* WidgetFonts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 187C0C75548A21E1537C7D26 /* WidgetFonts.swift */; };
 		11875192E9EAFECC79DABA39 /* Components.swift in Sources */ = {isa = PBXBuildFile; fileRef = 174CC43FB55650E3ADD75F46 /* Components.swift */; };
 		151FC7D266BB73EA1FDB2539 /* MemberRulesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3296BBFA4C11575E8D4BD62 /* MemberRulesTests.swift */; };
+		173C2B0B0CF2A628BFE4C196 /* TreeFarmKitTestSupport in Frameworks */ = {isa = PBXBuildFile; productRef = 357A0BED15984CCD01BDDCA0 /* TreeFarmKitTestSupport */; };
 		17822E8103F927F62EBA763B /* CrewSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81FBE92288D6414B8ABFCBF2 /* CrewSection.swift */; };
 		184BAD3E2577C3A68E2EBFAF /* VoiceOptions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64E1DF184687B1A1FB003718 /* VoiceOptions.swift */; };
 		185DB3D7F29ECC6001DA9977 /* ClockStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = C52384B1FAF616975C0E6195 /* ClockStatus.swift */; };
 		18BBC0E3910A4FC7C7D6B0D9 /* CrewRosterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E889DC9312E112369BABE29B /* CrewRosterTests.swift */; };
+		19155B971A8F522AB8C14405 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 268D96072E557AB5DA77E1FA /* WidgetKit.framework */; };
 		1931035E041FCA14AC70494D /* ShiftEditorModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4623FF7D02E7144959C7D79 /* ShiftEditorModelTests.swift */; };
+		19580A7F4C48B5622A049E1F /* TimeCardWatchWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = CA40B305E7BB0427CC5017D1 /* TimeCardWatchWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		1A2D50E98BED2E79CA2ACF7D /* SiriSuggestionsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41292E43BE22F217785CF1FB /* SiriSuggestionsTests.swift */; };
 		1C89058F02093C6506330C83 /* LiveActivityButtons.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97460A95F1CA9E6D45762BFE /* LiveActivityButtons.swift */; };
 		1E1B26C4A40FF877A255E691 /* AppEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = C130C9D6D6E12A2BCD39E059 /* AppEnvironment.swift */; };
 		210A451BC06E8FF049CC8269 /* TimeCardUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C111B64C0C07020B9DCCDD2 /* TimeCardUITests.swift */; };
 		24FE6C012C5C7977CD4C703A /* MapPainterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF2B33447FD168C2FAAB023D /* MapPainterTests.swift */; };
 		253742F751F911DAB962C6A7 /* DeviceConditions.swift in Sources */ = {isa = PBXBuildFile; fileRef = D105DACF9663AEC797D5772E /* DeviceConditions.swift */; };
+		255DF270032740754B33791E /* HealthKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3B10740F2033E52185D19616 /* HealthKit.framework */; };
 		28D1B4362FD4AA2D0B415F07 /* TeamUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D7506ABDC7DE18A14E2EFC2 /* TeamUITests.swift */; };
 		2B0D928BDC4C0BBE97302A71 /* IntentTestSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB65973F2655D3BF684FAD8C /* IntentTestSupport.swift */; };
 		2E41B0EDB79C1FF6F54E10D3 /* LogBuilderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0EC4977D6D7D7BFFFA305D14 /* LogBuilderTests.swift */; };
+		2F721A824F923BFA9718DCB6 /* WatchSettingsSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65DF74F4272B49E1DB5D6CBB /* WatchSettingsSection.swift */; };
 		390140C0B40787DABEE5964B /* ClockStatusTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE706B521FDE4D5D4F38A4B7 /* ClockStatusTests.swift */; };
 		3B3E0A8E54FB630EFF4F45D1 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF7548AC9CE7DC4BC309E713 /* SettingsView.swift */; };
 		3BC88F39E7E90B47A4F892B2 /* FieldsSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31066D7CB166A23A1209BFCB /* FieldsSection.swift */; };
@@ -71,17 +77,22 @@
 		60490B43B49AC432175A0F2A /* TeamFixture.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4C1F57D53C9E998F28FC056 /* TeamFixture.swift */; };
 		618B9907BE87D4087CF8B019 /* Fonts in Resources */ = {isa = PBXBuildFile; fileRef = 4533B607361861A2BBFEC580 /* Fonts */; };
 		61B510E46D001F1D97D48C08 /* ControlIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 875193D9B2BD8D0159F0681B /* ControlIntents.swift */; };
+		63812850B4CB5BCAB696D97E /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 76F859F4EF55B8D49AECE08D /* SwiftUI.framework */; };
+		6415423E4FB9439FDCBA9109 /* WatchConnectivity.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A1E437B94B0B6FD79A6EA022 /* WatchConnectivity.framework */; };
 		64473E39C0A8872F9B82ECB7 /* TeamModelsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E6F5621531D63D6F950C3E9 /* TeamModelsTests.swift */; };
+		652231260C974A4A75ABC32E /* TreeFarmKit in Frameworks */ = {isa = PBXBuildFile; productRef = F8CCBBF7462B66E72F5A3B25 /* TreeFarmKit */; };
 		66D8154FA1A61F124D958732 /* FieldEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B14AC507F05B6862E8A7B44C /* FieldEditorView.swift */; };
 		6A265E8C34294AE0BF363700 /* MemberDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 54FF44A725331B73B1F493BC /* MemberDetailView.swift */; };
 		6D2BFA8559FA4120E85FBFD9 /* BlockEditorSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78A90D01A6F75D6B04851CA5 /* BlockEditorSheet.swift */; };
 		6E021FFA63E1736E7099AF2B /* DesignTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC14C784BB8F321617C3E862 /* DesignTests.swift */; };
 		6EF90B4E86E9BD5BD693DBB2 /* LiveActivityViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95CD0060D5CE617E29FF42B8 /* LiveActivityViews.swift */; };
 		7065716ED4BFDC638A3D82E7 /* ClockStyles.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2D5BD8F2781DF7FC276319C /* ClockStyles.swift */; };
+		73A15DB7E37398B5ABB8837D /* WatchConnectivity.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A1E437B94B0B6FD79A6EA022 /* WatchConnectivity.framework */; };
 		751062469CE17D71A7CEF54B /* SiriFlows.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC6CA1FF2A1BC48FDE206332 /* SiriFlows.swift */; };
 		7511C0B9FB8E2AD5EF7C1637 /* ShortcutPhraseTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 186796056F4B45B706F848AD /* ShortcutPhraseTests.swift */; };
 		7BB5FA2C866B7A205F4624B1 /* ShiftTreesSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCF26636A6AD08FF0CE27C83 /* ShiftTreesSheet.swift */; };
 		7CA05566481CF06C0E9F30E1 /* Palette.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75E425709A1FCF4E60DE4173 /* Palette.swift */; };
+		7EF77AEA571CD9CD246055ED /* HealthKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3B10740F2033E52185D19616 /* HealthKit.framework */; };
 		8057829A685F63C508DFCF95 /* DaySnippetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C662D48C297ACDAC071A3A7 /* DaySnippetView.swift */; };
 		822D64D9A13F48FE7A32851F /* ActivityKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 99943374729E87599B2C037E /* ActivityKit.framework */; };
 		833BC82F98EF1456018B9440 /* MemberRules.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6EF5C2CA9CA7F93DAE4B883D /* MemberRules.swift */; };
@@ -103,12 +114,14 @@
 		976F2C7D97B96DD7945C2913 /* SeasonSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 815DA90CF943433312040BCD /* SeasonSection.swift */; };
 		9ABF6503163CD2383CE3F4C1 /* ClockView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0661937D9296096B85070F81 /* ClockView.swift */; };
 		9B53FC1A2C3610865B0340C3 /* TreeMapFixture.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B2E026F3FE222DBD13E9164 /* TreeMapFixture.swift */; };
+		9D329D1F3D692F2B2A40B4F5 /* UserNotifications.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 58F13D6E1453D9B5D8DE7365 /* UserNotifications.framework */; };
 		9D6C8E307C1FAA91CDD06991 /* ClockEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A6A9D908CF458D9A4ECF38C /* ClockEnvironment.swift */; };
 		9DC65F62F6D1F7B66DB65D9F /* FarmEntities.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9ED62564AD3E4695044C18E8 /* FarmEntities.swift */; };
 		A0E91B616D12F7A09D9CB812 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FB3543BFD49BF47889FBEFD /* RootView.swift */; };
 		A11346CECD3BFC51BA365381 /* AppModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1528797F8AD8C65C37F90E4 /* AppModelTests.swift */; };
 		A2EB037CB8220C1F65A9D32B /* MapPainter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B7434CC61AC82F969A5F6A2 /* MapPainter.swift */; };
 		A327B4C2DF3C355FFA9FA1F6 /* TimeCardApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1620ADB0A89E887DA3CBB17E /* TimeCardApp.swift */; };
+		A37AEC91587113FF7E5D3BEE /* LiveActivitySmall.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4AC092ED218D3E8F66958A3E /* LiveActivitySmall.swift */; };
 		A3EAD2ABBE7A177947508211 /* ClockCards.swift in Sources */ = {isa = PBXBuildFile; fileRef = 368D5BA8D4E266B0865F6DB2 /* ClockCards.swift */; };
 		A52443D525B164CED3CE9F97 /* TimeCardActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24D0A0F8E20930ACEF5AD5CB /* TimeCardActivityAttributes.swift */; };
 		A557B44473F43053CBA86614 /* TreesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB142D28E01DD5D7B047B8BA /* TreesView.swift */; };
@@ -121,6 +134,7 @@
 		AF792A86F946C5DA8F0FF348 /* FieldPlansTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF3CEDE96BB94907135FFC93 /* FieldPlansTests.swift */; };
 		AFD51769D4A8F4A7C1BACF0E /* ShortcutsUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92E2CEA81441D10E9ACFA2FB /* ShortcutsUITests.swift */; };
 		B0E0EF4804907D35BC00E872 /* PaperTimeCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1ADB7BF3DB4B1819A0EBCD1 /* PaperTimeCard.swift */; };
+		B17579EB019C12C48B19D845 /* LiveActivitySmallTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0EFB3AD087030592FBF43959 /* LiveActivitySmallTests.swift */; };
 		B310673E955C50C41CC35114 /* MapControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D97C50537317A376E75E7F4 /* MapControls.swift */; };
 		B36F932D59108B2F4C40620E /* Appearance.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5935F4ACB9CB99F78AD24707 /* Appearance.swift */; };
 		B3A31CF1F267626DAE69CD97 /* SignInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB37F784FF57349039E30269 /* SignInView.swift */; };
@@ -146,9 +160,11 @@
 		D4DB502FABD8A2FD40A64E5A /* LiveActivityFeed.swift in Sources */ = {isa = PBXBuildFile; fileRef = B37068BA8E7982A530403BE9 /* LiveActivityFeed.swift */; };
 		D71421E0438A3D507B32352D /* MiniMapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E486242FDA5F5DFA42EBC58A /* MiniMapView.swift */; };
 		D8962B538318F91279C1D8C1 /* MemberEditSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E346D5AD0B402D132B5AD3B /* MemberEditSheet.swift */; };
+		D9B351100EAD6E22BBB456C7 /* TimeCardWatch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = DB06A2B21531F1B3A9B15121 /* TimeCardWatch.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		DA5F8B179693CCB76E351EA8 /* LiveActivityFeedTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E3D3F98F10B8C5F98580EEF /* LiveActivityFeedTests.swift */; };
 		DA625F7D09CE2A55CC7F361B /* VoiceText.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0301314C66A18C9D233890B /* VoiceText.swift */; };
 		DEC03AE02545A77399012EEF /* VoiceCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C9EA53B37797325B0CFB766 /* VoiceCommands.swift */; };
+		E039B8DD6936C1F7E2C8B2B1 /* TreeFarmKitTestSupport in Frameworks */ = {isa = PBXBuildFile; productRef = 98AC6AB5ED0D480ACBD93C1A /* TreeFarmKitTestSupport */; };
 		E0B03D5A5C903A53DE4C5503 /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87281864A7B6C79D025F7336 /* MainTabView.swift */; };
 		E0D1FB91C0FD52264C43A582 /* IntentDonations.swift in Sources */ = {isa = PBXBuildFile; fileRef = E463BC54336CEB6A881010E1 /* IntentDonations.swift */; };
 		E299322A522196BD44C9EBE4 /* DayCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6AC0B02FC296D93E3F1452CD /* DayCard.swift */; };
@@ -160,8 +176,10 @@
 		E9F3A70825BDE99356AD28AD /* Typography.swift in Sources */ = {isa = PBXBuildFile; fileRef = 430050FEBA83C41B0D8C1F39 /* Typography.swift */; };
 		EA347C71DF70F01E0E022031 /* TreesDemoSeed.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50416D145C2353FEDB117CD3 /* TreesDemoSeed.swift */; };
 		EAA5990A3440A02D877A6008 /* StatusCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09497989FB7E542068BDD854 /* StatusCardView.swift */; };
+		EC165EAF1FCE01836FDD0C73 /* TreeFarmKit in Frameworks */ = {isa = PBXBuildFile; productRef = DCB1D3CBC389DB81E508205A /* TreeFarmKit */; };
 		EC667902F7B2D991519539B0 /* TimeCardActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24D0A0F8E20930ACEF5AD5CB /* TimeCardActivityAttributes.swift */; };
 		ECA9EBDDBC4B70570771E63D /* TreeRowsList.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75B0FBE1AE7FC93CB1A4A50E /* TreeRowsList.swift */; };
+		ED52121E30B2B0E72F097FC2 /* LiveActivitySmall.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4AC092ED218D3E8F66958A3E /* LiveActivitySmall.swift */; };
 		EF6CB0D55EF6EE6BF361870D /* SeasonPlans.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89BB4908B8B3DD180F31B13F /* SeasonPlans.swift */; };
 		EFF703CFCEE7295C334CEEFF /* StartTime.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0DB32E95B7773AA4B46D9F9 /* StartTime.swift */; };
 		F04936B959D17F4FEFCE751E /* SettingsCards.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5001CCDE93E2A772A6F2739A /* SettingsCards.swift */; };
@@ -185,6 +203,13 @@
 			remoteGlobalIDString = EA7518169038558D0AF611DA;
 			remoteInfo = TimeCard;
 		};
+		129D47143033D868C293BA0B /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 7FC7A3C286C5A3AD4C9C130A /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 7221137C5622EE73FBD14F0C;
+			remoteInfo = TimeCardWatchWidgets;
+		};
 		1E88073CCBB653C9AEF9B1A8 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 7FC7A3C286C5A3AD4C9C130A /* Project object */;
@@ -199,9 +224,41 @@
 			remoteGlobalIDString = 1FF22BA7729D3878D3F846D0;
 			remoteInfo = TimeCardWidgets;
 		};
+		A3C758D09D8A59C0602C65F8 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 7FC7A3C286C5A3AD4C9C130A /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = AC42D73192FA4B46B7F004D9;
+			remoteInfo = TimeCardWatch;
+		};
+		CF6031DD6F7070FBCFD00D4D /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 7FC7A3C286C5A3AD4C9C130A /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = AC42D73192FA4B46B7F004D9;
+			remoteInfo = TimeCardWatch;
+		};
+		E2D6B77E1E4E8132B2AAAFFA /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 7FC7A3C286C5A3AD4C9C130A /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = AC42D73192FA4B46B7F004D9;
+			remoteInfo = TimeCardWatch;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
+		14C9A4AFC2634924DB4162CB /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				19580A7F4C48B5622A049E1F /* TimeCardWatchWidgets.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		907AB72425FF5F34955E6244 /* Embed Foundation Extensions */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
@@ -213,6 +270,17 @@
 			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		C38BB6827A925D8C9315E8AC /* Embed Watch Content */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
+			dstSubfolderSpec = 16;
+			files = (
+				D9B351100EAD6E22BBB456C7 /* TimeCardWatch.app in Embed Watch Content */,
+			);
+			name = "Embed Watch Content";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
@@ -220,10 +288,12 @@
 		06B3F6EFCDE7A63AED61406A /* ReportPDF.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportPDF.swift; sourceTree = "<group>"; };
 		07B52841E4ED2B39D828A789 /* ClockSheets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClockSheets.swift; sourceTree = "<group>"; };
 		09497989FB7E542068BDD854 /* StatusCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusCardView.swift; sourceTree = "<group>"; };
+		09DE0EB6E470EEDA0E016FB6 /* TreeFarmKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = TreeFarmKit; path = ../Packages/TreeFarmKit; sourceTree = SOURCE_ROOT; };
 		0A95230AD7660E4504B26E84 /* InviteSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InviteSheet.swift; sourceTree = "<group>"; };
 		0BDC1C804EA111CDC81D1252 /* ShiftDraftTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShiftDraftTests.swift; sourceTree = "<group>"; };
 		0E3D3F98F10B8C5F98580EEF /* LiveActivityFeedTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityFeedTests.swift; sourceTree = "<group>"; };
 		0EC4977D6D7D7BFFFA305D14 /* LogBuilderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogBuilderTests.swift; sourceTree = "<group>"; };
+		0EFB3AD087030592FBF43959 /* LiveActivitySmallTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivitySmallTests.swift; sourceTree = "<group>"; };
 		1620ADB0A89E887DA3CBB17E /* TimeCardApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimeCardApp.swift; sourceTree = "<group>"; };
 		165D9CB59A2B73311DD924DB /* ReportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportView.swift; sourceTree = "<group>"; };
 		174CC43FB55650E3ADD75F46 /* Components.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Components.swift; sourceTree = "<group>"; };
@@ -249,6 +319,7 @@
 		3759E7FDBE2DBB6FD394D128 /* ShiftEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShiftEditorView.swift; sourceTree = "<group>"; };
 		39D93A82BB9D4479F54F5DC8 /* TreesHeader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TreesHeader.swift; sourceTree = "<group>"; };
 		3AFAABF051810F9845A8AC16 /* LiveActivityFixtures.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityFixtures.swift; sourceTree = "<group>"; };
+		3B10740F2033E52185D19616 /* HealthKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = HealthKit.framework; path = System/Library/Frameworks/HealthKit.framework; sourceTree = SDKROOT; };
 		3E8ADE5EA509E495FED67FC8 /* VoiceCatalogTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceCatalogTests.swift; sourceTree = "<group>"; };
 		3F84FA8BEE8F5D9192B59B77 /* HoursPaceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HoursPaceTests.swift; sourceTree = "<group>"; };
 		4097098F594090247E501C58 /* ShiftNotesEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShiftNotesEditor.swift; sourceTree = "<group>"; };
@@ -258,18 +329,22 @@
 		440EB3A66110368779E66FC5 /* ReportOutputTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportOutputTests.swift; sourceTree = "<group>"; };
 		4533B607361861A2BBFEC580 /* Fonts */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Fonts; path = App/Resources/Fonts; sourceTree = SOURCE_ROOT; };
 		4A6A9D908CF458D9A4ECF38C /* ClockEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClockEnvironment.swift; sourceTree = "<group>"; };
+		4AC092ED218D3E8F66958A3E /* LiveActivitySmall.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivitySmall.swift; sourceTree = "<group>"; };
 		4BC9B762AD9A1EA2EA656E33 /* VoiceCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceCatalog.swift; sourceTree = "<group>"; };
 		4D7506ABDC7DE18A14E2EFC2 /* TeamUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeamUITests.swift; sourceTree = "<group>"; };
 		4D97C50537317A376E75E7F4 /* MapControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapControls.swift; sourceTree = "<group>"; };
 		4E751EFB1A84C048A71D83B9 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
 		5001CCDE93E2A772A6F2739A /* SettingsCards.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsCards.swift; sourceTree = "<group>"; };
+		500CB07AA8578CE4DA2BB692 /* WatchLinkUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchLinkUITests.swift; sourceTree = "<group>"; };
 		50416D145C2353FEDB117CD3 /* TreesDemoSeed.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TreesDemoSeed.swift; sourceTree = "<group>"; };
 		54FF44A725331B73B1F493BC /* MemberDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemberDetailView.swift; sourceTree = "<group>"; };
 		576C231644ECC8C6932C2E33 /* TimeCardWidgetsBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimeCardWidgetsBundle.swift; sourceTree = "<group>"; };
 		5852DDF9A8C7AC498ED1E6AC /* SpokenNumberTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpokenNumberTests.swift; sourceTree = "<group>"; };
+		58F13D6E1453D9B5D8DE7365 /* UserNotifications.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UserNotifications.framework; path = System/Library/Frameworks/UserNotifications.framework; sourceTree = SDKROOT; };
 		5935F4ACB9CB99F78AD24707 /* Appearance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Appearance.swift; sourceTree = "<group>"; };
 		5C9EA53B37797325B0CFB766 /* VoiceCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceCommands.swift; sourceTree = "<group>"; };
 		64E1DF184687B1A1FB003718 /* VoiceOptions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceOptions.swift; sourceTree = "<group>"; };
+		65DF74F4272B49E1DB5D6CBB /* WatchSettingsSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchSettingsSection.swift; sourceTree = "<group>"; };
 		6870008F611EA82A10DC4A06 /* ReportContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportContent.swift; sourceTree = "<group>"; };
 		69371D8AFD61ABC755F84276 /* MemberReportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemberReportView.swift; sourceTree = "<group>"; };
 		6A441859AAEFA8511A46EA2F /* PlatformTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlatformTests.swift; sourceTree = "<group>"; };
@@ -301,6 +376,7 @@
 		904D9F76E48F461975CF2B70 /* IntentSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntentSupport.swift; sourceTree = "<group>"; };
 		91519E30548CFC57A34F19EE /* IntentRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntentRunner.swift; sourceTree = "<group>"; };
 		92E2CEA81441D10E9ACFA2FB /* ShortcutsUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutsUITests.swift; sourceTree = "<group>"; };
+		93D16CC984E9C64391375F93 /* TimeCardWatchUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = TimeCardWatchUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		95CD0060D5CE617E29FF42B8 /* LiveActivityViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityViews.swift; sourceTree = "<group>"; };
 		95F68CA9405378E319B596FA /* ClockFlowUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClockFlowUITests.swift; sourceTree = "<group>"; };
 		965497BD1502A9792E74BD55 /* ReportExport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportExport.swift; sourceTree = "<group>"; };
@@ -317,6 +393,7 @@
 		9F18F2755508009C1EFBC961 /* SeasonPlansTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SeasonPlansTests.swift; sourceTree = "<group>"; };
 		9FB3543BFD49BF47889FBEFD /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		A109B6BD4AE65A47FFAD3C86 /* NowWorkingNotesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NowWorkingNotesTests.swift; sourceTree = "<group>"; };
+		A1E437B94B0B6FD79A6EA022 /* WatchConnectivity.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WatchConnectivity.framework; path = System/Library/Frameworks/WatchConnectivity.framework; sourceTree = SDKROOT; };
 		A6A8FB32F6AAEA21AA74AEE7 /* ShiftEditorModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShiftEditorModel.swift; sourceTree = "<group>"; };
 		A7D1AE21BCC9D9FB5D329866 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		A930FFF3A3B899C434078A7C /* SiriSuggestions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SiriSuggestions.swift; sourceTree = "<group>"; };
@@ -346,6 +423,7 @@
 		C5569F51A2E419461179C401 /* LogModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogModel.swift; sourceTree = "<group>"; };
 		C5D5A8FEDD7DAD3EBE68327A /* ReportCSV.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportCSV.swift; sourceTree = "<group>"; };
 		C80A940F649E97D3B59D935C /* TimeCard.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TimeCard.entitlements; sourceTree = "<group>"; };
+		CA40B305E7BB0427CC5017D1 /* TimeCardWatchWidgets.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = TimeCardWatchWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		CB04224614B08F77A07C9900 /* TimeCardWidgets.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TimeCardWidgets.entitlements; sourceTree = "<group>"; };
 		CB142D28E01DD5D7B047B8BA /* TreesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TreesView.swift; sourceTree = "<group>"; };
 		CF3CEDE96BB94907135FFC93 /* FieldPlansTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FieldPlansTests.swift; sourceTree = "<group>"; };
@@ -358,10 +436,12 @@
 		D4C1F57D53C9E998F28FC056 /* TeamFixture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeamFixture.swift; sourceTree = "<group>"; };
 		D6A433BD24CA736A54B79B76 /* LiveActivityRenderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityRenderTests.swift; sourceTree = "<group>"; };
 		D8590FEBE4E0A048FDFC91F7 /* LogView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogView.swift; sourceTree = "<group>"; };
+		DB06A2B21531F1B3A9B15121 /* TimeCardWatch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TimeCardWatch.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		DC14C784BB8F321617C3E862 /* DesignTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignTests.swift; sourceTree = "<group>"; };
 		DCF26636A6AD08FF0CE27C83 /* ShiftTreesSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShiftTreesSheet.swift; sourceTree = "<group>"; };
 		DD3F8FD907AD1AD114626275 /* FieldIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FieldIntents.swift; sourceTree = "<group>"; };
 		DF7548AC9CE7DC4BC309E713 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		E107E93A0D16EA5ABE16B7D4 /* TimeCardWatchTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = TimeCardWatchTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		E1CF0EB6F91DFB1890DAC407 /* TreesUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TreesUITests.swift; sourceTree = "<group>"; };
 		E29004B28C7C4B8E613925F5 /* LiveActivityDisplay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityDisplay.swift; sourceTree = "<group>"; };
 		E2D5BD8F2781DF7FC276319C /* ClockStyles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClockStyles.swift; sourceTree = "<group>"; };
@@ -387,12 +467,146 @@
 		FE7503202388780B683D972B /* ShiftTrees.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShiftTrees.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		689984A8AA13325F621825F0 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = AC42D73192FA4B46B7F004D9 /* TimeCardWatch */;
+		};
+		E81E69411199AF178E24ACB3 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 7221137C5622EE73FBD14F0C /* TimeCardWatchWidgets */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		00CC7935EAA94957463B6F84 /* WatchTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			explicitFileTypes = {
+			};
+			explicitFolders = (
+			);
+			path = WatchTests;
+			sourceTree = "<group>";
+		};
+		90223DBBAF0B6D3E6839570E /* WatchLink */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			explicitFileTypes = {
+			};
+			explicitFolders = (
+			);
+			path = WatchLink;
+			sourceTree = "<group>";
+		};
+		9AD95359568DBBE537FD4474 /* Shared */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			explicitFileTypes = {
+			};
+			explicitFolders = (
+			);
+			name = Shared;
+			path = Shared;
+			sourceTree = "<group>";
+		};
+		AD094C10AC13E61005326832 /* WatchUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			explicitFileTypes = {
+			};
+			explicitFolders = (
+			);
+			path = WatchUITests;
+			sourceTree = "<group>";
+		};
+		BAF78643A0C00A6123DCDA1C /* Widgets */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				E81E69411199AF178E24ACB3 /* PBXFileSystemSynchronizedBuildFileExceptionSet */,
+			);
+			explicitFileTypes = {
+			};
+			explicitFolders = (
+			);
+			name = Widgets;
+			path = Widgets;
+			sourceTree = "<group>";
+		};
+		C89F703D1B97FC69206AFCB4 /* App */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				689984A8AA13325F621825F0 /* PBXFileSystemSynchronizedBuildFileExceptionSet */,
+			);
+			explicitFileTypes = {
+			};
+			explicitFolders = (
+			);
+			name = App;
+			path = App;
+			sourceTree = "<group>";
+		};
+		F97EA83CD4F3BF6299471B94 /* Watch */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			explicitFileTypes = {
+			};
+			explicitFolders = (
+			);
+			name = Watch;
+			path = Watch;
+			sourceTree = "<group>";
+		};
+		FEF86FBDA37607860F09A381 /* Watch */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			explicitFileTypes = {
+			};
+			explicitFolders = (
+			);
+			name = Watch;
+			path = Watch;
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
 /* Begin PBXFrameworksBuildPhase section */
+		3D02EBC623691388BEBAFA84 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E039B8DD6936C1F7E2C8B2B1 /* TreeFarmKitTestSupport in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		63AAC97AEACC0B266D7A4D94 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 				4CE2765501913B4EEF9A13AE /* TimeCardCore in Frameworks */,
+				6415423E4FB9439FDCBA9109 /* WatchConnectivity.framework in Frameworks */,
+				7EF77AEA571CD9CD246055ED /* HealthKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		66B25240D8B273FB0EBE8010 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				652231260C974A4A75ABC32E /* TreeFarmKit in Frameworks */,
+				19155B971A8F522AB8C14405 /* WidgetKit.framework in Frameworks */,
+				63812850B4CB5BCAB696D97E /* SwiftUI.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BBDEE394659C145996082A37 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				EC165EAF1FCE01836FDD0C73 /* TreeFarmKit in Frameworks */,
+				255DF270032740754B33791E /* HealthKit.framework in Frameworks */,
+				73A15DB7E37398B5ABB8837D /* WatchConnectivity.framework in Frameworks */,
+				9D329D1F3D692F2B2A40B4F5 /* UserNotifications.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -404,6 +618,14 @@
 				F2DC4499FFD5F66BA1844426 /* WidgetKit.framework in Frameworks */,
 				B958CCE566260AFB7A9D922B /* SwiftUI.framework in Frameworks */,
 				822D64D9A13F48FE7A32851F /* ActivityKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E96E82F40E52C15A2FC1CEB9 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				173C2B0B0CF2A628BFE4C196 /* TreeFarmKitTestSupport in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -427,7 +649,10 @@
 			isa = PBXGroup;
 			children = (
 				99943374729E87599B2C037E /* ActivityKit.framework */,
+				3B10740F2033E52185D19616 /* HealthKit.framework */,
 				76F859F4EF55B8D49AECE08D /* SwiftUI.framework */,
+				58F13D6E1453D9B5D8DE7365 /* UserNotifications.framework */,
+				A1E437B94B0B6FD79A6EA022 /* WatchConnectivity.framework */,
 				268D96072E557AB5DA77E1FA /* WidgetKit.framework */,
 			);
 			name = Frameworks;
@@ -473,6 +698,7 @@
 			isa = PBXGroup;
 			children = (
 				BCE003B9CB6B5840F1EDBDA4 /* TimeCardCore */,
+				09DE0EB6E470EEDA0E016FB6 /* TreeFarmKit */,
 			);
 			name = Packages;
 			sourceTree = "<group>";
@@ -489,6 +715,7 @@
 			isa = PBXGroup;
 			children = (
 				A7D1AE21BCC9D9FB5D329866 /* Info.plist */,
+				4AC092ED218D3E8F66958A3E /* LiveActivitySmall.swift */,
 				2C88B4296F1678B1935B86DF /* TimeCardControls.swift */,
 				9BB263D26A2AD84BDE25A0AF /* TimeCardLiveActivity.swift */,
 				CB04224614B08F77A07C9900 /* TimeCardWidgets.entitlements */,
@@ -598,6 +825,7 @@
 				0E3D3F98F10B8C5F98580EEF /* LiveActivityFeedTests.swift */,
 				3AFAABF051810F9845A8AC16 /* LiveActivityFixtures.swift */,
 				D6A433BD24CA736A54B79B76 /* LiveActivityRenderTests.swift */,
+				0EFB3AD087030592FBF43959 /* LiveActivitySmallTests.swift */,
 			);
 			path = LiveActivity;
 			sourceTree = "<group>";
@@ -611,6 +839,10 @@
 				AFEFE8022AC39DB82A76F156 /* Shared */,
 				7588F740A0F71B2E229CDF3C /* Tests */,
 				7294EDC1AAF1E6D35551883F /* UITests */,
+				8C724C7D006CFC94C4768A7F /* Watch */,
+				90223DBBAF0B6D3E6839570E /* WatchLink */,
+				00CC7935EAA94957463B6F84 /* WatchTests */,
+				AD094C10AC13E61005326832 /* WatchUITests */,
 				2E4A94361327E97ED169311D /* Widgets */,
 				1293CD6E8D0B4EE3793B1D89 /* Frameworks */,
 				65CB08D27713038EAE97F5AB /* Products */,
@@ -623,6 +855,10 @@
 				8C42AEC580754A7C4570AB15 /* TimeCard.app */,
 				C30229F8AB3A33531A84292B /* TimeCardTests.xctest */,
 				C209647017C5C2118ADABE0C /* TimeCardUITests.xctest */,
+				DB06A2B21531F1B3A9B15121 /* TimeCardWatch.app */,
+				E107E93A0D16EA5ABE16B7D4 /* TimeCardWatchTests.xctest */,
+				93D16CC984E9C64391375F93 /* TimeCardWatchUITests.xctest */,
+				CA40B305E7BB0427CC5017D1 /* TimeCardWatchWidgets.appex */,
 				9DE6B97E96723E748D99793B /* TimeCardWidgets.appex */,
 			);
 			name = Products;
@@ -641,6 +877,7 @@
 				C59E7288246A6001B81585D0 /* LiveActivity */,
 				C1066138348FF72C70FA3308 /* Resources */,
 				191D080EB2B9269478332812 /* Views */,
+				FEF86FBDA37607860F09A381 /* Watch */,
 			);
 			path = App;
 			sourceTree = "<group>";
@@ -673,6 +910,7 @@
 				AD5FE03FD431C2056F07513D /* LogReport */,
 				3E39FA000C1D144A6A55F6F9 /* Team */,
 				9F3D12A41C3246F1C077B3E3 /* Trees */,
+				F97EA83CD4F3BF6299471B94 /* Watch */,
 			);
 			path = Tests;
 			sourceTree = "<group>";
@@ -701,6 +939,16 @@
 			path = Config;
 			sourceTree = "<group>";
 		};
+		8C724C7D006CFC94C4768A7F /* Watch */ = {
+			isa = PBXGroup;
+			children = (
+				C89F703D1B97FC69206AFCB4 /* App */,
+				9AD95359568DBBE537FD4474 /* Shared */,
+				BAF78643A0C00A6123DCDA1C /* Widgets */,
+			);
+			path = Watch;
+			sourceTree = "<group>";
+		};
 		8D32B26DADCD78D761E23EC2 /* Snippets */ = {
 			isa = PBXGroup;
 			children = (
@@ -725,6 +973,7 @@
 			isa = PBXGroup;
 			children = (
 				B63F50BB7E194A72AE0E1FF9 /* AppTourUITests.swift */,
+				500CB07AA8578CE4DA2BB692 /* WatchLinkUITests.swift */,
 			);
 			path = Integration;
 			sourceTree = "<group>";
@@ -777,6 +1026,7 @@
 				5001CCDE93E2A772A6F2739A /* SettingsCards.swift */,
 				FCB3AB404159719E56FB7440 /* SettingsModels.swift */,
 				DF7548AC9CE7DC4BC309E713 /* SettingsView.swift */,
+				65DF74F4272B49E1DB5D6CBB /* WatchSettingsSection.swift */,
 			);
 			path = Settings;
 			sourceTree = "<group>";
@@ -975,19 +1225,47 @@
 			productReference = 9DE6B97E96723E748D99793B /* TimeCardWidgets.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
+		320B2DC2B767D3DD3C04531D /* TimeCardWatchUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 33BB86A22477709658023B28 /* Build configuration list for PBXNativeTarget "TimeCardWatchUITests" */;
+			buildPhases = (
+				77EE2B58A83D720888A1D280 /* Sources */,
+				524A81D26792D15F4ECC1583 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				C691151954685950DACF1B2A /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				AD094C10AC13E61005326832 /* WatchUITests */,
+			);
+			name = TimeCardWatchUITests;
+			packageProductDependencies = (
+			);
+			productName = TimeCardWatchUITests;
+			productReference = 93D16CC984E9C64391375F93 /* TimeCardWatchUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 		3449C8CEBD6A2B7E8706D694 /* TimeCardTests */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = EAF093F87872B4491DA6BBFD /* Build configuration list for PBXNativeTarget "TimeCardTests" */;
 			buildPhases = (
 				821D3EFCFB5F0B1F06EAE527 /* Sources */,
+				86DBE2C341E0E74BD2342163 /* Resources */,
+				3D02EBC623691388BEBAFA84 /* Frameworks */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 				5662B6A55F5AC50323B56CC6 /* PBXTargetDependency */,
 			);
+			fileSystemSynchronizedGroups = (
+				F97EA83CD4F3BF6299471B94 /* Watch */,
+			);
 			name = TimeCardTests;
 			packageProductDependencies = (
+				98AC6AB5ED0D480ACBD93C1A /* TreeFarmKitTestSupport */,
 			);
 			productName = TimeCardTests;
 			productReference = C30229F8AB3A33531A84292B /* TimeCardTests.xctest */;
@@ -1011,6 +1289,81 @@
 			productReference = C209647017C5C2118ADABE0C /* TimeCardUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
+		7221137C5622EE73FBD14F0C /* TimeCardWatchWidgets */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C383D9E9F535E8B77F6C7807 /* Build configuration list for PBXNativeTarget "TimeCardWatchWidgets" */;
+			buildPhases = (
+				27E3BC4AAC9286584DEC1E7C /* Sources */,
+				034E5D3A7B7F89D09E46AA07 /* Resources */,
+				66B25240D8B273FB0EBE8010 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				9AD95359568DBBE537FD4474 /* Shared */,
+				BAF78643A0C00A6123DCDA1C /* Widgets */,
+			);
+			name = TimeCardWatchWidgets;
+			packageProductDependencies = (
+				F8CCBBF7462B66E72F5A3B25 /* TreeFarmKit */,
+			);
+			productName = TimeCardWatchWidgets;
+			productReference = CA40B305E7BB0427CC5017D1 /* TimeCardWatchWidgets.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		AC42D73192FA4B46B7F004D9 /* TimeCardWatch */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 43090ABF0A2CD472395A0C19 /* Build configuration list for PBXNativeTarget "TimeCardWatch" */;
+			buildPhases = (
+				2699004ED2095DF1328A4F30 /* Sources */,
+				A5E4DD91CEEE43A0BC95136D /* Resources */,
+				BBDEE394659C145996082A37 /* Frameworks */,
+				14C9A4AFC2634924DB4162CB /* Embed Foundation Extensions */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				EAF4C5F9E81D10AEB530B0C6 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				C89F703D1B97FC69206AFCB4 /* App */,
+				9AD95359568DBBE537FD4474 /* Shared */,
+				90223DBBAF0B6D3E6839570E /* WatchLink */,
+			);
+			name = TimeCardWatch;
+			packageProductDependencies = (
+				DCB1D3CBC389DB81E508205A /* TreeFarmKit */,
+			);
+			productName = TimeCardWatch;
+			productReference = DB06A2B21531F1B3A9B15121 /* TimeCardWatch.app */;
+			productType = "com.apple.product-type.application";
+		};
+		ACFC51FF8FCA4EFC3CEF3D69 /* TimeCardWatchTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 4A372930E1F8EC18CFBF93CD /* Build configuration list for PBXNativeTarget "TimeCardWatchTests" */;
+			buildPhases = (
+				4A4DD78DD95DF100AE11C678 /* Sources */,
+				4D4B358EA7E930BA8C26F0E3 /* Resources */,
+				E96E82F40E52C15A2FC1CEB9 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				B2E5F9B5F16A0DCBACBD103D /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				00CC7935EAA94957463B6F84 /* WatchTests */,
+			);
+			name = TimeCardWatchTests;
+			packageProductDependencies = (
+				357A0BED15984CCD01BDDCA0 /* TreeFarmKitTestSupport */,
+			);
+			productName = TimeCardWatchTests;
+			productReference = E107E93A0D16EA5ABE16B7D4 /* TimeCardWatchTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 		EA7518169038558D0AF611DA /* TimeCard */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 837A7EF26091C8425F777128 /* Build configuration list for PBXNativeTarget "TimeCard" */;
@@ -1019,11 +1372,17 @@
 				2A2825DBCD9633929875EF01 /* Resources */,
 				63AAC97AEACC0B266D7A4D94 /* Frameworks */,
 				907AB72425FF5F34955E6244 /* Embed Foundation Extensions */,
+				C38BB6827A925D8C9315E8AC /* Embed Watch Content */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 				B2E32ADB17D6A9DC2F36F369 /* PBXTargetDependency */,
+				278169034EED47E425795266 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				FEF86FBDA37607860F09A381 /* Watch */,
+				90223DBBAF0B6D3E6839570E /* WatchLink */,
 			);
 			name = TimeCard;
 			packageProductDependencies = (
@@ -1046,6 +1405,11 @@
 						DevelopmentTeam = "";
 						ProvisioningStyle = Automatic;
 					};
+					320B2DC2B767D3DD3C04531D = {
+						DevelopmentTeam = "";
+						ProvisioningStyle = Automatic;
+						TestTargetID = AC42D73192FA4B46B7F004D9;
+					};
 					3449C8CEBD6A2B7E8706D694 = {
 						DevelopmentTeam = "";
 						ProvisioningStyle = Automatic;
@@ -1054,6 +1418,18 @@
 						DevelopmentTeam = "";
 						ProvisioningStyle = Automatic;
 						TestTargetID = EA7518169038558D0AF611DA;
+					};
+					7221137C5622EE73FBD14F0C = {
+						DevelopmentTeam = "";
+						ProvisioningStyle = Automatic;
+					};
+					AC42D73192FA4B46B7F004D9 = {
+						DevelopmentTeam = "";
+						ProvisioningStyle = Automatic;
+					};
+					ACFC51FF8FCA4EFC3CEF3D69 = {
+						DevelopmentTeam = "";
+						ProvisioningStyle = Automatic;
 					};
 					EA7518169038558D0AF611DA = {
 						DevelopmentTeam = "";
@@ -1072,6 +1448,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				2AFAF6FD78BB16BADE035592 /* XCLocalSwiftPackageReference "TimeCardCore" */,
+				1B69E6F29BEF3BADD50F5414 /* XCLocalSwiftPackageReference "../Packages/TreeFarmKit" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 65CB08D27713038EAE97F5AB /* Products */;
@@ -1082,11 +1459,22 @@
 				1FF22BA7729D3878D3F846D0 /* TimeCardWidgets */,
 				3449C8CEBD6A2B7E8706D694 /* TimeCardTests */,
 				39CD9E408C322E0700CE064B /* TimeCardUITests */,
+				AC42D73192FA4B46B7F004D9 /* TimeCardWatch */,
+				7221137C5622EE73FBD14F0C /* TimeCardWatchWidgets */,
+				ACFC51FF8FCA4EFC3CEF3D69 /* TimeCardWatchTests */,
+				320B2DC2B767D3DD3C04531D /* TimeCardWatchUITests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		034E5D3A7B7F89D09E46AA07 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		2A2825DBCD9633929875EF01 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -1096,9 +1484,65 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		4D4B358EA7E930BA8C26F0E3 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		524A81D26792D15F4ECC1583 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		86DBE2C341E0E74BD2342163 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A5E4DD91CEEE43A0BC95136D /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		2699004ED2095DF1328A4F30 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		27E3BC4AAC9286584DEC1E7C /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		4A4DD78DD95DF100AE11C678 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		77EE2B58A83D720888A1D280 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		821D3EFCFB5F0B1F06EAE527 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -1118,6 +1562,7 @@
 				DA5F8B179693CCB76E351EA8 /* LiveActivityFeedTests.swift in Sources */,
 				4E86314FA253E2EE7E5DECAA /* LiveActivityFixtures.swift in Sources */,
 				5C87C190B86463CA43008143 /* LiveActivityRenderTests.swift in Sources */,
+				B17579EB019C12C48B19D845 /* LiveActivitySmallTests.swift in Sources */,
 				2E41B0EDB79C1FF6F54E10D3 /* LogBuilderTests.swift in Sources */,
 				0A721124F0E36CE63C67453B /* LogReportFixture.swift in Sources */,
 				24FE6C012C5C7977CD4C703A /* MapPainterTests.swift in Sources */,
@@ -1155,6 +1600,7 @@
 				28D1B4362FD4AA2D0B415F07 /* TeamUITests.swift in Sources */,
 				210A451BC06E8FF049CC8269 /* TimeCardUITests.swift in Sources */,
 				BF7397CCF3DE86C4FAB459BE /* TreesUITests.swift in Sources */,
+				0D29AF4DBA4408F1764D22C3 /* WatchLinkUITests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1199,6 +1645,7 @@
 				D4DB502FABD8A2FD40A64E5A /* LiveActivityFeed.swift in Sources */,
 				8EB4B8C0543506D785998774 /* LiveActivityHosting.swift in Sources */,
 				403BF0EA3BF618147C7DB9C0 /* LiveActivityLaunchScript.swift in Sources */,
+				A37AEC91587113FF7E5D3BEE /* LiveActivitySmall.swift in Sources */,
 				002CA683E0D2BE2D1429B8B4 /* LiveActivityStyle.swift in Sources */,
 				0291B96796EB9489FDCC3CE6 /* LiveActivityViews.swift in Sources */,
 				96E2EDD3F1F835D073BA41FE /* LogComponents.swift in Sources */,
@@ -1267,6 +1714,7 @@
 				DEC03AE02545A77399012EEF /* VoiceCommands.swift in Sources */,
 				184BAD3E2577C3A68E2EBFAF /* VoiceOptions.swift in Sources */,
 				DA625F7D09CE2A55CC7F361B /* VoiceText.swift in Sources */,
+				2F721A824F923BFA9718DCB6 /* WatchSettingsSection.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1277,6 +1725,7 @@
 				61B510E46D001F1D97D48C08 /* ControlIntents.swift in Sources */,
 				1C89058F02093C6506330C83 /* LiveActivityButtons.swift in Sources */,
 				853E6B295C661EBD1530782A /* LiveActivityDisplay.swift in Sources */,
+				ED52121E30B2B0E72F097FC2 /* LiveActivitySmall.swift in Sources */,
 				4E4376B0B83BA6C33E01C406 /* LiveActivityStyle.swift in Sources */,
 				6EF90B4E86E9BD5BD693DBB2 /* LiveActivityViews.swift in Sources */,
 				A52443D525B164CED3CE9F97 /* TimeCardActivityAttributes.swift in Sources */,
@@ -1290,6 +1739,11 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		278169034EED47E425795266 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = AC42D73192FA4B46B7F004D9 /* TimeCardWatch */;
+			targetProxy = E2D6B77E1E4E8132B2AAAFFA /* PBXContainerItemProxy */;
+		};
 		5662B6A55F5AC50323B56CC6 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = EA7518169038558D0AF611DA /* TimeCard */;
@@ -1305,9 +1759,40 @@
 			target = 1FF22BA7729D3878D3F846D0 /* TimeCardWidgets */;
 			targetProxy = 87903F6B6558B0B5D11D33C5 /* PBXContainerItemProxy */;
 		};
+		B2E5F9B5F16A0DCBACBD103D /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = AC42D73192FA4B46B7F004D9 /* TimeCardWatch */;
+			targetProxy = A3C758D09D8A59C0602C65F8 /* PBXContainerItemProxy */;
+		};
+		C691151954685950DACF1B2A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = AC42D73192FA4B46B7F004D9 /* TimeCardWatch */;
+			targetProxy = CF6031DD6F7070FBCFD00D4D /* PBXContainerItemProxy */;
+		};
+		EAF4C5F9E81D10AEB530B0C6 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 7221137C5622EE73FBD14F0C /* TimeCardWatchWidgets */;
+			targetProxy = 129D47143033D868C293BA0B /* PBXContainerItemProxy */;
+		};
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		0B60AFBEBDE2138BCF8E997C /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = Watch/App/TimeCardWatch.entitlements;
+				INFOPLIST_FILE = Watch/App/Info.plist;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(BUNDLE_ID_PREFIX).timecard.watchkitapp";
+				PRODUCT_NAME = TimeCardWatch;
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = nonisolated;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 4;
+			};
+			name = Debug;
+		};
 		202DAADA6105E036BF2512BD /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -1326,6 +1811,26 @@
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
+		};
+		20E07198CAD2AEA25750BDE7 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "$(BUNDLE_ID_PREFIX).timecard.watchkitapp.tests";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = nonisolated;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/TimeCardWatch.app/TimeCardWatch";
+			};
+			name = Debug;
 		};
 		26C297F560686BE3D5D9F6E9 /* Debug */ = {
 			isa = XCBuildConfiguration;
@@ -1363,6 +1868,62 @@
 			};
 			name = Debug;
 		};
+		2E1683E0C5CBEA12D633EC87 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = Watch/App/TimeCardWatch.entitlements;
+				INFOPLIST_FILE = Watch/App/Info.plist;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(BUNDLE_ID_PREFIX).timecard.watchkitapp";
+				PRODUCT_NAME = TimeCardWatch;
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = nonisolated;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 4;
+			};
+			name = Release;
+		};
+		443FC6966B4F2D5F439564BE /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "$(BUNDLE_ID_PREFIX).timecard.watchkitapp.tests";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = nonisolated;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/TimeCardWatch.app/TimeCardWatch";
+			};
+			name = Release;
+		};
+		4791374750F7F859F310C43B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = Watch/Widgets/TimeCardWatchWidgets.entitlements;
+				INFOPLIST_FILE = Watch/Widgets/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "$(BUNDLE_ID_PREFIX).timecard.watchkitapp.widgets";
+				PRODUCT_NAME = TimeCardWatchWidgets;
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = nonisolated;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 4;
+			};
+			name = Release;
+		};
 		528F9F8A47950695E363351C /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -1377,6 +1938,26 @@
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_TARGET_NAME = TimeCard;
+			};
+			name = Debug;
+		};
+		6C687CE25E522847CC388926 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "$(BUNDLE_ID_PREFIX).timecard.watchkitapp.uitests";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = nonisolated;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				TEST_TARGET_NAME = TimeCardWatch;
 			};
 			name = Debug;
 		};
@@ -1448,12 +2029,11 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				MARKETING_VERSION = 0.1.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = iphoneos;
 				SUPPORTS_MACCATALYST = NO;
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
@@ -1461,6 +2041,7 @@
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = 1;
+				WATCHOS_DEPLOYMENT_TARGET = 11.0;
 			};
 			name = Release;
 		};
@@ -1482,6 +2063,26 @@
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
+		};
+		B65A385DD12D44C80DEDE22A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = Watch/Widgets/TimeCardWatchWidgets.entitlements;
+				INFOPLIST_FILE = Watch/Widgets/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "$(BUNDLE_ID_PREFIX).timecard.watchkitapp.widgets";
+				PRODUCT_NAME = TimeCardWatchWidgets;
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = nonisolated;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 4;
+			};
+			name = Debug;
 		};
 		BE285DD06A6DCE8014328D64 /* Debug */ = {
 			isa = XCBuildConfiguration;
@@ -1540,13 +2141,12 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				MARKETING_VERSION = 0.1.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = iphoneos;
 				SUPPORTS_MACCATALYST = NO;
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
@@ -1554,6 +2154,7 @@
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = 1;
+				WATCHOS_DEPLOYMENT_TARGET = 11.0;
 			};
 			name = Debug;
 		};
@@ -1576,6 +2177,26 @@
 			};
 			name = Debug;
 		};
+		D35D54FFEFF2FE57E29C56F0 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "$(BUNDLE_ID_PREFIX).timecard.watchkitapp.uitests";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = nonisolated;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				TEST_TARGET_NAME = TimeCardWatch;
+			};
+			name = Release;
+		};
 		DEB8B25F24754ECB790675F6 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -1596,6 +2217,24 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		33BB86A22477709658023B28 /* Build configuration list for PBXNativeTarget "TimeCardWatchUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				6C687CE25E522847CC388926 /* Debug */,
+				D35D54FFEFF2FE57E29C56F0 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		43090ABF0A2CD472395A0C19 /* Build configuration list for PBXNativeTarget "TimeCardWatch" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				0B60AFBEBDE2138BCF8E997C /* Debug */,
+				2E1683E0C5CBEA12D633EC87 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
 		4996213307E1F03A3223B79C /* Build configuration list for PBXProject "TimeCard" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -1605,11 +2244,29 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
 		};
+		4A372930E1F8EC18CFBF93CD /* Build configuration list for PBXNativeTarget "TimeCardWatchTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				20E07198CAD2AEA25750BDE7 /* Debug */,
+				443FC6966B4F2D5F439564BE /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
 		837A7EF26091C8425F777128 /* Build configuration list for PBXNativeTarget "TimeCard" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				26C297F560686BE3D5D9F6E9 /* Debug */,
 				202DAADA6105E036BF2512BD /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		C383D9E9F535E8B77F6C7807 /* Build configuration list for PBXNativeTarget "TimeCardWatchWidgets" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B65A385DD12D44C80DEDE22A /* Debug */,
+				4791374750F7F859F310C43B /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
@@ -1644,6 +2301,10 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
+		1B69E6F29BEF3BADD50F5414 /* XCLocalSwiftPackageReference "../Packages/TreeFarmKit" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ../Packages/TreeFarmKit;
+		};
 		2AFAF6FD78BB16BADE035592 /* XCLocalSwiftPackageReference "TimeCardCore" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = TimeCardCore;
@@ -1655,9 +2316,25 @@
 			isa = XCSwiftPackageProductDependency;
 			productName = TimeCardCore;
 		};
+		357A0BED15984CCD01BDDCA0 /* TreeFarmKitTestSupport */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = TreeFarmKitTestSupport;
+		};
 		76760F4A041CFB039DF2E1BF /* TimeCardCore */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = TimeCardCore;
+		};
+		98AC6AB5ED0D480ACBD93C1A /* TreeFarmKitTestSupport */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = TreeFarmKitTestSupport;
+		};
+		DCB1D3CBC389DB81E508205A /* TreeFarmKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = TreeFarmKit;
+		};
+		F8CCBBF7462B66E72F5A3B25 /* TreeFarmKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = TreeFarmKit;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

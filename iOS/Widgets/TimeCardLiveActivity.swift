@@ -3,12 +3,13 @@ import SwiftUI
 import TimeCardCore
 import WidgetKit
 
-/// The lock-screen Live Activity and the Dynamic Island. The views live in
-/// Shared/LiveActivity so the app's tests can render them; this only places them.
+/// The lock-screen Live Activity, the Dynamic Island, and the small card Apple Watch shows in
+/// its Smart Stack (and CarPlay). The views live in Shared/LiveActivity and
+/// LiveActivitySmall.swift so the app's tests can render them; this only places them.
 struct TimeCardLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: TimeCardActivityAttributes.self) { context in
-            LockScreenCard(display: LiveActivityDisplay(context.state), isStale: context.isStale)
+            LiveActivityFamilyCard(state: context.state, isStale: context.isStale)
         } dynamicIsland: { context in
             let display = LiveActivityDisplay(context.state)
             return DynamicIsland {
@@ -29,6 +30,27 @@ struct TimeCardLiveActivity: Widget {
                 LiveIslandMinimal(display: display)
             }
             .keylineTint(LiveColors.island(onBreak: display.isOnBreak).timer)
+        }
+        // Without it the watch squeezes the lock-screen card until it's cut off.
+        .supplementalActivityFamilies([.small])
+    }
+}
+
+/// The lock screen (`.medium`) or the watch's Smart Stack card (`.small`).
+private struct LiveActivityFamilyCard: View {
+    var state: LiveSnapshot
+    var isStale: Bool
+    @Environment(\.activityFamily) private var family
+    @Environment(\.colorScheme) private var scheme
+
+    var body: some View {
+        switch family {
+        case .small:
+            LiveActivitySmallView(state: state, isStale: isStale)
+                .activityBackgroundTint(LiveColors.lockScreen(scheme, onBreak: state.phase != .working).background)
+                .activitySystemActionForegroundColor(LiveColors.lockScreen(scheme, onBreak: state.phase != .working).ink)
+        default:
+            LockScreenCard(display: LiveActivityDisplay(state), isStale: isStale)
         }
     }
 }

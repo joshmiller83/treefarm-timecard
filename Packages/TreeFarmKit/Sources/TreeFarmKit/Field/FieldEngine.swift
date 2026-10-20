@@ -18,6 +18,9 @@ public enum FieldCommand: Codable, Hashable, Sendable {
     case addTreeNote(TreeRef, body: String, flag: NoteFlag)
     case changeStart(Date)
     case undo
+    /// The watch's "Undo clock-in": soft-deletes the open shift with this id while it has no
+    /// marks and no breaks and is at most `FieldEngine.cancelWindow` old. Undo stays as it is.
+    case cancelShift(UUID)
 }
 
 /// How to take back one action: the earlier copies of what it changed, and where you were.
@@ -136,10 +139,16 @@ public struct FieldFailure: Error, Equatable, Sendable {
 }
 
 public enum FieldEngine {
+    /// How long after clocking in a shift can still be cancelled (the watch's "Undo clock-in").
+    public static let cancelWindow: TimeInterval = 5 * 60
+
     /// Runs one command against the state. On success the undo entry (if any) is pushed on `undo`.
-    public static func perform(_ command: FieldCommand, state: FieldState, undo: inout UndoStack<UndoEntry>, now: Date) -> Result<FieldOutcome, FieldFailure> {
+    /// `newShiftId` is the id a `.clockIn` gives the new shift (the one the watch minted); other
+    /// commands ignore it.
+    public static func perform(_ command: FieldCommand, state: FieldState, undo: inout UndoStack<UndoEntry>, now: Date,
+                               newShiftId: UUID? = nil) -> Result<FieldOutcome, FieldFailure> {
         do {
-            var outcome = try run(command, state, &undo, now)
+            var outcome = try run(command, state, &undo, now, newShiftId)
             if let entry = outcome.undo { undo.push(entry) }
             if outcome.position == nil { outcome.position = state.position }
             return .success(outcome)
@@ -174,11 +183,12 @@ public enum FieldEngine {
 
     // MARK: - Commands
 
-    private static func run(_ command: FieldCommand, _ state: FieldState, _ undo: inout UndoStack<UndoEntry>, _ now: Date) throws(FieldFailure) -> FieldOutcome {
+    private static func run(_ command: FieldCommand, _ state: FieldState, _ undo: inout UndoStack<UndoEntry>, _ now: Date,
+                            _ newShiftId: UUID?) throws(FieldFailure) -> FieldOutcome {
         switch command {
         case .clockIn(let fieldId):
             // A new shift starts with nothing to undo: older entries belong to another shift.
-            let outcome = try clockIn(fieldId, state, now)
+            let outcome = try clockIn(fieldId, state, now, id: newShiftId ?? UUID())
             undo.removeAll()
             return outcome
         case .clockOut:
@@ -194,6 +204,7 @@ public enum FieldEngine {
         case .addShiftNote(let text): return try addShiftNote(text, state, now)
         case .addTreeNote(let tree, let body, let flag): return try addTreeNote(tree, body, flag, state, now)
         case .changeStart(let start): return try changeStart(start, state, now)
+        case .cancelShift(let id): return try cancelShift(id, state, now)
         case .undo:
             guard let entry = undo.pop() else { throw FieldFailure(Speech.nothingToUndo) }
             // The entry stays popped when it can't be used, so the next undo isn't stuck on it.
@@ -215,14 +226,14 @@ public enum FieldEngine {
         }
     }
 
-    private static func clockIn(_ fieldId: UUID?, _ state: FieldState, _ now: Date) throws(FieldFailure) -> FieldOutcome {
+    private static func clockIn(_ fieldId: UUID?, _ state: FieldState, _ now: Date, id: UUID) throws(FieldFailure) -> FieldOutcome {
         let cal = state.calendar
         if let open = state.openShift {
             throw FieldFailure("You’re already clocked in since \(Fmt.spokenTime(open.start, cal)).")
         }
         let shift: Shift
         do {
-            shift = try Clock.clockIn(userId: state.me.userId, farmId: state.farm.id, rateCents: state.me.rateCents, at: now, shifts: state.liveShifts)
+            shift = try Clock.clockIn(id: id, userId: state.me.userId, farmId: state.farm.id, rateCents: state.me.rateCents, at: now, shifts: state.liveShifts)
         } catch {
             throw FieldFailure(error.message)
         }
@@ -243,6 +254,24 @@ public enum FieldEngine {
             }
         }
         return FieldOutcome(records: [.shift(shift)], position: position, undo: nil, speech: speech, lastAction: "Clocked in")
+    }
+
+    /// Takes back a clock-in made by mistake (a Double Tap on the watch's off-clock screen): the
+    /// shift is deleted while nothing was done on it yet. Anything more is fixed in the Log.
+    private static func cancelShift(_ id: UUID, _ state: FieldState, _ now: Date) throws(FieldFailure) -> FieldOutcome {
+        guard let open = state.openShift else { throw FieldFailure(Speech.notClockedIn) }
+        guard open.id == id else { throw FieldFailure("That shift isn’t the one on the clock, so nothing was cancelled.") }
+        let marked = state.marks.contains { $0.shiftId == open.id && $0.isLive }
+        guard !marked, open.breaks.isEmpty, now.timeIntervalSince(open.start) <= cancelWindow else {
+            throw FieldFailure("That shift already has work on it. Change it in the Log.")
+        }
+        var gone = open
+        let stamp = RecordMetadata.stamp(now, after: open.updatedAt)
+        gone.deletedAt = stamp
+        gone.updatedAt = stamp
+        return FieldOutcome(records: [.shift(gone)], position: nil, undo: nil,
+                            speech: "Cancelled the clock-in at \(Fmt.spokenTime(open.start, state.calendar)).",
+                            lastAction: "Clock-in cancelled")
     }
 
     private static func clockOut(_ state: FieldState, _ now: Date) throws(FieldFailure) -> FieldOutcome {
