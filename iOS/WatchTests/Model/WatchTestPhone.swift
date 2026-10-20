@@ -152,3 +152,9 @@ final class WatchTestClock: @unchecked Sendable {
         lock.withLock { current = current.addingTimeInterval(seconds) }
     }
 }
+
+/// Set once something finished.
+@MainActor
+final class WatchTestFlag {
+    var isSet = false
+}

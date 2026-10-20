@@ -122,6 +122,8 @@ final class WatchShiftModel {
     @ObservationIgnored let demo: DemoWatchTransport?
     /// How long a tap waits before the button says "Waiting for phone…".
     @ObservationIgnored var slowAfter: Duration = .seconds(3)
+    /// How often the outbox is tried while a workout session exists. Set before `activate()`.
+    @ObservationIgnored var flushEvery: Duration = .seconds(60)
 
     // MARK: Bookkeeping
 
@@ -197,9 +199,10 @@ final class WatchShiftModel {
         })
         // Once a minute while a workout session exists (even a stopped one), try the outbox:
         // the session keeps the app running and reachable with the wrist down.
+        let every = flushEvery
         tasks.append(Task { [weak self] in
             while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(60))
+                try? await Task.sleep(for: every)
                 guard let self else { return }
                 self.pruneRefused()
                 if self.sessionActive() { await self.flush() }

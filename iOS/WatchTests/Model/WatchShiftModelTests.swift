@@ -170,6 +170,21 @@ struct WatchShiftModelTests {
         #expect(await model.perform(.markRow(F.row(16)), source: .button) == .queued("Saved on watch · 1 waiting"))
     }
 
+    @Test func aSignedOutPhoneRefusesNewTapsAndKeepsTheWaitingOnes() async {
+        let (model, fake, _) = await connected(F.working(), reachable: false)
+        _ = await model.perform(.markRow(F.row(14)), source: .button)
+        #expect(model.waitingCount == 1)
+
+        fake.deliverContext(F.envelope(.signedOut(epoch: F.epoch, revision: 6, now: F.at(10, 1))))
+        #expect(await F.eventually { WatchDisplay.phase(model.displayed) == .signedOut })
+
+        let outcome = await model.perform(.markRow(F.row(15)), source: .button)
+
+        #expect(outcome == .notSent(WatchDisplay.signedOut))
+        #expect(model.waitingCount == 1, "the waiting tap stays for when the person signs back in")
+        #expect(fake.sent.isEmpty)
+    }
+
     @Test func siriHearsTheLongerSavedLine() async {
         let (model, _, _) = await connected(F.working(), reachable: false)
         let outcome = await model.perform(.startBreak(.lunch, reason: ""), source: .siri)
@@ -550,6 +565,65 @@ struct WatchShiftModelTests {
         #expect(await F.eventually { model.isSlow })
         #expect(await task.value == .queued("Saved on watch · 1 waiting"))
         #expect(!model.isSlow)
+    }
+
+    // MARK: The minute flush during a workout session
+
+    /// A model whose first send is lost (so a tap stays queued with the phone in reach) and
+    /// whose session flush runs every `every`.
+    func lostFirstSend(sessionActive: Bool, every: Duration) async -> (WatchShiftModel, WatchTestPhone) {
+        let phone = WatchTestPhone(F.working())
+        let fake = FakeWatchTransport()
+        fake.defaultAnswer = .respond { phone.answer($0) }
+        let model = makeModel(fake, replyTimeout: .milliseconds(200), sessionActive: sessionActive)
+        model.flushEvery = every
+        fake.deliverContext(F.envelope(F.working()))
+        model.activate()
+        await fake.drained()
+        fake.enqueue(.lost)
+        #expect(await model.perform(.markRow(F.row(14)), source: .button) == .queued("Saved on watch · 1 waiting"))
+        return (model, phone)
+    }
+
+    @Test func duringASessionTheOutboxIsTriedEveryMinute() async {
+        let (model, phone) = await lostFirstSend(sessionActive: true, every: .milliseconds(300))
+
+        #expect(await F.eventually { model.waitingCount == 0 })
+        #expect(phone.commands.map(\.command) == [.markRow(F.row(14))])
+    }
+
+    @Test func withoutASessionTheOutboxWaitsForTheNextChance() async {
+        let (model, phone) = await lostFirstSend(sessionActive: false, every: .milliseconds(200))
+
+        try? await Task.sleep(for: .milliseconds(900))
+
+        #expect(model.waitingCount == 1)
+        #expect(phone.commands.isEmpty)
+    }
+
+    // MARK: Background wakes
+
+    @Test func aBackgroundWakeEndsOnlyOnceTheDeliveredStateIsHandled() async {
+        let fake = FakeWatchTransport(reachable: false)
+        fake.setHasContentPending(true)
+        let model = makeModel(fake)
+        let flag = WatchTestFlag()
+
+        let wake = Task {
+            await model.handleBackgroundWake()
+            flag.isSet = true
+        }
+        try? await Task.sleep(for: .milliseconds(400))
+        #expect(!flag.isSet, "WatchConnectivity still has content to deliver")
+        #expect(fake.activations == 1, "the wake starts the model")
+
+        fake.deliverContext(F.envelope(F.onLunch(revision: 9)))
+        fake.setHasContentPending(false)
+        await wake.value
+
+        #expect(model.confirmed?.revision == 9)
+        #expect(fake.unhandledEvents == 0)
+        #expect(WatchStateFile.read(from: directory).displayed?.revision == 9)
     }
 
     // MARK: Observers
