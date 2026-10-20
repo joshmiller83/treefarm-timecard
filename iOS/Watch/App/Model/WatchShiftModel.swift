@@ -161,6 +161,11 @@ final class WatchShiftModel {
     func activate() {
         guard !started else { return }
         started = true
+        // The observers were registered after `init` read the state and outbox from disk, and
+        // WatchConnectivity replays a context that doesn't supersede it: tell them now, so a
+        // workout recovered after a crash is reconciled (docs/watch.md 2.5).
+        lastChange = nil
+        notifyObservers()
         let events = transport.events
         tasks.append(Task { [weak self] in
             for await event in events {

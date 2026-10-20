@@ -443,6 +443,34 @@ struct WatchShiftModelTests {
         #expect(!model.isSlow)
     }
 
+    // MARK: Observers
+
+    @Test func observersHearTheRestoredStateWhenTheModelStarts() async {
+        // A crash relaunch: the state and a waiting clock-out come back from disk, and
+        // WatchConnectivity replays the same state, which doesn't supersede it.
+        let state = F.working(revision: 12)
+        WatchModelMemory(confirmed: state).write(to: directory)
+        var outbox = WatchOutbox()
+        outbox.add(WatchRequest(body: .command(.clockOut), issuedAt: F.at(9, 58), userId: F.user, shiftId: F.shift))
+        let fake = FakeWatchTransport(reachable: false)
+        let model = WatchShiftModel(transport: fake, store: InMemoryOutboxStore(outbox), directory: directory,
+                                    now: { F.at(10, 0) }, haptics: { _ in }, reloadComplications: {}, sessionActive: { false })
+        let recorder = WatchModelRecorder()
+        model.addObserver { recorder.changes.append($0) }
+        #expect(recorder.changes.isEmpty)
+
+        fake.deliverContext(F.envelope(state))
+        model.activate()
+        await fake.drained()
+        try? await Task.sleep(for: .milliseconds(100))
+
+        let heard = recorder.changes
+        #expect(heard.count == 1)
+        #expect(heard.first?.workout.confirmed == state)
+        #expect(heard.first?.workout.outbox.map(\.command) == [.clockOut])
+        #expect(heard.first?.waitingCount == 1)
+    }
+
     // MARK: Reach
 
     @Test func reachFollowsTheTransport() async {
