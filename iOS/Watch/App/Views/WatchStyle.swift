@@ -181,7 +181,8 @@ struct SendingDot: View {
 // MARK: - Toast
 
 /// The phone's answer, over the bottom of the timer area, never over the primary button.
-/// Two lines at most; the whole sentence goes to VoiceOver.
+/// Two lines at most; the whole sentence goes to VoiceOver. It never takes a tap: where it
+/// lies over buttons (the Controls page's top row), a glove's tap goes through to them.
 struct ToastView: View {
     let toast: WatchToast
 
@@ -204,6 +205,7 @@ struct ToastView: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(toast.text)
         .accessibilityIdentifier("toast")
+        .allowsHitTesting(false)
     }
 
     private var glyph: String {
