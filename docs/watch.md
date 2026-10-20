@@ -1011,6 +1011,27 @@ xcrun simctl pair_activate <printed pair id>
 
 **Not testable in the Simulator, so device only:** `transferCurrentComplicationUserInfo` and `didReceiveUserInfo`, Bluetooth range and timing, real suspension, a stopped session's lifetime, Action + side pause, mirroring, watch switching, unlock after reboot. [WC-F19, HK-F15]
 
+**How to run it** (Xcode 26.3, iPhone 17 on iOS 26.3 paired with an Ultra 3 on watchOS 26.2, both builds signed to run locally so HealthKit and the App Group work):
+
+```
+xcrun simctl launch <phone> <prefix>.timecard -UITestInMemory -UITestWatchLink
+TEST_RUNNER_WATCH_PAIRED_PHONE=1 xcodebuild test-without-building -scheme TimeCardWatch \
+  -only-testing:TimeCardWatchUITests/WatchPairedUITests/testTheWatchDrivesThePairedPhone …
+TEST_RUNNER_WATCH_PAIRED_PHONE=1 xcodebuild test-without-building -scheme TimeCard \
+  -only-testing:TimeCardUITests/WatchLinkUITests …          # with the watch app closed
+```
+
+The stalled-phone test also needs `TEST_RUNNER_WATCH_PAIRED_STALL=1` and a script that sends the phone app `SIGSTOP` once the attachment `stall-working` shows in the log, and `SIGCONT` some time after `stall-lunch-waiting`.
+
+**Results on the paired simulators (Oct 19, 2026):**
+- Activation on both sides, and the phone's state reached the watch: the demo farm ("Pine Hollow Tree Farm · North Field", "Starts: Block 1 · Row 5").
+- Requests and replies through `sendMessageData`: clock in, mark row 5 (the toast "Row 5 marked", the button moves to row 6), lunch, back to work, clock out with the confirmation, then the summary ("12 trees"; the workout was under 2 minutes, so no heart line). `testTheWatchDrivesThePairedPhone` passes.
+- A new phone launch (new in-memory store, so a new epoch with a lower revision) replaced the watch's state.
+- Health on the watch: the first-launch card, then the system's Health sheet (Review, the switches, Next), drivable from a UI test. The workout then recorded with simulated heart rate (57–58 bpm on Now and Today, "Recording shift workout").
+- A stalled phone, standing in for "out of range" (shutting the phone simulator down loses its in-memory farm): the phone app stopped with `SIGSTOP`, the watch's lunch waited ("Saved on watch · 1 waiting", the badge), the phone resumed 75 s later, and the lunch applied **at its tap time**: the phone shows "Lunch started 10:21 PM" though it ran it at 10:23, and the watch's badge cleared once the phone's state listed it. `testATapWaitsForAStalledPhoneThenAppliesAtItsTime` passes. The watch's own reachability stayed "in reach" throughout, so the out-of-reach path itself (no send at all) is covered by the unit and demo UI tests, not here.
+- `startWatchApp`: a clock-in on the phone, with the watch app closed, launched it within a second, and its Now page showed the shift with the workout's heart rate. The phone never asked for Health authorization (2.4).
+- Not done in the simulator: the Action button's first press and Siri phrases on the watch (covered by `ActionButtonDonorTests` and `WatchIntentTests`; device checks in 7.5).
+
 ### 7.5 Real-hardware checklist (Josh's iPhone 15 Pro Max on iOS 26.6 + Apple Watch Ultra 2)
 
 Run everything **detached from Xcode**, because the debugger stops suspension. [WC-F11, WC-P15]
@@ -1337,7 +1358,9 @@ Slices a, b, c and d merged into `watch` without conflicts (no slice touched ano
 - **Words:** slice b's VoiceOver lines and "Workout paused" moved into `WatchDisplay`; the rectangular complication's waiting line is the count-free "Taps waiting for iPhone" (4.3); the small card's break title is just the phase (4.4).
 - **Model wiring** (8.3): the observers, `ComplicationReload.reload()`, the summary sent after every flush, and the Action button origin. The courier's snapshot carries the newest reply state, so a flushed tap's answer and its state land in one change (1.4).
 - **Queued marks count trees:** `RowChip.openTrees` (set by `WatchStateBuilder`) feeds `WatchOptimism`, so "Block 2 · N trees" moves with each waiting mark.
-- **Paired simulators:** `-UITestInMemory -UITestWatchLink` runs the iPhone app on the demo farm with the real watch link, and `WatchPairedUITests` (skipped unless `TEST_RUNNER_WATCH_PAIRED_PHONE=1`) drives it from the watch (7.4).
+- **Toasts never take a tap.** On the 40 mm Controls page the workout's "Recording from 9:49" toast lay over Lunch and Break and swallowed the tap (found by the 40 mm UI flows); a glove's tap now goes through it.
+- **Complication renders:** the family views and their colors moved to `Watch/Shared` (the widget keeps the family switch), so `ComplicationRenderTests` renders every family in every phase at 40 and 49 mm, and the Smart Stack card, to `$COMPLICATION_SNAPSHOTS`. The corner's curved label and tinted faces only draw on a real face (7.5).
+- **Paired simulators:** `-UITestInMemory -UITestWatchLink` runs the iPhone app on the demo farm with the real watch link. `WatchPairedUITests` (watch) and `WatchLinkUITests` (iPhone) drive it, skipped unless `TEST_RUNNER_WATCH_PAIRED_PHONE=1` (7.4).
 - **Largest text on the watch simulator:** `-UIPreferredContentSizeCategoryName` does nothing on watchOS, and `simctl ui content_size` is unsupported there. `xcrun simctl spawn <watch> defaults write com.apple.UIKit UIPreferredContentSizeCategoryName UICTContentSizeCategoryAccessibilityXXXL`, then relaunching the app, does change it.
 
 ---

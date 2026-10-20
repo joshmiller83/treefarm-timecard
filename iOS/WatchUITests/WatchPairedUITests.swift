@@ -27,24 +27,33 @@ final class WatchPairedUITests: WatchUITestCase {
         return app
     }
 
-    /// The first-launch card, then the system's Health sheet and the notification question.
+    /// The first-launch card, then the system's Health sheet (drawn by the system, outside the
+    /// app): Review, every switch on, Next until it's done; then the notification question.
     @MainActor
     func allowHealthIfAsked() {
         let allow = app.buttons["onboarding.allowHealth"]
         guard allow.waitForExistence(timeout: 8) else { return }
         snapshot("paired-health-card")
         allow.tap()
-        // The system's sheets: turn everything on, then allow (labels vary by release).
-        for _ in 0..<6 {
+        let system = XCUIApplication(bundleIdentifier: "com.apple.Carousel")
+        for step in 0..<12 {
             sleep(2)
-            snapshot("paired-health-sheet")
-            print("HEALTH SHEET:\n\(app.debugDescription)")
-            let candidates = ["Turn On All", "Allow", "Review", "Next", "Done", "Allow Notifications", "OK"]
-            guard let label = candidates.first(where: { app.buttons[$0].exists && app.buttons[$0].isHittable }) else {
-                if primary.exists { return }
-                continue
+            if primary.exists || app.descendants(matching: .any)["setupMessage"].exists { break }
+            snapshot("paired-health-\(step)")
+            for toggle in system.switches.matching(identifier: "UIA.Health.WatchAuthSheet.SwitchOutlet").allElementsBoundByIndex
+            where toggle.isHittable && (toggle.value as? String) != "1" {
+                toggle.tap()
             }
-            app.buttons[label].tap()
+            let next = system.cells["UIA.Health.WatchAuthSheet.ConfigureCell.Button"]
+            let named = ["Review", "Allow", "Done", "Next", "Turn On All"].map { system.buttons[$0] }.first { $0.exists && $0.isHittable }
+            if next.exists, next.isHittable {
+                next.tap()
+            } else if let named {
+                named.tap()
+            } else {
+                print("HEALTH STEP \(step):\n\(system.debugDescription)")
+                system.swipeUp()
+            }
         }
     }
 
@@ -69,7 +78,7 @@ final class WatchPairedUITests: WatchUITestCase {
         XCTAssertNotEqual(primary.label, firstRow, "the phone moved to the next row")
 
         app.swipeLeft()
-        let today = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "iPhone:")).firstMatch
+        let today = app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH %@", "iPhone:")).firstMatch
         XCTAssertTrue(today.waitForExistence(timeout: 10))
         waitFor(today, label: "iPhone: in reach")
         snapshot("paired-today")
@@ -84,6 +93,8 @@ final class WatchPairedUITests: WatchUITestCase {
 
         primary.tap()
         waitFor(primary, labelBeginningWith: "Mark row", timeout: 20)
+        // The phone's answer brings the page back to Now: wait for it before moving on.
+        toast("Back", prefix: true, timeout: 20)
 
         app.swipeRight()
         let clockOut = app.buttons["clockOut"]
@@ -114,6 +125,9 @@ final class WatchPairedUITests: WatchUITestCase {
         }
         launchPaired()
         XCTAssertTrue(primary.waitForExistence(timeout: 60))
+        // The phone's own state: off the clock, or already working.
+        let ready = NSPredicate(format: "label == %@ OR label BEGINSWITH %@", "Clock in", "Mark row")
+        XCTAssertEqual(XCTWaiter().wait(for: [XCTNSPredicateExpectation(predicate: ready, object: primary)], timeout: 60), .completed)
         if primary.label == "Clock in" {
             primary.tap()
         }
@@ -133,14 +147,34 @@ final class WatchPairedUITests: WatchUITestCase {
         XCTAssertTrue(badge.waitForExistence(timeout: 30), "the lunch never showed as waiting")
         snapshot("stall-lunch-waiting")
 
-        // The script resumes the phone; the minute flush of the running workout sends it.
-        waitUntilGone(badge, timeout: 240)
+        // The script resumes the phone, which answers late (the watch has given up on that reply)
+        // and sends its state listing the lunch as applied. A retry in flight also hides the
+        // badge for its 4 s, so it counts only once it stays gone.
+        XCTAssertTrue(waitUntilGoneForGood(badge, timeout: 300), "the lunch never reached the phone")
         waitFor(primary, label: "Back to work", timeout: 20)
         snapshot("stall-lunch-applied")
     }
 }
 
 extension WatchUITestCase {
+    /// True once `element` has been gone for `settle` seconds in a row.
+    @MainActor
+    func waitUntilGoneForGood(_ element: XCUIElement, timeout: TimeInterval, settle: TimeInterval = 8) -> Bool {
+        let end = Date().addingTimeInterval(timeout)
+        var goneSince: Date?
+        while Date() < end {
+            if element.exists {
+                goneSince = nil
+            } else if let since = goneSince {
+                if Date().timeIntervalSince(since) >= settle { return true }
+            } else {
+                goneSince = Date()
+            }
+            sleep(1)
+        }
+        return false
+    }
+
     /// A toast beginning with `text`.
     @MainActor
     func toast(_ text: String, prefix: Bool, timeout: TimeInterval = 5, file: StaticString = #filePath, line: UInt = #line) {

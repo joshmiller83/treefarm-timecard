@@ -22,6 +22,7 @@
 		0A0CF0700206A6ABB115235F /* LiveActivityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFD4C0E1F3E26A6CA1F42145 /* LiveActivityUITests.swift */; };
 		0A721124F0E36CE63C67453B /* LogReportFixture.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8E1BE571647BE20FD5982C9 /* LogReportFixture.swift */; };
 		0A8A92FC9D15AB24F3D7DC7F /* TeamModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E864DB04DC3F59AB6209228 /* TeamModels.swift */; };
+		0D29AF4DBA4408F1764D22C3 /* WatchLinkUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 500CB07AA8578CE4DA2BB692 /* WatchLinkUITests.swift */; };
 		0EC762F09BF83156A11A134F /* LiveActivityButtons.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97460A95F1CA9E6D45762BFE /* LiveActivityButtons.swift */; };
 		104D492C8C3A51F286665FD8 /* IntentRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91519E30548CFC57A34F19EE /* IntentRunner.swift */; };
 		1057CD956DD8FB081911436A /* FieldIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD3F8FD907AD1AD114626275 /* FieldIntents.swift */; };
@@ -334,6 +335,7 @@
 		4D97C50537317A376E75E7F4 /* MapControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapControls.swift; sourceTree = "<group>"; };
 		4E751EFB1A84C048A71D83B9 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
 		5001CCDE93E2A772A6F2739A /* SettingsCards.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsCards.swift; sourceTree = "<group>"; };
+		500CB07AA8578CE4DA2BB692 /* WatchLinkUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchLinkUITests.swift; sourceTree = "<group>"; };
 		50416D145C2353FEDB117CD3 /* TreesDemoSeed.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TreesDemoSeed.swift; sourceTree = "<group>"; };
 		54FF44A725331B73B1F493BC /* MemberDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemberDetailView.swift; sourceTree = "<group>"; };
 		576C231644ECC8C6932C2E33 /* TimeCardWidgetsBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimeCardWidgetsBundle.swift; sourceTree = "<group>"; };
@@ -971,6 +973,7 @@
 			isa = PBXGroup;
 			children = (
 				B63F50BB7E194A72AE0E1FF9 /* AppTourUITests.swift */,
+				500CB07AA8578CE4DA2BB692 /* WatchLinkUITests.swift */,
 			);
 			path = Integration;
 			sourceTree = "<group>";
@@ -1597,6 +1600,7 @@
 				28D1B4362FD4AA2D0B415F07 /* TeamUITests.swift in Sources */,
 				210A451BC06E8FF049CC8269 /* TimeCardUITests.swift in Sources */,
 				BF7397CCF3DE86C4FAB459BE /* TreesUITests.swift in Sources */,
+				0D29AF4DBA4408F1764D22C3 /* WatchLinkUITests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
