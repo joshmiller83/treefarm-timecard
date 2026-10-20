@@ -79,7 +79,19 @@ final class WatchShiftModel {
     private(set) var reach: PhoneReach = .neverConnected
     /// Outbox items not in flight.
     private(set) var waitingCount = 0
-    var toast: WatchToast?
+    /// Goes away by itself after its `duration`, however it was set (the workout sets it too).
+    var toast: WatchToast? {
+        didSet {
+            guard let toast else { return }
+            toastGeneration += 1
+            let generation = toastGeneration
+            Task { [weak self] in
+                try? await Task.sleep(for: .seconds(toast.duration))
+                guard let self, self.toastGeneration == generation else { return }
+                self.toast = nil
+            }
+        }
+    }
     /// The taps waiting for the phone, oldest first (the Queue sheet).
     private(set) var queue: [WatchRequest] = []
     /// Older row taps dropped past the outbox limit.
@@ -530,13 +542,6 @@ final class WatchShiftModel {
 
     private func show(_ toast: WatchToast) {
         self.toast = toast
-        toastGeneration += 1
-        let generation = toastGeneration
-        Task { [weak self] in
-            try? await Task.sleep(for: .seconds(toast.duration))
-            guard let self, self.toastGeneration == generation else { return }
-            self.toast = nil
-        }
     }
 
     private func watchForSlowReply(_ id: UUID) -> Task<Void, Never> {

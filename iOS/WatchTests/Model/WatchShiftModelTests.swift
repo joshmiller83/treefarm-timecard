@@ -116,6 +116,27 @@ struct WatchShiftModelTests {
         #expect(model.waitingCount == 1)
     }
 
+    @Test func aToastSetDirectlyGoesAwayByItself() async {
+        let (model, _, _) = await connected(F.working())
+
+        // As the workout does for "Recording from 7:14".
+        model.toast = WatchToast(text: "Recording from 7:14", kind: .success)
+
+        #expect(model.toast?.text == "Recording from 7:14")
+        #expect(await F.eventually(.seconds(4)) { model.toast == nil })
+    }
+
+    @Test func aNewerToastIsntClearedByAnOldersTimer() async {
+        let (model, _, _) = await connected(F.working())
+        model.toast = WatchToast(text: "First", kind: .success)
+        try? await Task.sleep(for: .seconds(2))
+
+        model.toast = WatchToast(text: "Second", kind: .success)
+        try? await Task.sleep(for: .seconds(1))
+
+        #expect(model.toast?.text == "Second", "the first toast's 2.5 s are up, the second's aren't")
+    }
+
     @Test func siriHearsTheLongerSavedLine() async {
         let (model, _, _) = await connected(F.working(), reachable: false)
         let outcome = await model.perform(.startBreak(.lunch, reason: ""), source: .siri)
