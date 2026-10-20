@@ -384,6 +384,28 @@ struct WatchShiftModelTests {
         #expect(model.waitingCount == 0)
     }
 
+    @Test func undoTakingBackATapWaitingBehindOneInFlightPlaysOnlyTheUndo() async {
+        let (model, fake, _) = await connected(F.working())
+        fake.defaultAnswer = .after(.milliseconds(400), fake.defaultAnswer!)
+
+        let row14 = Task { await model.perform(.markRow(F.row(14)), source: .button) }
+        #expect(await F.eventually { model.isSending })
+        let row15 = Task { await model.perform(.markRow(F.row(15)), source: .button) }
+        #expect(await F.eventually { model.waitingCount == 1 })
+
+        let undone = await model.undo()
+
+        let tookBack = "Took back row 15. It wasn’t sent yet."
+        guard case .done(let reply) = undone else { Issue.record("expected done, got \(undone)"); return }
+        #expect(reply.speech == tookBack)
+        #expect(await row15.value == .notSent(tookBack))
+        #expect(model.toast == WatchToast(text: tookBack, kind: .success), "row 15's own answer says nothing")
+        #expect(recorder.haptics == [.confirmed], "only the undo's")
+        _ = await row14.value
+        #expect(!recorder.haptics.contains(.refused))
+        #expect(recorder.haptics == [.confirmed, .confirmed], "the undo's, then row 14's")
+    }
+
     @Test func undoWithNothingQueuedAndThePhoneAwayNeedsThePhone() async {
         let (model, _, _) = await connected(F.working(), reachable: false)
         #expect(await model.undo() == .notSent(WatchDisplay.undoNeedsPhone))

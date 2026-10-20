@@ -538,6 +538,8 @@ final class WatchShiftModel {
             return .queued(source == .siri ? WatchDisplay.savedForSiri : text)
         case .notSent(let text):
             directIds.remove(request.id)
+            // Undo took this tap back before it was sent: `undo()` plays that.
+            if text == WatchDisplay.tookBack(request) { return .notSent(text) }
             return fail(text)
         }
     }
