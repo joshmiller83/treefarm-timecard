@@ -114,10 +114,12 @@ struct WatchCourierTests {
             return phone.answer(data)
         }
         let c = courier(fake)
-        async let a = c.submit(mark(14, at: 0), durable: true)
-        async let b = c.submit(mark(15, at: 1), durable: true)
-        async let d = c.submit(mark(16, at: 2), durable: true)
-        let results = await [a, b, d]
+        // Tasks, not `async let`: Swift 6.2 on Linux traps freeing an `async let` awaited inside
+        // the test macros ("swift_task_dealloc").
+        let taps = [mark(14, at: 0), mark(15, at: 1), mark(16, at: 2)]
+        let sends = taps.map { tap in Task { await c.submit(tap, durable: true) } }
+        var results: [CourierResult] = []
+        for send in sends { results.append(await send.value) }
 
         for result in results {
             guard case .replied(let reply) = result else { Issue.record("expected a reply, got \(result)"); continue }
@@ -342,10 +344,11 @@ struct WatchCourierTests {
         let c = courier(fake)
         let tap = mark(14)
         let undo = WatchRequest(body: .command(.undo), issuedAt: t0.addingTimeInterval(1))
-        async let first = c.submit(tap, durable: true)
+        let first = Task { await c.submit(tap, durable: true) }
         try? await Task.sleep(for: .milliseconds(20))
-        async let second = c.submit(undo, durable: false)
-        _ = await (first, second)
+        let second = Task { await c.submit(undo, durable: false) }
+        _ = await first.value
+        _ = await second.value
 
         #expect(await gauge.most == 1)
         #expect(phone.runs == [tap.id, undo.id])
@@ -364,14 +367,15 @@ struct WatchCourierTests {
         let r = mark(14)
         let events = EventLog(c.updates)
 
-        async let result = c.submit(r, durable: true)
+        let send = Task { await c.submit(r, durable: true) }
         #expect(await events.waitFor { $0.contains(.sending(r.id)) })
 
         #expect(await c.inFlight.map(\.id) == [r.id])
         #expect(await c.snapshot.waiting.isEmpty)
         #expect(await c.snapshot.outbox.pending.map(\.id) == [r.id], "durable: written to the outbox first")
 
-        guard case .replied = await result else { Issue.record("expected a reply"); return }
+        let result = await send.value
+        guard case .replied = result else { Issue.record("expected a reply"); return }
         #expect(await c.inFlight.isEmpty)
     }
 
@@ -398,12 +402,12 @@ struct WatchCourierTests {
         let c = courier(fake)
         let r = mark(14)
         let events = EventLog(c.updates)
-        async let result = c.submit(r, durable: true)
+        let send = Task { await c.submit(r, durable: true) }
         #expect(await events.waitFor { $0.contains(.sending(r.id)) })
 
         #expect(await c.takeBackLastQueued() == nil)
 
-        _ = await result
+        _ = await send.value
         #expect(phone.runs == [r.id])
     }
 
