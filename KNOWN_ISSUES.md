@@ -29,4 +29,4 @@ What's known to be wrong or unfinished, with the issue that tracks it. Fixed ite
 
 - [#10](https://github.com/joshmiller83/treefarm-timecard/issues/10) TestFlight (needs the paid Apple Developer account). Until then, builds signed with a free Personal Team stop launching after 7 days.
 - [#11](https://github.com/joshmiller83/treefarm-timecard/issues/11) Live Activity updates pushed from the server.
-- [#13](https://github.com/joshmiller83/treefarm-timecard/issues/13) The Apple Watch companion (in progress).
+- [#13](https://github.com/joshmiller83/treefarm-timecard/issues/13) The Apple Watch companion is built and merged, but its real-device checklist (`docs/watch.md` §7.5) hasn't been run: signing with HealthKit, Double Tap through gloves, the Action button, Siri on the watch, real Bluetooth range, and a full shift's battery.
