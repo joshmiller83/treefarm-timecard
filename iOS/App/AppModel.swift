@@ -57,7 +57,8 @@ final class AppModel {
     nonisolated static let backgroundRefreshID = (Bundle.main.bundleIdentifier ?? "com.joshmiller83.timecard") + ".sync"
 
     /// `watchTransport` and `watchLauncher` default to the real WatchConnectivity and HealthKit
-    /// ones for a live launch, and to ones with no watch behind them for UI tests and test hosts.
+    /// ones for a live launch (or a UI-test launch with `-UITestWatchLink`), and to ones with no
+    /// watch behind them for other UI tests and test hosts.
     init(session: TimeCardSession, mode: LaunchMode, storageError: String? = nil,
          watchTransport: (any WatchTransport)? = nil, watchLauncher: (any WatchWorkoutLauncher)? = nil) {
         self.session = session
@@ -72,7 +73,7 @@ final class AppModel {
         session.onNotice = { [weak self] notice in
             self?.actions.noteRefusal(notice)
         }
-        let realWatch = mode == .live && !LaunchMode.isTestHost
+        let realWatch = LaunchMode.usesRealWatch(mode)
         let desk = WatchDesk(actions: actions, store: session.store, settings: { [session] in
             WatchSettings.load(from: session.store, userId: session.me?.user.id)
         })

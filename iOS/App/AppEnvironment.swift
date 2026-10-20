@@ -19,6 +19,17 @@ enum LaunchMode: Equatable {
             || NSClassFromString("XCTestCase") != nil
     }
     static let signedOutArgument = "-UITestSignedOut"
+    /// With `-UITestInMemory`: the demo farm, but the real WatchConnectivity link and HealthKit
+    /// launcher, for the paired-simulator integration (docs/watch.md 7.4).
+    static let watchLinkArgument = "-UITestWatchLink"
+
+    /// The real watch link: a live launch, or a UI-test launch that asks for it. Never in a
+    /// process hosting unit tests.
+    static func usesRealWatch(_ mode: LaunchMode, arguments: [String] = ProcessInfo.processInfo.arguments,
+                              isTestHost: Bool = LaunchMode.isTestHost) -> Bool {
+        guard !isTestHost else { return false }
+        return mode == .live || arguments.contains(watchLinkArgument)
+    }
 
     static func current(arguments: [String] = ProcessInfo.processInfo.arguments,
                         environment: [String: String] = ProcessInfo.processInfo.environment) -> LaunchMode {

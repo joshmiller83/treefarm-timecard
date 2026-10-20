@@ -97,6 +97,9 @@ final class ShiftWorkout {
     /// Whether Health lets the watch record workouts.
     private(set) var access: HealthAccess
     private var askingStep: HealthOnboardingStep?
+    /// The card was answered this launch. A request that failed (Health still "not determined")
+    /// asks again at the next launch, never in a loop now.
+    private var askedThisLaunch = false
 
     /// Delivers a finished shift's summary to the phone (`.workoutSummary`, no reply). False when
     /// the phone is out of reach: the summary waits in its one slot for `sendPendingSummary()`.
@@ -195,7 +198,7 @@ final class ShiftWorkout {
     /// once, so it comes early.
     var onboardingStep: HealthOnboardingStep? {
         if let askingStep { return askingStep }
-        return access == .notDetermined && (inputs.confirmed?.recordWorkouts ?? true) ? .health : nil
+        return access == .notDetermined && !askedThisLaunch && (inputs.confirmed?.recordWorkouts ?? true) ? .health : nil
     }
 
     var needsHealthOnboarding: Bool { onboardingStep != nil }
@@ -206,6 +209,7 @@ final class ShiftWorkout {
         access = await driver.requestAuthorization()
         askingStep = .reminder
         _ = await notifier.requestAuthorization()
+        askedThisLaunch = true
         askingStep = nil
         refreshLive()
         recheck()

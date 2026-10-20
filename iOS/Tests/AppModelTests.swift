@@ -14,6 +14,17 @@ struct AppModelTests {
         #expect(LaunchMode.current(arguments: ["TimeCard"], environment: ["UITEST_IN_MEMORY": "1"]) == .uiTest(signedIn: true))
     }
 
+    @Test func theRealWatchLinkIsForLiveLaunchesAndPairedSimulatorRuns() {
+        #expect(LaunchMode.usesRealWatch(.live, arguments: ["TimeCard"], isTestHost: false))
+        #expect(!LaunchMode.usesRealWatch(.live, arguments: ["TimeCard"], isTestHost: true))
+        #expect(!LaunchMode.usesRealWatch(.uiTest(signedIn: true), arguments: ["TimeCard", "-UITestInMemory"], isTestHost: false))
+        // The paired-simulator integration (docs/watch.md 7.4): the demo farm and a real watch link.
+        #expect(LaunchMode.usesRealWatch(.uiTest(signedIn: true), arguments: ["TimeCard", "-UITestInMemory", "-UITestWatchLink"],
+                                         isTestHost: false))
+        #expect(!LaunchMode.usesRealWatch(.uiTest(signedIn: true), arguments: ["TimeCard", "-UITestInMemory", "-UITestWatchLink"],
+                                          isTestHost: true))
+    }
+
     @Test func uiTestModeOpensSignedInOnTheDemoFarm() async throws {
         let model = AppEnvironment.makeModel(mode: .uiTest(signedIn: true))
         #expect(model.session.auth.me?.user.email == DemoFarm.email)

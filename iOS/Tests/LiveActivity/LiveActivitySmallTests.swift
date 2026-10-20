@@ -52,17 +52,20 @@ struct LiveActivitySmallTests {
         #expect(d.controlAccessibilityLabel == "Back to work")
         #expect(d.isOnBreak)
         #expect(d.glyph == "cup.and.saucer.fill")
-        #expect(d.titles == ["Lunch · 4:12 worked", "Lunch"])
-        #expect(d.detail == "Since \(Fmt.spokenTime(snapshot.breakStart!, Self.calendar))")
+        // Just the phase on line 1, so the worked total on line 2 survives a 40 mm card.
+        #expect(d.titles == ["Lunch"])
+        #expect(d.detail == "Since \(Fmt.spokenTime(snapshot.breakStart!, Self.calendar)) · 4:12 worked")
         // The timer counts the lunch, not the day.
         #expect(d.timerStart == snapshot.breakStart)
     }
 
     @Test func onABreakTheControlIsBackToWorkToo() {
-        let d = LiveActivitySmallDisplay(F.onBreak(.onBreak, reason: "Parts run", minutes: 3), calendar: Self.calendar)
+        let snapshot = F.onBreak(.onBreak, reason: "Parts run", minutes: 3)
+        let d = LiveActivitySmallDisplay(snapshot, calendar: Self.calendar)
         #expect(d.control == .backToWork)
         #expect(d.glyph == "pause.fill")
-        #expect(d.titles == ["Break · 4:12 worked", "Break"])
+        #expect(d.titles == ["Break"])
+        #expect(d.detail == "Since \(Fmt.spokenTime(snapshot.breakStart!, Self.calendar)) · 4:12 worked")
     }
 
     @Test func aShapedFieldOffersNoButtonAndSaysWhy() {
@@ -104,7 +107,7 @@ struct LiveActivitySmallTests {
     @Test func theHeaderIsHeardWholeEvenWhenItsWordsDontFit() {
         // On a 40 mm card the title can give way to the timer; VoiceOver still hears it.
         #expect(LiveActivitySmallDisplay(F.working(), calendar: Self.calendar).headerAccessibilityLabel == "Working · Block 2")
-        #expect(LiveActivitySmallDisplay(F.onBreak(.lunch), calendar: Self.calendar).headerAccessibilityLabel == "Lunch · 4:12 worked")
+        #expect(LiveActivitySmallDisplay(F.onBreak(.lunch), calendar: Self.calendar).headerAccessibilityLabel == "Lunch")
         #expect(LiveActivitySmallDisplay(F.working(rows: [], shaped: 8_540, total: 8_540), calendar: Self.calendar)
             .headerAccessibilityLabel == "Working")
     }

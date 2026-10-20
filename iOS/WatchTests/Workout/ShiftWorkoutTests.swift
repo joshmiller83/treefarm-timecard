@@ -524,6 +524,18 @@ struct ShiftWorkoutTests {
         #expect(driver.calls.last == .start(at(7, 0), minted, .watchTap))
     }
 
+    @Test func aHealthRequestThatFailsDoesntTrapThePersonOnTheCard() async {
+        // A build without the HealthKit entitlement, or a request that errors: Health still says
+        // "not determined". The shift must go on without a workout, not stop at the card.
+        driver.access = .notDetermined
+        driver.granted = .notDetermined
+        let workout = make()
+        #expect(workout.needsHealthOnboarding)
+        await workout.allowHealth()
+        #expect(driver.authorizationRequests == 1)
+        #expect(!workout.needsHealthOnboarding)
+    }
+
     @Test func noCardWithoutHealthKit() {
         driver.access = .unavailable
         #expect(!make().needsHealthOnboarding)
