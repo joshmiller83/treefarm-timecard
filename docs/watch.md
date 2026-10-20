@@ -1361,6 +1361,8 @@ Slices a, b, c and d merged into `watch` without conflicts (no slice touched ano
 - **Toasts never take a tap.** On the 40 mm Controls page the workout's "Recording from 9:49" toast lay over Lunch and Break and swallowed the tap (found by the 40 mm UI flows); a glove's tap now goes through it.
 - **Complication renders:** the family views and their colors moved to `Watch/Shared` (the widget keeps the family switch), so `ComplicationRenderTests` renders every family in every phase at 40 and 49 mm, and the Smart Stack card, to `$COMPLICATION_SNAPSHOTS`. The corner's curved label and tinted faces only draw on a real face (7.5).
 - **Paired simulators:** `-UITestInMemory -UITestWatchLink` runs the iPhone app on the demo farm with the real watch link. `WatchPairedUITests` (watch) and `WatchLinkUITests` (iPhone) drive it, skipped unless `TEST_RUNNER_WATCH_PAIRED_PHONE=1` (7.4).
+- **Linux CI:** slice a's courier tests used `async let`, which traps in `swift_task_dealloc` on Swift 6.2 for Linux; they use tasks now.
+- **What the screenshots showed** (40 mm SE 3, 49 mm Ultra 3, Ultra 2): every screen fits without scrolling at the default and the largest text size; at the largest size on 40 mm the lunch header shortens to "LUNCH · SINCE…" and the button to "Back". In the renders, the inline complication on a break at 40 mm cuts "Lunch 12:40 · 3:…"; check the real inline slot on a face (7.5).
 - **Largest text on the watch simulator:** `-UIPreferredContentSizeCategoryName` does nothing on watchOS, and `simctl ui content_size` is unsupported there. `xcrun simctl spawn <watch> defaults write com.apple.UIKit UIPreferredContentSizeCategoryName UICTContentSizeCategoryAccessibilityXXXL`, then relaunching the app, does change it.
 
 ---
