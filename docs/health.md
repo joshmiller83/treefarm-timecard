@@ -89,4 +89,4 @@ The rule from `docs/watch.md` §2.3 stands and now covers location: **health dat
 
 ## 8. Later: the route and the tree grid
 
-Lining a route up with the blocks and rows is a separate task. The tree map is a schematic grid with no GPS coordinates, so it first needs each block's corners surveyed. Nothing in this round reads routes back.
+Planned in `docs/gis.md`: placing blocks on the state's aerial photo, a map with layers on the iPhone, and a matching engine on the watch that learns from Josh's marks and suggests rows shaped but not marked.
