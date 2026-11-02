@@ -129,6 +129,20 @@ Pure Swift, like `FieldEngine`, so it's tested on Linux with recorded shifts rep
 - Speed from GPS: shaping is a slow walk with stops.
 - Heart rate **relative to your own** walking and resting levels, which the engine learns. On its own it's weak, but it helps tell shaping from standing.
 
+**On the clock isn't cutting** (Josh, 2026-11-02). There are two starts to a day:
+
+1. **Clock-in**, usually pulling into the lot where Josh picks up his tools. The timer, the workout and the GPS start here.
+2. **Cutting**, out in the field, with no tap.
+
+The engine tells them apart without asking:
+
+- **Cutting starts** at the first steady circling inside a placed block. It **stops** when circling stops for more than a few minutes: a walk to the truck, sharpening, or a move to another block. It starts again at the next circling.
+- **Only cutting time is matched to rows and learned from.** The walk or drive from the lot never becomes a suggestion or a wrong offset correction.
+- **The GPS has settled** by the first tree, because it has run since clock-in. If the tool pickup spot is placed on the map (one more point in the editor), the minutes spent standing there give a first offset estimate before any mark.
+- **The first tree is an anchor.** Cutting usually starts at the next row in walk order, which gives the engine a first guess before the first mark.
+- **Pace means pace while cutting**: seconds a tree, rows an hour. That's what predicts where you should be (§6.4). Paid time stays the time on the clock; nothing about pay changes.
+- **Cutting time stays on Josh's devices** like the rest (§9).
+
 **6.3 Where you are.** A hidden Markov model over `(block, row)`:
 
 - The GPS fix, minus the current offset estimate, gives each row a likelihood, with a spread learned from your marks.
@@ -184,6 +198,7 @@ Pure Swift, like `FieldEngine`, so it's tested on Linux with recorded shifts rep
 The rule from `docs/health.md` §5 stands: **health data and locations never reach the farm.** For this feature:
 
 - Live locations, motion and heart rate stay on the watch. The engine runs there.
+- So does cutting time (on the clock vs actually cutting, §6.2). It never becomes a number the farm sees.
 - The phone sees your routes only through Health, after the shift, on your own phone.
 - What syncs: block placements (farm data, admin-edited), and marks you chose to make (as today).
 - **Admins never see anyone's route, position or score.** Showing crew coverage to an admin would be a separate decision.
@@ -207,6 +222,7 @@ Each phase ships on its own and is useful without the next.
   - Whether turns add up to one circle a tree from the non-dominant wrist, and which way Josh circles.
   - Whether each tree's averaged fixes line up into rows about 1.9 m apart.
   - Whether turning, energy and heart rate separate shaping from walking and standing.
+  - When cutting starts and stops each day, found from turns and position, checked against the first mark (about one row after cutting starts). Where the tool pickup spot is, and how steady the GPS is while standing there.
   - How quickly the offset drifts.
 - **Decision**: which suggestion kinds are realistic, and the starting thresholds.
 
