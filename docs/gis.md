@@ -132,7 +132,7 @@ Pure Swift, like `FieldEngine`, so it's tested on Linux with recorded shifts rep
 **On the clock isn't cutting** (Josh, 2026-11-02). There are two starts to a day:
 
 1. **Clock-in**, usually pulling into the lot where Josh picks up his tools. The timer, the workout and the GPS start here.
-2. **Cutting**, out in the field, with no tap.
+2. **Cutting**, out in the field, with no tap. Josh **drives** from the lot to the field, so the trip shows as vehicle speed (several meters a second, along the farm lanes), which no part of shaping comes close to.
 
 The engine tells them apart without asking:
 
