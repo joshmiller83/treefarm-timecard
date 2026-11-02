@@ -191,6 +191,7 @@ public final class WatchDesk {
             let settings = settings()
             state = WatchStateBuilder.build(state: field, now: at, epoch: epoch, revision: revision,
                                             recordWorkouts: settings.recordWorkouts, recordRoute: settings.recordRoute,
+                                            fieldLog: settings.fieldLog,
                                             appliedRequestIds: inbox.recentIds(WatchState.maxAppliedIds),
                                             lastAction: actions.liveSnapshot()?.lastAction, canUndo: actions.canUndo)
         } else {

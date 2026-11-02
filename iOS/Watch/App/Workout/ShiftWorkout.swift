@@ -112,6 +112,9 @@ final class ShiftWorkout {
     /// The same for the location card.
     private var askedLocationThisLaunch = false
 
+    /// Sends a closed field log to the phone (`transferFile`, which waits out of reach).
+    @ObservationIgnored var sendFieldLog: (@MainActor (URL) -> Void)?
+
     /// Delivers a finished shift's summary to the phone (`.workoutSummary`, no reply). False when
     /// the phone is out of reach: the summary waits in its one slot for `sendPendingSummary()`.
     @ObservationIgnored var sendSummary: (@MainActor (WorkoutSummary) async -> Bool)?
@@ -332,9 +335,10 @@ final class ShiftWorkout {
     }
 
     /// GPS for the route only with Record route on and location allowed; the driver runs it only
-    /// while the session runs.
+    /// while the session runs. The field log follows its own switch (docs/gis.md 10).
     private func applyRoute() {
         driver.recordRoute(inputs.confirmed?.recordRoute == true && location == .authorized)
+        driver.recordFieldLog(inputs.confirmed?.fieldLog == true)
     }
 
     /// Reconciles until nothing is left to do (a finish can be followed by a start), at most a
@@ -442,6 +446,8 @@ final class ShiftWorkout {
             refreshLive()
         case .endedUnexpectedly(let reason):
             enqueue(.endedUnexpectedly(reason))
+        case .fieldLog(let file):
+            sendFieldLog?(file)
         }
     }
 

@@ -36,6 +36,9 @@ final class FakeWorkoutDriver: WorkoutDriver {
     /// Every `recordRoute` call, in order; `routeOn` is the last.
     private(set) var routeCalls: [Bool] = []
     var routeOn: Bool { routeCalls.last ?? false }
+    /// Every `recordFieldLog` call, in order.
+    private(set) var fieldLogCalls: [Bool] = []
+    var fieldLogOn: Bool { fieldLogCalls.last ?? false }
     /// Makes `start` and `recover` slow, to race other inputs against them.
     var startDelay: Duration?
     var recoverDelay: Duration?
@@ -82,6 +85,10 @@ final class FakeWorkoutDriver: WorkoutDriver {
 
     func recordRoute(_ on: Bool) {
         routeCalls.append(on)
+    }
+
+    func recordFieldLog(_ on: Bool) {
+        fieldLogCalls.append(on)
     }
 
     func start(at date: Date, shiftId: UUID?, origin: WorkoutLocal.Origin) async throws {

@@ -93,13 +93,16 @@ struct WatchLinkTests {
     @Test func theRouteSettingTravelsAndIsOffFromAnOlderPhone() throws {
         var s = state()
         s.recordRoute = true
+        s.fieldLog = true
         guard case .state(let back) = try roundTrip(.state(s)) else { Issue.record("not a state"); return }
-        #expect(back.recordRoute)
+        #expect(back.recordRoute && back.fieldLog)
         // An older phone's state has no recordRoute at all.
         var json = try JSONSerialization.jsonObject(with: JSONCoding.encoder().encode(state())) as! [String: Any]
         json.removeValue(forKey: "recordRoute")
+        json.removeValue(forKey: "fieldLog")
         let old = try JSONCoding.decoder().decode(WatchState.self, from: JSONSerialization.data(withJSONObject: json))
         #expect(!old.recordRoute)
+        #expect(!old.fieldLog)
         #expect(old.recordWorkouts && old.farmName == "Dull’s Tree Farm" && old.usualStart?.hour == 7)
     }
 

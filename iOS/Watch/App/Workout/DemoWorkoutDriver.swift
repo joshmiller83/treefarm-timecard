@@ -27,6 +27,7 @@ final class DemoWorkoutDriver: WorkoutDriver {
     func locationStatus() -> LocationAccess { .authorized }
     func requestLocation() async -> LocationAccess { .authorized }
     func recordRoute(_ on: Bool) {}
+    func recordFieldLog(_ on: Bool) {}
 
     func start(at date: Date, shiftId: UUID?, origin: WorkoutLocal.Origin) async throws {
         pausedSince = nil

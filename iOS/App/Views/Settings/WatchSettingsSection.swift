@@ -77,6 +77,7 @@ struct WatchSettingsSection: View {
             .opacity(settings.recordWorkouts ? 1 : 0.5)
             .accessibilityIdentifier("watch-record-route")
             if typeSize.isAccessibilitySize { routeDetail }
+            if session.isAdmin { fieldLogRows }
             Text(WatchSettingsWording.footnote(recordWorkouts: settings.recordWorkouts))
                 .font(.footnote)
                 .foregroundStyle(Palette.muted)
@@ -96,6 +97,37 @@ struct WatchSettingsSection: View {
             .font(.subheadline)
             .foregroundStyle(Palette.muted)
             .fixedSize(horizontal: false, vertical: true)
+    }
+
+    /// Admins only: the phase 0 field log (docs/gis.md 10), and the logs the watch sent.
+    @ViewBuilder
+    private var fieldLogRows: some View {
+        Toggle(isOn: fieldLogBinding) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(WatchSettingsWording.fieldLogTitle)
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(Palette.ink)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text(WatchSettingsWording.fieldLogDetail)
+                    .font(.subheadline)
+                    .foregroundStyle(Palette.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .toggleStyle(GloveToggleStyle())
+        .disabled(!settings.recordWorkouts)
+        .opacity(settings.recordWorkouts ? 1 : 0.5)
+        .accessibilityIdentifier("watch-field-log")
+
+        // Read again whenever the watch sends one.
+        let logs = { _ = model.watch.fieldLogsReceived; return model.watch.fieldLogs.logs() }()
+        if !logs.isEmpty {
+            ShareLink(items: logs) {
+                Label(WatchSettingsWording.shareLogs(logs.count), systemImage: "square.and.arrow.up")
+            }
+            .buttonStyle(.gloveSecondary)
+            .accessibilityIdentifier("watch-share-field-logs")
+        }
     }
 
     private var routeDetail: some View {
@@ -130,6 +162,16 @@ struct WatchSettingsSection: View {
         }
     }
 
+    private var fieldLogBinding: Binding<Bool> {
+        Binding {
+            settings.recordWorkouts && settings.fieldLog
+        } set: { value in
+            var next = settings
+            next.fieldLog = value
+            save(next)
+        }
+    }
+
     private var routeBinding: Binding<Bool> {
         Binding {
             settings.recordWorkouts && settings.recordRoute
@@ -155,6 +197,13 @@ enum WatchSettingsWording {
     static let recordDetail = "Clock-in starts a Tree care workout on your watch (Other in Apple Health), lunch and breaks pause it, and clock-out ends it."
     static let routeTitle = "Record route (GPS)"
     static let routeDetail = "Uses GPS for distance and saves a map of where you worked with the Tree care workout in Health. Uses more battery."
+    static let fieldLogTitle = "Field log (testing)"
+    static let fieldLogDetail = "Each second of a Tree care workout, the watch writes down its GPS, heart rate and wrist motion, and sends the file here after the shift, for teaching Time Card to match rows. Turn on Record route too. Logs stay on your devices for 30 days."
+
+    /// "Share 3 field logs".
+    static func shareLogs(_ count: Int) -> String {
+        "Share \(Fmt.plural(count, "field log"))"
+    }
 
     /// Shown only with a watch paired.
     static func isShown(_ status: WatchLinkStatus) -> Bool {

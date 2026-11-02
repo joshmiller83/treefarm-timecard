@@ -32,6 +32,14 @@ public protocol WatchTransport: Sendable {
     func transferComplicationState(_ state: Data) -> Bool
     /// Returns once every context and user-info event delivered so far has been marked done.
     func drained() async
+    /// Queues a file for the other app (`transferFile`): it goes when it can, out of reach or
+    /// not, and arrives as `.fileReceived`. The watch's field log (docs/gis.md 10) is the only
+    /// file today. False when this transport can't send files.
+    func transferFile(_ file: URL, metadata: [String: String]) -> Bool
+}
+
+extension WatchTransport {
+    public func transferFile(_ file: URL, metadata: [String: String]) -> Bool { false }
 }
 
 public enum WatchTransportEvent: Sendable {
@@ -49,6 +57,9 @@ public enum WatchTransportEvent: Sendable {
     /// A complication user-info transfer (`transferCurrentComplicationUserInfo`), handled
     /// exactly like a context. Call `done` once it has been handled.
     case userInfoReceived(Data, done: WatchEventDone)
+    /// A file from the other app, already moved where it outlives WatchConnectivity's callback.
+    /// The receiver keeps it (moving it on) or deletes it.
+    case fileReceived(URL, metadata: [String: String])
 }
 
 /// Answers one received message. Holds WatchConnectivity's reply handler.

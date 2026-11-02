@@ -47,6 +47,7 @@ public final class FakeWatchTransport: WatchTransport, @unchecked Sendable {
     private var _activations = 0
     private var _lateReplies = 0
     private var _repliesSent: [Data] = []
+    private var _files: [(URL, [String: String])] = []
 
     public init(reachable: Bool = true, paired: Bool = true, installed: Bool = true,
                 complicationEnabled: Bool = false, complicationTransfers: Int = 50) {
@@ -59,6 +60,21 @@ public final class FakeWatchTransport: WatchTransport, @unchecked Sendable {
     }
 
     // MARK: WatchTransport
+
+    public func transferFile(_ file: URL, metadata: [String: String]) -> Bool {
+        lock.withLock { _files.append((file, metadata)) }
+        return true
+    }
+
+    /// Every file queued with `transferFile`, oldest first.
+    public var transferredFiles: [(file: URL, metadata: [String: String])] {
+        lock.withLock { _files.map { (file: $0.0, metadata: $0.1) } }
+    }
+
+    /// Hands a file to whoever reads `events`, as WatchConnectivity would.
+    public func deliverFile(_ file: URL, metadata: [String: String]) {
+        continuation.yield(.fileReceived(file, metadata: metadata))
+    }
 
     public var isReachable: Bool { lock.withLock { reachable } }
     public var hasContentPending: Bool { lock.withLock { contentPending } }

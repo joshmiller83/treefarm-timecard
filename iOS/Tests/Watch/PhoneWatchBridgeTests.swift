@@ -538,6 +538,25 @@ struct PhoneWatchBridgeTests {
         try data.write(to: renderFolder.appendingPathComponent("\(name).png"))
     }
 
+    // MARK: Field logs (docs/gis.md 10)
+
+    @Test func aFieldLogFromTheWatchIsKeptForSharing() async throws {
+        let h = await harness()
+        let root = FileManager.default.temporaryDirectory.appending(path: "BridgeFieldLogs-\(UUID().uuidString)")
+        h.bridge.fieldLogs = FieldLogStore(directory: root.appending(path: "FieldLogs"))
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        let log = root.appending(path: "2026-11-02T1202Z-AAAAAAAA.jsonl")
+        let stray = root.appending(path: "stray.bin")
+        try Data("{}\n".utf8).write(to: log)
+        try Data([1]).write(to: stray)
+
+        h.fake.deliverFile(log, metadata: FieldLog.transferMetadata)
+        h.fake.deliverFile(stray, metadata: [:])
+        await eventually { h.bridge.fieldLogsReceived == 1 && !FileManager.default.fileExists(atPath: stray.path) }
+        #expect(h.bridge.fieldLogs.logs().map(\.lastPathComponent) == ["2026-11-02T1202Z-AAAAAAAA.jsonl"])
+        #expect(!FileManager.default.fileExists(atPath: stray.path))
+    }
+
     // MARK: Settings wording
 
     @Test func theSettingsStatusLineNamesTheWatch() {
@@ -558,6 +577,10 @@ struct PhoneWatchBridgeTests {
         #expect(WatchSettingsWording.recordDetail.contains("Other in Apple Health"))
         #expect(WatchSettingsWording.routeTitle == "Record route (GPS)")
         #expect(WatchSettingsWording.routeDetail.hasSuffix("Uses more battery."))
+        #expect(WatchSettingsWording.fieldLogTitle == "Field log (testing)")
+        #expect(WatchSettingsWording.fieldLogDetail.contains("stay on your devices"))
+        #expect(WatchSettingsWording.shareLogs(1) == "Share 1 field log")
+        #expect(WatchSettingsWording.shareLogs(3) == "Share 3 field logs")
     }
 
     @Test func theSectionShowsOnlyWithAPairedWatch() {

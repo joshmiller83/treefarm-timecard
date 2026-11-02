@@ -25,6 +25,8 @@ final class HealthKitWorkoutDriver: NSObject, WorkoutDriver {
     private let route = RouteRecorder()
     /// Record route is on and location allowed (`recordRoute(_:)`).
     private var routeWanted = false
+    private let fieldLog = FieldLogger()
+    private var fieldLogWanted = false
     private var session: HKWorkoutSession?
     private var builder: HKLiveWorkoutBuilder?
 
@@ -55,6 +57,7 @@ final class HealthKitWorkoutDriver: NSObject, WorkoutDriver {
         self.local = store.local()
         (events, continuation) = AsyncStream.makeStream()
         super.init()
+        route.onFixes = { [weak self] in self?.fieldLog.add($0) }
     }
 
     // MARK: Authorization
@@ -106,6 +109,32 @@ final class HealthKitWorkoutDriver: NSObject, WorkoutDriver {
         route.update(running: session != nil && local.phase == .running, wanted: routeWanted)
     }
 
+    // MARK: The field log (docs/gis.md 10)
+
+    func recordFieldLog(_ on: Bool) {
+        fieldLogWanted = on
+        updateFieldLog()
+    }
+
+    /// Logs for the whole session (lunch included: the log says paused), from the start or
+    /// from the moment it's turned on.
+    private func updateFieldLog() {
+        if fieldLogWanted, session != nil, !fieldLog.isRunning {
+            let bpm = HKUnit.count().unitDivided(by: .minute())
+            fieldLog.start(shiftId: local.shiftId, at: Date(), timeZone: TimeZone.current.identifier,
+                           heartRate: { [weak self] in
+                               self?.builder?.statistics(for: HKQuantityType(.heartRate))?.mostRecentQuantity()?.doubleValue(for: bpm)
+                           },
+                           phase: { [weak self] in self?.local.phase.rawValue ?? WorkoutLocal.Phase.ended.rawValue })
+        } else if !fieldLogWanted, fieldLog.isRunning {
+            closeFieldLog()
+        }
+    }
+
+    private func closeFieldLog() {
+        if let file = fieldLog.finish() { continuation.yield(.fieldLog(file)) }
+    }
+
     // MARK: The session
 
     func start(at date: Date, shiftId: UUID?, origin: WorkoutLocal.Origin) async throws {
@@ -123,6 +152,7 @@ final class HealthKitWorkoutDriver: NSObject, WorkoutDriver {
         }
         local = local.started(at: date, shiftId: shiftId, origin: origin, syncIdentifier: UUID())
         updateRoute()
+        updateFieldLog()
     }
 
     func tag(shiftId: UUID) {
@@ -162,14 +192,16 @@ final class HealthKitWorkoutDriver: NSObject, WorkoutDriver {
             await route.flush()
             try await builder.endCollection(at: end)
             let active = builder.elapsedTime(at: end)
-            // A mistaken clock-in leaves no junk workout. [HK-P14]
+            // A mistaken clock-in leaves no junk workout (and no log). [HK-P14]
             guard active >= WorkoutPlan.minimumDuration else {
+                fieldLog.discard()
                 builder.discardWorkout()
                 endLocally()
                 return nil
             }
             try await builder.addMetadata(WorkoutMetadata.make(local: local, timeZone: timeZone))
             _ = try await builder.finishWorkout()
+            closeFieldLog()
             let summary = Self.summary(of: builder, local: local, end: end, active: active)
             endLocally()
             return summary
@@ -186,6 +218,7 @@ final class HealthKitWorkoutDriver: NSObject, WorkoutDriver {
     }
 
     func discard() async {
+        fieldLog.discard()
         builder?.discardWorkout()
         endLocally()
     }
@@ -211,6 +244,8 @@ final class HealthKitWorkoutDriver: NSObject, WorkoutDriver {
         restored.origin = restored.origin ?? .recovered
         local = restored
         updateRoute()
+        // A recovered session starts a new log; the old one ended with the app.
+        updateFieldLog()
         return true
     }
 
@@ -245,6 +280,8 @@ final class HealthKitWorkoutDriver: NSObject, WorkoutDriver {
             return shared.stoppedWaiter
         }
         waiter?.resume(returning: ())
+        // Ended any other way (an error, from outside): keep what was logged.
+        if fieldLog.isRunning { closeFieldLog() }
         route.detach()
         session?.end()
         session = nil

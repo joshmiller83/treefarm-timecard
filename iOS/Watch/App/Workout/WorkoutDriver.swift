@@ -33,6 +33,8 @@ enum WorkoutDriverEvent: Sendable {
     case metrics(heartRate: Double?, kcal: Double?, steps: Double? = nil, meters: Double? = nil)
     /// The session ended from outside the app: another workout started, an error, the system.
     case endedUnexpectedly(String)
+    /// A field log closed with its workout (docs/gis.md 10): send it to the phone.
+    case fieldLog(URL)
 }
 
 /// One workout session at a time. Every method updates `local` and saves it, so a recovered
@@ -52,6 +54,9 @@ protocol WorkoutDriver: AnyObject {
     /// Record route is on (and location allowed): GPS feeds the workout's route, but only while
     /// the session runs, never on lunch or a break. Off stops it at once.
     func recordRoute(_ on: Bool)
+    /// The field log is on (docs/gis.md 10): log while a session exists, and close the log
+    /// (`.fieldLog`) when it ends or this goes off.
+    func recordFieldLog(_ on: Bool)
     /// `startActivity(with:)` and `beginCollection(at:)` at `date`, with a new sync identifier.
     func start(at: Date, shiftId: UUID?, origin: WorkoutLocal.Origin) async throws
     func tag(shiftId: UUID)

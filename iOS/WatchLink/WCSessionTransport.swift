@@ -103,6 +103,14 @@ final class WCSessionTransport: NSObject, WCSessionDelegate, WatchTransport, @un
         await ledger.drained()
     }
 
+    /// WatchConnectivity keeps the transfer going across launches and out of reach. The file must
+    /// stay where it is until then; the sender keeps its field logs for days (docs/gis.md 10).
+    func transferFile(_ file: URL, metadata: [String: String]) -> Bool {
+        guard let session, session.activationState == .activated else { return false }
+        session.transferFile(file, metadata: metadata)
+        return true
+    }
+
     // MARK: WCSessionDelegate (nonisolated: WatchConnectivity's own queue)
 
     nonisolated func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: (any Error)?) {
@@ -139,6 +147,23 @@ final class WCSessionTransport: NSObject, WCSessionDelegate, WatchTransport, @un
         guard let data = userInfo[Self.contextKey] as? Data else { return }
         continuation.yield(.userInfoReceived(data, done: ledger.begin()))
     }
+
+    /// WatchConnectivity deletes the file when this returns, so it moves to a folder of its own
+    /// first; whoever reads the event keeps it or deletes it.
+    nonisolated func session(_ session: WCSession, didReceive file: WCSessionFile) {
+        let inbox = FileManager.default.temporaryDirectory.appending(path: "WatchFiles")
+        let moved = inbox.appending(path: "\(UUID().uuidString)-\(file.fileURL.lastPathComponent)")
+        do {
+            try FileManager.default.createDirectory(at: inbox, withIntermediateDirectories: true)
+            try FileManager.default.moveItem(at: file.fileURL, to: moved)
+        } catch {
+            return
+        }
+        let metadata = (file.metadata ?? [:]).compactMapValues { $0 as? String }
+        continuation.yield(.fileReceived(moved, metadata: metadata))
+    }
+
+    nonisolated func session(_ session: WCSession, didFinish fileTransfer: WCSessionFileTransfer, error: (any Error)?) {}
 
     #if os(iOS)
     nonisolated func sessionDidBecomeInactive(_ session: WCSession) {}

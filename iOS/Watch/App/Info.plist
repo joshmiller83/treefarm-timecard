@@ -37,6 +37,8 @@
 	<string>Time Card saves each shift as a Tree care workout (Other in Health), paused during lunch and breaks, with its route when you turn on Record route.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Time Card records your route during a Tree care workout when you turn on Record route. It stays in Health and is never sent to the farm.</string>
+	<key>NSMotionUsageDescription</key>
+	<string>Time Card's field log measures wrist motion during a Tree care workout, to learn what shaping looks like. It stays on your watch and iPhone and is never sent to the farm.</string>
 	<key>TimeCardAppGroup</key>
 	<string>group.$(BUNDLE_ID_PREFIX).timecard</string>
 	<key>UIBackgroundModes</key>

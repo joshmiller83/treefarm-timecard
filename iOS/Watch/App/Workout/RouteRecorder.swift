@@ -26,6 +26,9 @@ final class RouteRecorder: NSObject {
     /// When updates last started: a cached fix from before then is left out.
     private var since: Date?
     private var authorizationWaiters: [CheckedContinuation<LocationAccess, Never>] = []
+    /// Every fix as it arrives, unfiltered: the field log's only source of position, so there's
+    /// never a second GPS (docs/gis.md 4 and 10).
+    var onFixes: (([CLLocation]) -> Void)?
 
     override init() {
         super.init()
@@ -98,6 +101,7 @@ final class RouteRecorder: NSObject {
 
     private func receive(_ locations: [CLLocation]) {
         guard let since else { return }
+        onFixes?(locations)
         buffer += locations.filter {
             $0.horizontalAccuracy >= 0 && $0.horizontalAccuracy <= Self.maximumUncertainty && $0.timestamp >= since
         }
