@@ -36,17 +36,20 @@ public struct FieldLogHeader: Codable, Hashable, Sendable {
     /// The watch model, "Watch7,5".
     public var device: String
     public var timeZone: String
-    /// Samples a second from the batched accelerometer, when it runs.
-    public var accelerometerHz: Int?
+    /// Device motion samples a second, when it runs.
+    public var motionHz: Int?
+    /// The wrist the watch is on ("left" or "right"), and so whether it's the hand with the shears.
+    public var wrist: String?
 
     public init(version: Int = FieldLog.version, startedAt: Date, shiftId: UUID?, device: String, timeZone: String,
-                accelerometerHz: Int? = nil) {
+                motionHz: Int? = nil, wrist: String? = nil) {
         self.version = version
         self.startedAt = startedAt
         self.shiftId = shiftId
         self.device = device
         self.timeZone = timeZone
-        self.accelerometerHz = accelerometerHz
+        self.motionHz = motionHz
+        self.wrist = wrist
     }
 }
 
@@ -87,14 +90,19 @@ public struct FieldLogMotion: Codable, Hashable, Sendable {
     /// Sharp peaks above `MotionFeatures.peakThreshold`, at least `MotionFeatures.peakGap` apart:
     /// a first guess at strokes of the shears.
     public var peaks: Int
+    /// Degrees the watch turned about the vertical this second, counterclockwise seen from above
+    /// (negative: clockwise). A tree circled in a minute is about ±6 a second. Nil without a
+    /// gyroscope.
+    public var turn: Double?
     /// The acceleration's magnitude in g, averaged into 25 equal slices of the second, rounded to
     /// thousandths. Enough to try other stroke detectors later without collecting again.
     public var magnitude: [Double]
 
-    public init(samples: Int, energy: Double, peaks: Int, magnitude: [Double]) {
+    public init(samples: Int, energy: Double, peaks: Int, turn: Double? = nil, magnitude: [Double]) {
         self.samples = samples
         self.energy = energy
         self.peaks = peaks
+        self.turn = turn
         self.magnitude = magnitude
     }
 }

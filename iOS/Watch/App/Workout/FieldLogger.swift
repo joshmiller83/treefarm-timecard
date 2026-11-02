@@ -2,11 +2,13 @@ import CoreLocation
 import CoreMotion
 import Foundation
 import TreeFarmKit
+import WatchKit
 
 /// The phase 0 field log (docs/gis.md 10): while a Tree care workout runs with the field log on,
 /// one line a second of what the watch senses. The fixes are the route's own (one GPS), the
-/// heart rate is the workout's, and the wrist motion comes from the batched accelerometer that
-/// workout apps get, reduced on the spot by `MotionFeatures`.
+/// heart rate is the workout's, and the wrist motion comes from the batched device motion that
+/// workout apps get (acceleration and rotation, 200 a second), reduced on the spot by
+/// `MotionFeatures`: how hard the wrist moved, and how far it turned (a circle a tree).
 ///
 /// The file stays on the watch for `keepDays` and goes to the phone when the workout ends.
 @MainActor
@@ -30,7 +32,9 @@ final class FieldLogger {
         guard writer == nil else { return }
         Self.prune()
         let file = Self.directory.appending(path: FieldLog.fileName(startedAt: date, id: UUID()))
-        let header = FieldLogHeader(startedAt: date, shiftId: shiftId, device: Self.hardwareModel, timeZone: timeZone)
+        let wrist = WKInterfaceDevice.current().wristLocation == .left ? "left" : "right"
+        let header = FieldLogHeader(startedAt: date, shiftId: shiftId, device: Self.hardwareModel, timeZone: timeZone,
+                                    motionHz: Self.motionHz, wrist: wrist)
         guard let writer = try? FieldLogWriter(file: file, header: header) else { return }
         self.writer = writer
         self.heartRate = heartRate
@@ -87,22 +91,27 @@ final class FieldLogger {
         motionTask = nil
     }
 
-    /// The batched accelerometer, read off the main actor; each batch (about a second) goes into
-    /// the buffer as plain samples. It needs the running workout session, and asks for Motion &
+    /// Batched device motion's rate (the accelerometer alone runs faster, but has no rotation).
+    static let motionHz = 200
+
+    /// Batched device motion, read off the main actor; each batch (about a second) goes into the
+    /// buffer as plain samples. It needs the running workout session, and asks for Motion &
     /// Fitness the first time. Denied or unsupported, the log just has no motion.
     private nonisolated static func readMotion(into buffer: MotionBuffer) -> Task<Void, Never> {
         Task.detached(priority: .utility) {
-            guard CMBatchedSensorManager.isAccelerometerSupported else { return }
+            guard CMBatchedSensorManager.isDeviceMotionSupported else { return }
             let manager = CMBatchedSensorManager()
             do {
-                for try await batch in manager.accelerometerUpdates() {
+                for try await batch in manager.deviceMotionUpdates() {
                     if Task.isCancelled { break }
                     buffer.add(batch.map {
-                        MotionSample(t: $0.timestamp, x: $0.acceleration.x, y: $0.acceleration.y, z: $0.acceleration.z)
+                        MotionSample(t: $0.timestamp, gravity: ($0.gravity.x, $0.gravity.y, $0.gravity.z),
+                                     user: ($0.userAcceleration.x, $0.userAcceleration.y, $0.userAcceleration.z),
+                                     rotation: ($0.rotationRate.x, $0.rotationRate.y, $0.rotationRate.z))
                     })
                 }
             } catch {}
-            manager.stopAccelerometerUpdates()
+            manager.stopDeviceMotionUpdates()
         }
     }
 

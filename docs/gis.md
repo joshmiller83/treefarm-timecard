@@ -32,7 +32,11 @@ This matches the farm's 14 blocks of 61 rows × 10 trees.
 
 **What that means for GPS.** A good phone or watch fix is off by about 3–5 m. That's **less than a quarter of a band**, so which block you're in is easy. But it's **2–3 rows** east–west, so which row you're in is the hard part. Two things help a lot:
 
-- **Shaping a row is a walk across the band.** About 18 m north or south, then about 1.9 m sideways, then back. GPS is much better at *relative* movement over a minute than at absolute position, so counting those crossings should count rows even when the absolute position is 2 rows off. **This is the main hypothesis phase 0 tests.**
+- **Shaping a tree is a walk around it** (Josh, 2026-11-02): one full circle, **45–75 seconds** a tree, so about 8–12 minutes a row of 10.
+  - Every circle turns the body, and the watch on either wrist, a full **360°**. The gyroscope sees that without any GPS, so **counting turns counts trees**, and about 10 turns is a row.
+  - A minute at one tree also means 45–75 fixes there. Their average is a far better tree position than any single fix.
+  - Tree to tree is a step of about 1.8 m along the row (north or south). At the lane comes the step of about 1.9 m sideways to the next row, and back across the band.
+  - **This is the main hypothesis phase 0 tests:** that turns count trees from Josh's non-dominant wrist (the one without the shears), and that the tree positions line up into rows.
 - **Marks are anchors.** Every row Josh marks says "I was at row 14 at 9:02". The engine uses each one to correct GPS's slow-drifting offset, and the marks bound every gap ("marked 14, then 20").
 
 ## 1. How it fits together
@@ -107,7 +111,9 @@ All of it comes from the running Tree care workout, so none of it needs a new se
 
 - **Position**: the route's fixes (about 1 per second while moving), with their accuracy.
 - **Heart rate**: from the workout builder, as now.
-- **Wrist motion**: `CMBatchedSensorManager` (watchOS 10+), the high-rate accelerometer Apple opened to workout apps. Shaping shears or a knife leave a strong, rhythmic signature that walking doesn't. The watch reduces it on the spot to a few numbers per second (stroke rate, motion energy) and keeps no raw samples.
+- **Wrist motion**: `CMBatchedSensorManager` (watchOS 10+), the batched device motion Apple opened to workout apps: acceleration and rotation, 200 a second. The watch reduces it on the spot to a few numbers a second and keeps no raw samples:
+  - **Turn**: degrees turned about the vertical. About 6° a second while circling a tree.
+  - **Energy and strokes**: how hard the wrist moved. Josh wears the watch on the hand without the shears, so strokes will be weaker than turns.
 - **Marks and taps**: every row marked on the watch, by Siri or on the phone, with its time.
 
 ## 6. The matching engine (TreeFarmKit `Geo/`)
@@ -118,14 +124,16 @@ Pure Swift, like `FieldEngine`, so it's tested on Linux with recorded shifts rep
 
 **6.2 What you're doing**, every few seconds: **shaping**, **moving**, **idle**, or **on a break** (the workout is paused, so GPS is off anyway). It comes from:
 
-- Stroke rate and motion energy, the strongest sign.
+- **Turning**: a steady turn of a few degrees a second, adding up to a full circle in about a minute, is the strongest sign.
+- Motion energy and strokes.
 - Speed from GPS: shaping is a slow walk with stops.
 - Heart rate **relative to your own** walking and resting levels, which the engine learns. On its own it's weak, but it helps tell shaping from standing.
 
 **6.3 Where you are.** A hidden Markov model over `(block, row)`:
 
 - The GPS fix, minus the current offset estimate, gives each row a likelihood, with a spread learned from your marks.
-- **Crossings**: each north–south crossing of the band while shaping is evidence of one row (or two, if you turn out to work two rows per pass; phase 0 finds out).
+- **Turns**: each full circle is one tree, so about 10 since the last mark is a row done. Unlike position, a turn count doesn't drift with GPS.
+- **Tree positions**: the averaged fixes of each circle form a line of about 10 points north–south, which is a row. The next line, about 1.9 m over, is the next row.
 - Moves favor staying, then the next row in walk order, then the neighbors. Blocks only change at lanes.
 - How long you stay in a row comes from your own pace (`Pace` already knows trees per hour).
 
@@ -189,15 +197,16 @@ Each phase ships on its own and is useful without the next.
 **Phase 0: Measure** (a week or two of Josh's normal shifts)
 - A **field log** on the watch, behind a developer switch. **Built (2026-11-02):**
   - **The switch:** iPhone Settings › Apple Watch › **Field log (testing)**. Admins only, off by default, and only with workouts on. It travels as `WatchState.fieldLog`.
-  - **What it writes:** while a Tree care workout session exists, `FieldLogger` (watch) writes one JSON Lines file per workout (`TreeFarmKit/Geo/FieldLog.swift`): a header, then one line a second. Each line has every raw fix since the last line, the latest heart rate, the session phase, and the wrist motion reduced by `MotionFeatures`: sample count, energy, a first stroke count, and the acceleration's magnitude at 25 a second.
+  - **What it writes:** while a Tree care workout session exists, `FieldLogger` (watch) writes one JSON Lines file per workout (`TreeFarmKit/Geo/FieldLog.swift`): a header, then one line a second. Each line has every raw fix since the last line, the latest heart rate, the session phase, and the wrist motion reduced by `MotionFeatures`: sample count, the turn in degrees, energy, a first stroke count, and the acceleration's magnitude at 25 a second. The header says which wrist the watch is on.
   - **Sources:** the fixes come from the route recorder, so **Record route must be on** for positions. The motion comes from `CMBatchedSensorManager`, which asks for Motion & Fitness the first time.
   - **Getting it to the Mac:** when the workout ends, the file goes to the phone with WatchConnectivity's `transferFile`, which waits if the phone is out of reach. The phone keeps it for 30 days (`FieldLogStore`), and Settings shows **Share N field logs** for AirDrop to the Mac. The watch keeps its copy for 7 days.
   - **Marks:** they aren't in the log. The analysis reads them from the farm server's database by time, which also catches marks made on the phone or by Siri.
 - **Place 2–3 blocks by hand** from the photo. The corners can be taken on the Mac first; the editor comes in phase 1.
 - **Replay** the logs through a first engine on the Mac. Questions to answer:
   - GPS error across rows, before and after the mark-based offset correction.
-  - Whether crossings show up cleanly, and how many per row.
-  - Whether wrist strokes separate shaping from walking.
+  - Whether turns add up to one circle a tree from the non-dominant wrist, and which way Josh circles.
+  - Whether each tree's averaged fixes line up into rows about 1.9 m apart.
+  - Whether turning, energy and heart rate separate shaping from walking and standing.
   - How quickly the offset drifts.
 - **Decision**: which suggestion kinds are realistic, and the starting thresholds.
 
@@ -223,7 +232,7 @@ Each phase ships on its own and is useful without the next.
 ## 11. Risks and open questions
 
 - **GPS across rows** is the big one. If crossings don't show and the offset drifts fast, suggestions stop at gaps between marks. That's still useful, and phase 0 says which.
-- **How Josh shapes**: one row per pass, or two rows from the aisle between them? It changes the crossing count. Phase 0 shows it.
+- **How Josh shapes**: answered. He circles each tree, 45–75 s. Still open: whether he always circles the same way, and whether trees by a lane or a gap get a partial circle. Phase 0 shows it. One comparison shift with the watch on the shears hand would show how much stroke signal the other wrist misses.
 - **Battery**: GPS plus high-rate motion for 9 hours. The Ultra 2 is rated about 12 hours of GPS workout. Phase 0 measures it. Other watches may get suggestions only with a full charge.
 - **The motion API** needs the workout session (which exists) and may need its own permission prompt. To check on the device.
 - **Notifications while a workout app runs**: whether a local notification with actions shows with the wrist down, or only in the app. To check on the device. The card covers the app-on-screen case either way.
