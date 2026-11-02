@@ -53,14 +53,14 @@ struct ShiftWorkoutTests {
     // MARK: States and taps
 
     func working(_ id: UUID? = nil, start: Date? = nil, phase: LiveSnapshot.Phase = .working, updatedAt: Date? = nil,
-                 recordWorkouts: Bool = true, recordRoute: Bool = false) -> WatchState {
+                 recordWorkouts: Bool = true, recordRoute: Bool = false, fieldLog: Bool = false) -> WatchState {
         let start = start ?? at(7, 0)
         let snapshot = LiveSnapshot(phase: phase, timerStart: start, workedSoFar: 0, workedLabel: "worked today",
                                     breakStart: phase == .working ? nil : at(12, 0), breakReason: "", fieldName: "North",
                                     nextRows: [], shiftTrees: 0, fieldShaped: 0, fieldTotal: 400, lastAction: nil, canUndo: false)
         return WatchState(signedIn: true, farmName: "Farm", fieldName: "North", snapshot: snapshot, nextRows: [], todayWorked: 0,
                           todayTrees: 0, canUndo: false, recordWorkouts: recordWorkouts, updatedAt: updatedAt ?? clock.now,
-                          userId: user, shiftId: id ?? shift, shiftStart: start, farmTimeZone: Self.zone, recordRoute: recordRoute)
+                          userId: user, shiftId: id ?? shift, shiftStart: start, farmTimeZone: Self.zone, recordRoute: recordRoute, fieldLog: fieldLog)
     }
 
     func offClock(closed: ClosedShift? = nil, recordWorkouts: Bool = true, updatedAt: Date? = nil) -> WatchState {
@@ -567,6 +567,26 @@ struct ShiftWorkoutTests {
         workout.reconcile(WorkoutInputs(confirmed: working(start: at(7, 0))))
         await workout.settled()
         #expect(!workout.live.routeOff)
+    }
+
+    // MARK: - The field log (docs/gis.md 10)
+
+    @Test func theFieldLogFollowsItsSwitchAndAClosedLogGoesToThePhone() async {
+        let workout = make()
+        var sent: [URL] = []
+        workout.sendFieldLog = { sent.append($0) }
+        workout.reconcile(WorkoutInputs(confirmed: working(start: at(7, 0))))
+        await workout.settled()
+        #expect(!driver.fieldLogOn)
+
+        workout.reconcile(WorkoutInputs(confirmed: working(start: at(7, 0), fieldLog: true)))
+        await workout.settled()
+        #expect(driver.fieldLogOn)
+
+        let file = URL(fileURLWithPath: "/tmp/2026-11-02T1202Z-AAAAAAAA.jsonl")
+        driver.emit(.fieldLog(file))
+        await until { !sent.isEmpty }
+        #expect(sent == [file])
     }
 
     @Test func noLocationCardWithoutTheRouteOrWithoutHealth() async {

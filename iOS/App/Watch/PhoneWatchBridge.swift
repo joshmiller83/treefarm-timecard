@@ -127,6 +127,10 @@ final class PhoneWatchBridge {
     @ObservationIgnored private let launcher: any WatchWorkoutLauncher
     @ObservationIgnored let desk: WatchDesk
     private(set) var status: WatchLinkStatus = .noWatch
+    /// Where the watch's field logs are kept (docs/gis.md 10). Tests point it elsewhere.
+    @ObservationIgnored var fieldLogs = FieldLogStore()
+    /// Counts the field logs received this launch, so Settings lists the new one at once.
+    private(set) var fieldLogsReceived = 0
 
     @ObservationIgnored private var paired = false
     @ObservationIgnored private var installed = false
@@ -187,6 +191,10 @@ final class PhoneWatchBridge {
         case .contextReceived(_, let done), .userInfoReceived(_, let done):
             // The watch never sends these; mark them handled all the same.
             done()
+        case .fileReceived(let file, let metadata):
+            // A field log (docs/gis.md 10), kept for the person to share.
+            if fieldLogs.accept(file, metadata: metadata) != nil { fieldLogsReceived += 1 }
+            fieldLogs.prune()
         }
     }
 

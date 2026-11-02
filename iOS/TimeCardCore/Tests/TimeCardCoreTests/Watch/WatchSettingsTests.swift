@@ -53,7 +53,13 @@ struct WatchSettingsTests {
     @Test func settingsSavedBeforeTheRouteReadAsRouteOff() throws {
         try store.setValue(Data(#"{"recordWorkouts":false}"#.utf8), forKey: WatchSettings.key(userId: josh))
         let saved = WatchSettings.load(from: store, userId: josh)
-        #expect(saved == WatchSettings(recordWorkouts: false, recordRoute: false))
+        #expect(saved == WatchSettings(recordWorkouts: false, recordRoute: false, fieldLog: false))
+    }
+
+    @Test func theFieldLogIsOffUntilSomeoneTurnsItOn() {
+        #expect(!WatchSettings.load(from: store, userId: josh).fieldLog)
+        WatchSettings.save(WatchSettings(fieldLog: true), to: store, userId: josh)
+        #expect(WatchSettings.load(from: store, userId: josh).fieldLog)
     }
 
     @Test func theKeyNamesThePerson() {

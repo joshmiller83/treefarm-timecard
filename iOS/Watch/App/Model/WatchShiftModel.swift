@@ -221,6 +221,9 @@ final class WatchShiftModel {
         actionButtonClockIn = { ShiftWorkout.shared.noteActionButtonClockIn(shiftId: $0) }
         afterFlush = { await ShiftWorkout.shared.sendPendingSummary() }
         ShiftWorkout.shared.sendSummary = { [weak self] summary in await self?.sendSummary(summary) ?? false }
+        ShiftWorkout.shared.sendFieldLog = { [weak self] file in
+            _ = self?.transport.transferFile(file, metadata: FieldLog.transferMetadata)
+        }
     }
 
     func addObserver(_ observer: @escaping @MainActor (WatchModelChange) -> Void) {
@@ -475,6 +478,9 @@ final class WatchShiftModel {
             if let state = Self.state(in: data) { await accept(state) }
             publishComplications()
             done()
+        case .fileReceived(let file, _):
+            // The phone never sends files.
+            try? FileManager.default.removeItem(at: file)
         }
     }
 

@@ -187,7 +187,12 @@ The rule from `docs/health.md` §5 stands: **health data and locations never rea
 Each phase ships on its own and is useful without the next.
 
 **Phase 0: Measure** (a week or two of Josh's normal shifts)
-- A **field log** on the watch, behind a developer switch: once a second, the fix and its accuracy, speed, heart rate, stroke rate and motion energy, plus every mark. On request it goes to the phone as a file, then by share sheet to the Mac.
+- A **field log** on the watch, behind a developer switch. **Built (2026-11-02):**
+  - **The switch:** iPhone Settings › Apple Watch › **Field log (testing)**. Admins only, off by default, and only with workouts on. It travels as `WatchState.fieldLog`.
+  - **What it writes:** while a Tree care workout session exists, `FieldLogger` (watch) writes one JSON Lines file per workout (`TreeFarmKit/Geo/FieldLog.swift`): a header, then one line a second. Each line has every raw fix since the last line, the latest heart rate, the session phase, and the wrist motion reduced by `MotionFeatures`: sample count, energy, a first stroke count, and the acceleration's magnitude at 25 a second.
+  - **Sources:** the fixes come from the route recorder, so **Record route must be on** for positions. The motion comes from `CMBatchedSensorManager`, which asks for Motion & Fitness the first time.
+  - **Getting it to the Mac:** when the workout ends, the file goes to the phone with WatchConnectivity's `transferFile`, which waits if the phone is out of reach. The phone keeps it for 30 days (`FieldLogStore`), and Settings shows **Share N field logs** for AirDrop to the Mac. The watch keeps its copy for 7 days.
+  - **Marks:** they aren't in the log. The analysis reads them from the farm server's database by time, which also catches marks made on the phone or by Siri.
 - **Place 2–3 blocks by hand** from the photo. The corners can be taken on the Mac first; the editor comes in phase 1.
 - **Replay** the logs through a first engine on the Mac. Questions to answer:
   - GPS error across rows, before and after the mark-based offset correction.

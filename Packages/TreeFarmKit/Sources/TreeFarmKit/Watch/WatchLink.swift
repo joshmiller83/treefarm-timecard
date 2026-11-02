@@ -202,6 +202,9 @@ public struct WatchState: Codable, Hashable, Sendable {
     /// Whether the workout records a GPS route (docs/health.md 3). Only ever true with
     /// `recordWorkouts`; false from a phone that predates it.
     public var recordRoute: Bool
+    /// The phase 0 field log (docs/gis.md 10): the watch writes what it senses each second of a
+    /// Tree care workout. Only ever true with `recordWorkouts`; false from an older phone.
+    public var fieldLog: Bool
     /// When the phone built this state.
     public var updatedAt: Date
 
@@ -234,7 +237,7 @@ public struct WatchState: Codable, Hashable, Sendable {
                 shiftStart: Date? = nil, lastClosedShift: ClosedShift? = nil, appliedRequestIds: [UUID] = [],
                 hadLunchToday: Bool = false, pacePerHour: Double? = nil,
                 farmTimeZone: String = TimeZone.current.identifier, usualStart: DateComponents? = nil,
-                recordRoute: Bool = false) {
+                recordRoute: Bool = false, fieldLog: Bool = false) {
         self.signedIn = signedIn
         self.farmName = farmName
         self.fieldName = fieldName
@@ -245,6 +248,7 @@ public struct WatchState: Codable, Hashable, Sendable {
         self.canUndo = canUndo
         self.recordWorkouts = recordWorkouts
         self.recordRoute = recordRoute
+        self.fieldLog = fieldLog
         self.updatedAt = updatedAt
         self.epoch = epoch
         self.revision = revision
@@ -260,13 +264,13 @@ public struct WatchState: Codable, Hashable, Sendable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case signedIn, farmName, fieldName, snapshot, nextRows, todayWorked, todayTrees, canUndo, recordWorkouts, recordRoute,
+        case signedIn, farmName, fieldName, snapshot, nextRows, todayWorked, todayTrees, canUndo, recordWorkouts, recordRoute, fieldLog,
              updatedAt, epoch, revision, userId, shiftId, shiftStart, lastClosedShift, appliedRequestIds, hadLunchToday,
              pacePerHour, farmTimeZone, usualStart
     }
 
-    /// Reads a state from a phone that may predate `recordRoute` (TestFlight updates the two apps
-    /// separately): missing, it's false.
+    /// Reads a state from a phone that may predate `recordRoute` or `fieldLog` (TestFlight
+    /// updates the two apps separately): missing, they're false.
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         signedIn = try c.decode(Bool.self, forKey: .signedIn)
@@ -279,6 +283,7 @@ public struct WatchState: Codable, Hashable, Sendable {
         canUndo = try c.decode(Bool.self, forKey: .canUndo)
         recordWorkouts = try c.decode(Bool.self, forKey: .recordWorkouts)
         recordRoute = try c.decodeIfPresent(Bool.self, forKey: .recordRoute) ?? false
+        fieldLog = try c.decodeIfPresent(Bool.self, forKey: .fieldLog) ?? false
         updatedAt = try c.decode(Date.self, forKey: .updatedAt)
         epoch = try c.decode(UUID.self, forKey: .epoch)
         revision = try c.decode(Int.self, forKey: .revision)

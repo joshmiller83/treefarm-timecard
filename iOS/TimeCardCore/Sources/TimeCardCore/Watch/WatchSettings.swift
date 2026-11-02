@@ -9,19 +9,24 @@ public struct WatchSettings: Codable, Equatable, Sendable {
     /// "Record route (GPS)", off by default (docs/health.md 3). It only counts while workouts
     /// are on: the watch hears `recordWorkouts && recordRoute`.
     public var recordRoute: Bool
+    /// "Field log (testing)", off by default and shown to admins only (docs/gis.md 10). Like the
+    /// route, it only counts while workouts are on.
+    public var fieldLog: Bool
 
-    public init(recordWorkouts: Bool = true, recordRoute: Bool = false) {
+    public init(recordWorkouts: Bool = true, recordRoute: Bool = false, fieldLog: Bool = false) {
         self.recordWorkouts = recordWorkouts
         self.recordRoute = recordRoute
+        self.fieldLog = fieldLog
     }
 
-    private enum CodingKeys: String, CodingKey { case recordWorkouts, recordRoute }
+    private enum CodingKeys: String, CodingKey { case recordWorkouts, recordRoute, fieldLog }
 
-    /// Settings saved before the route existed read as route off.
+    /// Settings saved before the route or the field log existed read them as off.
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         recordWorkouts = try c.decode(Bool.self, forKey: .recordWorkouts)
         recordRoute = try c.decodeIfPresent(Bool.self, forKey: .recordRoute) ?? false
+        fieldLog = try c.decodeIfPresent(Bool.self, forKey: .fieldLog) ?? false
     }
 
     /// Where one person's settings live in the phone's store.

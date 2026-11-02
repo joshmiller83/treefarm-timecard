@@ -202,6 +202,8 @@ targets:
         # Tapping the iPhone's Live Activity in the Smart Stack opens this app (watchOS 11.1+).
         WKSupportsLiveActivityLaunchAttributeTypes:
           - TimeCardActivityAttributes
+        # The field log's wrist motion, only with the field log on (docs/gis.md 10).
+        NSMotionUsageDescription: Time Card's field log measures wrist motion during a Tree care workout, to learn what shaping looks like. It stays on your watch and iPhone and is never sent to the farm.
         # Only with Record route on, and only while a Tree care workout runs (docs/health.md 3).
         NSLocationWhenInUseUsageDescription: Time Card records your route during a Tree care workout when you turn on Record route. It stays in Health and is never sent to the farm.
         NSHealthShareUsageDescription: Time Card shows the heart rate, calories, steps and distance from your shifts. They stay on your iPhone and Apple Watch and are never sent to the farm.
