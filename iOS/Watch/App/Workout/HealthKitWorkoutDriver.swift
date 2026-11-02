@@ -12,8 +12,19 @@ import TreeFarmKit
 final class HealthKitWorkoutDriver: NSObject, WorkoutDriver {
     enum DriverError: Error { case noSession }
 
+    /// Bumped when Time Card starts reading a new type from Health, so a watch that answered an
+    /// older request sees the card once more (docs/health.md 2). 2: steps and distance.
+    static let readVersion = 2
+    static let readVersionKey = "workout.healthReadVersion"
+    /// The types collected beside the defaults for Other.
+    static let movementTypes = [HKQuantityType(.stepCount), HKQuantityType(.distanceWalkingRunning)]
+
     private let healthStore = HKHealthStore()
     private let store: WorkoutStore
+    private let defaults: UserDefaults
+    private let route = RouteRecorder()
+    /// Record route is on and location allowed (`recordRoute(_:)`).
+    private var routeWanted = false
     private var session: HKWorkoutSession?
     private var builder: HKLiveWorkoutBuilder?
 
@@ -38,8 +49,9 @@ final class HealthKitWorkoutDriver: NSObject, WorkoutDriver {
 
     private let shared = Mutex(Shared())
 
-    init(store: WorkoutStore = WorkoutStore()) {
+    init(store: WorkoutStore = WorkoutStore(), defaults: UserDefaults = .standard) {
         self.store = store
+        self.defaults = defaults
         self.local = store.local()
         (events, continuation) = AsyncStream.makeStream()
         super.init()
@@ -57,12 +69,41 @@ final class HealthKitWorkoutDriver: NSObject, WorkoutDriver {
         }
     }
 
-    /// Share workouts; read heart rate and active energy. Nothing more. [HK-F16]
+    /// Share workouts (and their routes); read heart rate, active energy, steps and distance.
+    /// Nothing more. [HK-F16]
     func requestAuthorization() async -> HealthAccess {
         guard HKHealthStore.isHealthDataAvailable() else { return .unavailable }
-        let read: Set<HKObjectType> = [HKQuantityType(.heartRate), HKQuantityType(.activeEnergyBurned)]
-        try? await healthStore.requestAuthorization(toShare: [HKObjectType.workoutType()], read: read)
+        let read = Set<HKObjectType>([HKQuantityType(.heartRate), HKQuantityType(.activeEnergyBurned)] + Self.movementTypes)
+        let share: Set<HKSampleType> = [HKObjectType.workoutType(), HKSeriesType.workoutRoute()]
+        do {
+            try await healthStore.requestAuthorization(toShare: share, read: read)
+            defaults.set(Self.readVersion, forKey: Self.readVersionKey)
+        } catch {}
         return authorizationStatus()
+    }
+
+    var asksForMore: Bool {
+        authorizationStatus() == .authorized && defaults.integer(forKey: Self.readVersionKey) < Self.readVersion
+    }
+
+    // MARK: The route (docs/health.md 3)
+
+    func locationStatus() -> LocationAccess { route.access }
+
+    func requestLocation() async -> LocationAccess {
+        let access = await route.requestAuthorization()
+        updateRoute()
+        return access
+    }
+
+    func recordRoute(_ on: Bool) {
+        routeWanted = on
+        updateRoute()
+    }
+
+    /// GPS only while the session runs.
+    private func updateRoute() {
+        route.update(running: session != nil && local.phase == .running, wanted: routeWanted)
     }
 
     // MARK: The session
@@ -71,7 +112,7 @@ final class HealthKitWorkoutDriver: NSObject, WorkoutDriver {
         let configuration = WorkoutMetadata.configuration()
         let session = try HKWorkoutSession(healthStore: healthStore, configuration: configuration)
         let builder = session.associatedWorkoutBuilder()
-        builder.dataSource = HKLiveWorkoutDataSource(healthStore: healthStore, workoutConfiguration: configuration)
+        builder.dataSource = Self.dataSource(healthStore, configuration)
         attach(session, builder)
         session.startActivity(with: date)
         do {
@@ -81,6 +122,7 @@ final class HealthKitWorkoutDriver: NSObject, WorkoutDriver {
             throw error
         }
         local = local.started(at: date, shiftId: shiftId, origin: origin, syncIdentifier: UUID())
+        updateRoute()
     }
 
     func tag(shiftId: UUID) {
@@ -92,17 +134,20 @@ final class HealthKitWorkoutDriver: NSObject, WorkoutDriver {
     func pause() {
         session?.pause()
         local = local.with(phase: .paused)
+        updateRoute()
     }
 
     func resume() {
         session?.resume()
         local = local.with(phase: .running)
+        updateRoute()
     }
 
     func stop(at date: Date) async throws {
         guard let session else { throw DriverError.noSession }
         await stopActivity(session, at: date)
         local = local.stopped(at: date)
+        updateRoute()
     }
 
     func finish(at end: Date, timeZone: String) async throws -> WorkoutSummary? {
@@ -112,6 +157,9 @@ final class HealthKitWorkoutDriver: NSObject, WorkoutDriver {
         }
         do {
             await stopActivity(session, at: end)
+            // The last of the route goes in before the workout saves and attaches it.
+            route.update(running: false, wanted: false)
+            await route.flush()
             try await builder.endCollection(at: end)
             let active = builder.elapsedTime(at: end)
             // A mistaken clock-in leaves no junk workout. [HK-P14]
@@ -150,7 +198,7 @@ final class HealthKitWorkoutDriver: NSObject, WorkoutDriver {
             return false
         }
         let builder = recovered.associatedWorkoutBuilder()
-        builder.dataSource = HKLiveWorkoutDataSource(healthStore: healthStore, workoutConfiguration: recovered.workoutConfiguration)
+        builder.dataSource = Self.dataSource(healthStore, recovered.workoutConfiguration)
         attach(recovered, builder)
         var restored = local
         restored.phase = Self.phase(of: recovered.state)
@@ -162,6 +210,7 @@ final class HealthKitWorkoutDriver: NSObject, WorkoutDriver {
         restored.syncIdentifier = restored.syncIdentifier ?? UUID()
         restored.origin = restored.origin ?? .recovered
         local = restored
+        updateRoute()
         return true
     }
 
@@ -173,6 +222,14 @@ final class HealthKitWorkoutDriver: NSObject, WorkoutDriver {
         builder.delegate = self
         self.session = session
         self.builder = builder
+        route.attach(builder)
+    }
+
+    /// The live data source: Other's defaults, plus steps and distance (docs/health.md 2).
+    private static func dataSource(_ healthStore: HKHealthStore, _ configuration: HKWorkoutConfiguration) -> HKLiveWorkoutDataSource {
+        let source = HKLiveWorkoutDataSource(healthStore: healthStore, workoutConfiguration: configuration)
+        for type in movementTypes { source.enableCollection(for: type, predicate: nil) }
+        return source
     }
 
     private func endLocally() {
@@ -188,6 +245,7 @@ final class HealthKitWorkoutDriver: NSObject, WorkoutDriver {
             return shared.stoppedWaiter
         }
         waiter?.resume(returning: ())
+        route.detach()
         session?.end()
         session = nil
         builder = nil
@@ -221,11 +279,20 @@ final class HealthKitWorkoutDriver: NSObject, WorkoutDriver {
         let bpm = HKUnit.count().unitDivided(by: .minute())
         let heart = builder.statistics(for: HKQuantityType(.heartRate))
         let energy = builder.statistics(for: HKQuantityType(.activeEnergyBurned))
+        let (steps, meters) = movement(of: builder)
         return WorkoutSummary(shiftId: local.shiftId, start: local.startedAt ?? builder.startDate ?? end, end: end,
                               activeDuration: active,
                               activeKcal: energy?.sumQuantity()?.doubleValue(for: .kilocalorie()),
                               avgHeartRate: heart?.averageQuantity()?.doubleValue(for: bpm),
-                              maxHeartRate: heart?.maximumQuantity()?.doubleValue(for: bpm))
+                              maxHeartRate: heart?.maximumQuantity()?.doubleValue(for: bpm),
+                              steps: steps, distanceMeters: meters)
+    }
+
+    /// Steps and meters so far. Distance is the watch's stride estimate, refined by GPS when
+    /// Record route is on.
+    nonisolated private static func movement(of builder: HKWorkoutBuilder) -> (steps: Double?, meters: Double?) {
+        (builder.statistics(for: HKQuantityType(.stepCount))?.sumQuantity()?.doubleValue(for: .count()),
+         builder.statistics(for: HKQuantityType(.distanceWalkingRunning))?.sumQuantity()?.doubleValue(for: .meter()))
     }
 }
 
@@ -288,7 +355,8 @@ extension HealthKitWorkoutDriver: HKLiveWorkoutBuilderDelegate {
         let bpm = HKUnit.count().unitDivided(by: .minute())
         let heart = workoutBuilder.statistics(for: HKQuantityType(.heartRate))?.mostRecentQuantity()?.doubleValue(for: bpm)
         let kcal = workoutBuilder.statistics(for: HKQuantityType(.activeEnergyBurned))?.sumQuantity()?.doubleValue(for: .kilocalorie())
-        continuation.yield(.metrics(heartRate: heart, kcal: kcal))
+        let (steps, meters) = Self.movement(of: workoutBuilder)
+        continuation.yield(.metrics(heartRate: heart, kcal: kcal, steps: steps, meters: meters))
     }
 
     nonisolated func workoutBuilderDidCollectEvent(_ workoutBuilder: HKLiveWorkoutBuilder) {}

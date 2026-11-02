@@ -8,7 +8,7 @@ public enum WatchStateBuilder {
     public static let usualStartMinimum = 3
 
     public static func build(state: FieldState, now: Date, epoch: UUID, revision: Int, recordWorkouts: Bool,
-                             appliedRequestIds: [UUID], lastAction: String?, canUndo: Bool) -> WatchState {
+                             recordRoute: Bool = false, appliedRequestIds: [UUID], lastAction: String?, canUndo: Bool) -> WatchState {
         let cal = state.calendar
         let index = state.index
         let shifts = state.liveShifts
@@ -47,7 +47,8 @@ public enum WatchStateBuilder {
             hadLunchToday: today.contains { $0.breaks.contains { $0.kind == .lunch } },
             pacePerHour: pace.hasRate ? pace.treesPerHour : nil,
             farmTimeZone: state.farm.timeZoneId,
-            usualStart: usualStart(shifts, calendar: cal))
+            usualStart: usualStart(shifts, calendar: cal),
+            recordRoute: recordWorkouts && recordRoute)
     }
 
     /// The shift that ended last.

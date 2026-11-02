@@ -5,7 +5,7 @@ The spec for Time Card on Apple Watch. It is the plan of record for the watch wo
 **Two decisions from Josh shape everything:**
 
 1. **The iPhone is always nearby, and it stays the single source of truth.** The watch is a companion. It drives the phone over WatchConnectivity and never holds the farm, the store or the sync engine. A tap made while the phone is out of reach waits on the watch with the time it was made, and the phone applies it at that time once it is back, but only to the shift it was made in.
-2. **Every shift records as an Apple Watch workout.** Clock-in starts an outdoor workout, lunch and breaks pause it, and clock-out ends it. Health logs heart rate and calories, and the running workout keeps Time Card on the wrist for the whole shift.
+2. **Every shift records as an Apple Watch workout.** Clock-in starts an outdoor workout, lunch and breaks pause it, and clock-out ends it. Health logs heart rate and calories, and the running workout keeps Time Card on the wrist for the whole shift. Since the Health round (`docs/health.md`), the workout is called **Tree care**, also counts steps and distance, and can record a GPS route (off by default).
 
 **Why the watch matters:** ordinary leather or insulated work gloves don't register on the watch's touchscreen, and Apple Watch has no glove mode. So the inputs that work in the field are hands-free: **Double Tap, the Digital Crown, the Ultra's Action button and Siri**. Every shift action has to work through them. Touch is the backup, for bare fingers, knuckles and conductive-tip gloves, so every target is still huge. [UI-F5, UI-P3]
 
@@ -167,7 +167,7 @@ WatchConnectivity and HealthKit have no `Sendable` annotations and call back on 
 
 ### 2.1 Configuration
 
-- `HKWorkoutConfiguration`: `activityType = .other` and `locationType = .outdoor`. There's no gardening or occupational type, and `.other` is Apple's catch-all. [HK-F3] No CoreLocation and no route builder. On the first device run, check that no location indicator appears.
+- `HKWorkoutConfiguration`: `activityType = .other` and `locationType = .outdoor`. There's no gardening or occupational type, and `.other` is Apple's catch-all. [HK-F3] Time Card calls it **Tree care** (`docs/health.md` §1). No CoreLocation unless the person turns on Record route (`docs/health.md` §3). With it off, check on the first device run that no location indicator appears.
 - Onboarding tells people how calories are counted with Apple's wording for `.other`: "you earn the calorie equivalent of a brisk walk anytime sensor readings are unavailable." [HK-F3, HK-R2]
 - The **watch owns the session**: it's created only on the watch, in the foreground, or from `handle(_ workoutConfiguration:)`. [HK-F5, HK-P1]
 
@@ -223,7 +223,8 @@ WatchConnectivity and HealthKit have no `Sendable` annotations and call back on 
 
 | Key | Value |
 |---|---|
-| `HKMetadataKeyWorkoutBrandName` | `"Time Card shift"` |
+| `HKMetadataKeyWorkoutBrandName` | `"Tree care"` (was `"Time Card shift"`; `docs/health.md` §1) |
+| `"TimeCardWorkoutType"` (custom) | `"treeCare"` |
 | `"TimeCardShiftID"` (custom) | the shift UUID as a string, when known |
 | `HKMetadataKeySyncIdentifier` | a UUID made when the session starts and saved with it, so a recovered session can't be saved twice |
 | `HKMetadataKeySyncVersion` | `1` |
@@ -234,14 +235,14 @@ WatchConnectivity and HealthKit have no `Sendable` annotations and call back on 
 
 ### 2.4 Permissions, Info.plist and entitlements [HK-F6, HK-F7, HK-R10]
 
-- **Watch:** `requestAuthorization(toShare: [.workoutType()], read: [heartRate, activeEnergyBurned])`. Nothing more. [HK-F16]
+- **Watch:** `requestAuthorization(toShare: [.workoutType(), .workoutRoute()], read: [heartRate, activeEnergyBurned, stepCount, distanceWalkingRunning])`. Nothing more. [HK-F16] The steps, distance and route types came with `docs/health.md`, and a watch that answered the older request is asked once more.
   - **When:** on the watch's first launch, if `recordWorkouts` is on. A full-screen card says "Record shifts as workouts" with an **Allow Health** button. The prompt has to happen early, because the Action button only launches the app until authorization has been requested once. [UI-F10, HK-F7]
   - **If denied:** shifts work normally with no workout. The Today page shows "Workouts off · Allow Time Card in the Health app on your iPhone."
   - **Notifications:** the same card then asks `UNUserNotificationCenter` for `[.alert, .sound]`, worded "Remind me if a clock-out gets stuck." Only the 60-minute stuck clock-out (2.2) uses it. The reminder is scheduled with the system at the stop, for 60 minutes later, and taken back once the clock-out is answered.
-- **iPhone:** gets the HealthKit entitlement and both usage strings, because it calls `startWatchApp`. It **doesn't ask for authorization**, unless the device test shows that `startWatchApp` fails without it. In that case it asks for share `[workoutType]` only, from the Settings toggle. [HK-R10]
+- **iPhone:** gets the HealthKit entitlement and both usage strings, because it calls `startWatchApp`. For that it **doesn't ask for authorization**, unless the device test shows that `startWatchApp` fails without it. In that case it asks for share `[workoutType]` only, from the Settings toggle. [HK-R10] Separately, the shift's Health card asks to read steps, distance, flights, active energy and heart rate the first time it opens (`docs/health.md` §4).
 - **Usage strings** (the same in both apps):
-  - `NSHealthShareUsageDescription`: "Time Card shows your heart rate and calories during a shift. They stay on your iPhone and Apple Watch and are never sent to the farm."
-  - `NSHealthUpdateUsageDescription`: "Time Card saves each shift as an Other workout in Health, paused during lunch and breaks."
+  - `NSHealthShareUsageDescription`: "Time Card shows the heart rate, calories, steps and distance from your shifts. They stay on your iPhone and Apple Watch and are never sent to the farm."
+  - `NSHealthUpdateUsageDescription`: "Time Card saves each shift as a Tree care workout (Other in Health), paused during lunch and breaks, with its route when you turn on Record route."
 - **Watch background modes:** `WKBackgroundModes: [workout-processing]`. Without it the session dies when the app goes to the background (`errorUserExitedWorkoutSession`). Also `UIBackgroundModes: [audio]`, which Apple asks for when an app plays haptics during a workout. [HK-F5, UI-F7]
 - **Entitlement:** `com.apple.developer.healthkit: true` on the watch app and the iPhone app. The free Personal Team allows HealthKit, App Groups and Background Modes. [HK-F6, SYS-F12]
 
@@ -683,7 +684,7 @@ targets:
     sources: [ … existing …, WatchLink ]
     info.properties:   # added to the existing list
       NSHealthShareUsageDescription: "Time Card shows your heart rate and calories during a shift. They stay on your iPhone and Apple Watch and are never sent to the farm."
-      NSHealthUpdateUsageDescription: "Time Card saves each shift as an Other workout in Health, paused during lunch and breaks."
+      NSHealthUpdateUsageDescription: "Time Card saves each shift as a Tree care workout (Other in Health), paused during lunch and breaks, with its route when you turn on Record route."
     entitlements.properties:
       com.apple.developer.healthkit: true
       com.apple.developer.healthkit.access: []
@@ -810,8 +811,9 @@ schemes:
 Settings gets an **Apple Watch** section (`WatchSettingsSection`), shown only when `isPaired`:
 
 - **Record shifts as workouts**, default **on**. It's saved per person on this phone, read by `WatchDesk` on every call, and travels to the watch as `WatchState.recordWorkouts`. Changing it publishes at once.
+- **Record route (GPS)**, default **off**, dimmed while workouts are off. It travels as `WatchState.recordRoute` (`docs/health.md` §3).
 - **Status line:** "Time Card on your watch · in reach", "… not installed: install it from the Watch app", or "No Apple Watch paired".
-- **Footnote:** "Workouts keep Time Card on your watch all shift and log heart rate and calories in Health. They never go to the farm." With the toggle off, it adds: "The Action button needs workouts on."
+- **Footnote:** "Workouts keep Time Card on your watch all shift and log heart rate, calories, steps and distance in Health. They never go to the farm." With the toggle off, it adds: "The Action button needs workouts on."
 
 ---
 
@@ -1042,7 +1044,8 @@ Run everything **detached from Xcode**, because the debugger stops suspension. [
 - The iPhone cabled for the first install. [SYS-F13, SYS-R11, WC-P20]
 
 **Workout:**
-- [ ] HealthKit and notification prompts on the watch. The workout appears in Fitness as **Other**, with "Time Card shift" and the metadata.
+- [ ] HealthKit and notification prompts on the watch. The workout appears in Fitness as **Other**, with "Tree care" and the metadata.
+- [ ] The Health round's own checks: `docs/health.md` §7.
 - [ ] No location indicator during the workout.
 - [ ] Phone-side `startWatchApp` works without phone authorization. If not, add share `[workoutType]` from the toggle (2.4).
 

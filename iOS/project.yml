@@ -65,8 +65,8 @@ targets:
           - INAlternativeAppName: Tree Card
           - INAlternativeAppName: Tree Farm
         NSSupportsLiveActivities: true
-        NSHealthShareUsageDescription: Time Card shows your heart rate and calories during a shift. They stay on your iPhone and Apple Watch and are never sent to the farm.
-        NSHealthUpdateUsageDescription: Time Card saves each shift as an Other workout in Health, paused during lunch and breaks.
+        NSHealthShareUsageDescription: Time Card shows the heart rate, calories, steps and distance from your shifts. They stay on your iPhone and Apple Watch and are never sent to the farm.
+        NSHealthUpdateUsageDescription: Time Card saves each shift as a Tree care workout (Other in Health), paused during lunch and breaks, with its route when you turn on Record route.
         ITSAppUsesNonExemptEncryption: false
         LSRequiresIPhoneOS: true
         TimeCardAppGroup: group.$(BUNDLE_ID_PREFIX).timecard
@@ -93,7 +93,8 @@ targets:
       properties:
         com.apple.security.application-groups:
           - group.$(BUNDLE_ID_PREFIX).timecard
-        # The phone starts the watch's shift workout (HKHealthStore.startWatchApp).
+        # The phone starts the watch's shift workout (HKHealthStore.startWatchApp) and reads a
+        # shift's steps, distance and heart rate for its Health card (docs/health.md 4).
         com.apple.developer.healthkit: true
         com.apple.developer.healthkit.access: []
     settings:
@@ -201,8 +202,10 @@ targets:
         # Tapping the iPhone's Live Activity in the Smart Stack opens this app (watchOS 11.1+).
         WKSupportsLiveActivityLaunchAttributeTypes:
           - TimeCardActivityAttributes
-        NSHealthShareUsageDescription: Time Card shows your heart rate and calories during a shift. They stay on your iPhone and Apple Watch and are never sent to the farm.
-        NSHealthUpdateUsageDescription: Time Card saves each shift as an Other workout in Health, paused during lunch and breaks.
+        # Only with Record route on, and only while a Tree care workout runs (docs/health.md 3).
+        NSLocationWhenInUseUsageDescription: Time Card records your route during a Tree care workout when you turn on Record route. It stays in Health and is never sent to the farm.
+        NSHealthShareUsageDescription: Time Card shows the heart rate, calories, steps and distance from your shifts. They stay on your iPhone and Apple Watch and are never sent to the farm.
+        NSHealthUpdateUsageDescription: Time Card saves each shift as a Tree care workout (Other in Health), paused during lunch and breaks, with its route when you turn on Record route.
         TimeCardAppGroup: group.$(BUNDLE_ID_PREFIX).timecard
     entitlements:
       path: Watch/App/TimeCardWatch.entitlements

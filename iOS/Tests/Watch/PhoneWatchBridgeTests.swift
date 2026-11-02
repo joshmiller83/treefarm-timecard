@@ -549,8 +549,15 @@ struct PhoneWatchBridgeTests {
 
     @Test func theFootnoteAddsTheActionButtonWhenRecordingIsOff() {
         let on = WatchSettingsWording.footnote(recordWorkouts: true)
-        #expect(on == "Workouts keep Time Card on your watch all shift and log heart rate and calories in Health. They never go to the farm.")
+        #expect(on == "Workouts keep Time Card on your watch all shift and log heart rate, calories, steps and distance in Health. They never go to the farm.")
         #expect(WatchSettingsWording.footnote(recordWorkouts: false) == on + " The Action button needs workouts on.")
+    }
+
+    @Test func theWorkoutIsTreeCareAndTheRouteSaysWhatItCosts() {
+        #expect(WatchSettingsWording.recordDetail.contains("Tree care workout"))
+        #expect(WatchSettingsWording.recordDetail.contains("Other in Apple Health"))
+        #expect(WatchSettingsWording.routeTitle == "Record route (GPS)")
+        #expect(WatchSettingsWording.routeDetail.hasSuffix("Uses more battery."))
     }
 
     @Test func theSectionShowsOnlyWithAPairedWatch() {

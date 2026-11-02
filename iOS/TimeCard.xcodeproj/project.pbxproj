@@ -58,6 +58,7 @@
 		422D5BC116F2244B9D5D5063 /* FieldPlans.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6FD146D559DA760388DA601 /* FieldPlans.swift */; };
 		451757F1EC0F49FD921DAED6 /* LiveActivityDisplayTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5F3CB7223DCD5F08AB88368 /* LiveActivityDisplayTests.swift */; };
 		46676B9D459A12A9680AF1E9 /* StatusIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31130F6FC7731C1A1DED1F21 /* StatusIntent.swift */; };
+		467914210E723E2C6D867F41 /* ShiftHealth.swift in Sources */ = {isa = PBXBuildFile; fileRef = 463D1147610E405CDFE0941A /* ShiftHealth.swift */; };
 		49C96E1CB2468C43E1B417B8 /* NowWorkingCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F45FCDA3212B014A83DF1857 /* NowWorkingCardView.swift */; };
 		4AA0F140DA0AC52F9E4211A3 /* NowWorking.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6EC09F62BE7A4EE1AB0D7EA2 /* NowWorking.swift */; };
 		4AE866D86193069EA486DFC7 /* TimeCardControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C88B4296F1678B1935B86DF /* TimeCardControls.swift */; };
@@ -67,6 +68,7 @@
 		4E4376B0B83BA6C33E01C406 /* LiveActivityStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8192A0C6A92B08C41F565C7 /* LiveActivityStyle.swift */; };
 		4E86314FA253E2EE7E5DECAA /* LiveActivityFixtures.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3AFAABF051810F9845A8AC16 /* LiveActivityFixtures.swift */; };
 		4F4A9E4954CAAC0B5F4A6699 /* TreeMapModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9889E7910F184D691D439FD /* TreeMapModelTests.swift */; };
+		545B84EFFE0F061E79699F03 /* HealthKitShiftHealthReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B41643B502E78B41920BB7D /* HealthKitShiftHealthReader.swift */; };
 		546524BE757180C96C7AFE87 /* LogReportUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 826D885FD8A7F7F5BAE9AD44 /* LogReportUITests.swift */; };
 		56196C19D16D487B1AA1A347 /* ClockFlowUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95F68CA9405378E319B596FA /* ClockFlowUITests.swift */; };
 		56E3F456E020D3F26D8FCE9D /* TimeCardCore in Frameworks */ = {isa = PBXBuildFile; productRef = 76760F4A041CFB039DF2E1BF /* TimeCardCore */; };
@@ -187,10 +189,12 @@
 		F2A4634661974F040CD4073B /* TeamEdit.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC8738DEAECA8959A19948BA /* TeamEdit.swift */; };
 		F2B14E77FAB5501077E11CF3 /* LogModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C5569F51A2E419461179C401 /* LogModel.swift */; };
 		F2DC4499FFD5F66BA1844426 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 268D96072E557AB5DA77E1FA /* WidgetKit.framework */; };
+		F3CBE54B7E0D84E2263A70AB /* ShiftHealthTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B827062D512E44886B7442DE /* ShiftHealthTests.swift */; };
 		F4F56CC8F84944E475EF5D8E /* IntentShellTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D080A410852ECC585704FB4F /* IntentShellTests.swift */; };
 		F6E34AE9117D159B4344365B /* TreeMapModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED1E5603217835C939822825 /* TreeMapModel.swift */; };
 		FA55BECAABCA57C8875A40CE /* DaySnippetTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D47043DF0F5D0E98339B40EA /* DaySnippetTests.swift */; };
 		FA633CB68BDB36A67A5A6B70 /* SettingsModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCB3AB404159719E56FB7440 /* SettingsModels.swift */; };
+		FB93DCBCC787BB7A1A7A0A2A /* ShiftHealthSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29DCAFBBED768B45DE569DE1 /* ShiftHealthSheet.swift */; };
 		FF6FFF5EDAE4581A8CD35E19 /* TimeCardWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 9DE6B97E96723E748D99793B /* TimeCardWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		FFBB579F0385A5CAC582B5EE /* StartTimeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E71FAB5FE8BD15A8D3A01A07 /* StartTimeTests.swift */; };
 /* End PBXBuildFile section */
@@ -290,6 +294,7 @@
 		09497989FB7E542068BDD854 /* StatusCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusCardView.swift; sourceTree = "<group>"; };
 		09DE0EB6E470EEDA0E016FB6 /* TreeFarmKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = TreeFarmKit; path = ../Packages/TreeFarmKit; sourceTree = SOURCE_ROOT; };
 		0A95230AD7660E4504B26E84 /* InviteSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InviteSheet.swift; sourceTree = "<group>"; };
+		0B41643B502E78B41920BB7D /* HealthKitShiftHealthReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitShiftHealthReader.swift; sourceTree = "<group>"; };
 		0BDC1C804EA111CDC81D1252 /* ShiftDraftTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShiftDraftTests.swift; sourceTree = "<group>"; };
 		0E3D3F98F10B8C5F98580EEF /* LiveActivityFeedTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityFeedTests.swift; sourceTree = "<group>"; };
 		0EC4977D6D7D7BFFFA305D14 /* LogBuilderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogBuilderTests.swift; sourceTree = "<group>"; };
@@ -309,6 +314,7 @@
 		268D96072E557AB5DA77E1FA /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		27EE1EAFDEEE2B00BC480F2B /* TeamView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeamView.swift; sourceTree = "<group>"; };
 		2877EF49D9830B22D5631380 /* LiveActivityHosting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityHosting.swift; sourceTree = "<group>"; };
+		29DCAFBBED768B45DE569DE1 /* ShiftHealthSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShiftHealthSheet.swift; sourceTree = "<group>"; };
 		2C88B4296F1678B1935B86DF /* TimeCardControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimeCardControls.swift; sourceTree = "<group>"; };
 		2D36654BCA002C178C3425FF /* TreeMapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TreeMapView.swift; sourceTree = "<group>"; };
 		2F6C56D56BAB7EB3F0BA9916 /* PaperCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaperCardView.swift; sourceTree = "<group>"; };
@@ -328,6 +334,7 @@
 		430050FEBA83C41B0D8C1F39 /* Typography.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Typography.swift; sourceTree = "<group>"; };
 		440EB3A66110368779E66FC5 /* ReportOutputTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportOutputTests.swift; sourceTree = "<group>"; };
 		4533B607361861A2BBFEC580 /* Fonts */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Fonts; path = App/Resources/Fonts; sourceTree = SOURCE_ROOT; };
+		463D1147610E405CDFE0941A /* ShiftHealth.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShiftHealth.swift; sourceTree = "<group>"; };
 		4A6A9D908CF458D9A4ECF38C /* ClockEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClockEnvironment.swift; sourceTree = "<group>"; };
 		4AC092ED218D3E8F66958A3E /* LiveActivitySmall.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivitySmall.swift; sourceTree = "<group>"; };
 		4BC9B762AD9A1EA2EA656E33 /* VoiceCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceCatalog.swift; sourceTree = "<group>"; };
@@ -407,6 +414,7 @@
 		B5F3CB7223DCD5F08AB88368 /* LiveActivityDisplayTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityDisplayTests.swift; sourceTree = "<group>"; };
 		B63F50BB7E194A72AE0E1FF9 /* AppTourUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppTourUITests.swift; sourceTree = "<group>"; };
 		B8192A0C6A92B08C41F565C7 /* LiveActivityStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityStyle.swift; sourceTree = "<group>"; };
+		B827062D512E44886B7442DE /* ShiftHealthTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShiftHealthTests.swift; sourceTree = "<group>"; };
 		B8E1BE571647BE20FD5982C9 /* LogReportFixture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogReportFixture.swift; sourceTree = "<group>"; };
 		B9BFB687B47602C4EA8F2002 /* LogComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogComponents.swift; sourceTree = "<group>"; };
 		BB37F784FF57349039E30269 /* SignInView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignInView.swift; sourceTree = "<group>"; };
@@ -764,6 +772,7 @@
 				D3D5A2D3A7DB4E6374DCB6A6 /* ShiftDraft.swift */,
 				A6A8FB32F6AAEA21AA74AEE7 /* ShiftEditorModel.swift */,
 				3759E7FDBE2DBB6FD394D128 /* ShiftEditorView.swift */,
+				29DCAFBBED768B45DE569DE1 /* ShiftHealthSheet.swift */,
 				FE7503202388780B683D972B /* ShiftTrees.swift */,
 				DCF26636A6AD08FF0CE27C83 /* ShiftTreesSheet.swift */,
 			);
@@ -873,6 +882,7 @@
 				C80A940F649E97D3B59D935C /* TimeCard.entitlements */,
 				1620ADB0A89E887DA3CBB17E /* TimeCardApp.swift */,
 				AD92A9BB98F18AE091154218 /* Design */,
+				A3295DFECAF6EE7DE60C0265 /* Health */,
 				8F460B0C21EE2F89DEB0C76B /* Intents */,
 				C59E7288246A6001B81585D0 /* LiveActivity */,
 				C1066138348FF72C70FA3308 /* Resources */,
@@ -905,6 +915,7 @@
 				DC14C784BB8F321617C3E862 /* DesignTests.swift */,
 				6A441859AAEFA8511A46EA2F /* PlatformTests.swift */,
 				5A2F59CB30FF9E8B4CD16F6B /* Clock */,
+				8C5DA62D1BF156DFA768ED3E /* Health */,
 				7FD5ADA99778BE4497F63AF7 /* Intents */,
 				5F2A6D3052D09F89FE524674 /* LiveActivity */,
 				AD5FE03FD431C2056F07513D /* LogReport */,
@@ -937,6 +948,14 @@
 				20FB6B3A248F1A020FE728B8 /* Base.xcconfig */,
 			);
 			path = Config;
+			sourceTree = "<group>";
+		};
+		8C5DA62D1BF156DFA768ED3E /* Health */ = {
+			isa = PBXGroup;
+			children = (
+				B827062D512E44886B7442DE /* ShiftHealthTests.swift */,
+			);
+			path = Health;
 			sourceTree = "<group>";
 		};
 		8C724C7D006CFC94C4768A7F /* Watch */ = {
@@ -1018,6 +1037,15 @@
 				E9889E7910F184D691D439FD /* TreeMapModelTests.swift */,
 			);
 			path = Trees;
+			sourceTree = "<group>";
+		};
+		A3295DFECAF6EE7DE60C0265 /* Health */ = {
+			isa = PBXGroup;
+			children = (
+				0B41643B502E78B41920BB7D /* HealthKitShiftHealthReader.swift */,
+				463D1147610E405CDFE0941A /* ShiftHealth.swift */,
+			);
+			path = Health;
 			sourceTree = "<group>";
 		};
 		A7A77BD1491F3A0F96AD91D2 /* Settings */ = {
@@ -1574,6 +1602,7 @@
 				ABD58F89C76AD9A4714CC26B /* SettingsModelTests.swift in Sources */,
 				057624E6F8BE9868771696E0 /* ShiftDraftTests.swift in Sources */,
 				1931035E041FCA14AC70494D /* ShiftEditorModelTests.swift in Sources */,
+				F3CBE54B7E0D84E2263A70AB /* ShiftHealthTests.swift in Sources */,
 				7511C0B9FB8E2AD5EF7C1637 /* ShortcutPhraseTests.swift in Sources */,
 				1A2D50E98BED2E79CA2ACF7D /* SiriSuggestionsTests.swift in Sources */,
 				904DC96DF54580278D189DA6 /* SpokenNumberTests.swift in Sources */,
@@ -1632,6 +1661,7 @@
 				1057CD956DD8FB081911436A /* FieldIntents.swift in Sources */,
 				422D5BC116F2244B9D5D5063 /* FieldPlans.swift in Sources */,
 				3BC88F39E7E90B47A4F892B2 /* FieldsSection.swift in Sources */,
+				545B84EFFE0F061E79699F03 /* HealthKitShiftHealthReader.swift in Sources */,
 				B9DE1ECDE5E1FAC57CCD5626 /* HoursPay.swift in Sources */,
 				E0D1FB91C0FD52264C43A582 /* IntentDonations.swift in Sources */,
 				104D492C8C3A51F286665FD8 /* IntentRunner.swift in Sources */,
@@ -1681,6 +1711,8 @@
 				88B5179544A9F99E5F445BCA /* ShiftDraft.swift in Sources */,
 				03D99CEE1599A9EEC7F99772 /* ShiftEditorModel.swift in Sources */,
 				BB7A7BA9144FF746B18BBFBF /* ShiftEditorView.swift in Sources */,
+				467914210E723E2C6D867F41 /* ShiftHealth.swift in Sources */,
+				FB93DCBCC787BB7A1A7A0A2A /* ShiftHealthSheet.swift in Sources */,
 				87DA791A2675D7768713CC64 /* ShiftNotesEditor.swift in Sources */,
 				0613E18E87E56A28DF207DCC /* ShiftTrees.swift in Sources */,
 				7BB5FA2C866B7A205F4624B1 /* ShiftTreesSheet.swift in Sources */,

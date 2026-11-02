@@ -2,8 +2,9 @@ import SwiftUI
 import TimeCardCore
 
 /// Settings › Apple Watch (docs/watch.md 5.5), shown only while a watch is paired: whether
-/// Time Card is on it and in reach, and "Record shifts as workouts" (on by default, saved per
-/// person on this phone, and sent to the watch at once).
+/// Time Card is on it and in reach, "Record shifts as workouts" (on by default) and "Record
+/// route (GPS)" (off by default, docs/health.md 3), each saved per person on this phone and sent
+/// to the watch at once.
 struct WatchSettingsSection: View {
     @Environment(AppModel.self) private var model
     @Environment(TimeCardSession.self) private var session
@@ -61,6 +62,21 @@ struct WatchSettingsSection: View {
             .toggleStyle(GloveToggleStyle())
             .accessibilityIdentifier("watch-record-workouts")
             if typeSize.isAccessibilitySize { detail }
+            // Only with workouts on: it reads as off, and can't be changed, while they're off.
+            Toggle(isOn: routeBinding) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(WatchSettingsWording.routeTitle)
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(Palette.ink)
+                        .fixedSize(horizontal: false, vertical: true)
+                    if !typeSize.isAccessibilitySize { routeDetail }
+                }
+            }
+            .toggleStyle(GloveToggleStyle())
+            .disabled(!settings.recordWorkouts)
+            .opacity(settings.recordWorkouts ? 1 : 0.5)
+            .accessibilityIdentifier("watch-record-route")
+            if typeSize.isAccessibilitySize { routeDetail }
             Text(WatchSettingsWording.footnote(recordWorkouts: settings.recordWorkouts))
                 .font(.footnote)
                 .foregroundStyle(Palette.muted)
@@ -77,6 +93,13 @@ struct WatchSettingsSection: View {
 
     private var detail: some View {
         Text(WatchSettingsWording.recordDetail)
+            .font(.subheadline)
+            .foregroundStyle(Palette.muted)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private var routeDetail: some View {
+        Text(WatchSettingsWording.routeDetail)
             .font(.subheadline)
             .foregroundStyle(Palette.muted)
             .fixedSize(horizontal: false, vertical: true)
@@ -103,19 +126,35 @@ struct WatchSettingsSection: View {
         } set: { value in
             var next = settings
             next.recordWorkouts = value
-            // Per person: a sign-in on this phone brings that person's own choice.
-            chosen = (userId, next)
-            WatchSettings.save(next, to: session.store, userId: userId)
-            // The watch hears at once: the desk reads the setting on every state it makes.
-            model.watch.publish(reason: .settingsChanged)
+            save(next)
         }
+    }
+
+    private var routeBinding: Binding<Bool> {
+        Binding {
+            settings.recordWorkouts && settings.recordRoute
+        } set: { value in
+            var next = settings
+            next.recordRoute = value
+            save(next)
+        }
+    }
+
+    private func save(_ next: WatchSettings) {
+        // Per person: a sign-in on this phone brings that person's own choice.
+        chosen = (userId, next)
+        WatchSettings.save(next, to: session.store, userId: userId)
+        // The watch hears at once: the desk reads the settings on every state it makes.
+        model.watch.publish(reason: .settingsChanged)
     }
 }
 
 /// What the Apple Watch section says.
 enum WatchSettingsWording {
     static let recordTitle = "Record shifts as workouts"
-    static let recordDetail = "Clock-in starts an Other workout on your watch, lunch and breaks pause it, and clock-out ends it."
+    static let recordDetail = "Clock-in starts a Tree care workout on your watch (Other in Apple Health), lunch and breaks pause it, and clock-out ends it."
+    static let routeTitle = "Record route (GPS)"
+    static let routeDetail = "Uses GPS for distance and saves a map of where you worked with the Tree care workout in Health. Uses more battery."
 
     /// Shown only with a watch paired.
     static func isShown(_ status: WatchLinkStatus) -> Bool {
@@ -142,7 +181,7 @@ enum WatchSettingsWording {
 
     /// The workouts' promise, and what turning them off costs.
     static func footnote(recordWorkouts: Bool) -> String {
-        let promise = "Workouts keep Time Card on your watch all shift and log heart rate and calories in Health. They never go to the farm."
+        let promise = "Workouts keep Time Card on your watch all shift and log heart rate, calories, steps and distance in Health. They never go to the farm."
         return recordWorkouts ? promise : promise + " The Action button needs workouts on."
     }
 }

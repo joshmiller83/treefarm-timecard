@@ -27,6 +27,15 @@ final class FakeWorkoutDriver: WorkoutDriver {
     /// What `requestAuthorization` grants.
     var granted: HealthAccess = .authorized
     private(set) var authorizationRequests = 0
+    /// Health was allowed before steps and distance; a request clears it.
+    var asksForMore = false
+    var location: LocationAccess = .notDetermined
+    /// What `requestLocation` grants.
+    var locationGranted: LocationAccess = .authorized
+    private(set) var locationRequests = 0
+    /// Every `recordRoute` call, in order; `routeOn` is the last.
+    private(set) var routeCalls: [Bool] = []
+    var routeOn: Bool { routeCalls.last ?? false }
     /// Makes `start` and `recover` slow, to race other inputs against them.
     var startDelay: Duration?
     var recoverDelay: Duration?
@@ -36,6 +45,8 @@ final class FakeWorkoutDriver: WorkoutDriver {
     /// What the builder measured, for the summary.
     var kcal: Double? = 1_120
     var heartRate: (avg: Double, max: Double)? = (104, 151)
+    var steps: Double? = 8_120
+    var meters: Double? = 5_472
     /// Seconds paused, taken off the active duration.
     var pausedTime: TimeInterval = 0
 
@@ -57,7 +68,20 @@ final class FakeWorkoutDriver: WorkoutDriver {
     func requestAuthorization() async -> HealthAccess {
         authorizationRequests += 1
         access = granted
+        if access == .authorized { asksForMore = false }
         return access
+    }
+
+    func locationStatus() -> LocationAccess { location }
+
+    func requestLocation() async -> LocationAccess {
+        locationRequests += 1
+        location = locationGranted
+        return location
+    }
+
+    func recordRoute(_ on: Bool) {
+        routeCalls.append(on)
     }
 
     func start(at date: Date, shiftId: UUID?, origin: WorkoutLocal.Origin) async throws {
@@ -122,7 +146,7 @@ final class FakeWorkoutDriver: WorkoutDriver {
         local = local.ended()
         guard active >= WorkoutPlan.minimumDuration else { return nil }
         return WorkoutSummary(shiftId: shiftId, start: start, end: date, activeDuration: active, activeKcal: kcal,
-                              avgHeartRate: heartRate?.avg, maxHeartRate: heartRate?.max)
+                              avgHeartRate: heartRate?.avg, maxHeartRate: heartRate?.max, steps: steps, distanceMeters: meters)
     }
 }
 

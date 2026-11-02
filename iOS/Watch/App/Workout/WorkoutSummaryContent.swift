@@ -1,10 +1,13 @@
 import Foundation
 import TreeFarmKit
 
-/// What the shift summary says (docs/watch.md 2.6 and 3.9): worked time and trees from the
-/// phone's closed shift (or the watch's own count while the clock-out waits), heart rate and
-/// energy from the workout. Never pay. `ShiftDoneScreen` lays it out.
+/// What the shift summary says (docs/watch.md 2.6 and 3.9, docs/health.md 2): worked time and
+/// trees from the phone's closed shift (or the watch's own count while the clock-out waits),
+/// heart rate, energy, distance and steps from the workout. Never pay. `ShiftDoneScreen` lays it out.
 struct WorkoutSummaryContent: Equatable {
+    /// Miles or kilometers, by the watch's region.
+    static var miles: Bool { Locale.current.measurementSystem != .metric }
+
     var title = WatchDisplay.shiftDone
     /// The big "8:12".
     var worked: String?
@@ -19,8 +22,12 @@ struct WorkoutSummaryContent: Equatable {
     var energy: String?
     /// "1,120 calories, 7 hours 41 minutes active".
     var energyAccessibility: String?
+    /// "3.4 mi · 8,120 steps", beside a walking figure.
+    var movement: String?
+    /// "3.4 miles, 8,120 steps".
+    var movementAccessibility: String?
 
-    init(closed: ClosedShift?, summary: WorkoutSummary?, waitingForPhone: Bool) {
+    init(closed: ClosedShift?, summary: WorkoutSummary?, waitingForPhone: Bool, miles: Bool = Self.miles) {
         if let closed {
             worked = Fmt.hm(closed.worked)
             workedAccessibility = WatchDisplay.timerAccessibility(closed.worked)
@@ -32,6 +39,8 @@ struct WorkoutSummaryContent: Equatable {
             heartAccessibility = WatchDisplay.summaryHeartAccessibility(avg: summary.avgHeartRate, max: summary.maxHeartRate)
             energy = WatchDisplay.summaryEnergyLine(kcal: summary.activeKcal, active: summary.activeDuration)
             energyAccessibility = WatchDisplay.summaryEnergyAccessibility(kcal: summary.activeKcal, active: summary.activeDuration)
+            movement = WatchDisplay.movementLine(meters: summary.distanceMeters, steps: summary.steps, miles: miles)
+            movementAccessibility = WatchDisplay.movementLineAccessibility(meters: summary.distanceMeters, steps: summary.steps, miles: miles)
         }
     }
 }

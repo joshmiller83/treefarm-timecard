@@ -141,6 +141,17 @@ struct WatchStateBuilderTests {
         #expect(!build(f.state, at: f.monday9, recordWorkouts: false).recordWorkouts)
     }
 
+    @Test func theRouteIsRecordedOnlyWithWorkoutsOn() {
+        let make = { (workouts: Bool, route: Bool) in
+            WatchStateBuilder.build(state: f.state, now: f.monday9, epoch: epoch, revision: 1, recordWorkouts: workouts,
+                                    recordRoute: route, appliedRequestIds: [], lastAction: nil, canUndo: false).recordRoute
+        }
+        #expect(make(true, true))
+        #expect(!make(true, false))
+        #expect(!make(false, true))
+        #expect(!build(f.state, at: f.monday9).recordRoute)
+    }
+
     @Test func signedOutCarriesNothing() {
         let s = WatchState.signedOut(epoch: epoch, revision: 9, now: f.monday9)
         #expect(!s.signedIn && s.userId == nil && s.nextRows.isEmpty && s.revision == 9)

@@ -94,7 +94,7 @@ struct WorkoutScreensTests {
         func status(_ recording: WorkoutLive.Recording) -> WorkoutStatus? {
             WorkoutStatus(WorkoutLive(recording: recording))
         }
-        #expect(status(.recording)?.text == "Recording shift workout")
+        #expect(status(.recording)?.text == "Recording tree care")
         #expect(status(.paused)?.text == "Workout paused")
         #expect(status(.waitingForClockOut)?.text == "Clock-out waiting for iPhone")
         #expect(status(.stoppedUnexpectedly)?.text == "Recording stopped")
@@ -121,9 +121,39 @@ struct WorkoutScreensTests {
     // MARK: The first-launch card
 
     @Test func theCardAsksForHealthThenForTheReminder() {
-        #expect(HealthOnboardingStep.health.title == "Record shifts as workouts")
+        #expect(HealthOnboardingStep.health.title == "Record Tree care workouts")
         #expect(HealthOnboardingStep.health.body == "You earn the calorie equivalent of a brisk walk anytime sensor readings are unavailable.")
         #expect(HealthOnboardingStep.health.button == "Allow Health")
         #expect(HealthOnboardingStep.reminder.body == "Remind me if a clock-out gets stuck.")
+    }
+
+    @Test func theCardAsksOnceMoreForStepsAndDistanceAndForLocation() {
+        #expect(HealthOnboardingStep.healthMore.title == "Record Tree care workouts")
+        #expect(HealthOnboardingStep.healthMore.body == "Time Card now records steps and distance with each shift.")
+        #expect(HealthOnboardingStep.healthMore.button == "Allow Health")
+        #expect(HealthOnboardingStep.location.title == "Record your route")
+        #expect(HealthOnboardingStep.location.body.contains("never goes to the farm"))
+        #expect(HealthOnboardingStep.location.button == "Allow Location")
+        #expect(HealthOnboardingStep.location.buttonGlyph == "location.fill")
+    }
+
+    // MARK: Distance and steps (docs/health.md 2)
+
+    @Test func theSummaryAndTheTodayPageShowDistanceAndSteps() {
+        var moving = summary
+        moving.steps = 8120
+        moving.distanceMeters = 5472
+        let miles = WorkoutSummaryContent(closed: closed, summary: moving, waitingForPhone: false, miles: true)
+        #expect(miles.movement == "3.4 mi · 8,120 steps")
+        #expect(miles.movementAccessibility == "3.4 miles, 8,120 steps")
+        let km = WorkoutSummaryContent(closed: closed, summary: moving, waitingForPhone: false, miles: false)
+        #expect(km.movement == "5.5 km · 8,120 steps")
+        // A summary from before steps and distance has no such line.
+        #expect(WorkoutSummaryContent(closed: closed, summary: summary, waitingForPhone: false).movement == nil)
+
+        let live = WorkoutLive(steps: 2410, meters: 1931, recording: .recording)
+        #expect(WorkoutStatus.movementLine(live, miles: true) == "1.2 mi · 2,410 steps")
+        #expect(WorkoutStatus.movementLineAccessibility(live, miles: true) == "1.2 miles, 2,410 steps")
+        #expect(WorkoutStatus.movementLine(WorkoutLive(recording: .recording)) == nil)
     }
 }

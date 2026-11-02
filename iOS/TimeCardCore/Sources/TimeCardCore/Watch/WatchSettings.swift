@@ -6,9 +6,22 @@ import Foundation
 public struct WatchSettings: Codable, Equatable, Sendable {
     /// "Record shifts as workouts", on by default. Travels as `WatchState.recordWorkouts`.
     public var recordWorkouts: Bool
+    /// "Record route (GPS)", off by default (docs/health.md 3). It only counts while workouts
+    /// are on: the watch hears `recordWorkouts && recordRoute`.
+    public var recordRoute: Bool
 
-    public init(recordWorkouts: Bool = true) {
+    public init(recordWorkouts: Bool = true, recordRoute: Bool = false) {
         self.recordWorkouts = recordWorkouts
+        self.recordRoute = recordRoute
+    }
+
+    private enum CodingKeys: String, CodingKey { case recordWorkouts, recordRoute }
+
+    /// Settings saved before the route existed read as route off.
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        recordWorkouts = try c.decode(Bool.self, forKey: .recordWorkouts)
+        recordRoute = try c.decodeIfPresent(Bool.self, forKey: .recordRoute) ?? false
     }
 
     /// Where one person's settings live in the phone's store.

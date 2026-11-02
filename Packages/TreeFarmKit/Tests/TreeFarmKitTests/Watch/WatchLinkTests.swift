@@ -79,6 +79,33 @@ struct WatchLinkTests {
         #expect(try roundTrip(.workoutSummary(summary)) == .workoutSummary(summary))
         let bare = WorkoutSummary(shiftId: nil, start: t0, end: t0.addingTimeInterval(600), activeDuration: 600)
         #expect(try roundTrip(.workoutSummary(bare)) == .workoutSummary(bare))
+        let moving = WorkoutSummary(shiftId: UUID(), start: t0, end: t0.addingTimeInterval(29_520), activeDuration: 27_660,
+                                    activeKcal: 1120.5, steps: 8120, distanceMeters: 5472)
+        #expect(try roundTrip(.workoutSummary(moving)) == .workoutSummary(moving))
+    }
+
+    @Test func aSummaryFromBeforeStepsAndDistanceStillReads() throws {
+        let old = Data(#"{"start":1792400000000,"end":1792400600000,"activeDuration":600,"activeKcal":40}"#.utf8)
+        let summary = try JSONCoding.decoder().decode(WorkoutSummary.self, from: old)
+        #expect(summary.activeKcal == 40 && summary.steps == nil && summary.distanceMeters == nil)
+    }
+
+    @Test func theRouteSettingTravelsAndIsOffFromAnOlderPhone() throws {
+        var s = state()
+        s.recordRoute = true
+        guard case .state(let back) = try roundTrip(.state(s)) else { Issue.record("not a state"); return }
+        #expect(back.recordRoute)
+        // An older phone's state has no recordRoute at all.
+        var json = try JSONSerialization.jsonObject(with: JSONCoding.encoder().encode(state())) as! [String: Any]
+        json.removeValue(forKey: "recordRoute")
+        let old = try JSONCoding.decoder().decode(WatchState.self, from: JSONSerialization.data(withJSONObject: json))
+        #expect(!old.recordRoute)
+        #expect(old.recordWorkouts && old.farmName == "Dull’s Tree Farm" && old.usualStart?.hour == 7)
+    }
+
+    @Test func theTreeCareWorkoutType() {
+        #expect(ShiftWorkoutType.treeCare.name == "Tree care")
+        #expect(ShiftWorkoutType.treeCare.key == "treeCare")
     }
 
     @Test func envelopesCarryTheVersion() throws {

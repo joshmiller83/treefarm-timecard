@@ -53,14 +53,14 @@ struct ShiftWorkoutTests {
     // MARK: States and taps
 
     func working(_ id: UUID? = nil, start: Date? = nil, phase: LiveSnapshot.Phase = .working, updatedAt: Date? = nil,
-                 recordWorkouts: Bool = true) -> WatchState {
+                 recordWorkouts: Bool = true, recordRoute: Bool = false) -> WatchState {
         let start = start ?? at(7, 0)
         let snapshot = LiveSnapshot(phase: phase, timerStart: start, workedSoFar: 0, workedLabel: "worked today",
                                     breakStart: phase == .working ? nil : at(12, 0), breakReason: "", fieldName: "North",
                                     nextRows: [], shiftTrees: 0, fieldShaped: 0, fieldTotal: 400, lastAction: nil, canUndo: false)
         return WatchState(signedIn: true, farmName: "Farm", fieldName: "North", snapshot: snapshot, nextRows: [], todayWorked: 0,
                           todayTrees: 0, canUndo: false, recordWorkouts: recordWorkouts, updatedAt: updatedAt ?? clock.now,
-                          userId: user, shiftId: id ?? shift, shiftStart: start, farmTimeZone: Self.zone)
+                          userId: user, shiftId: id ?? shift, shiftStart: start, farmTimeZone: Self.zone, recordRoute: recordRoute)
     }
 
     func offClock(closed: ClosedShift? = nil, recordWorkouts: Bool = true, updatedAt: Date? = nil) -> WatchState {
@@ -503,6 +503,84 @@ struct ShiftWorkoutTests {
         #expect(workout.live.kcal == 612)
     }
 
+    @Test func stepsAndDistanceFlowIntoTheLiveNumbersAndTheSummary() async {
+        let workout = make()
+        workout.reconcile(WorkoutInputs(confirmed: working(start: at(7, 0))))
+        await workout.settled()
+        driver.emit(.metrics(heartRate: nil, kcal: nil, steps: 2410, meters: 1931))
+        await until { workout.live.steps == 2410 }
+        #expect(workout.live.meters == 1931)
+
+        clock.now = at(16, 0)
+        workout.reconcile(WorkoutInputs(confirmed: offClock(closed: closed(shift, start: at(7, 0), end: at(16, 0)))))
+        await workout.settled()
+        #expect(workout.live.steps == nil && workout.live.meters == nil)
+        #expect(workout.live.lastSummary?.steps == 8120 && workout.live.lastSummary?.distanceMeters == 5472)
+    }
+
+    // MARK: - The route (docs/health.md 3)
+
+    @Test func theRouteIsOffUnlessTurnedOnAndLocationIsAllowed() async {
+        driver.location = .authorized
+        let workout = make()
+        workout.reconcile(WorkoutInputs(confirmed: working(start: at(7, 0))))
+        await workout.settled()
+        #expect(driver.starts.count == 1)
+        #expect(!driver.routeCalls.isEmpty && !driver.routeOn)
+
+        workout.reconcile(WorkoutInputs(confirmed: working(start: at(7, 0), recordRoute: true)))
+        await workout.settled()
+        #expect(driver.routeOn)
+
+        workout.reconcile(WorkoutInputs(confirmed: working(start: at(7, 0), recordRoute: false)))
+        await workout.settled()
+        #expect(!driver.routeOn)
+    }
+
+    @Test func turningTheRouteOnAsksForLocationOnceThenRecordsIt() async {
+        let workout = make()
+        workout.reconcile(WorkoutInputs(confirmed: working(start: at(7, 0), recordRoute: true)))
+        await workout.settled()
+        // Workouts go on while the card waits; the route can't start without location.
+        #expect(driver.starts.count == 1)
+        #expect(!driver.routeOn)
+        #expect(workout.onboardingStep == .location)
+
+        await workout.allowLocation()
+        #expect(driver.locationRequests == 1)
+        #expect(workout.onboardingStep == nil)
+        #expect(driver.routeOn)
+        #expect(!workout.live.routeOff)
+    }
+
+    @Test func deniedLocationRecordsTheWorkoutWithoutARouteAndSaysSo() async {
+        driver.locationGranted = .denied
+        let workout = make()
+        workout.reconcile(WorkoutInputs(confirmed: working(start: at(7, 0), recordRoute: true)))
+        await workout.settled()
+        await workout.allowLocation()
+        #expect(!workout.needsHealthOnboarding)
+        #expect(!driver.routeOn)
+        #expect(workout.live.routeOff)
+        #expect(workout.live.recording == .recording)
+        // Turning the route off on the phone takes the line away.
+        workout.reconcile(WorkoutInputs(confirmed: working(start: at(7, 0))))
+        await workout.settled()
+        #expect(!workout.live.routeOff)
+    }
+
+    @Test func noLocationCardWithoutTheRouteOrWithoutHealth() async {
+        let workout = make()
+        workout.reconcile(WorkoutInputs(confirmed: working(start: at(7, 0))))
+        #expect(workout.onboardingStep == nil)
+
+        driver.access = .notDetermined
+        let other = make()
+        other.reconcile(WorkoutInputs(confirmed: working(start: at(7, 0), recordRoute: true)))
+        // Health comes first.
+        #expect(other.onboardingStep == .health)
+    }
+
     // MARK: - Onboarding
 
     @Test func theHealthCardShowsOnceAndAsksForHealthThenNotifications() async {
@@ -534,6 +612,22 @@ struct ShiftWorkoutTests {
         await workout.allowHealth()
         #expect(driver.authorizationRequests == 1)
         #expect(!workout.needsHealthOnboarding)
+    }
+
+    @Test func aWatchThatAllowedHealthBeforeIsAskedOnceForStepsAndDistance() async {
+        driver.asksForMore = true
+        let workout = make()
+        workout.reconcile(WorkoutInputs(confirmed: offClock(), outbox: [clockIn(minted, at: at(7, 0))]))
+        await workout.settled()
+        #expect(workout.onboardingStep == .healthMore)
+        // Workouts keep recording while the card waits.
+        #expect(driver.starts == [.start(at(7, 0), minted, .watchTap)])
+
+        await workout.allowHealth()
+        #expect(driver.authorizationRequests == 1)
+        // The reminder was asked the first time; not again.
+        #expect(notifier.authorizationRequests == 0)
+        #expect(workout.onboardingStep == nil)
     }
 
     @Test func noCardWithoutHealthKit() {
