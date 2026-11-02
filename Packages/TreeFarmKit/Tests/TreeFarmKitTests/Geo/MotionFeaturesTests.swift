@@ -43,6 +43,52 @@ struct MotionFeaturesTests {
         #expect(motion.energy > 0.1 && motion.energy < 0.2)
     }
 
+    // MARK: Turning (a full circle around each tree)
+
+    /// One second at `hz` turning at `degreesPerSecond`, from device motion with the watch flat
+    /// (gravity straight down the watch's -z).
+    func turning(_ degreesPerSecond: Double, hz: Int = 200, start: Double = 0) -> [MotionSample] {
+        let rate = degreesPerSecond * .pi / 180
+        return (0..<hz).map { i in
+            // Counterclockwise seen from above is a positive rotation about the up axis (+z here).
+            MotionSample(t: start + Double(i) / Double(hz), gravity: (0, 0, -1), user: (0, 0, 0), rotation: (0, 0, rate))
+        }
+    }
+
+    @Test func circlingATreeInAMinuteTurnsSixDegreesASecond() throws {
+        let ccw = try #require(MotionFeatures.second(turning(6)))
+        #expect(ccw.turn == 6)
+        let cw = try #require(MotionFeatures.second(turning(-6)))
+        #expect(cw.turn == -6)
+        // Device motion's total acceleration is gravity plus the user's: 1 g at rest.
+        #expect(ccw.magnitude.allSatisfy { $0 == 1 } && ccw.energy == 0)
+    }
+
+    @Test func sixtySecondsOfCirclingAddUpToOneFullTurn() throws {
+        let total = try (0..<60).reduce(0.0) { sum, s in
+            sum + (try #require(MotionFeatures.second(turning(6, start: Double(s)))).turn ?? 0)
+        }
+        #expect(abs(total - 360) < 0.5)
+    }
+
+    @Test func theTurnIsAboutTheVerticalWhicheverWayTheWristIsHeld() throws {
+        // The watch on its side (gravity along -x): a rotation about its x axis is the vertical one.
+        let rate = 6 * Double.pi / 180
+        let samples = (0..<200).map { i in
+            MotionSample(t: Double(i) / 200, gravity: (-1, 0, 0), user: (0, 0, 0), rotation: (rate, 0, 0))
+        }
+        #expect(try #require(MotionFeatures.second(samples)).turn == 6)
+        // Twisting the wrist about a level axis isn't a turn.
+        let twist = (0..<200).map { i in
+            MotionSample(t: Double(i) / 200, gravity: (-1, 0, 0), user: (0, 0, 0), rotation: (0, rate, 0))
+        }
+        #expect(try #require(MotionFeatures.second(twist)).turn == 0)
+    }
+
+    @Test func noGyroscopeNoTurn() throws {
+        #expect(try #require(MotionFeatures.second(second { _ in 0 })).turn == nil)
+    }
+
     @Test func theMagnitudeIsAveragedIntoTwentyFiveSlicesEvenFromAShortBatch() throws {
         let motion = try #require(MotionFeatures.second(second(hz: 10) { t in t < 0.5 ? 0 : 1 }))
         #expect(motion.magnitude.count == 25)

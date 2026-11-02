@@ -9,14 +9,14 @@ struct FieldLogTests {
 
     var header: FieldLogHeader {
         FieldLogHeader(startedAt: t0, shiftId: UUID(uuidString: "6F36AC4A-2482-43AB-93EB-D015C1503B1B"), device: "Watch7,5",
-                       timeZone: "America/Indiana/Indianapolis", accelerometerHz: 800)
+                       timeZone: "America/Indiana/Indianapolis", motionHz: 200, wrist: "left")
     }
 
     func second(_ i: Int, phase: String = "running") -> FieldLogSecond {
         FieldLogSecond(t: t0.addingTimeInterval(Double(i)), phase: phase,
                        fixes: [FieldLogFix(t: t0.addingTimeInterval(Double(i) - 0.5), lat: 40.1667, lon: -86.5016, hAcc: 3.2,
                                            alt: 262, vAcc: 4, speed: 0.6, course: 181)],
-                       heartRate: 104, motion: FieldLogMotion(samples: 800, energy: 0.21, peaks: 2, magnitude: Array(repeating: 1, count: 25)))
+                       heartRate: 104, motion: FieldLogMotion(samples: 200, energy: 0.21, peaks: 2, turn: -6.1, magnitude: Array(repeating: 1, count: 25)))
     }
 
     @Test func aLogReadsBackLineForLine() throws {
