@@ -227,6 +227,14 @@ public enum WatchDisplay {
         return ([snapshot.fieldName, "\(percent)%"].filter { !$0.isEmpty }.joined(separator: " "), fraction)
     }
 
+    /// "1.2 mi · 2,410 steps" (next to a walking figure), live from the workout and on the
+    /// summary. Nil before the first reading.
+    public static func movementLine(meters: Double?, steps: Double?, miles: Bool) -> String? {
+        let parts = [meters.map { Fmt.distance(meters: $0, miles: miles) },
+                     steps.map { Fmt.plural(Int($0.rounded()), "step") }].compactMap { $0 }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
+    }
+
     /// "104 bpm · 612 kcal" (next to a heart glyph), live from the workout.
     public static func heartLine(bpm: Double?, kcal: Double?) -> String? {
         let parts = [bpm.map { "\(Int($0.rounded())) bpm" }, kcal.map { "\(Fmt.count(Int($0.rounded()))) kcal" }].compactMap { $0 }
@@ -357,20 +365,27 @@ public enum WatchDisplay {
     public static let appName = "Time Card"
     public static let siriNote = "Say “Clock in with Time Card” once and tap Allow. If you said no, Siri on the watch can’t be turned back on for Time Card yet."
     public static let returnToClockTip = "Settings › General › Return to Clock › Time Card › 1 hour"
-    public static let healthTitle = "Record shifts as workouts"
+    public static let healthTitle = "Record Tree care workouts"
     public static let allowHealth = "Allow Health"
     /// Apple's wording for how an Other workout counts calories.
     public static let caloriesNote = "You earn the calorie equivalent of a brisk walk anytime sensor readings are unavailable."
     public static let notificationsAsk = "Remind me if a clock-out gets stuck."
+    /// The card again, after an update that reads more from Health (docs/health.md 2).
+    public static let healthMoreNote = "Time Card now records steps and distance with each shift."
+    public static let routeTitle = "Record your route"
+    public static let routeNote = "GPS measures distance and saves a map of where you worked with the Tree care workout. It stays in Health and never goes to the farm."
+    public static let allowLocation = "Allow Location"
 
     // MARK: Workouts
 
-    public static let recording = "Recording shift workout"
+    public static let recording = "Recording tree care"
     public static let workoutsOff = "Workouts off · Allow Time Card in the Health app on your iPhone."
     public static let recordingStopped = "Recording stopped"
     public static let recordAgain = "Record again"
     public static let actionButtonNeedsWorkouts = "Action button needs workouts on."
     public static let lowPower = "Low Power: Double Tap is off"
+    /// Record route is on, but the watch may not use location.
+    public static let routeOff = "Route off · Allow Location for Time Card in Settings on your watch."
     public static let recordingYourShift = "Recording your shift."
     /// The Today page's workout line while lunch or a break pauses the workout.
     public static let workoutPaused = "Workout paused"
@@ -443,6 +458,8 @@ public enum WatchDisplay {
         public static let phone = "iphone"
         public static let phoneAway = "iphone.slash"
         public static let recording = "record.circle"
+        public static let walk = "figure.walk"
+        public static let location = "location.fill"
     }
 
     // MARK: Accessibility
@@ -469,6 +486,13 @@ public enum WatchDisplay {
         let time = "\(Fmt.spokenDuration(minutes)) active"
         guard let kcal else { return time }
         return "\(calories(kcal)), \(time)"
+    }
+
+    /// VoiceOver for "1.2 mi · 2,410 steps": "1.2 miles, 2,410 steps".
+    public static func movementLineAccessibility(meters: Double?, steps: Double?, miles: Bool) -> String? {
+        let parts = [meters.map { Fmt.spokenDistance(meters: $0, miles: miles) },
+                     steps.map { Fmt.plural(Int($0.rounded()), "step") }].compactMap { $0 }
+        return parts.isEmpty ? nil : parts.joined(separator: ", ")
     }
 
     /// VoiceOver for the live "104 bpm · 612 kcal": "Heart rate 104, 612 calories".

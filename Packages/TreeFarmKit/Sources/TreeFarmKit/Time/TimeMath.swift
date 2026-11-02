@@ -27,3 +27,23 @@ extension Shift {
         max(0, (end ?? now).timeIntervalSince(start) - breakTime(at: now))
     }
 }
+
+extension Shift {
+    /// The spans actually worked, oldest first: start to end (or `now`) with every break cut
+    /// out. A shift's Health card adds up Health's data over these (docs/health.md 4).
+    public func workIntervals(at now: Date) -> [DateInterval] {
+        let limit = end ?? now
+        guard limit > start else { return [] }
+        var spans: [DateInterval] = []
+        var cursor = start
+        for b in breaks.sorted(by: { $0.start < $1.start }) {
+            let from = min(max(b.start, start), limit)
+            let to = min(b.end ?? limit, limit)
+            guard to > from else { continue }
+            if from > cursor { spans.append(DateInterval(start: cursor, end: from)) }
+            cursor = max(cursor, to)
+        }
+        if limit > cursor { spans.append(DateInterval(start: cursor, end: limit)) }
+        return spans
+    }
+}

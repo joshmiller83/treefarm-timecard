@@ -2,8 +2,8 @@ import SwiftUI
 import TreeFarmKit
 
 /// The shift summary after a clock-out (docs/watch.md 2.6, 3.9): worked time and trees from the
-/// phone (or the watch's own count while the clock-out waits), and heart rate, calories and
-/// active time from the workout when it recorded one. Never pay. Done is the primary action.
+/// phone (or the watch's own count while the clock-out waits), and heart rate, calories, active
+/// time, distance and steps from the workout when it recorded one. Never pay. Done is the primary action.
 /// While the clock-out still waits for the phone, a banner says so in place of the title.
 /// `WorkoutSummaryContent` supplies the words and what VoiceOver says for the numbers.
 struct ShiftDoneScreen: View {
@@ -23,11 +23,14 @@ struct ShiftDoneScreen: View {
     var body: some View {
         VStack(alignment: .leading, spacing: metrics.isSmall ? 2 : 4) {
             // It never scrolls (Double Tap is Done): on a small watch or at large text the
-            // energy line goes first, then the heart line.
+            // worked time shrinks to make room for the distance line, then the distance line
+            // goes, then the energy line, then the heart line.
             ViewThatFits(in: .vertical) {
-                facts(heart: true, energy: true)
-                facts(heart: true, energy: false)
-                facts(heart: false, energy: false)
+                facts(heart: true, energy: true, movement: true)
+                facts(heart: true, energy: true, movement: true, compact: true)
+                facts(heart: true, energy: true, movement: false)
+                facts(heart: true, energy: false, movement: false)
+                facts(heart: false, energy: false, movement: false)
             }
             .frame(maxHeight: .infinity, alignment: .top)
 
@@ -43,7 +46,8 @@ struct ShiftDoneScreen: View {
         .background(PhaseGlow(phase: .offClock))
     }
 
-    private func facts(heart: Bool, energy: Bool) -> some View {
+    /// `compact`: a smaller worked time, so all three workout lines fit.
+    private func facts(heart: Bool, energy: Bool, movement: Bool, compact: Bool = false) -> some View {
         VStack(alignment: .leading, spacing: metrics.isSmall ? 2 : 4) {
             if waiting {
                 Banner(text: WatchDisplay.clockOutWaiting)
@@ -57,7 +61,7 @@ struct ShiftDoneScreen: View {
             }
 
             Text(Fmt.hm(closed.worked))
-                .font(.system(size: metrics.timer * scale, weight: .semibold, design: .rounded))
+                .font(.system(size: metrics.timer * scale * (compact ? 0.6 : 1), weight: .semibold, design: .rounded))
                 .monospacedDigit()
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
@@ -88,6 +92,15 @@ struct ShiftDoneScreen: View {
                     .minimumScaleFactor(0.7)
                     .accessibilityElement(children: .ignore)
                     .accessibilityLabel(content.energyAccessibility ?? line)
+            }
+            if movement, let line = content.movement {
+                Label(line, systemImage: WatchDisplay.Glyph.walk)
+                    .font(.system(.caption, design: .rounded))
+                    .foregroundStyle(WorkoutPalette.firText)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(content.movementAccessibility ?? line)
             }
         }
         .fixedSize(horizontal: false, vertical: true)

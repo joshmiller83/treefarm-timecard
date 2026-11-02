@@ -79,4 +79,41 @@ struct TimeMathTests {
         let s = F.shift("2026-10-31 22:00", "2026-11-01 06:00")
         #expect(s.workedTime(at: F.wall("2026-11-02 12:00")) == F.hours(9))
     }
+
+    // MARK: Worked spans (a shift's Health card)
+
+    @Test func workedSpansCutOutEveryBreak() {
+        let s = F.shift("2026-10-16 07:00", "2026-10-16 15:30", breaks: [
+            F.rest("2026-10-16 14:00", "2026-10-16 14:10", reason: "Fuel run"),
+            F.lunch("2026-10-16 12:00", "2026-10-16 12:30"),
+        ])
+        let spans = s.workIntervals(at: F.wall("2026-10-18 12:00"))
+        #expect(spans.map(\.start) == [F.wall("2026-10-16 07:00"), F.wall("2026-10-16 12:30"), F.wall("2026-10-16 14:10")])
+        #expect(spans.map(\.end) == [F.wall("2026-10-16 12:00"), F.wall("2026-10-16 14:00"), F.wall("2026-10-16 15:30")])
+        #expect(spans.reduce(0) { $0 + $1.duration } == s.workedTime(at: F.wall("2026-10-18 12:00")))
+    }
+
+    @Test func workedSpansOfAnOpenShiftStopAtAnOpenBreak() {
+        let s = F.shift("2026-10-18 07:00", nil, breaks: [F.lunch("2026-10-18 12:00", nil)])
+        let spans = s.workIntervals(at: F.wall("2026-10-18 12:20"))
+        #expect(spans == [DateInterval(start: F.wall("2026-10-18 07:00"), end: F.wall("2026-10-18 12:00"))])
+    }
+
+    @Test func workedSpansClampBreaksToTheShiftAndMergeOverlaps() {
+        let s = F.shift("2026-10-16 07:00", "2026-10-16 15:00", breaks: [
+            F.rest("2026-10-16 06:30", "2026-10-16 07:15", reason: ""),
+            F.lunch("2026-10-16 12:00", "2026-10-16 12:30"),
+            F.rest("2026-10-16 12:20", "2026-10-16 12:40", reason: ""),
+            F.rest("2026-10-16 14:50", "2026-10-16 16:00", reason: ""),
+        ])
+        let spans = s.workIntervals(at: F.wall("2026-10-18 12:00"))
+        #expect(spans == [DateInterval(start: F.wall("2026-10-16 07:15"), end: F.wall("2026-10-16 12:00")),
+                          DateInterval(start: F.wall("2026-10-16 12:40"), end: F.wall("2026-10-16 14:50"))])
+    }
+
+    @Test func aShiftAllOnBreakHasNoWorkedSpans() {
+        let s = F.shift("2026-10-16 07:00", "2026-10-16 08:00", breaks: [F.lunch("2026-10-16 07:00", "2026-10-16 08:00")])
+        #expect(s.workIntervals(at: F.wall("2026-10-18 12:00")).isEmpty)
+        #expect(F.shift("2026-10-16 07:00", "2026-10-16 07:00").workIntervals(at: F.wall("2026-10-18 12:00")).isEmpty)
+    }
 }

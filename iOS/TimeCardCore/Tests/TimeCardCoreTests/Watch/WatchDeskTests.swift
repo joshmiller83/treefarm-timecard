@@ -567,6 +567,16 @@ struct WatchDeskTests {
         #expect(off.state?.recordWorkouts == false)
     }
 
+    @Test func theRouteGoesToTheWatchOnlyWithWorkoutsOn() async throws {
+        let session = try await makeSession()
+        let (_, desk) = makeDesk(session)
+        #expect(desk.makeState().recordRoute == false)
+        settings.value.recordRoute = true
+        #expect(desk.makeState().recordRoute == true)
+        settings.value.recordWorkouts = false
+        #expect(desk.makeState().recordRoute == false)
+    }
+
     @Test func theSignedOutStateUsesTheCounterToo() async throws {
         let session = try await makeSession(signIn: false)
         let (_, desk) = makeDesk(session)

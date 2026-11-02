@@ -1,28 +1,59 @@
 import SwiftUI
 import TreeFarmKit
 
-/// The first-launch card's two questions (docs/watch.md 2.4).
+/// The card's questions (docs/watch.md 2.4, docs/health.md 2 and 3).
 enum HealthOnboardingStep: Equatable, Sendable {
-    /// "Record shifts as workouts", with Apple's wording for how Other counts calories.
+    /// "Record Tree care workouts", with Apple's wording for how Other counts calories.
     case health
     /// Shown while the system asks about notifications: "Remind me if a clock-out gets stuck."
     case reminder
+    /// Once, after an update that reads more from Health: steps and distance.
+    case healthMore
+    /// Record route is on and location was never asked: "Record your route".
+    case location
 
-    var title: String { WatchDisplay.healthTitle }
-    var body: String { self == .health ? WatchDisplay.caloriesNote : WatchDisplay.notificationsAsk }
-    var button: String { WatchDisplay.allowHealth }
+    var title: String { self == .location ? WatchDisplay.routeTitle : WatchDisplay.healthTitle }
+
+    var body: String {
+        switch self {
+        case .health: WatchDisplay.caloriesNote
+        case .reminder: WatchDisplay.notificationsAsk
+        case .healthMore: WatchDisplay.healthMoreNote
+        case .location: WatchDisplay.routeNote
+        }
+    }
+
+    var button: String { self == .location ? WatchDisplay.allowLocation : WatchDisplay.allowHealth }
+
+    /// The button's glyph: a heart for Health, a location arrow for the route.
+    var buttonGlyph: String { self == .location ? WatchDisplay.Glyph.location : WatchDisplay.Glyph.heart }
+
     /// A heart for Health; for the reminder, the phone out of reach that leaves a clock-out stuck.
-    var glyph: String { self == .health ? WatchDisplay.Glyph.heart : WatchDisplay.Glyph.phoneAway }
+    var glyph: String {
+        switch self {
+        case .health, .healthMore: WatchDisplay.Glyph.heart
+        case .reminder: WatchDisplay.Glyph.phoneAway
+        case .location: WatchDisplay.Glyph.location
+        }
+    }
 }
 
 /// The full-screen card the watch shows on its first launch while recording is on and Health
-/// was never asked (`ShiftWorkout.needsHealthOnboarding`).
+/// was never asked, once after an update that reads more, and once Record route needs location
+/// (`ShiftWorkout.needsHealthOnboarding`).
 struct HealthOnboardingView: View {
     var workout: ShiftWorkout = .shared
 
     var body: some View {
-        HealthOnboardingCard(step: workout.onboardingStep ?? .health) {
-            Task { await workout.allowHealth() }
+        let step = workout.onboardingStep ?? .health
+        HealthOnboardingCard(step: step) {
+            Task {
+                if step == .location {
+                    await workout.allowLocation()
+                } else {
+                    await workout.allowHealth()
+                }
+            }
         }
     }
 }
@@ -53,7 +84,7 @@ struct HealthOnboardingCard: View {
             .frame(maxHeight: .infinity)
 
             Button(action: onAllow) {
-                Label(step.button, systemImage: WatchDisplay.Glyph.heart)
+                Label(step.button, systemImage: step.buttonGlyph)
             }
             .buttonStyle(WorkoutButtonStyle(fill: WorkoutPalette.fir, height: size.primaryHeight))
             .handGestureShortcut(.primaryAction)
@@ -68,7 +99,7 @@ struct HealthOnboardingCard: View {
             if showGlyph {
                 Image(systemName: step.glyph)
                     .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(step == .health ? WorkoutPalette.heart : WorkoutPalette.sapText)
+                    .foregroundStyle(step == .reminder ? WorkoutPalette.sapText : step == .location ? WorkoutPalette.firText : WorkoutPalette.heart)
                     .frame(width: 32, height: 32)
                     .background(Circle().fill(.white.opacity(0.12)))
                     .padding(.bottom, 2)

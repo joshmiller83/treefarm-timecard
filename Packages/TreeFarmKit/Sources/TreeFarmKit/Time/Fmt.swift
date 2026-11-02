@@ -72,6 +72,23 @@ public enum Fmt {
         (n < 0 ? "-" : "") + grouped(n.magnitude)
     }
 
+    // MARK: Distance
+
+    static let metersPerMile = 1609.344
+
+    /// "3.4 mi" or "5.5 km", to a tenth. `miles` follows the person's region.
+    public static func distance(meters: Double, miles: Bool) -> String {
+        let t = tenths(meters, miles: miles)
+        return "\(count(t / 10)).\(t % 10) \(miles ? "mi" : "km")"
+    }
+
+    /// What VoiceOver says for `distance`: "3.4 miles", "1 mile", "5.5 kilometers".
+    public static func spokenDistance(meters: Double, miles: Bool) -> String {
+        let t = tenths(meters, miles: miles)
+        let unit = miles ? "mile" : "kilometer"
+        return t % 10 == 0 ? plural(t / 10, unit) : "\(count(t / 10)).\(t % 10) \(unit)s"
+    }
+
     // MARK: Dates and times
 
     /// "7:02 AM".
@@ -147,6 +164,10 @@ public enum Fmt {
     private static func clean(_ t: TimeInterval) -> TimeInterval { t.isFinite ? max(0, t) : 0 }
     private static func wholeSeconds(_ t: TimeInterval) -> Int { Int(clean(t).rounded(.down)) }
     private static func roundedMinutes(_ t: TimeInterval) -> Int { Int((clean(t) / 60).rounded()) }
+    private static func tenths(_ meters: Double, miles: Bool) -> Int {
+        let value = (meters.isFinite ? max(0, meters) : 0) / (miles ? metersPerMile : 1000)
+        return Int((value * 10).rounded())
+    }
     private static func plain(_ n: Int, _ word: String) -> String { "\(n) \(word)" + (n == 1 ? "" : "s") }
 
     private static func grouped(_ n: UInt) -> String {

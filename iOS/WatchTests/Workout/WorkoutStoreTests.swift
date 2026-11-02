@@ -43,22 +43,24 @@ struct WorkoutStoreTests {
         let shift = UUID(), sync = UUID()
         let local = WorkoutLocal().started(at: start, shiftId: shift, origin: .phoneLaunch, syncIdentifier: sync)
         let metadata = WorkoutMetadata.make(local: local, timeZone: "America/Indiana/Indianapolis")
-        #expect(metadata[HKMetadataKeyWorkoutBrandName] as? String == "Time Card shift")
+        #expect(metadata[HKMetadataKeyWorkoutBrandName] as? String == "Tree care")
+        #expect(metadata[WorkoutMetadata.typeKey] as? String == "treeCare")
         #expect(metadata[WorkoutMetadata.shiftIdKey] as? String == shift.uuidString)
         #expect(metadata[HKMetadataKeySyncIdentifier] as? String == sync.uuidString)
         #expect(metadata[HKMetadataKeySyncVersion] as? Int == 1)
         #expect(metadata[HKMetadataKeyTimeZone] as? String == "America/Indiana/Indianapolis")
         #expect(metadata[HKMetadataKeyIndoorWorkout] as? Bool == false)
-        #expect(metadata.count == 6)
+        #expect(metadata.count == 7)
     }
 
     @Test func anUntaggedWorkoutHasNoShiftId() {
         let local = WorkoutLocal().started(at: start, shiftId: nil, origin: .phoneLaunch, syncIdentifier: UUID())
         let metadata = WorkoutMetadata.make(local: local, timeZone: "UTC")
         #expect(metadata[WorkoutMetadata.shiftIdKey] == nil)
-        #expect(metadata.count == 5)
+        #expect(metadata.count == 6)
     }
 
+    /// Tree care is Time Card's name; Health has no such type and files it under Other.
     @Test func theSessionIsAnOutdoorOtherWorkout() {
         let configuration = WorkoutMetadata.configuration()
         #expect(configuration.activityType == .other)

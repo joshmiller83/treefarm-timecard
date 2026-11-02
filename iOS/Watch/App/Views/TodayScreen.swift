@@ -35,6 +35,8 @@ struct TodayScreen: View {
 
                 WorkoutHeartLine(live: live)
 
+                WorkoutMovementLine(live: live)
+
                 WorkoutStatusLine(live: live)
 
                 Divider()

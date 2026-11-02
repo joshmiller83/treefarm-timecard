@@ -158,6 +158,16 @@ struct WatchDisplayTests {
         #expect(WatchDisplay.heartLine(bpm: nil, kcal: nil) == nil)
     }
 
+    @Test func movementLines() {
+        #expect(WatchDisplay.movementLine(meters: 1931, steps: 2410.4, miles: true) == "1.2 mi · 2,410 steps")
+        #expect(WatchDisplay.movementLine(meters: 5500, steps: nil, miles: false) == "5.5 km")
+        #expect(WatchDisplay.movementLine(meters: nil, steps: 1, miles: true) == "1 step")
+        #expect(WatchDisplay.movementLine(meters: nil, steps: nil, miles: true) == nil)
+        #expect(WatchDisplay.movementLineAccessibility(meters: 1931, steps: 2410, miles: true) == "1.2 miles, 2,410 steps")
+        #expect(WatchDisplay.movementLineAccessibility(meters: 1609.344, steps: nil, miles: true) == "1 mile")
+        #expect(WatchDisplay.movementLineAccessibility(meters: nil, steps: nil, miles: false) == nil)
+    }
+
     // MARK: Queue
 
     @Test func queueLines() {

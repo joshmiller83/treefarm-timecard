@@ -41,6 +41,9 @@ final class AppModel {
     let storageError: String?
     @ObservationIgnored let actions: FieldActions
     @ObservationIgnored let liveActivity = LiveActivityController()
+    /// Reads a shift's steps, distance and heart rate from Health for its card in the Log
+    /// (docs/health.md 4): the real HealthKit one on a live launch, made-up numbers otherwise.
+    @ObservationIgnored let health: any ShiftHealthReader
     /// The Apple Watch link. Made and activated here, not in a view: a watch message can launch
     /// the app in the background with no scene, and the window's `.task` would never run.
     @ObservationIgnored private(set) var watch: PhoneWatchBridge!
@@ -60,10 +63,12 @@ final class AppModel {
     /// ones for a live launch (or a UI-test launch with `-UITestWatchLink`), and to ones with no
     /// watch behind them for other UI tests and test hosts.
     init(session: TimeCardSession, mode: LaunchMode, storageError: String? = nil,
-         watchTransport: (any WatchTransport)? = nil, watchLauncher: (any WatchWorkoutLauncher)? = nil) {
+         watchTransport: (any WatchTransport)? = nil, watchLauncher: (any WatchWorkoutLauncher)? = nil,
+         health: (any ShiftHealthReader)? = nil) {
         self.session = session
         self.mode = mode
         self.storageError = storageError
+        self.health = health ?? (mode == .live && !LaunchMode.isTestHost ? HealthKitShiftHealthReader() : DemoShiftHealthReader())
         self.actions = FieldActions(session: session)
         actions.onLiveSnapshot = { [weak self] snapshot in
             self?.liveSnapshotChanged(snapshot)

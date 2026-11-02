@@ -199,6 +199,9 @@ public struct WatchState: Codable, Hashable, Sendable {
     public var canUndo: Bool
     /// Whether clocking in also starts a workout on the watch.
     public var recordWorkouts: Bool
+    /// Whether the workout records a GPS route (docs/health.md 3). Only ever true with
+    /// `recordWorkouts`; false from a phone that predates it.
+    public var recordRoute: Bool
     /// When the phone built this state.
     public var updatedAt: Date
 
@@ -230,7 +233,8 @@ public struct WatchState: Codable, Hashable, Sendable {
                 epoch: UUID = WatchState.noEpoch, revision: Int = 0, userId: UUID? = nil, shiftId: UUID? = nil,
                 shiftStart: Date? = nil, lastClosedShift: ClosedShift? = nil, appliedRequestIds: [UUID] = [],
                 hadLunchToday: Bool = false, pacePerHour: Double? = nil,
-                farmTimeZone: String = TimeZone.current.identifier, usualStart: DateComponents? = nil) {
+                farmTimeZone: String = TimeZone.current.identifier, usualStart: DateComponents? = nil,
+                recordRoute: Bool = false) {
         self.signedIn = signedIn
         self.farmName = farmName
         self.fieldName = fieldName
@@ -240,6 +244,7 @@ public struct WatchState: Codable, Hashable, Sendable {
         self.todayTrees = todayTrees
         self.canUndo = canUndo
         self.recordWorkouts = recordWorkouts
+        self.recordRoute = recordRoute
         self.updatedAt = updatedAt
         self.epoch = epoch
         self.revision = revision
@@ -252,6 +257,40 @@ public struct WatchState: Codable, Hashable, Sendable {
         self.pacePerHour = pacePerHour
         self.farmTimeZone = farmTimeZone
         self.usualStart = usualStart
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case signedIn, farmName, fieldName, snapshot, nextRows, todayWorked, todayTrees, canUndo, recordWorkouts, recordRoute,
+             updatedAt, epoch, revision, userId, shiftId, shiftStart, lastClosedShift, appliedRequestIds, hadLunchToday,
+             pacePerHour, farmTimeZone, usualStart
+    }
+
+    /// Reads a state from a phone that may predate `recordRoute` (TestFlight updates the two apps
+    /// separately): missing, it's false.
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        signedIn = try c.decode(Bool.self, forKey: .signedIn)
+        farmName = try c.decode(String.self, forKey: .farmName)
+        fieldName = try c.decode(String.self, forKey: .fieldName)
+        snapshot = try c.decodeIfPresent(LiveSnapshot.self, forKey: .snapshot)
+        nextRows = try c.decode([RowChip].self, forKey: .nextRows)
+        todayWorked = try c.decode(TimeInterval.self, forKey: .todayWorked)
+        todayTrees = try c.decode(Int.self, forKey: .todayTrees)
+        canUndo = try c.decode(Bool.self, forKey: .canUndo)
+        recordWorkouts = try c.decode(Bool.self, forKey: .recordWorkouts)
+        recordRoute = try c.decodeIfPresent(Bool.self, forKey: .recordRoute) ?? false
+        updatedAt = try c.decode(Date.self, forKey: .updatedAt)
+        epoch = try c.decode(UUID.self, forKey: .epoch)
+        revision = try c.decode(Int.self, forKey: .revision)
+        userId = try c.decodeIfPresent(UUID.self, forKey: .userId)
+        shiftId = try c.decodeIfPresent(UUID.self, forKey: .shiftId)
+        shiftStart = try c.decodeIfPresent(Date.self, forKey: .shiftStart)
+        lastClosedShift = try c.decodeIfPresent(ClosedShift.self, forKey: .lastClosedShift)
+        appliedRequestIds = try c.decode([UUID].self, forKey: .appliedRequestIds)
+        hadLunchToday = try c.decode(Bool.self, forKey: .hadLunchToday)
+        pacePerHour = try c.decodeIfPresent(Double.self, forKey: .pacePerHour)
+        farmTimeZone = try c.decode(String.self, forKey: .farmTimeZone)
+        usualStart = try c.decodeIfPresent(DateComponents.self, forKey: .usualStart)
     }
 
     /// The epoch of a state made by hand (tests, previews). The phone always sets a real one.
@@ -410,6 +449,7 @@ public enum WatchTiming {
 
 /// What the watch's workout measured for one shift. It goes to the phone (`.workoutSummary`),
 /// which keeps it for the worker only: health data never syncs and never reaches the farm.
+/// Never a location: a route stays in Health with the workout (docs/health.md 3).
 public struct WorkoutSummary: Codable, Hashable, Sendable {
     public var shiftId: UUID?
     public var start: Date
@@ -418,9 +458,13 @@ public struct WorkoutSummary: Codable, Hashable, Sendable {
     public var activeKcal: Double?
     public var avgHeartRate: Double?
     public var maxHeartRate: Double?
+    /// Optional, so a summary from a watch that predates them still reads (docs/health.md 2).
+    public var steps: Double?
+    public var distanceMeters: Double?
 
     public init(shiftId: UUID?, start: Date, end: Date, activeDuration: TimeInterval,
-                activeKcal: Double? = nil, avgHeartRate: Double? = nil, maxHeartRate: Double? = nil) {
+                activeKcal: Double? = nil, avgHeartRate: Double? = nil, maxHeartRate: Double? = nil,
+                steps: Double? = nil, distanceMeters: Double? = nil) {
         self.shiftId = shiftId
         self.start = start
         self.end = end
@@ -428,7 +472,26 @@ public struct WorkoutSummary: Codable, Hashable, Sendable {
         self.activeKcal = activeKcal
         self.avgHeartRate = avgHeartRate
         self.maxHeartRate = maxHeartRate
+        self.steps = steps
+        self.distanceMeters = distanceMeters
     }
+}
+
+/// What kind of work a shift's workout records (docs/health.md 1). Apple's workout types are a
+/// fixed list with nothing for farm work, so Health stores every one as Other; the name and
+/// `key` (in the workout's metadata) are Time Card's.
+public enum ShiftWorkoutType: String, Codable, Hashable, Sendable, CaseIterable {
+    case treeCare
+
+    /// "Tree care": what the watch, the summary and the workout's brand name say.
+    public var name: String {
+        switch self {
+        case .treeCare: "Tree care"
+        }
+    }
+
+    /// Saved with the workout as `TimeCardWorkoutType`.
+    public var key: String { rawValue }
 }
 
 /// The watch's own record of its workout session, saved on every change so a recovered

@@ -14,6 +14,8 @@ final class DemoWorkoutDriver: WorkoutDriver {
     /// Roughly what a steady day of shaping looks like.
     static let heartRate = (avg: 104.0, max: 151.0)
     static let kcalPerMinute = 2.4
+    static let stepsPerMinute = 18.0
+    static let metersPerMinute = 12.0
 
     init() {
         (events, continuation) = AsyncStream.makeStream()
@@ -21,12 +23,18 @@ final class DemoWorkoutDriver: WorkoutDriver {
 
     func authorizationStatus() -> HealthAccess { .authorized }
     func requestAuthorization() async -> HealthAccess { .authorized }
+    var asksForMore: Bool { false }
+    func locationStatus() -> LocationAccess { .authorized }
+    func requestLocation() async -> LocationAccess { .authorized }
+    func recordRoute(_ on: Bool) {}
 
     func start(at date: Date, shiftId: UUID?, origin: WorkoutLocal.Origin) async throws {
         pausedSince = nil
         pausedTotal = 0
         local = local.started(at: date, shiftId: shiftId, origin: origin, syncIdentifier: UUID())
-        continuation.yield(.metrics(heartRate: Self.heartRate.avg, kcal: kcal(at: Date())))
+        let minutes = activeMinutes(at: Date())
+        continuation.yield(.metrics(heartRate: Self.heartRate.avg, kcal: minutes * Self.kcalPerMinute,
+                                    steps: minutes * Self.stepsPerMinute, meters: minutes * Self.metersPerMinute))
     }
 
     func tag(shiftId: UUID) { local = local.tagged(shiftId) }
@@ -52,7 +60,8 @@ final class DemoWorkoutDriver: WorkoutDriver {
         guard active >= WorkoutPlan.minimumDuration else { return nil }
         return WorkoutSummary(shiftId: shiftId, start: start, end: date, activeDuration: active,
                               activeKcal: active / 60 * Self.kcalPerMinute,
-                              avgHeartRate: Self.heartRate.avg, maxHeartRate: Self.heartRate.max)
+                              avgHeartRate: Self.heartRate.avg, maxHeartRate: Self.heartRate.max,
+                              steps: active / 60 * Self.stepsPerMinute, distanceMeters: active / 60 * Self.metersPerMinute)
     }
 
     func salvage(at date: Date, timeZone: String) async -> WorkoutSummary? {
@@ -68,8 +77,8 @@ final class DemoWorkoutDriver: WorkoutDriver {
         return false
     }
 
-    private func kcal(at date: Date) -> Double {
+    private func activeMinutes(at date: Date) -> Double {
         guard let start = local.startedAt else { return 0 }
-        return max(0, date.timeIntervalSince(start) - pausedTotal) / 60 * Self.kcalPerMinute
+        return max(0, date.timeIntervalSince(start) - pausedTotal) / 60
     }
 }

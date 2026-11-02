@@ -16,11 +16,21 @@ enum HealthAccess: Equatable, Sendable {
     case unavailable
 }
 
+/// Whether the watch may use GPS for the Tree care workout's route (docs/health.md 3).
+enum LocationAccess: Equatable, Sendable {
+    /// Never asked: the card asks once Record route is on.
+    case notDetermined
+    case authorized
+    /// The workout records without a route; the Today page says how to allow it.
+    case denied
+}
+
 enum WorkoutDriverEvent: Sendable {
     /// The session's state changed (HKWorkoutSessionDelegate).
     case phase(WorkoutLocal.Phase)
-    /// Live numbers from the builder: the latest heart rate (bpm) and the active kcal so far.
-    case metrics(heartRate: Double?, kcal: Double?)
+    /// Live numbers from the builder: the latest heart rate (bpm), and the active kcal, steps and
+    /// meters so far.
+    case metrics(heartRate: Double?, kcal: Double?, steps: Double? = nil, meters: Double? = nil)
     /// The session ended from outside the app: another workout started, an error, the system.
     case endedUnexpectedly(String)
 }
@@ -34,6 +44,14 @@ protocol WorkoutDriver: AnyObject {
     var events: AsyncStream<WorkoutDriverEvent> { get }
     func authorizationStatus() -> HealthAccess
     func requestAuthorization() async -> HealthAccess
+    /// Health was allowed before Time Card read everything it reads now (steps and distance):
+    /// the card asks once more. Workouts keep recording meanwhile (docs/health.md 2).
+    var asksForMore: Bool { get }
+    func locationStatus() -> LocationAccess
+    func requestLocation() async -> LocationAccess
+    /// Record route is on (and location allowed): GPS feeds the workout's route, but only while
+    /// the session runs, never on lunch or a break. Off stops it at once.
+    func recordRoute(_ on: Bool)
     /// `startActivity(with:)` and `beginCollection(at:)` at `date`, with a new sync identifier.
     func start(at: Date, shiftId: UUID?, origin: WorkoutLocal.Origin) async throws
     func tag(shiftId: UUID)

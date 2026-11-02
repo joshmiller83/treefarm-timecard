@@ -10,6 +10,7 @@ struct LogView: View {
     @AppStorage("clock.showPay") private var showPay = true
     @State private var editing: EditorTarget?
     @State private var treesFor: TreesTarget?
+    @State private var healthFor: TreesTarget?
     @State private var toast: String?
     @State private var treesCache = ShiftTreesCache()
     @Environment(\.dynamicTypeSize) private var typeSize
@@ -32,6 +33,9 @@ struct LogView: View {
             ShiftTreesSheet(shiftId: target.id)
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
+        }
+        .sheet(item: $healthFor) { target in
+            ShiftHealthSheet(shiftId: target.id)
         }
         .task {
             await LogScenario.applyIfRequested(AppModel.shared)
@@ -83,7 +87,8 @@ struct LogView: View {
                     ForEach(week.shifts) { row in
                         ShiftCard(row: row, showPay: showPay,
                                   edit: { editing = EditorTarget(shiftId: row.id) },
-                                  trees: { treesFor = TreesTarget(id: row.id) })
+                                  trees: { treesFor = TreesTarget(id: row.id) },
+                                  health: AppModel.shared.health.isAvailable ? { healthFor = TreesTarget(id: row.id) } : nil)
                     }
                 }
             }
@@ -149,6 +154,8 @@ private struct ShiftCard: View {
     var showPay: Bool
     var edit: () -> Void
     var trees: () -> Void
+    /// Nil on a device without Health.
+    var health: (() -> Void)?
     @Environment(\.dynamicTypeSize) private var typeSize
     @ScaledMetric(relativeTo: .subheadline) private var iconWidth: CGFloat = 18
 
@@ -160,21 +167,18 @@ private struct ShiftCard: View {
                 .accessibilityLabel(row.spoken(showPay: showPay))
                 .accessibilityIdentifier("log-shift-row")
 
-            AdaptiveStack(spacing: 10) {
-                Button(action: edit) {
-                    Label("Edit", systemImage: "pencil")
+            // Glove-size buttons. With Health there are three: in one row when their words fit,
+            // otherwise Health gets a row of its own, so no word breaks ("Heal th").
+            if typeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: 10) { editButton; treesButton; healthButton }
+            } else {
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 10) { editButton; treesButton; healthButton }
+                    VStack(spacing: 10) {
+                        HStack(spacing: 10) { editButton; treesButton }
+                        healthButton
+                    }
                 }
-                .buttonStyle(.gloveSecondary)
-                .accessibilityLabel("Edit shift, \(row.day)")
-                .accessibilityInputLabels(["Edit", "Edit shift"])
-                .accessibilityIdentifier("log-edit")
-                Button(action: trees) {
-                    Label("Trees", systemImage: "tree")
-                }
-                .buttonStyle(.gloveSecondary)
-                .accessibilityLabel("Trees on \(row.day)")
-                .accessibilityInputLabels(["Trees", "Trees on \(row.day)"])
-                .accessibilityIdentifier("log-trees")
             }
         }
         .card()
@@ -187,6 +191,39 @@ private struct ShiftCard: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("log-shift-card")
+    }
+
+    private var editButton: some View {
+        Button(action: edit) {
+            Label("Edit", systemImage: "pencil").lineLimit(1)
+        }
+        .buttonStyle(.gloveSecondary)
+        .accessibilityLabel("Edit shift, \(row.day)")
+        .accessibilityInputLabels(["Edit", "Edit shift"])
+        .accessibilityIdentifier("log-edit")
+    }
+
+    private var treesButton: some View {
+        Button(action: trees) {
+            Label("Trees", systemImage: "tree").lineLimit(1)
+        }
+        .buttonStyle(.gloveSecondary)
+        .accessibilityLabel("Trees on \(row.day)")
+        .accessibilityInputLabels(["Trees", "Trees on \(row.day)"])
+        .accessibilityIdentifier("log-trees")
+    }
+
+    @ViewBuilder
+    private var healthButton: some View {
+        if let health {
+            Button(action: health) {
+                Label(ShiftHealthWording.button, systemImage: "heart").lineLimit(1)
+            }
+            .buttonStyle(.gloveSecondary)
+            .accessibilityLabel("Health on \(row.day)")
+            .accessibilityInputLabels(["Health", "Health on \(row.day)"])
+            .accessibilityIdentifier("log-health")
+        }
     }
 
     private var info: some View {

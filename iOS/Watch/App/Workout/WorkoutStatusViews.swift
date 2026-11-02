@@ -36,6 +36,15 @@ struct WorkoutStatus: Equatable {
         WatchDisplay.heartLineAccessibility(bpm: live.heartRate, kcal: live.kcal)
     }
 
+    /// "1.2 mi · 2,410 steps", live from the workout; nil before the first reading.
+    static func movementLine(_ live: WorkoutLive, miles: Bool = WorkoutSummaryContent.miles) -> String? {
+        WatchDisplay.movementLine(meters: live.meters, steps: live.steps, miles: miles)
+    }
+
+    static func movementLineAccessibility(_ live: WorkoutLive, miles: Bool = WorkoutSummaryContent.miles) -> String? {
+        WatchDisplay.movementLineAccessibility(meters: live.meters, steps: live.steps, miles: miles)
+    }
+
     var color: Color {
         switch tone {
         case .fir: WorkoutPalette.firText
@@ -88,6 +97,37 @@ struct WorkoutHeartLine: View {
             .minimumScaleFactor(0.75)
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(WorkoutStatus.heartLineAccessibility(live) ?? line)
+        }
+    }
+}
+
+/// "🚶 1.2 mi · 2,410 steps" on the Today page, under the heart line (docs/health.md 2), and
+/// "Route off · Allow Location…" when Record route is on but location isn't allowed.
+struct WorkoutMovementLine: View {
+    let live: WorkoutLive
+    @Environment(\.isLuminanceReduced) private var dimmed
+
+    var body: some View {
+        if let line = WorkoutStatus.movementLine(live) {
+            Label {
+                Text(line).monospacedDigit()
+            } icon: {
+                Image(systemName: WatchDisplay.Glyph.walk)
+                    .foregroundStyle(dimmed ? WorkoutPalette.firText.opacity(0.6) : WorkoutPalette.firText)
+            }
+            .font(.footnote)
+            .lineLimit(1)
+            .minimumScaleFactor(0.75)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(WorkoutStatus.movementLineAccessibility(live) ?? line)
+        }
+        if live.routeOff {
+            Label(WatchDisplay.routeOff, systemImage: WatchDisplay.Glyph.location)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityElement(children: .combine)
+                .accessibilityIdentifier("workout.routeOff")
         }
     }
 }

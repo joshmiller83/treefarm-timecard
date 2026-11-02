@@ -146,6 +146,32 @@ final class LogReportUITests: XCTestCase {
         app.buttons["trees-done"].tap()
     }
 
+    /// docs/health.md 4: Health's numbers for the time worked (made up in UI tests), and the promise
+    /// that they stay on the phone.
+    func testHealthButtonShowsTheShiftsNumbers() {
+        let app = launch(["-UITestTab", "log", "-UITestLog", "weeks"])
+        let health = app.buttons["log-health"].firstMatch
+        XCTAssertTrue(health.waitForExistence(timeout: 15))
+        health.tap()
+        XCTAssertTrue(element("shift-health-sheet", in: app).waitForExistence(timeout: 5))
+        XCTAssertTrue(element("health-stats", in: app).waitForExistence(timeout: 5))
+        for label in ["Steps", "Distance", "Flights climbed", "Active calories", "Heart rate"] {
+            XCTAssertTrue(app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH %@", label + ":")).firstMatch.exists, label)
+        }
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "never sent to the farm")).firstMatch.exists)
+        if let folder = ProcessInfo.processInfo.environment["LOGREPORT_ARTIFACTS"], !folder.isEmpty {
+            let tag = ProcessInfo.processInfo.environment["LOGREPORT_TAG"] ?? "light"
+            try? FileManager.default.createDirectory(atPath: folder, withIntermediateDirectories: true)
+            try? XCUIScreen.main.screenshot().pngRepresentation
+                .write(to: URL(fileURLWithPath: folder).appendingPathComponent("\(tag)-health.png"))
+            app.buttons["health-done"].tap()
+            try? XCUIScreen.main.screenshot().pngRepresentation
+                .write(to: URL(fileURLWithPath: folder).appendingPathComponent("\(tag)-log-buttons.png"))
+        } else {
+            app.buttons["health-done"].tap()
+        }
+    }
+
     // MARK: Report
 
     func testExportThePDFAndTheCSV() {

@@ -34,7 +34,7 @@ struct WorkoutScreenshotTests {
 
     var summary: WorkoutSummary {
         WorkoutSummary(shiftId: closed.shiftId, start: start, end: closed.end, activeDuration: 7 * 3600 + 41 * 60,
-                       activeKcal: 1_120, avgHeartRate: 104, maxHeartRate: 151)
+                       activeKcal: 1_120, avgHeartRate: 104, maxHeartRate: 151, steps: 8_120, distanceMeters: 5_472)
     }
 
     static var directory: URL {
@@ -67,16 +67,22 @@ struct WorkoutScreenshotTests {
         try shoot("onboarding-ax", Self.screens[0], type: .accessibility3) { HealthOnboardingCard(step: .health) {} }
         try shoot("onboarding-ax", Self.screens[3], type: .accessibility3) { HealthOnboardingCard(step: .health) {} }
         try shoot("onboarding-reminder-ax", Self.screens[0], type: .accessibility3) { HealthOnboardingCard(step: .reminder) {} }
+        for screen in [Self.screens[0], Self.screens[3]] {
+            try shoot("onboarding-more", screen) { HealthOnboardingCard(step: .healthMore) {} }
+            try shoot("onboarding-location", screen) { HealthOnboardingCard(step: .location) {} }
+        }
+        try shoot("onboarding-location-ax", Self.screens[0], type: .accessibility3) { HealthOnboardingCard(step: .location) {} }
     }
 
     @Test func theBannersAndTheTodayLines() throws {
-        let recording = WorkoutLive(heartRate: 104, kcal: 612, recording: .recording)
+        let recording = WorkoutLive(heartRate: 104, kcal: 612, steps: 2_410, meters: 1_931, recording: .recording)
         for screen in Self.screens {
             try shoot("banners", screen) {
                 VStack(alignment: .leading, spacing: 8) {
                     ClockOutWaitingBanner()
                     WorkoutStatusLine(live: recording)
                     WorkoutHeartLine(live: recording)
+                    WorkoutMovementLine(live: recording)
                     Spacer(minLength: 0)
                 }
             }
@@ -92,6 +98,7 @@ struct WorkoutScreenshotTests {
                 WorkoutStatusLine(live: WorkoutLive(recording: .notAuthorized))
                 WorkoutStatusLine(live: WorkoutLive(recording: .off))
                 WorkoutStatusLine(live: WorkoutLive(recording: .paused))
+                WorkoutMovementLine(live: WorkoutLive(recording: .recording, routeOff: true))
                 Spacer(minLength: 0)
             }
         }

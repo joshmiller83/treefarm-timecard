@@ -3,9 +3,10 @@ import Observation
 import TreeFarmKit
 import WatchKit
 
-// The shift's workout session (docs/watch.md 2). Every shift records as an Apple Watch workout:
-// clock-in starts an outdoor Other workout, lunch and breaks pause it, clock-out ends it, and the
-// running session keeps Time Card on the wrist for the whole shift.
+// The shift's workout session (docs/watch.md 2, docs/health.md). Every shift records as an Apple
+// Watch workout: clock-in starts an outdoor Tree care workout (Other in Health), lunch and breaks
+// pause it, clock-out ends it, and the running session keeps Time Card on the wrist for the whole
+// shift. With Record route on, GPS feeds the workout's route while it runs.
 //
 // It never decides on its own. On each input it asks `WorkoutPlan` and does exactly that, from
 // one serial queue consumed by one main-actor loop: `.recover` always runs first, `.inputs`
@@ -31,7 +32,11 @@ struct WorkoutLive: Equatable, Sendable {
 
     var heartRate: Double?
     var kcal: Double?
+    var steps: Double?
+    var meters: Double?
     var recording: Recording = .idle
+    /// Record route is on, but the watch may not use location: "Route off · Allow Location…".
+    var routeOff = false
     var waitingClockOut = false
     var lastSummary: WorkoutSummary?
 }
@@ -96,10 +101,16 @@ final class ShiftWorkout {
     private(set) var live = WorkoutLive()
     /// Whether Health lets the watch record workouts.
     private(set) var access: HealthAccess
+    /// Health was allowed before steps and distance: the card asks once more.
+    private(set) var asksForMore: Bool
+    /// Whether the watch may use GPS for the route.
+    private(set) var location: LocationAccess
     private var askingStep: HealthOnboardingStep?
     /// The card was answered this launch. A request that failed (Health still "not determined")
     /// asks again at the next launch, never in a loop now.
     private var askedThisLaunch = false
+    /// The same for the location card.
+    private var askedLocationThisLaunch = false
 
     /// Delivers a finished shift's summary to the phone (`.workoutSummary`, no reply). False when
     /// the phone is out of reach: the summary waits in its one slot for `sendPendingSummary()`.
@@ -131,6 +142,8 @@ final class ShiftWorkout {
         self.store = store
         self.hooks = hooks
         self.access = driver.authorizationStatus()
+        self.asksForMore = driver.asksForMore
+        self.location = driver.locationStatus()
         self.summaries = store.summaries()
         live.lastSummary = summaries.last
         let events = driver.events
@@ -192,27 +205,51 @@ final class ShiftWorkout {
 
     // MARK: Health access and the first-launch card
 
-    /// The first-launch card's step (docs/watch.md 2.4), nil when there's no card: it shows while
-    /// recording is on (or nothing's known yet) and Health was never asked, and stays up through
-    /// the notification question. The Action button only launches the app until Health was asked
-    /// once, so it comes early.
+    /// The card's step (docs/watch.md 2.4, docs/health.md 2 and 3), nil when there's no card:
+    /// - `.health` while recording is on (or nothing's known yet) and Health was never asked. It
+    ///   stays up through the notification question. The Action button only launches the app
+    ///   until Health was asked once, so it comes early.
+    /// - `.healthMore` once after an update that reads more from Health (steps and distance).
+    /// - `.location` once Record route is on and location was never asked.
     var onboardingStep: HealthOnboardingStep? {
         if let askingStep { return askingStep }
-        return access == .notDetermined && !askedThisLaunch && (inputs.confirmed?.recordWorkouts ?? true) ? .health : nil
+        let state = inputs.confirmed
+        if !askedThisLaunch, state?.recordWorkouts ?? true {
+            if access == .notDetermined { return .health }
+            if access == .authorized, asksForMore { return .healthMore }
+        }
+        if !askedLocationThisLaunch, access == .authorized, location == .notDetermined, state?.recordRoute == true {
+            return .location
+        }
+        return nil
     }
 
     var needsHealthOnboarding: Bool { onboardingStep != nil }
 
-    /// "Allow Health", then "Remind me if a clock-out gets stuck."
+    /// "Allow Health", then (the first time) "Remind me if a clock-out gets stuck."
     func allowHealth() async {
-        askingStep = .health
+        let first = onboardingStep != .healthMore
+        askingStep = first ? .health : .healthMore
         access = await driver.requestAuthorization()
-        askingStep = .reminder
-        _ = await notifier.requestAuthorization()
+        asksForMore = driver.asksForMore
+        if first {
+            askingStep = .reminder
+            _ = await notifier.requestAuthorization()
+        }
         askedThisLaunch = true
         askingStep = nil
         refreshLive()
         recheck()
+    }
+
+    /// "Allow Location", for the route.
+    func allowLocation() async {
+        askingStep = .location
+        location = await driver.requestLocation()
+        askedLocationThisLaunch = true
+        askingStep = nil
+        applyRoute()
+        refreshLive()
     }
 
     // MARK: The shift summary
@@ -271,6 +308,8 @@ final class ShiftWorkout {
 
     private func process(_ input: WorkoutInput) async {
         access = driver.authorizationStatus()
+        asksForMore = driver.asksForMore
+        location = driver.locationStatus()
         switch input {
         case .recover:
             _ = await driver.recover()
@@ -289,6 +328,13 @@ final class ShiftWorkout {
         }
         scheduleDeadline()
         takeBackReminderIfAnswered()
+        applyRoute()
+    }
+
+    /// GPS for the route only with Record route on and location allowed; the driver runs it only
+    /// while the session runs.
+    private func applyRoute() {
+        driver.recordRoute(inputs.confirmed?.recordRoute == true && location == .authorized)
     }
 
     /// Reconciles until nothing is left to do (a finish can be followed by a start), at most a
@@ -346,6 +392,8 @@ final class ShiftWorkout {
         }
         live.heartRate = nil
         live.kcal = nil
+        live.steps = nil
+        live.meters = nil
         // A watch tap already played its own haptic; a workout the phone or a recovery started didn't.
         if origin == .phoneLaunch || origin == .recovered { hooks.haptic(.started) }
         if let warning = WatchDisplay.batteryWarning(level: hooks.battery()) {
@@ -384,10 +432,12 @@ final class ShiftWorkout {
 
     private func handle(_ event: WorkoutDriverEvent) {
         switch event {
-        case .metrics(let heartRate, let kcal):
+        case .metrics(let heartRate, let kcal, let steps, let meters):
             guard driver.local.hasSession else { return }
             if let heartRate { live.heartRate = heartRate }
             if let kcal { live.kcal = kcal }
+            if let steps { live.steps = steps }
+            if let meters { live.meters = meters }
         case .phase:
             refreshLive()
         case .endedUnexpectedly(let reason):
@@ -449,7 +499,10 @@ final class ShiftWorkout {
         if !local.hasSession {
             live.heartRate = nil
             live.kcal = nil
+            live.steps = nil
+            live.meters = nil
         }
+        live.routeOff = state?.recordRoute == true && location == .denied
     }
 
     private var timeZone: String {

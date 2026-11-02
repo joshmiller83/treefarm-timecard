@@ -17,8 +17,8 @@ import Foundation
 ///   revision counter kept in the store (`watch.revision`, beside `watch.epoch`), so the watch
 ///   never sees two states tie or go backwards, and a new phone or store starts a new epoch.
 ///
-/// Settings are read on every call, so turning "Record shifts as workouts" off shows up in the
-/// very next state.
+/// Settings are read on every call, so turning "Record shifts as workouts" (or the route) off
+/// shows up in the very next state.
 @MainActor
 public final class WatchDesk {
     public static let revisionKey = "watch.revision"
@@ -188,8 +188,9 @@ public final class WatchDesk {
         let at = now()
         let state: WatchState
         if let field = actions.state() {
+            let settings = settings()
             state = WatchStateBuilder.build(state: field, now: at, epoch: epoch, revision: revision,
-                                            recordWorkouts: settings().recordWorkouts,
+                                            recordWorkouts: settings.recordWorkouts, recordRoute: settings.recordRoute,
                                             appliedRequestIds: inbox.recentIds(WatchState.maxAppliedIds),
                                             lastAction: actions.liveSnapshot()?.lastAction, canUndo: actions.canUndo)
         } else {
