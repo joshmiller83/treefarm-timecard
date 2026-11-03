@@ -212,12 +212,14 @@ final class WatchShiftModel {
     }
 
     /// The observers and hooks the app needs at launch (docs/watch.md 8.3): the workout, the
-    /// Action button's donation, the App Shortcut parameters, and the workout's summary, which
-    /// goes to the phone after every flush.
+    /// Action button's donation, the App Shortcut parameters, the field log's activity (a mark
+    /// ends the row being shaped), and the workout's summary, which goes to the phone after
+    /// every flush.
     func registerAppObservers() {
         addObserver { change in ShiftWorkout.shared.reconcile(change.workout) }
         addObserver { change in ActionButtonDonor.shared.update(change.displayed) }
         addObserver { change in ShortcutParameterRefresher.shared.update(change.displayed) }
+        addObserver { change in FieldLabels.shared.observe(change.displayed) }
         actionButtonClockIn = { ShiftWorkout.shared.noteActionButtonClockIn(shiftId: $0) }
         afterFlush = { await ShiftWorkout.shared.sendPendingSummary() }
         ShiftWorkout.shared.sendSummary = { [weak self] summary in await self?.sendSummary(summary) ?? false }
