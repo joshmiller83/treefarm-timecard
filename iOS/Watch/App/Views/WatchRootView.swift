@@ -7,13 +7,15 @@ import TreeFarmKit
 ///   because the Action button only launches the app until Health was asked once
 /// - signed out or never connected → `SetupScreen`
 /// - off the clock → `OffClockScreen` (one page), or the shift summary right after a clock-out
-/// - on the clock → horizontal pages, opening on Now: Controls ← Now → Today
+/// - on the clock → horizontal pages, opening on Now: Controls ← Now → Today (with the field
+///   log's Activity page before Today while a log is written)
 ///
 /// It also owns the confirmation (Double Tap is off while it shows, so a pinch can never
 /// confirm a clock-out), the Queue sheet behind the badge, and the wrist-raise rule.
 struct WatchRootView: View {
     @State private var model = WatchShiftModel.shared
     @State private var workout = ShiftWorkout.shared
+    @State private var labels = FieldLabels.shared
     @State private var pending: PendingConfirmation?
     @State private var showQueue = false
     @Environment(\.scenePhase) private var scenePhase
@@ -77,6 +79,10 @@ struct WatchRootView: View {
             NowScreen(model: model, state: state,
                       primaryEnabled: model.pages.primaryActionEnabled(dialogShown: dialogShown), act: act) { showQueue = true }
                 .tag(ShiftPage.now)
+            if labels.logging {
+                ActivityScreen(state: state, labels: labels)
+                    .tag(ShiftPage.activity)
+            }
             TodayScreen(model: model, state: state) { showQueue = true }
                 .tag(ShiftPage.today)
         }

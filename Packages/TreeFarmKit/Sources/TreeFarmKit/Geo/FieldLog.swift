@@ -8,10 +8,12 @@ import Foundation
 // One file per workout, JSON Lines: a header line, then one line per second.
 //
 //     {"header":{"version":1,"startedAt":…,"shiftId":"…","device":"Watch7,5","timeZone":"…"}}
-//     {"second":{"t":…,"phase":"running","fixes":[…],"heartRate":104,"motion":{…}}}
+//     {"second":{"t":…,"phase":"running","fixes":[…],"heartRate":104,"motion":{…},"activity":"shaping"}}
+//
+// Version 2 added the activity the person tapped (`FieldActivity`) and its changes.
 
 public enum FieldLog {
-    public static let version = 1
+    public static let version = 2
     public static let fileExtension = "jsonl"
     /// The transfer's metadata says what the file is: `["kind": "fieldLog"]`.
     public static let metadataKey = "kind"
@@ -117,13 +119,20 @@ public struct FieldLogSecond: Codable, Hashable, Sendable {
     /// The latest heart rate, in beats a minute.
     public var heartRate: Double?
     public var motion: FieldLogMotion?
+    /// What the person said they were doing this second (version 2).
+    public var activity: FieldActivity?
+    /// The changes of activity during the second, oldest first; nil when none.
+    public var events: [FieldActivityEvent]?
 
-    public init(t: Date, phase: String, fixes: [FieldLogFix] = [], heartRate: Double? = nil, motion: FieldLogMotion? = nil) {
+    public init(t: Date, phase: String, fixes: [FieldLogFix] = [], heartRate: Double? = nil, motion: FieldLogMotion? = nil,
+                activity: FieldActivity? = nil, events: [FieldActivityEvent]? = nil) {
         self.t = t
         self.phase = phase
         self.fixes = fixes
         self.heartRate = heartRate
         self.motion = motion
+        self.activity = activity
+        self.events = events
     }
 }
 

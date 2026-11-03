@@ -35,7 +35,9 @@ final class RouteRecorder: NSObject {
         manager.delegate = self
         manager.activityType = .fitness
         manager.desiredAccuracy = kCLLocationAccuracyBest
-        manager.distanceFilter = 5
+        // Every fix, about one a second: a 5 m filter left 60–90 s between fixes while circling a
+        // tree, too few to place rows (docs/gis.md 10, Nov 2–3 logs).
+        manager.distanceFilter = kCLDistanceFilterNone
     }
 
     var access: LocationAccess { Self.access(manager.authorizationStatus) }

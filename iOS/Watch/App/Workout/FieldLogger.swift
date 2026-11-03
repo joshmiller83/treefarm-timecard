@@ -8,7 +8,8 @@ import WatchKit
 /// one line a second of what the watch senses. The fixes are the route's own (one GPS), the
 /// heart rate is the workout's, and the wrist motion comes from the batched device motion that
 /// workout apps get (acceleration and rotation, 200 a second), reduced on the spot by
-/// `MotionFeatures`: how hard the wrist moved, and how far it turned (a circle a tree).
+/// `MotionFeatures`: how hard the wrist moved, and how far it turned (a circle a tree). Each
+/// second also says what the person tapped they were doing (`FieldLabels`).
 ///
 /// The file stays on the watch for `keepDays` and goes to the phone when the workout ends.
 @MainActor
@@ -23,6 +24,7 @@ final class FieldLogger {
     private var motionTask: Task<Void, Never>?
     private var heartRate: @MainActor () -> Double? = { nil }
     private var phase: @MainActor () -> String = { WorkoutLocal.Phase.running.rawValue }
+    private let labels = FieldLabels.shared
 
     var isRunning: Bool { writer != nil }
 
@@ -37,6 +39,7 @@ final class FieldLogger {
                                     motionHz: Self.motionHz, wrist: wrist)
         guard let writer = try? FieldLogWriter(file: file, header: header) else { return }
         self.writer = writer
+        labels.begin(at: date)
         self.heartRate = heartRate
         self.phase = phase
         fixes = []
@@ -67,6 +70,7 @@ final class FieldLogger {
         stop()
         try? writer.close()
         self.writer = nil
+        labels.end()
         return writer.file
     }
 
@@ -78,8 +82,10 @@ final class FieldLogger {
 
     private func writeSecond() {
         guard let writer else { return }
+        let now = labels.drain()
         let second = FieldLogSecond(t: Date(), phase: phase(), fixes: fixes, heartRate: heartRate(),
-                                    motion: MotionFeatures.second(motion.take()))
+                                    motion: MotionFeatures.second(motion.take()), activity: now.activity,
+                                    events: now.events.isEmpty ? nil : now.events)
         fixes = []
         try? writer.append(second)
     }

@@ -1,9 +1,10 @@
 import Foundation
 
 /// The on-the-clock pages, horizontal as in Apple's Workout app (docs/watch.md 3.1):
-/// Controls ← Now → Today. Every wrist raise lands on Now.
+/// Controls ← Now → Today, with the field log's Activity page between Now and Today while a log
+/// is written (docs/gis.md 10). Every wrist raise lands on Now.
 enum ShiftPage: Hashable, Sendable, CaseIterable {
-    case controls, now, today
+    case controls, now, activity, today
 }
 
 /// Which page shows, and the rule that brings it back to Now.

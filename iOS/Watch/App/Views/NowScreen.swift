@@ -2,7 +2,9 @@ import SwiftUI
 import TreeFarmKit
 
 /// The primary screen on the clock (docs/watch.md 3.2, 3.3). It never scrolls, so Double Tap
-/// always acts: it marks the row on the big button (or goes back to work on a break).
+/// always acts: it marks the row on the big button (or goes back to work on a break). While a
+/// field log is written, Start row / Stop row sits under it (docs/gis.md 10); the mark still
+/// ends the row.
 ///
 /// The Digital Crown picks among the next 3 rows; six seconds after it stops, the selection
 /// snaps back to the next row. Every Double Tap and crown action is also an ordinary button.
@@ -16,6 +18,7 @@ struct NowScreen: View {
     @State private var chipIndex = 0
     @State private var snapBack: Task<Void, Never>?
     @State private var clockTick = Date()
+    @State private var labels = FieldLabels.shared
     @FocusState private var crownFocused: Bool
     @ScaledMetric(relativeTo: .largeTitle) private var timerScale: CGFloat = 1
     @Environment(\.isLuminanceReduced) private var dimmed
@@ -44,6 +47,8 @@ struct NowScreen: View {
                 }
                 .buttonStyle(GloveButtonStyle(tone: .quiet, height: metrics.secondary))
                 .accessibilityIdentifier("undoClockIn")
+            } else if labels.logging, phase == .working {
+                FieldRowButton(state: state, labels: labels, height: metrics.secondary, chip: shownChip(primary))
             }
         }
         .padding(.horizontal, 2)
@@ -218,6 +223,12 @@ struct NowScreen: View {
 
     /// The second sentence of `WatchDisplay.outOfKnownRows`, under the disabled button.
     static let bringPhoneCloser = WatchDisplay.outOfKnownRows.components(separatedBy: ". ").last ?? ""
+
+    /// The row on the big button, which Start row starts.
+    private func shownChip(_ primary: WatchDisplay.Primary) -> RowChip? {
+        if case .markRow(let chip) = primary { return chip }
+        return nil
+    }
 
     private func chipValue(_ primary: WatchDisplay.Primary) -> String {
         if case .markRow(let chip) = primary { return WatchDisplay.chipValue(chip) }
